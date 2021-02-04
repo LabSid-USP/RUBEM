@@ -1,0 +1,90 @@
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file 'ui.resources\ui_BaseDialog.ui'
+#
+# Created by: PyQt5 UI code generator 5.11.3
+#
+# WARNING! All changes made in this file will be lost!
+
+from PyQt5 import QtCore, QtGui, QtWidgets
+
+class Ui_BaseDialog(object):
+    def setupUi(self, BaseDialog):
+        BaseDialog.setObjectName("BaseDialog")
+        BaseDialog.resize(512, 646)
+        self.tabWidget = QtWidgets.QTabWidget(BaseDialog)
+        self.tabWidget.setGeometry(QtCore.QRect(10, 10, 501, 621))
+        self.tabWidget.setObjectName("tabWidget")
+        self.tab_4 = QtWidgets.QWidget()
+        self.tab_4.setObjectName("tab_4")
+        self.buttonBox = QtWidgets.QDialogButtonBox(self.tab_4)
+        self.buttonBox.setGeometry(QtCore.QRect(260, 420, 193, 28))
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName("buttonBox")
+        self.lineEdit = QtWidgets.QLineEdit(self.tab_4)
+        self.lineEdit.setGeometry(QtCore.QRect(10, 160, 301, 31))
+        self.lineEdit.setObjectName("lineEdit")
+        self.pushButton = QtWidgets.QPushButton(self.tab_4)
+        self.pushButton.setGeometry(QtCore.QRect(320, 160, 93, 28))
+        self.pushButton.setObjectName("pushButton")
+        self.lineEdit_2 = QtWidgets.QLineEdit(self.tab_4)
+        self.lineEdit_2.setGeometry(QtCore.QRect(10, 110, 301, 31))
+        self.lineEdit_2.setObjectName("lineEdit_2")
+        self.lineEdit_3 = QtWidgets.QLineEdit(self.tab_4)
+        self.lineEdit_3.setGeometry(QtCore.QRect(10, 210, 301, 31))
+        self.lineEdit_3.setObjectName("lineEdit_3")
+        self.pushButton_8 = QtWidgets.QPushButton(self.tab_4)
+        self.pushButton_8.setGeometry(QtCore.QRect(320, 110, 93, 28))
+        self.pushButton_8.setObjectName("pushButton_8")
+        self.pushButton_9 = QtWidgets.QPushButton(self.tab_4)
+        self.pushButton_9.setGeometry(QtCore.QRect(320, 210, 93, 28))
+        self.pushButton_9.setObjectName("pushButton_9")
+        self.lineEdit_4 = QtWidgets.QLineEdit(self.tab_4)
+        self.lineEdit_4.setGeometry(QtCore.QRect(10, 60, 301, 31))
+        self.lineEdit_4.setObjectName("lineEdit_4")
+        self.pushButton_11 = QtWidgets.QPushButton(self.tab_4)
+        self.pushButton_11.setGeometry(QtCore.QRect(320, 60, 93, 28))
+        self.pushButton_11.setObjectName("pushButton_11")
+        self.pushButton_12 = QtWidgets.QPushButton(self.tab_4)
+        self.pushButton_12.setGeometry(QtCore.QRect(10, 20, 93, 28))
+        self.pushButton_12.setObjectName("pushButton_12")
+        self.dateEdit = QtWidgets.QDateEdit(self.tab_4)
+        self.dateEdit.setGeometry(QtCore.QRect(20, 280, 110, 22))
+        self.dateEdit.setObjectName("dateEdit")
+        self.dateEdit_2 = QtWidgets.QDateEdit(self.tab_4)
+        self.dateEdit_2.setGeometry(QtCore.QRect(20, 320, 110, 22))
+        self.dateEdit_2.setObjectName("dateEdit_2")
+        self.label = QtWidgets.QLabel(self.tab_4)
+        self.label.setGeometry(QtCore.QRect(150, 280, 131, 21))
+        self.label.setObjectName("label")
+        self.label_2 = QtWidgets.QLabel(self.tab_4)
+        self.label_2.setGeometry(QtCore.QRect(150, 320, 131, 21))
+        self.label_2.setObjectName("label_2")
+        self.tabWidget.addTab(self.tab_4, "")
+
+        self.retranslateUi(BaseDialog)
+        self.tabWidget.setCurrentIndex(0)
+        self.pushButton.clicked.connect(BaseDialog.SearchDem)
+        self.buttonBox.rejected.connect(BaseDialog.reject)
+        self.pushButton_9.clicked.connect(BaseDialog.SearchKc_min)
+        self.pushButton_11.clicked.connect(BaseDialog.SetInput)
+        self.buttonBox.accepted.connect(BaseDialog.accept)
+        self.pushButton_8.clicked.connect(BaseDialog.SetOutput)
+        self.pushButton_12.clicked.connect(BaseDialog.NewProject)
+        self.dateEdit.editingFinished.connect(BaseDialog.SetStartDate)
+        self.dateEdit_2.editingFinished.connect(BaseDialog.SetEndDate)
+        QtCore.QMetaObject.connectSlotsByName(BaseDialog)
+
+    def retranslateUi(self, BaseDialog):
+        _translate = QtCore.QCoreApplication.translate
+        BaseDialog.setWindowTitle(_translate("BaseDialog", "Dialog"))
+        self.pushButton.setText(_translate("BaseDialog", "Dem"))
+        self.pushButton_8.setText(_translate("BaseDialog", "Output"))
+        self.pushButton_9.setText(_translate("BaseDialog", "kc_min_table"))
+        self.pushButton_11.setText(_translate("BaseDialog", "Input"))
+        self.pushButton_12.setText(_translate("BaseDialog", "Novo Config"))
+        self.label.setText(_translate("BaseDialog", "Data Inicio Simulação"))
+        self.label_2.setText(_translate("BaseDialog", "Data Fim Simulação"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), _translate("BaseDialog", "Inicio"))
+

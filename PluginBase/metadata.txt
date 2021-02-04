@@ -1,0 +1,12 @@
+[general]
+name= Plugin ADP
+qgisMinimumVersion=2.16
+qgisMaximumVersion=3.99
+description= Plugin Testes
+about= Plugin Base para ADP
+version=0.0
+author=Plugin Qgis
+email=lina@labsid.eng.br
+icon=images/icon.jpg
+experimental=False
+
