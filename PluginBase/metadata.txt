@@ -8,5 +8,6 @@ version=0.1
 author=Plugin Qgis
 email=lina@labsid.eng.br
 icon=images/icon.jpg
+repository= https://github.com/LabSid-USP/QGisUploadTest_v0.1
 experimental=True
 
