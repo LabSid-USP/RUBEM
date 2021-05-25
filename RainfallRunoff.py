@@ -1,25 +1,25 @@
-import time
-t1 = time.time()
-print("Inicio", flush=True)
-
-import configparser
 import os
-
+import time
+import datetime
+import calendar
+import configparser
 # importacao GDAL mais recente mantendo compatibilidade
 try:
     from osgeo import gdal
 except ImportError:
     import gdal
-
 import numpy as np
-from pcraster.framework import dynamicBase
 from pcraster.framework import *
 import pcraster as pcr
+
 # inportacao de funcoes do modelo chuva vazao
 from interception import *
 from evapotranspiration import *
 from surface_runoff import *
 from soil import *
+
+t1 = time.time()
+print("Inicio", flush=True)
 
 # Nome do arquivo de configuraçoes
 configFile = 'config.ini'
@@ -48,8 +48,7 @@ for file in genFilesList:
 
 ########## Funcoes auxiliares ##########
 gdal.UseExceptions() 
-def getRefInfo(self, sourceTif):
-    import gdal
+def getRefInfo(self, sourceTif): 
     gdal.AllRegister()
     ds = gdal.OpenEx(sourceTif)
     cols = ds.RasterXSize
@@ -60,8 +59,7 @@ def getRefInfo(self, sourceTif):
     
     return(Ref)
 
-def reportTif(self, tifRef, pcrObj, fileName, outpath, din = 0):
-    import gdal
+def reportTif(self, tifRef, pcrObj, fileName, outpath, din = 0): 
     # sourceTif = file to get attibutes from - DEM
     # pcrObj  = pcraster to export
     # fileName = string format
@@ -97,7 +95,6 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, din = 0):
 
 # Calculo de numero de meses (steps) com base nas datas inicial e final de simulacao
 def totalSteps(startDate, endDate):
-    import time, datetime
     # begin simulation
     yBegin = int(datetime.datetime.strptime(startDate ,'%d/%m/%Y').strftime("%Y"))
     monthBegin = int(datetime.datetime.strptime(startDate ,'%d/%m/%Y').strftime("%m"))
@@ -113,7 +110,6 @@ def totalSteps(startDate, endDate):
 
 # Calculo de numero de dias no mes a partir do timestep (para conversao de vazao de mm para m3/s)
 def daysOfMonth(startDate, timestep):
-    import calendar, datetime
     sourcedate = datetime.datetime.strptime(startDate,'%d/%m/%Y')
     month = sourcedate.month -2 + timestep
     year = sourcedate.year + month // 12
@@ -207,7 +203,6 @@ class Modelo(DynamicModel):
       self.OutTssRun= ('outRun')
  
       # Report file
-      import time
       # name
       self.timeStamp = str((time.strftime("%Y%m%d_%H%M%S",time.localtime(t1))))
       # header 
@@ -424,7 +419,6 @@ end = steps[1]
 myModel = Modelo()
 dynamicModel = DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
 dynamicModel.run()
-import time
 tempoExec = time.time() - t1
 print("Tempo de execução: {:.2f} segundos".format(tempoExec))
 print("Fim", flush=True)
