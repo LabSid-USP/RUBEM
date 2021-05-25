@@ -260,8 +260,8 @@ class Modelo(DynamicModel):
         self.ndvi_max = scalar(readmap(self.ndviMaxFile))
 
         # Compute min and max sr
-        self.sr_min = sr_calc(pcr,self,self.ndvi_min)
-        self.sr_max = sr_calc(pcr,self,self.ndvi_max)
+        self.sr_min = sr_calc(self, pcr,self.ndvi_min)
+        self.sr_max = sr_calc(self, pcr,self.ndvi_max)
 
         # Read soil atributes
         solo = self.readmap((self.soil_path))
@@ -340,23 +340,23 @@ class Modelo(DynamicModel):
         self.kc_max = lookupscalar(self.KcmaxTable,self.landuse)
 
         ######### compute interception #########      
-        SR = sr_calc(pcr,self,NDVI)
-        FPAR = fpar_calc(pcr, self, self.fpar_min, self.fpar_max, SR, self.sr_min, self.sr_max)
-        LAI = lai_function(pcr, self, FPAR, self.fpar_max, self.lai_max)
-        Id, Ir, Iv, I = Interception_function(pcr, self, self.alfa, LAI, precipitation, rainyDays, Av)
+        SR = sr_calc(self, pcr,NDVI)
+        FPAR = fpar_calc(self, pcr, self.fpar_min, self.fpar_max, SR, self.sr_min, self.sr_max)
+        LAI = lai_function(self, pcr, FPAR, self.fpar_max, self.lai_max)
+        Id, Ir, Iv, I = Interception_function(self, pcr, self.alfa, LAI, precipitation, rainyDays, Av)
 
         print("\tInterceptacao... OK", flush=True)
         ######### Compute Evapotranspiration #########
 
-        Kc_1 = kc_calc(pcr, self, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
+        Kc_1 = kc_calc(self, pcr, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
         # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
         kc_cond1 = scalar(NDVI < 1.1*self.ndvi_min)
         kc_cond2 = scalar(NDVI > 1.1*self.ndvi_min)
         Kc = pcr.scalar((kc_cond2*Kc_1) + (kc_cond1*self.kc_min))  
-        Ks = pcr.scalar(Ks_calc(pcr, self, self.TUr, self.TUw, self.TUcc))
+        Ks = pcr.scalar(Ks_calc(self, pcr, self.TUr, self.TUw, self.TUcc))
 
         # Vegetated area
-        self.ET_av = ETav_calc(pcr, self, ETp, Kc, Ks)
+        self.ET_av = ETav_calc(self, pcr, ETp, Kc, Ks)
 
         # Impervious area
         # ET impervious area = Interception of impervious area
@@ -366,45 +366,45 @@ class Modelo(DynamicModel):
         self.ET_ai = (self.I_i*cond)
 
         # Open water
-        self.ET_ao = ETao_calc(pcr, self, ETp, Kp, precipitation, Ao)
+        self.ET_ao = ETao_calc(self, pcr, ETp, Kp, precipitation, Ao)
         #self.report(ET_ao,self.outpath+'ETao')
 
         # Bare soil
-        self.ET_as = ETas_calc(pcr, self, ETp, self.kc_min, Ks)
+        self.ET_as = ETas_calc(self, pcr, ETp, self.kc_min, Ks)
         self.ETr = (Av*self.ET_av) + (Ai*self.ET_ai) + (Ao*self.ET_ao) + (As*self.ET_as) 
 
         print("\tEvapotranspiracao... OK", flush=True)
 
         ######### Surface Runoff #########      
         Pdm = (precipitation/rainyDays)      
-        Ch = Ch_calc(pcr, self, self.TUr, self.dg, self.Zr, self.Tpor, self.b)      
-        Cper = Cper_calc(pcr, self, self.TUw, self.dg, self.Zr, self.S, n_manning, self.w1, self.w2, self.w3)       
-        Aimp, Cimp = Cimp_calc(pcr, self, Ao, Ai)     
-        Cwp = Cwp_calc(pcr, self, Aimp, Cper, Cimp)      
-        Csr = Csr_calc(pcr, self, Cwp, Pdm, self.RCD)
+        Ch = Ch_calc(self, pcr, self.TUr, self.dg, self.Zr, self.Tpor, self.b)      
+        Cper = Cper_calc(self, pcr, self.TUw, self.dg, self.Zr, self.S, n_manning, self.w1, self.w2, self.w3)       
+        Aimp, Cimp = Cimp_calc(self, pcr, Ao, Ai)     
+        Cwp = Cwp_calc(self, pcr, Aimp, Cper, Cimp)      
+        Csr = Csr_calc(self, pcr, Cwp, Pdm, self.RCD)
 
-        self.ES = ES_calc(pcr, self, Csr, Ch, precipitation, I, Ao, self.ET_ao)
+        self.ES = ES_calc(self, pcr, Csr, Ch, precipitation, I, Ao, self.ET_ao)
 
         print("\tEscoamento Superficial... OK", flush=True)
         ######### Lateral Flow #########
-        self.LF = LF_calc(pcr, self, self.f, self.Kr, self.TUr, self.TUsat)
+        self.LF = LF_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
         print("\tFluxo Lateral... OK", flush=True)
         ######### Recharge Flow #########
-        self.REC = REC_calc(pcr, self, self.f, self.Kr, self.TUr, self.TUsat)
+        self.REC = REC_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
         print("\tRecarga... OK", flush=True)
         ######### Base Flow #########
         # reportTif(self, self.ref, self.EBprev, 'EBprev', self.outpath, din = 1)
         # reportTif(self, self.ref, self.TUs, 'TUs2', self.outpath, din = 1)
 
-        self.EB = EB_calc(pcr, self, self.EBprev, self.alfa_gw, self.REC, self.TUs, self.EB_lim)
+        self.EB = EB_calc(self, pcr, self.EBprev, self.alfa_gw, self.REC, self.TUs, self.EB_lim)
         self.EBprev = self.EB
         # reportTif(self, self.ref, self.EB, 'EB', self.outpath, din = 1)
 
         ######### Soil Balance #########
-        self.TUr = TUr_calc(pcr, self, self.TUrprev, precipitation, I, self.ES, self.LF, self.REC, self.ETr, Ao, self.TUsat)
-        self.TUs = TUs_calc(pcr, self, self.TUsprev, self.REC, self.EB)
+        self.TUr = TUr_calc(self, pcr, self.TUrprev, precipitation, I, self.ES, self.LF, self.REC, self.ETr, Ao, self.TUsat)
+        self.TUs = TUs_calc(self, pcr, self.TUsprev, self.REC, self.EB)
         self.TUrprev = self.TUr
 
         self.TUsprev = self.TUs
