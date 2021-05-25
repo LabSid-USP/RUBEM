@@ -256,8 +256,8 @@ class Modelo(DynamicModel):
         self.TssFileRun = TimeoutputTimeseries(self.OutTssRun, self, self.sampleLocs, noHeader=True)
 
         # Read min and max ndvi
-        self.ndvi_min = scalar(readmap(self.ndvi_path+self.ndviMinFile))
-        self.ndvi_max = scalar(readmap(self.ndvi_path+self.ndviMaxFile))
+        self.ndvi_min = scalar(readmap(self.ndviMinFile))
+        self.ndvi_max = scalar(readmap(self.ndviMaxFile))
 
         # Compute min and max sr
         self.sr_min = sr_calc(pcr,self,self.ndvi_min)
