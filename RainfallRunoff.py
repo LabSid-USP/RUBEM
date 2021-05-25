@@ -146,8 +146,6 @@ class Modelo(DynamicModel):
         DynamicModel.__init__(self)
         print("Lendo arquivos de entrada", flush=True)
         # Read file locations
-        config = configparser.ConfigParser()
-        config.read(configFile)
         self.inpath = config.get('FILES', 'input')
         self.dem_file = config.get('FILES', 'dem')
         self.demTif = config.get('FILES', 'demtif')
@@ -220,6 +218,9 @@ class Modelo(DynamicModel):
         self.fpar_min = config.getfloat('CONSTANT', 'fpar_min')
         self.lai_max = config.getfloat('CONSTANT', 'lai_max')
         self.I_i = config.getfloat('CONSTANT', 'i_imp')
+
+        # Make sure to close the input stream when finished
+        args.configfile.close()
 
         # # Initialize time series output
         self.OutTssRun= ('outRun')
@@ -437,8 +438,12 @@ class Modelo(DynamicModel):
       
 if __name__ == "__main__":
     
+    # Configure CLI
     parser = argparse.ArgumentParser()
-    parser.add_argument('--configfile', type=str, help="path to configuration file")
+    parser.add_argument('--configfile', 
+                        type=argparse.FileType('r', encoding='utf-8'), 
+                        help="path to configuration file",
+                        required=True)
                             
     args = parser.parse_args()
 
