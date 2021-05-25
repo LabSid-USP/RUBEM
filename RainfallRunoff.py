@@ -20,33 +20,6 @@ from evapotranspiration import *
 from surface_runoff import *
 from soil import *
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--configfile', type=str, help="path to configuration file")
-                        
-args = parser.parse_args()
-
-t1 = time.time()
-print("Inicio", flush=True)
-
-# Leitura de arquivo config.ini
-config = configparser.ConfigParser()
-config.read(args.configfile)
-
-# Data inicial e final da simulacao
-startDate = config.get('SIM_TIME', 'start')
-endDate = config.get('SIM_TIME', 'end')
-
-# mkDir "OutPut"
-isOutputFolder = os.path.isdir(str(config.get('FILES', 'output')))
-if isOutputFolder == False:
-    os.mkdir(str(config.get('FILES', 'output')))
-
-# get files to export
-genFilesList = ['Int', 'Eb', 'Esd', 'Evp', 'Lf', 'Rec', 'Tur', 'Vazao', 'auxQtot', 'auxRec']
-genFilesDic = {}
-for file in genFilesList:
-    genFilesDic[file] = config.get('GENERATE_FILE', file)
-
 ########## Funcoes auxiliares ##########
 gdal.UseExceptions() 
 def getRefInfo(self, sourceTif):
@@ -461,13 +434,41 @@ class Modelo(DynamicModel):
 
         print("Finalizando ciclo "+str(t) + " de "+ str(self.lastStep), flush=True)                        
       
+if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--configfile', type=str, help="path to configuration file")
+                            
+    args = parser.parse_args()
 
-steps = totalSteps(startDate,endDate)
-start = steps[0]
-end = steps[1]
-myModel = Modelo()
-dynamicModel = DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
-dynamicModel.run()
-tempoExec = time.time() - t1
-print("Tempo de execucao: {:.2f} segundos".format(tempoExec))
-print("Fim", flush=True)
+    t1 = time.time()
+    print("Inicio", flush=True)
+
+    # Leitura de arquivo config.ini
+    config = configparser.ConfigParser()
+    config.read(args.configfile)
+
+    # Data inicial e final da simulacao
+    startDate = config.get('SIM_TIME', 'start')
+    endDate = config.get('SIM_TIME', 'end')
+
+    # mkDir "OutPut"
+    isOutputFolder = os.path.isdir(str(config.get('FILES', 'output')))
+    if isOutputFolder == False:
+        os.mkdir(str(config.get('FILES', 'output')))
+
+    # get files to export
+    genFilesList = ['Int', 'Eb', 'Esd', 'Evp', 'Lf', 'Rec', 'Tur', 'Vazao', 'auxQtot', 'auxRec']
+    genFilesDic = {}
+    for file in genFilesList:
+        genFilesDic[file] = config.get('GENERATE_FILE', file)
+
+    steps = totalSteps(startDate,endDate)
+    start = steps[0]
+    end = steps[1]
+    myModel = Modelo()
+    dynamicModel = DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
+    dynamicModel.run()
+    tempoExec = time.time() - t1
+    print("Tempo de execucao: {:.2f} segundos".format(tempoExec))
+    print("Fim", flush=True)
