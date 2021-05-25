@@ -452,7 +452,7 @@ if __name__ == "__main__":
 
     # Leitura de arquivo config.ini
     config = configparser.ConfigParser()
-    config.read(args.configfile)
+    config.read_file(args.configfile)
 
     # Data inicial e final da simulacao
     startDate = config.get('SIM_TIME', 'start')
