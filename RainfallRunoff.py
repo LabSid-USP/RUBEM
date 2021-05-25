@@ -23,7 +23,7 @@ from soil import *
 t1 = time.time()
 print("Inicio", flush=True)
 
-# Nome do arquivo de configuraçoes
+# Nome do arquivo de configuracoes
 configFile = 'config.ini'
 
 # Leitura de arquivo config.ini
@@ -288,10 +288,10 @@ class Modelo(DynamicModel):
 
         # Read soil atributes
         solo = self.readmap((self.soil_path))
-        self.Kr = lookupscalar(self.KrTable,solo) #coeficiente de condutividade hidráulica
+        self.Kr = lookupscalar(self.KrTable,solo) #coeficiente de condutividade hidraulica
         self.dg = lookupscalar(self.dgTable,solo) #densidade do solo
         self.Zr = lookupscalar(self.ZrTable,solo) # profundidade da zona radicular [cm]
-        self.TUsat = lookupscalar(self.TsatTable,solo)*self.dg*self.Zr*10 # umidade para saturação da primeira camada [mm]
+        self.TUsat = lookupscalar(self.TsatTable,solo)*self.dg*self.Zr*10 # umidade para saturacao da primeira camada [mm]
         self.TUr_ini = (self.TUsat)*(self.ftur_ini) # teor de umidade inicial da zona radicular [mm]
         self.TUw = lookupscalar(self.TwTable,solo)*self.dg*self.Zr*10  # ponto de mucrha do solo [mm]
         self.TUcc = lookupscalar(self.TccTable,solo)*self.dg*self.Zr*10 # capacidade de campo [mm]
@@ -368,7 +368,7 @@ class Modelo(DynamicModel):
         LAI = lai_function(pcr, self, FPAR, self.fpar_max, self.lai_max)
         Id, Ir, Iv, I = Interception_function(pcr, self, self.alfa, LAI, precipitation, rainyDays, Av)
 
-        print("Interceptação...ok", flush=True)
+        print("Interceptacao...ok", flush=True)
         ######### Compute Evapotranspiration #########
 
         Kc_1 = kc_calc(pcr, self, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
@@ -396,7 +396,7 @@ class Modelo(DynamicModel):
         self.ET_as = ETas_calc(pcr, self, ETp, self.kc_min, Ks)
         self.ETr = (Av*self.ET_av) + (Ai*self.ET_ai) + (Ao*self.ET_ao) + (As*self.ET_as) 
 
-        print("Evapotranspiração...ok", flush=True)
+        print("Evapotranspiracao...ok", flush=True)
 
         ######### Surface Runoff #########      
         Pdm = (precipitation/rainyDays)      
@@ -431,7 +431,7 @@ class Modelo(DynamicModel):
         self.TUrprev = self.TUr
 
         self.TUsprev = self.TUs
-        print("Balanço hídrico do solo...ok", flush=True)
+        print("Balanco hidrico do solo...ok", flush=True)
         ######### Compute Runoff ########      
         days = daysOfMonth(startDate,t)  
         c = days*24*3600
@@ -444,7 +444,7 @@ class Modelo(DynamicModel):
         self.runoff = self.x*self.Qprev + (1-self.x)*self.Qt
         self.Qprev = self.runoff
 
-        print("Vazão...ok", flush=True)
+        print("Vazao...ok", flush=True)
 
         # # Create tss files
         os.chdir(self.outpath)
@@ -467,5 +467,5 @@ myModel = Modelo()
 dynamicModel = DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
 dynamicModel.run()
 tempoExec = time.time() - t1
-print("Tempo de execução: {:.2f} segundos".format(tempoExec))
+print("Tempo de execucao: {:.2f} segundos".format(tempoExec))
 print("Fim", flush=True)
