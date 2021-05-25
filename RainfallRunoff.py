@@ -20,15 +20,17 @@ from evapotranspiration import *
 from surface_runoff import *
 from soil import *
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--configfile', type=str, help="path to configuration file")
+                        
+args = parser.parse_args()
+
 t1 = time.time()
 print("Inicio", flush=True)
 
-# Nome do arquivo de configuracoes
-configFile = 'config.ini'
-
 # Leitura de arquivo config.ini
 config = configparser.ConfigParser()
-config.read(configFile)
+config.read(args.configfile)
 
 # Data inicial e final da simulacao
 startDate = config.get('SIM_TIME', 'start')
