@@ -4,7 +4,13 @@ print("Inicio", flush=True)
 
 import configparser
 import os
-import gdal
+
+# importacao GDAL mais recente mantendo compatibilidade
+try:
+    from osgeo import gdal
+except ImportError:
+    import gdal
+
 import numpy as np
 from pcraster.framework import dynamicBase
 from pcraster.framework import *
