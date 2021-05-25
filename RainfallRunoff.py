@@ -14,7 +14,7 @@ import numpy as np
 from pcraster.framework import *
 import pcraster as pcr
 
-# inportacao de funcoes do modelo chuva vazao
+# importacao de funcoes do modelo chuva vazao
 from interception import *
 from evapotranspiration import *
 from surface_runoff import *
