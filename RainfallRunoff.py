@@ -345,7 +345,7 @@ class Modelo(DynamicModel):
         LAI = lai_function(pcr, self, FPAR, self.fpar_max, self.lai_max)
         Id, Ir, Iv, I = Interception_function(pcr, self, self.alfa, LAI, precipitation, rainyDays, Av)
 
-        print("Interceptacao...ok", flush=True)
+        print("\tInterceptacao... OK", flush=True)
         ######### Compute Evapotranspiration #########
 
         Kc_1 = kc_calc(pcr, self, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
@@ -373,7 +373,7 @@ class Modelo(DynamicModel):
         self.ET_as = ETas_calc(pcr, self, ETp, self.kc_min, Ks)
         self.ETr = (Av*self.ET_av) + (Ai*self.ET_ai) + (Ao*self.ET_ao) + (As*self.ET_as) 
 
-        print("Evapotranspiracao...ok", flush=True)
+        print("\tEvapotranspiracao... OK", flush=True)
 
         ######### Surface Runoff #########      
         Pdm = (precipitation/rainyDays)      
@@ -385,15 +385,15 @@ class Modelo(DynamicModel):
 
         self.ES = ES_calc(pcr, self, Csr, Ch, precipitation, I, Ao, self.ET_ao)
 
-        print("Escoamento Superficial...ok", flush=True)
+        print("\tEscoamento Superficial... OK", flush=True)
         ######### Lateral Flow #########
         self.LF = LF_calc(pcr, self, self.f, self.Kr, self.TUr, self.TUsat)
 
-        print("Fluxo Lateral...ok", flush=True)
+        print("\tFluxo Lateral... OK", flush=True)
         ######### Recharge Flow #########
         self.REC = REC_calc(pcr, self, self.f, self.Kr, self.TUr, self.TUsat)
 
-        print("Recarga...ok", flush=True)
+        print("\tRecarga... OK", flush=True)
         ######### Base Flow #########
         # reportTif(self, self.ref, self.EBprev, 'EBprev', self.outpath, din = 1)
         # reportTif(self, self.ref, self.TUs, 'TUs2', self.outpath, din = 1)
@@ -408,7 +408,7 @@ class Modelo(DynamicModel):
         self.TUrprev = self.TUr
 
         self.TUsprev = self.TUs
-        print("Balanco hidrico do solo...ok", flush=True)
+        print("\tBalanco hidrico do solo... OK", flush=True)
         ######### Compute Runoff ########      
         days = daysOfMonth(startDate,t)  
         c = days*24*3600
@@ -421,7 +421,7 @@ class Modelo(DynamicModel):
         self.runoff = self.x*self.Qprev + (1-self.x)*self.Qt
         self.Qprev = self.runoff
 
-        print("Vazao...ok", flush=True)
+        print("\tVazao... OK", flush=True)
 
         # # Create tss files
         os.chdir(self.outpath)
