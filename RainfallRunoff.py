@@ -27,10 +27,7 @@ configFile = 'config.ini'
 # Leitura de arquivo config.ini
 config = configparser.ConfigParser()
 config.read(configFile)
-# Leitura de local de arquivos de entrada
-files = config.get('FILES', 'dir')
-# Nome do arquivo com série de vazao observada nos postos dados - deve ser criado no formato compatível
-obsData = config.get('FILES', 'obsdata')
+
 # Data inicial e final da simulacao
 startDate = config.get('SIM_TIME', 'start')
 endDate = config.get('SIM_TIME', 'end')
