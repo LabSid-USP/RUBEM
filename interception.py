@@ -1,3 +1,5 @@
+# coding=utf-8
+
 ########## Interception Module ##########
 
 # - Function that returns srmin and srmax

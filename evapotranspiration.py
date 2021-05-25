@@ -1,3 +1,5 @@
+# coding=utf-8
+
 ########## Evapotranspiration Module ##########
 
 # - Function that returns Ks for evapotranspiration of vegetated area

@@ -1,3 +1,5 @@
+# coding=utf-8
+
 ########## Surface runoff ##########
 
 # - Function that returns Ch
@@ -149,7 +151,7 @@ def ES_calc(self, pcr, Csr, Ch, prec, I, Ao, ETao):
 
     :param ETao:
     :ETao  type:   
-    
+
     :returns:
     :rtype: 
     """           

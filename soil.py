@@ -1,3 +1,5 @@
+# coding=utf-8
+
 ########## Lateral Flow ##########
 def LF_calc(self, pcr, f, Kr, TUr, TUsat):
     """
