@@ -5,6 +5,7 @@ import time
 import datetime
 import calendar
 import configparser
+import argparse
 # importacao GDAL mais recente mantendo compatibilidade
 try:
     from osgeo import gdal
