@@ -12,7 +12,9 @@ try:
 except ImportError:
     import gdal
 import numpy as np
-from pcraster.framework import *
+from pcraster.framework import (scalar, lookupscalar, pcr2numpy, readmap, 
+                                slope, pit, catchment, accuflux, 
+                                TimeoutputTimeseries, DynamicModel, DynamicFramework)
 import pcraster as pcr
 
 # importacao de funcoes do modelo chuva vazao
