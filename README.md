@@ -60,9 +60,9 @@ To get a local copy up and running follow these simple steps.
 
 This is an example of how to list things you need to use the software and how to install them.
 
-* Create a conda envionment
+* From Miniconda base envionment create a new conda envionment
 ```sh
-  conda create --name rubem
+  conda create --name rubem python=3.7
  ```
  * Activate the new environment
 
@@ -96,7 +96,7 @@ Clone the repo
    ```sh
    git clone https://github.com/LabSid-USP/RUBEM.git
    ```
-2. Install PyInstaller conda package in another conda environment
+2. Install PyInstaller conda package
    ```sh
     conda install -c conda-forge pyinstaller 
    ```   
