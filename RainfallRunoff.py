@@ -169,8 +169,8 @@ class Modelo(DynamicModel):
         self.etpPrefix = config.get('FILES', 'etpFilePrefix')
         self.precPrefix = config.get('FILES', 'precFilePrefix')
         self.ndviPrefix = config.get('FILES', 'ndviFilePrefix')  
-        self.ndviMaxFile = config.get('FILES', 'ndvimaxPrefix') 
-        self.ndviMinFile = config.get('FILES', 'ndviminPrefix') 
+        self.ndviMaxFile = config.get('FILES', 'ndvimax') 
+        self.ndviMinFile = config.get('FILES', 'ndvimin') 
         self.kpPrefix = config.get('FILES', 'kpFilePrefix')
         self.coverPrefix = config.get('FILES', 'landuseFilePrefix')
 
