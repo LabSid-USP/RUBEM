@@ -74,9 +74,9 @@ This is an example of how to list things you need to use the software and how to
 ```sh
   source activate rubem
 ```
-  * Install QGIS conda package
+  * Install GDAL conda package
 ```sh
-  conda install -c conda-forge qgis 
+  conda install -c conda-forge gdal 
  ```
  * Install PCRaster conda package
 ```sh
