@@ -5,45 +5,23 @@ import time
 import datetime
 import calendar
 import configparser
+import argparse
 # importacao GDAL mais recente mantendo compatibilidade
 try:
     from osgeo import gdal
 except ImportError:
     import gdal
 import numpy as np
-from pcraster.framework import *
+from pcraster.framework import (scalar, lookupscalar, pcr2numpy, readmap, 
+                                slope, pit, catchment, accuflux, 
+                                TimeoutputTimeseries, DynamicModel, DynamicFramework)
 import pcraster as pcr
 
-# inportacao de funcoes do modelo chuva vazao
+# importacao de funcoes do modelo chuva vazao
 from interception import *
 from evapotranspiration import *
 from surface_runoff import *
 from soil import *
-
-t1 = time.time()
-print("Inicio", flush=True)
-
-# Nome do arquivo de configuracoes
-configFile = 'config.ini'
-
-# Leitura de arquivo config.ini
-config = configparser.ConfigParser()
-config.read(configFile)
-
-# Data inicial e final da simulacao
-startDate = config.get('SIM_TIME', 'start')
-endDate = config.get('SIM_TIME', 'end')
-
-# mkDir "OutPut"
-isOutputFolder = os.path.isdir(str(config.get('FILES', 'output')))
-if isOutputFolder == False:
-    os.mkdir(str(config.get('FILES', 'output')))
-
-# get files to export
-genFilesList = ['Int', 'Eb', 'Esd', 'Evp', 'Lf', 'Rec', 'Tur', 'Vazao', 'auxQtot', 'auxRec']
-genFilesDic = {}
-for file in genFilesList:
-    genFilesDic[file] = config.get('GENERATE_FILE', file)
 
 ########## Funcoes auxiliares ##########
 gdal.UseExceptions() 
@@ -170,8 +148,6 @@ class Modelo(DynamicModel):
         DynamicModel.__init__(self)
         print("Lendo arquivos de entrada", flush=True)
         # Read file locations
-        config = configparser.ConfigParser()
-        config.read(configFile)
         self.inpath = config.get('FILES', 'input')
         self.dem_file = config.get('FILES', 'dem')
         self.demTif = config.get('FILES', 'demtif')
@@ -193,8 +169,8 @@ class Modelo(DynamicModel):
         self.etpPrefix = config.get('FILES', 'etpFilePrefix')
         self.precPrefix = config.get('FILES', 'precFilePrefix')
         self.ndviPrefix = config.get('FILES', 'ndviFilePrefix')  
-        self.ndviMaxFile = config.get('FILES', 'ndvimaxPrefix') 
-        self.ndviMinFile = config.get('FILES', 'ndviminPrefix') 
+        self.ndviMaxFile = config.get('FILES', 'ndvimax') 
+        self.ndviMinFile = config.get('FILES', 'ndvimin') 
         self.kpPrefix = config.get('FILES', 'kpFilePrefix')
         self.coverPrefix = config.get('FILES', 'landuseFilePrefix')
 
@@ -245,6 +221,9 @@ class Modelo(DynamicModel):
         self.lai_max = config.getfloat('CONSTANT', 'lai_max')
         self.I_i = config.getfloat('CONSTANT', 'i_imp')
 
+        # Make sure to close the input stream when finished
+        args.configfile.close()
+
         # # Initialize time series output
         self.OutTssRun= ('outRun')
 
@@ -279,12 +258,12 @@ class Modelo(DynamicModel):
         self.TssFileRun = TimeoutputTimeseries(self.OutTssRun, self, self.sampleLocs, noHeader=True)
 
         # Read min and max ndvi
-        self.ndvi_min = scalar(readmap(self.ndvi_path+self.ndviMinFile))
-        self.ndvi_max = scalar(readmap(self.ndvi_path+self.ndviMaxFile))
+        self.ndvi_min = scalar(readmap(self.ndviMinFile))
+        self.ndvi_max = scalar(readmap(self.ndviMaxFile))
 
         # Compute min and max sr
-        self.sr_min = sr_calc(pcr,self,self.ndvi_min)
-        self.sr_max = sr_calc(pcr,self,self.ndvi_max)
+        self.sr_min = sr_calc(self, pcr,self.ndvi_min)
+        self.sr_max = sr_calc(self, pcr,self.ndvi_max)
 
         # Read soil atributes
         solo = self.readmap((self.soil_path))
@@ -363,23 +342,23 @@ class Modelo(DynamicModel):
         self.kc_max = lookupscalar(self.KcmaxTable,self.landuse)
 
         ######### compute interception #########      
-        SR = sr_calc(pcr,self,NDVI)
-        FPAR = fpar_calc(pcr, self, self.fpar_min, self.fpar_max, SR, self.sr_min, self.sr_max)
-        LAI = lai_function(pcr, self, FPAR, self.fpar_max, self.lai_max)
-        Id, Ir, Iv, I = Interception_function(pcr, self, self.alfa, LAI, precipitation, rainyDays, Av)
+        SR = sr_calc(self, pcr,NDVI)
+        FPAR = fpar_calc(self, pcr, self.fpar_min, self.fpar_max, SR, self.sr_min, self.sr_max)
+        LAI = lai_function(self, pcr, FPAR, self.fpar_max, self.lai_max)
+        Id, Ir, Iv, I = Interception_function(self, pcr, self.alfa, LAI, precipitation, rainyDays, Av)
 
-        print("Interceptacao...ok", flush=True)
+        print("\tInterceptacao... OK", flush=True)
         ######### Compute Evapotranspiration #########
 
-        Kc_1 = kc_calc(pcr, self, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
+        Kc_1 = kc_calc(self, pcr, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
         # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
         kc_cond1 = scalar(NDVI < 1.1*self.ndvi_min)
         kc_cond2 = scalar(NDVI > 1.1*self.ndvi_min)
         Kc = pcr.scalar((kc_cond2*Kc_1) + (kc_cond1*self.kc_min))  
-        Ks = pcr.scalar(Ks_calc(pcr, self, self.TUr, self.TUw, self.TUcc))
+        Ks = pcr.scalar(Ks_calc(self, pcr, self.TUr, self.TUw, self.TUcc))
 
         # Vegetated area
-        self.ET_av = ETav_calc(pcr, self, ETp, Kc, Ks)
+        self.ET_av = ETav_calc(self, pcr, ETp, Kc, Ks)
 
         # Impervious area
         # ET impervious area = Interception of impervious area
@@ -389,49 +368,49 @@ class Modelo(DynamicModel):
         self.ET_ai = (self.I_i*cond)
 
         # Open water
-        self.ET_ao = ETao_calc(pcr, self, ETp, Kp, precipitation, Ao)
+        self.ET_ao = ETao_calc(self, pcr, ETp, Kp, precipitation, Ao)
         #self.report(ET_ao,self.outpath+'ETao')
 
         # Bare soil
-        self.ET_as = ETas_calc(pcr, self, ETp, self.kc_min, Ks)
+        self.ET_as = ETas_calc(self, pcr, ETp, self.kc_min, Ks)
         self.ETr = (Av*self.ET_av) + (Ai*self.ET_ai) + (Ao*self.ET_ao) + (As*self.ET_as) 
 
-        print("Evapotranspiracao...ok", flush=True)
+        print("\tEvapotranspiracao... OK", flush=True)
 
         ######### Surface Runoff #########      
         Pdm = (precipitation/rainyDays)      
-        Ch = Ch_calc(pcr, self, self.TUr, self.dg, self.Zr, self.Tpor, self.b)      
-        Cper = Cper_calc(pcr, self, self.TUw, self.dg, self.Zr, self.S, n_manning, self.w1, self.w2, self.w3)       
-        Aimp, Cimp = Cimp_calc(pcr, self, Ao, Ai)     
-        Cwp = Cwp_calc(pcr, self, Aimp, Cper, Cimp)      
-        Csr = Csr_calc(pcr, self, Cwp, Pdm, self.RCD)
+        Ch = Ch_calc(self, pcr, self.TUr, self.dg, self.Zr, self.Tpor, self.b)      
+        Cper = Cper_calc(self, pcr, self.TUw, self.dg, self.Zr, self.S, n_manning, self.w1, self.w2, self.w3)       
+        Aimp, Cimp = Cimp_calc(self, pcr, Ao, Ai)     
+        Cwp = Cwp_calc(self, pcr, Aimp, Cper, Cimp)      
+        Csr = Csr_calc(self, pcr, Cwp, Pdm, self.RCD)
 
-        self.ES = ES_calc(pcr, self, Csr, Ch, precipitation, I, Ao, self.ET_ao)
+        self.ES = ES_calc(self, pcr, Csr, Ch, precipitation, I, Ao, self.ET_ao)
 
-        print("Escoamento Superficial...ok", flush=True)
+        print("\tEscoamento Superficial... OK", flush=True)
         ######### Lateral Flow #########
-        self.LF = LF_calc(pcr, self, self.f, self.Kr, self.TUr, self.TUsat)
+        self.LF = LF_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
-        print("Fluxo Lateral...ok", flush=True)
+        print("\tFluxo Lateral... OK", flush=True)
         ######### Recharge Flow #########
-        self.REC = REC_calc(pcr, self, self.f, self.Kr, self.TUr, self.TUsat)
+        self.REC = REC_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
-        print("Recarga...ok", flush=True)
+        print("\tRecarga... OK", flush=True)
         ######### Base Flow #########
         # reportTif(self, self.ref, self.EBprev, 'EBprev', self.outpath, din = 1)
         # reportTif(self, self.ref, self.TUs, 'TUs2', self.outpath, din = 1)
 
-        self.EB = EB_calc(pcr, self, self.EBprev, self.alfa_gw, self.REC, self.TUs, self.EB_lim)
+        self.EB = EB_calc(self, pcr, self.EBprev, self.alfa_gw, self.REC, self.TUs, self.EB_lim)
         self.EBprev = self.EB
         # reportTif(self, self.ref, self.EB, 'EB', self.outpath, din = 1)
 
         ######### Soil Balance #########
-        self.TUr = TUr_calc(pcr, self, self.TUrprev, precipitation, I, self.ES, self.LF, self.REC, self.ETr, Ao, self.TUsat)
-        self.TUs = TUs_calc(pcr, self, self.TUsprev, self.REC, self.EB)
+        self.TUr = TUr_calc(self, pcr, self.TUrprev, precipitation, I, self.ES, self.LF, self.REC, self.ETr, Ao, self.TUsat)
+        self.TUs = TUs_calc(self, pcr, self.TUsprev, self.REC, self.EB)
         self.TUrprev = self.TUr
 
         self.TUsprev = self.TUs
-        print("Balanco hidrico do solo...ok", flush=True)
+        print("\tBalanco hidrico do solo... OK", flush=True)
         ######### Compute Runoff ########      
         days = daysOfMonth(startDate,t)  
         c = days*24*3600
@@ -444,7 +423,7 @@ class Modelo(DynamicModel):
         self.runoff = self.x*self.Qprev + (1-self.x)*self.Qt
         self.Qprev = self.runoff
 
-        print("Vazao...ok", flush=True)
+        print("\tVazao... OK", flush=True)
 
         # # Create tss files
         os.chdir(self.outpath)
@@ -459,13 +438,45 @@ class Modelo(DynamicModel):
 
         print("Finalizando ciclo "+str(t) + " de "+ str(self.lastStep), flush=True)                        
       
+if __name__ == "__main__":
+    
+    # Configure CLI
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--configfile', 
+                        type=argparse.FileType('r', encoding='utf-8'), 
+                        help="path to configuration file",
+                        required=True)
+                            
+    args = parser.parse_args()
 
-steps = totalSteps(startDate,endDate)
-start = steps[0]
-end = steps[1]
-myModel = Modelo()
-dynamicModel = DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
-dynamicModel.run()
-tempoExec = time.time() - t1
-print("Tempo de execucao: {:.2f} segundos".format(tempoExec))
-print("Fim", flush=True)
+    t1 = time.time()
+    print("Inicio", flush=True)
+
+    # Leitura de arquivo config.ini
+    config = configparser.ConfigParser()
+    config.read_file(args.configfile)
+
+    # Data inicial e final da simulacao
+    startDate = config.get('SIM_TIME', 'start')
+    endDate = config.get('SIM_TIME', 'end')
+
+    # mkDir "OutPut"
+    isOutputFolder = os.path.isdir(str(config.get('FILES', 'output')))
+    if isOutputFolder == False:
+        os.mkdir(str(config.get('FILES', 'output')))
+
+    # get files to export
+    genFilesList = ['Int', 'Eb', 'Esd', 'Evp', 'Lf', 'Rec', 'Tur', 'Vazao', 'auxQtot', 'auxRec']
+    genFilesDic = {}
+    for file in genFilesList:
+        genFilesDic[file] = config.get('GENERATE_FILE', file)
+
+    steps = totalSteps(startDate,endDate)
+    start = steps[0]
+    end = steps[1]
+    myModel = Modelo()
+    dynamicModel = DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
+    dynamicModel.run()
+    tempoExec = time.time() - t1
+    print("Tempo de execucao: {:.2f} segundos".format(tempoExec))
+    print("Fim", flush=True)
