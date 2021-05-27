@@ -4,7 +4,7 @@
   <h1 align="center">RUBEM</h1>
 
   <p align="center">
-    Rainfall rUnoff Balance Enhanced Model is a distributed hydrological model to calculate monthly flows with changes in land use over time
+    <b>R</b>ainfall r<b>U</b>noff <b>B</b>alance <b>E</b>nhanced <b>M</b>odel is a distributed hydrological model to calculate monthly flows with changes in land use over time
     <br />
     <a href="https://github.com/LabSid-USP/RUBEM"><strong>Explore the docs »</strong></a>
     <br />
@@ -49,7 +49,7 @@
 
 Rainfall rUnoff Balance Enhanced Model (RUBEM) is an improved model of balance between rain and runoff. The distributed hydrological model for transforming precipitation into total flow is based on equations that represent the physical processes of the hydrological cycle, with spatial distribution defined in a grid and monthly time scale. The model was developed based on classic concepts of hydrological processes and equations based mainly on the formulations of the SPHY (TERINK et al., 2015), WEAP (YATES et al., 2005) and WetSpass-M (ABDOLLAHI et al., 2017).
 
-The name is a posthumous tribute to Professor Rubem La Laina Porto, dean of the Department of Hydraulic and Environmental Engineering, of the Polytechnic School of USP, who dedicated his professional life to the study, development and practices in hydrological sciences, contributing to the improvement of the state of art and training of students and professionals working in the area.
+The name is a posthumous tribute to Professor Rubem La Laina Porto, dean of the [Department of Hydraulic and Environmental Engineering](http://www.pha.poli.usp.br/), of the [Escola Politécnica of the University of São Paulo](https://www.poli.usp.br/), who dedicated his professional life to the study, development and practices in hydrological sciences, contributing to the improvement of the state of art and training of students and professionals working in the area.
 
 <!-- GETTING STARTED -->
 ## Getting Started
