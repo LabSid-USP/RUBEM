@@ -287,7 +287,7 @@ class Modelo(DynamicModel):
         self.sr_max = sr_calc(pcr,self,self.ndvi_max)
 
         # Read soil atributes
-        solo = self.readmap((self.soil_path))
+        solo = readmap(self.soil_path)
         self.Kr = lookupscalar(self.KrTable,solo) #coeficiente de condutividade hidraulica
         self.dg = lookupscalar(self.dgTable,solo) #densidade do solo
         self.Zr = lookupscalar(self.ZrTable,solo) # profundidade da zona radicular [cm]
