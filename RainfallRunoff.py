@@ -13,7 +13,7 @@ except ImportError:
     import gdal
 import numpy as np
 from pcraster.framework import (scalar, lookupscalar, pcr2numpy, readmap, 
-                                slope, pit, catchment, accuflux, 
+                                slope, pit, catchment, accuflux, lddcreate,
                                 TimeoutputTimeseries, DynamicModel, DynamicFramework)
 import pcraster as pcr
 
@@ -152,7 +152,7 @@ class Modelo(DynamicModel):
         self.dem_file = config.get('FILES', 'dem')
         self.demTif = config.get('FILES', 'demtif')
         self.clone_file = config.get('FILES', 'clone')
-        self.ldd_file = config.get('FILES', 'lddTif')
+        # self.ldd_file = config.get('FILES', 'lddTif')
         self.etp_path = config.get('FILES', 'etp')
         self.prec_path = config.get('FILES', 'prec')
         self.ndvi_path = config.get('FILES', 'ndvi')
@@ -242,8 +242,8 @@ class Modelo(DynamicModel):
         self.dem = readmap(self.dem_file)
 
         # Generate the local drain direction map on basis of the elevation map
-        # self.ldd = lddcreate(self.dem, 1e31, 1e31, 1e31, 1e31)
-        self.ldd = pcr.ldd(readmap(self.ldd_file))
+        self.ldd = lddcreate(self.dem, 1e31, 1e31, 1e31, 1e31)
+        # self.ldd = pcr.ldd(readmap(self.ldd_file))
 
         # Create slope map based on DEM
         self.S = slope(self.dem)
