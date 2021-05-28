@@ -98,28 +98,26 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, din = 0):
 
 # Calculo de numero de meses (steps) com base nas datas inicial e final de simulacao
 def totalSteps(startDate, endDate):
-    """
-    :param startDate:
-    :startDate  type:
-
-    :param endDate:
-    :endDate  type:
-
-    :returns:
-    :rtype:     
-    """ 
-    # begin simulation
-    yBegin = int(datetime.datetime.strptime(startDate ,'%d/%m/%Y').strftime("%Y"))
-    monthBegin = int(datetime.datetime.strptime(startDate ,'%d/%m/%Y').strftime("%m"))
-    # end simulation
-    yEnd = int(datetime.datetime.strptime(endDate ,'%d/%m/%Y').strftime("%Y"))
-    monthEnd = int(datetime.datetime.strptime(endDate ,'%d/%m/%Y').strftime("%m"))    
-    # default star for future simulation
-    init = datetime.datetime(2019,1,1)
-    startStep = (yBegin - int(init.strftime("%Y")))*12 + (monthBegin - int(init.strftime("%m"))) +1
-    endStep = (yEnd - int(init.strftime("%Y")))*12 + (monthEnd - int(init.strftime("%m"))) +1
-    nTimeSteps = endStep - startStep + 1  
-    return(startStep, endStep, nTimeSteps)
+  """Get the number of months between start and end dates
+  
+  :param startDate: Start date.
+  :startDate type: str
+  
+  :param startDate: End date.
+  :startDate type: str
+  
+  :return: First step, Last step and Number of months between start and end dates
+  :rtype: tuple(int, int ,int)
+  """
+  start = datetime.datetime.strptime(startDate ,'%d/%m/%Y')
+  end = datetime.datetime.strptime(endDate ,'%d/%m/%Y')
+  # End date must be greater than start date
+  assert end > start 
+  nTimeSteps = (end.year - start.year)*12 + (end.month - start.month)
+  lastTimeStep = nTimeSteps
+  # PCRaster: first timestep argument of DynamicFramework must be > 0
+  firstTimestep = 1  
+  return (firstTimestep, lastTimeStep, nTimeSteps)
 
 # Calculo de numero de dias no mes a partir do timestep (para conversao de vazao de mm para m3/s)
 def daysOfMonth(startDate, timestep):
