@@ -85,7 +85,7 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, din = 0):
     trans = tifRef[2]
     driver = tifRef[3]
     
-    # create the output image
+    # create the output image 
     outDs = driver.Create(out_tif, cols, rows, 1, gdal.GDT_Float32,  options = [ 'COMPRESS=LZW' ] )
     outBand = outDs.GetRasterBand(1)
     outBand.SetNoDataValue(-9999)
@@ -93,8 +93,6 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, din = 0):
     outDs.SetGeoTransform(trans)
     ds = None
     outDs = None
-    
-    return()
 
 # Calculo de numero de meses (steps) com base nas datas inicial e final de simulacao
 def totalSteps(startDate, endDate):
