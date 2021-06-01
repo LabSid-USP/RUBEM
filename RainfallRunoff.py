@@ -43,39 +43,36 @@ def getRefInfo(self, sourceTif):
     
     return(Ref)
 
-def reportTif(self, tifRef, pcrObj, fileName, outpath, din = 0):
+def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     """
     :param tifRef:
     :tifRef  type:
 
-    :param pcrObj:
+    :param pcrObj: PCRaster object to export.
     :pcrObj  type:    
     
-    :param fileName:
-    :fileName  type:
+    :param fileName: Base name of the output file.
+    :fileName  type: str
 
-    :param outpath:
-    :outpath  type:    
+    :param outpath: Path of the output directory.
+    :outpath  type: str   
     
-    :param din: Defaults to 0.
-    :din  type:
-
-    :returns:
-    :rtype: 
+    :param dyn: If dynamic mode is True, otherwise defaults to False.
+    :dyn  type: int
     """ 
     # sourceTif = file to get attibutes from - DEM
     # pcrObj  = pcraster to export
     # fileName = string format
-    # din = if dinamic mode = 1, otherwise 0
+    # dyn = if dynamic mode = 1, otherwise 0
     # outpath = path to save Tif file
     
     # convert to np array
     npFile = pcr2numpy(pcrObj,-999)  
     
     # generate file name
-    if din == 0:
+    if not dyn:
         out_tif = str(outpath + '/'+ fileName+'.tif')
-    if din == 1:
+    if dyn:
         digits = 10 - len(fileName)
         out_tif = str(outpath + '/'+ fileName + str(self.currentStep).zfill(digits)+'.tif')
     
@@ -120,14 +117,14 @@ def totalSteps(startDate, endDate):
 # Calculo de numero de dias no mes a partir do timestep (para conversao de vazao de mm para m3/s)
 def daysOfMonth(startDate, timestep):
     """
-    :param startDate:
-    :startDate  type:
+    :param startDate: Start date.
+    :startDate  type: str
 
     :param timestep:
-    :timestep  type:
+    :timestep  type: int
 
-    :returns:
-    :rtype:        
+    :returns: Days of month.
+    :rtype: int        
     """     
     sourcedate = datetime.datetime.strptime(startDate,'%d/%m/%Y')
     month = sourcedate.month -2 + timestep
@@ -393,12 +390,12 @@ class Modelo(DynamicModel):
 
         print("\tRecarga... OK", flush=True)
         ######### Base Flow #########
-        # reportTif(self, self.ref, self.EBprev, 'EBprev', self.outpath, din = 1)
-        # reportTif(self, self.ref, self.TUs, 'TUs2', self.outpath, din = 1)
+        # reportTif(self, self.ref, self.EBprev, 'EBprev', self.outpath, dyn=True)
+        # reportTif(self, self.ref, self.TUs, 'TUs2', self.outpath, dyn=True)
 
         self.EB = EB_calc(self, pcr, self.EBprev, self.alfa_gw, self.REC, self.TUs, self.EB_lim)
         self.EBprev = self.EB
-        # reportTif(self, self.ref, self.EB, 'EB', self.outpath, din = 1)
+        # reportTif(self, self.ref, self.EB, 'EB', self.outpath, dyn=True)
 
         ######### Soil Balance #########
         self.TUr = TUr_calc(self, pcr, self.TUrprev, precipitation, I, self.ES, self.LF, self.REC, self.ETr, Ao, self.TUsat)
@@ -429,7 +426,7 @@ class Modelo(DynamicModel):
         filesList = [I, self.EB, self. ES, self.ETr, self.LF, self.REC, self.TUr, self.runoff, self.Qtot, self.REC]
         for fileToExport, fileName in zip(filesList, genFilesList):
             if genFilesDic[fileName]:
-                reportTif(self, self.ref, fileToExport, fileName, self.outpath, din = 1)
+                reportTif(self, self.ref, fileToExport, fileName, self.outpath, dyn=True)
 
         print("Finalizando ciclo "+str(t) + " de "+ str(self.lastStep), flush=True)                        
       
