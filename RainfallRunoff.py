@@ -426,13 +426,12 @@ class Modelo(DynamicModel):
         # # Create tss files
         os.chdir(self.outpath)
 
-        # Lista de arquivos para exportar - ordenados igual a lista de entrada
-        filesList = [self.EB, self. ES, self.ETr, self.LF, I, self.REC, self.TUr, self.runoff, self.Qtot, self.REC]
-        for i in range(len(filesList)):
-            if genFilesDic[genFilesList[i]] == 'True':
-                reportTif(self, self.ref, filesList[i], str(genFilesList[i]), self.outpath, din = 1)
-            else:
-                pass
+        # Lista de arquivos para exportar - ordenados igual a lista de entrada:
+        #           ['Int', 'Eb', 'Esd', 'Evp', 'Lf', 'Rec', 'Tur', 'Vazao', 'auxQtot', 'auxRec']
+        filesList = [I, self.EB, self. ES, self.ETr, self.LF, self.REC, self.TUr, self.runoff, self.Qtot, self.REC]
+        for fileToExport, fileName in zip(filesList, genFilesList):
+            if genFilesDic[fileName]:
+                reportTif(self, self.ref, fileToExport, fileName, self.outpath, din = 1)
 
         print("Finalizando ciclo "+str(t) + " de "+ str(self.lastStep), flush=True)                        
       
@@ -467,7 +466,7 @@ if __name__ == "__main__":
     genFilesList = ['Int', 'Eb', 'Esd', 'Evp', 'Lf', 'Rec', 'Tur', 'Vazao', 'auxQtot', 'auxRec']
     genFilesDic = {}
     for file in genFilesList:
-        genFilesDic[file] = config.get('GENERATE_FILE', file)
+        genFilesDic[file] = config.getboolean('GENERATE_FILE', file)
 
     steps = totalSteps(startDate,endDate)
     start = steps[0]
