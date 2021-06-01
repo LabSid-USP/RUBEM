@@ -458,8 +458,7 @@ if __name__ == "__main__":
     endDate = config.get('SIM_TIME', 'end')
 
     # mkDir "OutPut"
-    isOutputFolder = os.path.isdir(str(config.get('FILES', 'output')))
-    if isOutputFolder == False:
+    if not os.path.isdir(str(config.get('FILES', 'output'))):
         os.mkdir(str(config.get('FILES', 'output')))
 
     # get files to export
