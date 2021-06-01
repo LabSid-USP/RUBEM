@@ -12,9 +12,7 @@ try:
 except ImportError:
     import gdal
 import numpy as np
-from pcraster.framework import (scalar, lookupscalar, pcr2numpy, readmap, 
-                                slope, pit, catchment, accuflux, lddcreate,
-                                TimeoutputTimeseries, DynamicModel, DynamicFramework)
+import pcraster.framework as pcrfw
 import pcraster as pcr
 
 # importacao de funcoes do modelo chuva vazao
@@ -67,7 +65,7 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     # outpath = path to save Tif file
     
     # convert to np array
-    npFile = pcr2numpy(pcrObj,-999)  
+    npFile = pcrfw.pcr2numpy(pcrObj,-999)  
     
     # generate file name
     if not dyn:
@@ -135,10 +133,10 @@ def daysOfMonth(startDate, timestep):
  
 ########## Dynamic Mode ##########
 #raise SystemExit
-class Modelo(DynamicModel):
+class Modelo(pcrfw.DynamicModel):
     """Constructor"""
     def __init__(self):
-        DynamicModel.__init__(self)
+        pcrfw.DynamicModel.__init__(self)
         print("Lendo arquivos de entrada", flush=True)
         # Read file locations
         self.inpath = config.get('FILES', 'input')
@@ -202,11 +200,11 @@ class Modelo(DynamicModel):
         # teor de umidade inicial da zona radicular (fracao do teor de saturacao)
         self.ftur_ini = config.getfloat('INITIAL SOIL CONDITIONS', 'ftur_ini')
         # escoamento basico inicial
-        self.EBini = scalar(config.getfloat('INITIAL SOIL CONDITIONS', 'eb_ini'))
+        self.EBini = pcrfw.scalar(config.getfloat('INITIAL SOIL CONDITIONS', 'eb_ini'))
         # limite para escoamento basico
-        self.EBlim = scalar(config.getfloat('INITIAL SOIL CONDITIONS', 'eb_lim'))
+        self.EBlim = pcrfw.scalar(config.getfloat('INITIAL SOIL CONDITIONS', 'eb_lim'))
         # teor de umidade inicial da zona saturada
-        self.Tusini = scalar(config.getfloat('INITIAL SOIL CONDITIONS', 'tus_ini'))
+        self.Tusini = pcrfw.scalar(config.getfloat('INITIAL SOIL CONDITIONS', 'tus_ini'))
 
         # constantes
         self.fpar_max = config.getfloat('CONSTANT', 'fpar_max')
@@ -232,42 +230,42 @@ class Modelo(DynamicModel):
     def initial(self):
         """  """       
         # Read dem file
-        self.dem = readmap(self.dem_file)
+        self.dem = pcrfw.readmap(self.dem_file)
 
         # Generate the local drain direction map on basis of the elevation map
-        self.ldd = lddcreate(self.dem, 1e31, 1e31, 1e31, 1e31)
+        self.ldd = pcrfw.lddcreate(self.dem, 1e31, 1e31, 1e31, 1e31)
         # self.ldd = pcr.ldd(readmap(self.ldd_file))
 
         # Create slope map based on DEM
-        self.S = slope(self.dem)
+        self.S = pcrfw.slope(self.dem)
 
         # Create outflow points map based on ldd
-        self.pits = pit(self.ldd)
+        self.pits = pcrfw.pit(self.ldd)
 
         # Creat cacthment area basins
-        subbasins = catchment(self.ldd, self.pits)
+        subbasins = pcrfw.catchment(self.ldd, self.pits)
 
         # Initializa Tss report at sample locations or pits
-        self.TssFileRun = TimeoutputTimeseries(self.OutTssRun, self, self.sampleLocs, noHeader=True)
+        self.TssFileRun = pcrfw.TimeoutputTimeseries(self.OutTssRun, self, self.sampleLocs, noHeader=True)
 
         # Read min and max ndvi
-        self.ndvi_min = scalar(readmap(self.ndviMinFile))
-        self.ndvi_max = scalar(readmap(self.ndviMaxFile))
+        self.ndvi_min = pcrfw.scalar(pcrfw.readmap(self.ndviMinFile))
+        self.ndvi_max = pcrfw.scalar(pcrfw.readmap(self.ndviMaxFile))
 
         # Compute min and max sr
         self.sr_min = sr_calc(self, pcr,self.ndvi_min)
         self.sr_max = sr_calc(self, pcr,self.ndvi_max)
 
         # Read soil atributes
-        solo = readmap(self.soil_path)
-        self.Kr = lookupscalar(self.KrTable,solo) #coeficiente de condutividade hidraulica
-        self.dg = lookupscalar(self.dgTable,solo) #densidade do solo
-        self.Zr = lookupscalar(self.ZrTable,solo) # profundidade da zona radicular [cm]
-        self.TUsat = lookupscalar(self.TsatTable,solo)*self.dg*self.Zr*10 # umidade para saturacao da primeira camada [mm]
+        solo = pcrfw.readmap(self.soil_path)
+        self.Kr = pcrfw.lookupscalar(self.KrTable,solo) #coeficiente de condutividade hidraulica
+        self.dg = pcrfw.lookupscalar(self.dgTable,solo) #densidade do solo
+        self.Zr = pcrfw.lookupscalar(self.ZrTable,solo) # profundidade da zona radicular [cm]
+        self.TUsat = pcrfw.lookupscalar(self.TsatTable,solo)*self.dg*self.Zr*10 # umidade para saturacao da primeira camada [mm]
         self.TUr_ini = (self.TUsat)*(self.ftur_ini) # teor de umidade inicial da zona radicular [mm]
-        self.TUw = lookupscalar(self.TwTable,solo)*self.dg*self.Zr*10  # ponto de mucrha do solo [mm]
-        self.TUcc = lookupscalar(self.TccTable,solo)*self.dg*self.Zr*10 # capacidade de campo [mm]
-        self.Tpor = lookupscalar(self.Tporosidade,solo) # porosidade [%]
+        self.TUw = pcrfw.lookupscalar(self.TwTable,solo)*self.dg*self.Zr*10  # ponto de mucrha do solo [mm]
+        self.TUcc = pcrfw.lookupscalar(self.TccTable,solo)*self.dg*self.Zr*10 # capacidade de campo [mm]
+        self.Tpor = pcrfw.lookupscalar(self.Tporosidade,solo) # porosidade [%]
         self.EB_ini = self.EBini # escoamento basico inicial [mm]
         self.EB_lim = self.EBlim # limite para condicao de escoamento basico [mm]
         self.TUs_ini = self.Tusini # teor de umidade inicial da camada saturada [mm]
@@ -283,7 +281,7 @@ class Modelo(DynamicModel):
         self.TUr = self.TUr_ini
         self.TUs = self.TUs_ini
         self.EB = self.EB_ini
-        self.Qini = scalar(0)
+        self.Qini = pcrfw.scalar(0)
         self.Qprev = self.Qini
 
         # initialize first landuse map
@@ -323,16 +321,16 @@ class Modelo(DynamicModel):
 
         # Number of rainy days
         month = ((t-1)%12)+1
-        rainyDays = lookupscalar(self.rainyDaysTable, month)
+        rainyDays = pcrfw.lookupscalar(self.rainyDaysTable, month)
 
         # Read Landuse attributes 
-        n_manning = lookupscalar(self.manningTable,self.landuse)
-        Av = lookupscalar(self.avTable,self.landuse)
-        Ao = lookupscalar(self.aoTable,self.landuse)
-        As = lookupscalar(self.asTable,self.landuse)
-        Ai = lookupscalar(self.aiTable,self.landuse)
-        self.kc_min = lookupscalar(self.KcminTable,self.landuse)
-        self.kc_max = lookupscalar(self.KcmaxTable,self.landuse)
+        n_manning = pcrfw.lookupscalar(self.manningTable,self.landuse)
+        Av = pcrfw.lookupscalar(self.avTable,self.landuse)
+        Ao = pcrfw.lookupscalar(self.aoTable,self.landuse)
+        As = pcrfw.lookupscalar(self.asTable,self.landuse)
+        Ai = pcrfw.lookupscalar(self.aiTable,self.landuse)
+        self.kc_min = pcrfw.lookupscalar(self.KcminTable,self.landuse)
+        self.kc_max = pcrfw.lookupscalar(self.KcmaxTable,self.landuse)
 
         ######### compute interception #########      
         SR = sr_calc(self, pcr,NDVI)
@@ -345,8 +343,8 @@ class Modelo(DynamicModel):
 
         Kc_1 = kc_calc(self, pcr, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
         # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
-        kc_cond1 = scalar(NDVI < 1.1*self.ndvi_min)
-        kc_cond2 = scalar(NDVI > 1.1*self.ndvi_min)
+        kc_cond1 = pcrfw.scalar(NDVI < 1.1*self.ndvi_min)
+        kc_cond2 = pcrfw.scalar(NDVI > 1.1*self.ndvi_min)
         Kc = pcr.scalar((kc_cond2*Kc_1) + (kc_cond1*self.kc_min))  
         Ks = pcr.scalar(Ks_calc(self, pcr, self.TUr, self.TUw, self.TUcc))
 
@@ -411,7 +409,7 @@ class Modelo(DynamicModel):
         self.Qtot = ((self.ES + self.LF + self.EB)) # [mm]
         self.Qtotvol = self.Qtot*self.A*0.001/c # [m3/s]
 
-        self.Qt = accuflux(self.ldd, self.Qtotvol)
+        self.Qt = pcrfw.accuflux(self.ldd, self.Qtotvol)
 
         self.runoff = self.x*self.Qprev + (1-self.x)*self.Qt
         self.Qprev = self.runoff
@@ -466,7 +464,7 @@ if __name__ == "__main__":
     start = steps[0]
     end = steps[1]
     myModel = Modelo()
-    dynamicModel = DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
+    dynamicModel = pcrfw.DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
     dynamicModel.run()
     tempoExec = time.time() - t1
     print("Tempo de execucao: {:.2f} segundos".format(tempoExec))
