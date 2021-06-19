@@ -39,7 +39,7 @@ def getRefInfo(self, sourceTif):
     driver = ds.GetDriver()
     Ref = [cols, rows, trans, driver]
     
-    return(Ref)
+    return Ref 
 
 def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     """
@@ -129,7 +129,7 @@ def daysOfMonth(startDate, timestep):
     year = sourcedate.year + month // 12
     month = (month % 12) +1
     days = calendar.monthrange(year,month)[1]
-    return(days)
+    return days
  
 ########## Dynamic Mode ##########
 #raise SystemExit
@@ -216,11 +216,11 @@ class Modelo(pcrfw.DynamicModel):
         args.configfile.close()
 
         # # Initialize time series output
-        self.OutTssRun= ('outRun')
+        self.OutTssRun= 'outRun'
 
         # Report file
         # name
-        self.timeStamp = str((time.strftime("%Y%m%d_%H%M%S",time.localtime(t1))))
+        self.timeStamp = str(time.strftime("%Y%m%d_%H%M%S",time.localtime(t1)))
         # header 
         self.t_round = str(time.strftime("%Y %m %d %H:%M:%S",time.localtime(t1)))
 
