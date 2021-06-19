@@ -21,6 +21,8 @@ from evapotranspiration import *
 from surface_runoff import *
 from soil import *
 
+from utilities.file_convertions import tss2csv
+
 ########## Funcoes auxiliares ##########
 gdal.UseExceptions() 
 def getRefInfo(self, sourceTif):
@@ -217,7 +219,17 @@ class Modelo(pcrfw.DynamicModel):
         print("OK", flush=True) # RUBEM::Lendo arquivos de entrada...
 
         # # Initialize time series output
-        self.OutTssRun= 'outRun'
+        self.OutTssRun = 'outRun'
+        self.OutTssPrec = 'outPrec'
+        self.OutTssInt = 'outInt'
+        self.OutTssEb =  'outEb'
+        self.OutTssEsd = 'outEsd'
+        self.OutTssEvp = 'outEvp'
+        self.OutTssLf =  'outLf'
+        self.OutTssRec = 'outRec'
+        self.OutTssTur = 'outTur'
+        self.OutTssAuxQtot = 'outAuxQtot'
+        self.OutTssAuxRec = 'outAuxRec'
 
         # Report file
         # name
@@ -248,6 +260,16 @@ class Modelo(pcrfw.DynamicModel):
 
         # Initializa Tss report at sample locations or pits
         self.TssFileRun = pcrfw.TimeoutputTimeseries(self.OutTssRun, self, self.sampleLocs, noHeader=True)
+        self.TssFilePrec = pcrfw.TimeoutputTimeseries(self.OutTssPrec, self, self.sampleLocs, noHeader=True)
+        self.TssFileInt = pcrfw.TimeoutputTimeseries(self.OutTssInt, self, self.sampleLocs, noHeader=True)
+        self.TssFileEb = pcrfw.TimeoutputTimeseries(self.OutTssEb, self, self.sampleLocs, noHeader=True)
+        self.TssFileEsd = pcrfw.TimeoutputTimeseries(self.OutTssEsd, self, self.sampleLocs, noHeader=True)
+        self.TssFileEvp = pcrfw.TimeoutputTimeseries(self.OutTssEvp, self, self.sampleLocs, noHeader=True)
+        self.TssFileLf = pcrfw.TimeoutputTimeseries(self.OutTssLf, self, self.sampleLocs, noHeader=True)
+        self.TssFileRec = pcrfw.TimeoutputTimeseries(self.OutTssRec, self, self.sampleLocs, noHeader=True)
+        self.TssFileTur = pcrfw.TimeoutputTimeseries(self.OutTssTur, self, self.sampleLocs, noHeader=True)      
+        self.TssFileAuxQtot = pcrfw.TimeoutputTimeseries(self.OutTssAuxQtot, self, self.sampleLocs, noHeader=True)      
+        self.TssFileAuxRec = pcrfw.TimeoutputTimeseries(self.OutTssAuxRec, self, self.sampleLocs, noHeader=True)           
 
         # Read min and max ndvi
         self.ndvi_min = pcrfw.scalar(pcrfw.readmap(self.ndviMinFile))
@@ -287,7 +309,15 @@ class Modelo(pcrfw.DynamicModel):
 
         # initialize first landuse map
         self.landuse = self.readmap(self.land_path + self.coverPrefix)
-        self.landuse_ant = self.landuse      
+        self.landuse_ant = self.landuse
+
+        # Information for output, get sample location numbers - integer, from 1 to n
+        sample_map = pcrfw.nominal(self.sampleLocs) # read sample map location as nominal
+        self.mvalue = -999
+        #converts sample location to multidimensional array
+        self.sample_array = pcrfw.pcr2numpy(sample_map, self.mvalue) 
+        # create 1d array with unique locations values (1 to N number os locations)
+        self.sample_vals = np.asarray(np.unique(self.sample_array))               
 
     def dynamic(self):
         """  """         
@@ -443,15 +473,53 @@ class Modelo(pcrfw.DynamicModel):
         # print("\tVazao... OK", flush=True)
         print("OK", flush=True)  
 
-        # # Create tss files
         os.chdir(self.outpath)
+        print("Exportando variaveis para arquivos...", end=" ", flush=True)   
+        # Create tss files
+        if genTss: 
+            # Dicionario de funcoes para exportar tss de acordo com nome dos arquivos
+            genTssDic = {   
+                'Int' : self.TssFileInt.sample, 
+                'Eb' : self.TssFileEb.sample, 
+                'Esd' : self.TssFileEsd.sample, 
+                'Evp' : self.TssFileEvp.sample, 
+                'Lf' : self.TssFileLf.sample, 
+                'Rec' : self.TssFileRec.sample, 
+                'Tur' : self.TssFileTur.sample, 
+                'Vazao' : self.TssFileRun.sample,
+                'auxQtot' : self.TssFileAuxQtot.sample, 
+                'auxRec' : self.TssFileAuxRec.sample
+            }
+        
+        # Dicionario de variaveis para exportar de acordo com nome dos arquivos
+        varDic = {
+            'Int' : I, 
+            'Eb' : self.EB, 
+            'Esd' : self. ES, 
+            'Evp' : self.ETr, 
+            'Lf' : self.LF, 
+            'Rec' : self.REC, 
+            'Tur' : self.TUr, 
+            'Vazao' : self.runoff, 
+            'auxQtot' : self.Qtot, 
+            'auxRec' : self.REC
+        }
 
-        # Lista de arquivos para exportar - ordenados igual a lista de entrada:
-        #           ['Int', 'Eb', 'Esd', 'Evp', 'Lf', 'Rec', 'Tur', 'Vazao', 'auxQtot', 'auxRec']
-        filesList = [I, self.EB, self. ES, self.ETr, self.LF, self.REC, self.TUr, self.runoff, self.Qtot, self.REC]
-        for fileToExport, fileName in zip(filesList, genFilesList):
-            if genFilesDic[fileName]:
-                reportTif(self, self.ref, fileToExport, fileName, self.outpath, dyn=True)
+        for fileName, isSelected in genFilesDic.items():
+
+            # Checar se a variavel (fileName) foi selecionada para exportacao
+            if isSelected:
+
+                # Exportar raster por padrao
+                reportTif(self, self.ref, varDic.get(fileName), fileName, self.outpath, dyn=True)
+
+                # Checar se temos que exportar a serie temporal da variavel (fileName) selecionada
+                if genTss:
+                    # Exportar tss de acordo com a variavel (fileName) selecionada
+                    # self.TssFileXxx.sample(self.Xxx)
+                    genTssDic.get(fileName)(varDic.get(fileName))
+
+        print("OK ", flush=True) # Exportando variaveis para arquivos...        
 
         print(f'Finalizando ciclo {t} de {self.lastStep}', flush=True)                        
       
@@ -483,11 +551,14 @@ if __name__ == "__main__":
     if not os.path.isdir(str(config.get('FILES', 'output'))):
         os.mkdir(str(config.get('FILES', 'output')))
 
-    # get files to export
+    # Verifica quais variaveis foram selecionadas para exportacao
     genFilesList = ['Int', 'Eb', 'Esd', 'Evp', 'Lf', 'Rec', 'Tur', 'Vazao', 'auxQtot', 'auxRec']
     genFilesDic = {}
     for file in genFilesList:
         genFilesDic[file] = config.getboolean('GENERATE_FILE', file)
+
+    # Verifica se a geracao de series temporais foi ativada
+    genTss = config.getboolean('GENERATE_FILE', 'genTss')        
 
     steps = totalSteps(startDate,endDate)
     start = steps[0]
@@ -499,4 +570,12 @@ if __name__ == "__main__":
     dynamicModel.run()
     tempoExec = time.time() - t1
     print(f'RUBEM::Modelo dinamico executado em: {tempoExec:.2f} segundos')
+
+    # Verifica se foram geradas series temporais
+    if genTss:
+        print("RUBEM::Convertendo arquivos *.tss para *.csv...", end=" ", flush=True)
+        # Converte as series temporais geradas para o formato .csv
+        tss2csv(myModel.outpath)
+        print("OK", flush=True)
+
     print("RUBEM::Fim", flush=True)
