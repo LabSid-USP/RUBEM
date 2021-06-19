@@ -1,6 +1,0 @@
-<RCC>
-    <qresource prefix="imgBase">
-        <file>../images/icon.jpg</file>
-        <file>../images/info.png</file>
-    </qresource>
-</RCC>
