@@ -104,8 +104,7 @@ def totalSteps(startDate, endDate):
   """
   start = datetime.datetime.strptime(startDate ,'%d/%m/%Y')
   end = datetime.datetime.strptime(endDate ,'%d/%m/%Y')
-  # End date must be greater than start date
-  assert end > start 
+  assert end > start, "End date must be greater than start date"
   nTimeSteps = (end.year - start.year)*12 + (end.month - start.month)
   lastTimeStep = nTimeSteps
   # PCRaster: first timestep argument of DynamicFramework must be > 0
