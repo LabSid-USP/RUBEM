@@ -425,7 +425,7 @@ class Modelo(pcrfw.DynamicModel):
             if genFilesDic[fileName]:
                 reportTif(self, self.ref, fileToExport, fileName, self.outpath, dyn=True)
 
-        print("Finalizando ciclo "+str(t) + " de "+ str(self.lastStep), flush=True)                        
+        print(f'Finalizando ciclo {t} de {self.lastStep}', flush=True)                        
       
 if __name__ == "__main__":
     
