@@ -16,10 +16,10 @@ import pcraster.framework as pcrfw
 import pcraster as pcr
 
 # importacao de funcoes do modelo chuva vazao
-from interception import *
-from evapotranspiration import *
-from surface_runoff import *
-from soil import *
+from modules.interception import *
+from modules.evapotranspiration import *
+from modules.surface_runoff import *
+from modules.soil import *
 
 from utilities.file_convertions import tss2csv
 
