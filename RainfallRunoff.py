@@ -467,5 +467,5 @@ if __name__ == "__main__":
     dynamicModel = pcrfw.DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
     dynamicModel.run()
     tempoExec = time.time() - t1
-    print("Tempo de execucao: {:.2f} segundos".format(tempoExec))
+    print(f'Tempo de execucao: {tempoExec:.2f} segundos')
     print("Fim", flush=True)
