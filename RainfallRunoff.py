@@ -136,7 +136,7 @@ class Modelo(pcrfw.DynamicModel):
     """Constructor"""
     def __init__(self):
         pcrfw.DynamicModel.__init__(self)
-        print("Lendo arquivos de entrada", flush=True)
+        print("RUBEM::Lendo arquivos de entrada...", end=" ", flush=True)
         # Read file locations
         self.inpath = config.get('FILES', 'input')
         self.dem_file = config.get('FILES', 'dem')
@@ -213,6 +213,8 @@ class Modelo(pcrfw.DynamicModel):
 
         # Make sure to close the input stream when finished
         args.configfile.close()
+        
+        print("OK", flush=True) # RUBEM::Lendo arquivos de entrada...
 
         # # Initialize time series output
         self.OutTssRun= 'outRun'
@@ -331,14 +333,18 @@ class Modelo(pcrfw.DynamicModel):
         self.kc_min = pcrfw.lookupscalar(self.KcminTable,self.landuse)
         self.kc_max = pcrfw.lookupscalar(self.KcmaxTable,self.landuse)
 
+        print("\tInterceptacao...", end=" ", flush=True)
         ######### compute interception #########      
         SR = sr_calc(self, pcr,NDVI)
         FPAR = fpar_calc(self, pcr, self.fpar_min, self.fpar_max, SR, self.sr_min, self.sr_max)
         LAI = lai_function(self, pcr, FPAR, self.fpar_max, self.lai_max)
         Id, Ir, Iv, I = Interception_function(self, pcr, self.alfa, LAI, precipitation, rainyDays, Av)
 
-        print("\tInterceptacao... OK", flush=True)
+        #print("\tInterceptacao... OK", flush=True)
+        print("OK", flush=True)  
+        
         ######### Compute Evapotranspiration #########
+        print("\tEvapotranspiracao...", end=" ", flush=True)
 
         Kc_1 = kc_calc(self, pcr, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
         # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
@@ -365,9 +371,12 @@ class Modelo(pcrfw.DynamicModel):
         self.ET_as = ETas_calc(self, pcr, ETp, self.kc_min, Ks)
         self.ETr = (Av*self.ET_av) + (Ai*self.ET_ai) + (Ao*self.ET_ao) + (As*self.ET_as) 
 
-        print("\tEvapotranspiracao... OK", flush=True)
+        #print("\tEvapotranspiracao... OK", flush=True)
+        print("OK", flush=True)  
 
         ######### Surface Runoff #########      
+        print("\tEscoamento Superficial...", end=" ", flush=True)
+        
         Pdm = (precipitation/rainyDays)      
         Ch = Ch_calc(self, pcr, self.TUr, self.dg, self.Zr, self.Tpor, self.b)      
         Cper = Cper_calc(self, pcr, self.TUw, self.dg, self.Zr, self.S, n_manning, self.w1, self.w2, self.w3)       
@@ -377,31 +386,49 @@ class Modelo(pcrfw.DynamicModel):
 
         self.ES = ES_calc(self, pcr, Csr, Ch, precipitation, I, Ao, self.ET_ao)
 
-        print("\tEscoamento Superficial... OK", flush=True)
+        # print("\tEscoamento Superficial... OK", flush=True)
+        print("OK", flush=True)  
+
         ######### Lateral Flow #########
+        print("\tFluxo Lateral...", end=" ", flush=True)
+
         self.LF = LF_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
-        print("\tFluxo Lateral... OK", flush=True)
+        # print("\tFluxo Lateral... OK", flush=True)
+        print("OK", flush=True)  
+
         ######### Recharge Flow #########
+        print("\tRecarga...", end=" ", flush=True)
+
         self.REC = REC_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
-        print("\tRecarga... OK", flush=True)
+        # print("\tRecarga... OK", flush=True)
+        print("OK", flush=True)
+
         ######### Base Flow #########
+        print("\tEscoamento basico...", end=" ", flush=True)
         # reportTif(self, self.ref, self.EBprev, 'EBprev', self.outpath, dyn=True)
         # reportTif(self, self.ref, self.TUs, 'TUs2', self.outpath, dyn=True)
 
         self.EB = EB_calc(self, pcr, self.EBprev, self.alfa_gw, self.REC, self.TUs, self.EB_lim)
         self.EBprev = self.EB
         # reportTif(self, self.ref, self.EB, 'EB', self.outpath, dyn=True)
+        # print("\tEscoamento basico... OK", flush=True)
+        print("OK", flush=True)  
 
         ######### Soil Balance #########
+        print("\tBalanco hidrico do solo...", end=" ", flush=True)
         self.TUr = TUr_calc(self, pcr, self.TUrprev, precipitation, I, self.ES, self.LF, self.REC, self.ETr, Ao, self.TUsat)
         self.TUs = TUs_calc(self, pcr, self.TUsprev, self.REC, self.EB)
         self.TUrprev = self.TUr
 
         self.TUsprev = self.TUs
-        print("\tBalanco hidrico do solo... OK", flush=True)
-        ######### Compute Runoff ########      
+        # print("\tBalanco hidrico do solo... OK", flush=True)
+        print("OK", flush=True)  
+
+        ######### Compute Runoff ########    
+        print("\tVazao...", end=" ", flush=True)
+
         days = daysOfMonth(startDate,t)  
         c = days*24*3600
 
@@ -413,7 +440,8 @@ class Modelo(pcrfw.DynamicModel):
         self.runoff = self.x*self.Qprev + (1-self.x)*self.Qt
         self.Qprev = self.runoff
 
-        print("\tVazao... OK", flush=True)
+        # print("\tVazao... OK", flush=True)
+        print("OK", flush=True)  
 
         # # Create tss files
         os.chdir(self.outpath)
@@ -439,11 +467,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     t1 = time.time()
-    print("Inicio", flush=True)
+    print("RUBEM::Inicio", flush=True)
 
+    print("RUBEM::Lendo arquivo de configuracao...", end=" ", flush=True)
     # Leitura de arquivo config.ini
     config = configparser.ConfigParser()
     config.read_file(args.configfile)
+    print("OK", flush=True) # RUBEM::Lendo arquivo de configuracao...
 
     # Data inicial e final da simulacao
     startDate = config.get('SIM_TIME', 'start')
@@ -462,9 +492,11 @@ if __name__ == "__main__":
     steps = totalSteps(startDate,endDate)
     start = steps[0]
     end = steps[1]
+    
+    print("RUBEM::Executando modelo dinamico...", flush=True)
     myModel = Modelo()
     dynamicModel = pcrfw.DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
     dynamicModel.run()
     tempoExec = time.time() - t1
-    print(f'Tempo de execucao: {tempoExec:.2f} segundos')
-    print("Fim", flush=True)
+    print(f'RUBEM::Modelo dinamico executado em: {tempoExec:.2f} segundos')
+    print("RUBEM::Fim", flush=True)
