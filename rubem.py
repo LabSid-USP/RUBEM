@@ -322,8 +322,7 @@ class Modelo(pcrfw.DynamicModel):
     def dynamic(self):
         """  """         
         t = self.currentStep
-        #print(t)
-        print("Tempo: "+str(t), flush=True)     
+        print(f'Tempo: {t}', flush=True)     
 
         # Read NDVI
         try:
