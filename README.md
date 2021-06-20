@@ -64,7 +64,7 @@ The model was developed based on classical concepts of hydrological processes an
 
 * soil layer with two zones: root and saturated;
 
-* evapotranspiration and interception process based on vegetation indices Leaf Area Index (LAI), Fraction Photosynthetically Active Radiation (FPAR) and Normalized Difference Vegetation Index (NDVI); and
+* evapotranspiration and interception process based on vegetation indices Leaf Area Index (LAI), Fraction of Photosynthetically Active Radiation (FPAR) and Normalized Difference Vegetation Index (NDVI); and
 
 * sub-pixel level coverage classification, represented by four fractions representing percentage of total pixel area covered exclusively by: vegetated area, bare ground area, water area, and impermeable area.
 
