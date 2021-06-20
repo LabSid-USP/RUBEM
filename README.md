@@ -2,9 +2,10 @@
 <br />
 <p align="center">
   <h1 align="center">RUBEM</h1>
+  <h2 align="center">Rainfall rUnoff Balance Enhanced Model</h2>
 
   <p align="center">
-    <b>R</b>ainfall r<b>U</b>noff <b>B</b>alance <b>E</b>nhanced <b>M</b>odel is a distributed hydrological model to calculate monthly flows with changes in land use over time
+    RUBEM is a distributed hydrological model to calculate monthly flows with changes in land use over time.
     <br />
     <a href="https://github.com/LabSid-USP/RUBEM"><strong>Explore the docs »</strong></a>
     <br />
