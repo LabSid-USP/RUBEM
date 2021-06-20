@@ -60,11 +60,11 @@ The model was developed based on classical concepts of hydrological processes an
 
 * distributed monthly step model;
 
-* hydrological process based on soil water balance in each pixel, and total flow calculated after the composition of the resulting accumulated flow, according to the flow direction of the drainage network established by the digital elevation model (DEM);
+* hydrological process based on soil water balance in each pixel, and total flow calculated after the composition of the resulting accumulated flow, according to the flow direction of the drainage network established by the Digital Elevation Model (DEM);
 
 * soil layer with two zones: root and saturated;
 
-* evapotranspiration and interception process based on vegetation indices Leaf Area Index (LAI), Photosynthetically Active Radiation Fraction (FPAR) and Normalized Difference Vegetation Index (NDVI); and
+* evapotranspiration and interception process based on vegetation indices Leaf Area Index (LAI), Fraction of Photosynthetically Active Radiation (FPAR) and Normalized Difference Vegetation Index (NDVI); and
 
 * sub-pixel level coverage classification, represented by four fractions representing percentage of total pixel area covered exclusively by: vegetated area, bare ground area, water area, and impermeable area.
 
@@ -159,7 +159,7 @@ Clone the repo
    ```   
 3. Bundle this application and all its dependencies into a single package 
    ```sh
-    pyinstaller -–onefile RainfallRunoff.py
+    pyinstaller -–onefile rubem.py
    ```
    
 <!-- USAGE EXAMPLES -->
@@ -167,11 +167,11 @@ Clone the repo
 
  * Typical usage example
    ```sh
-   python RainfallRunoff.py --configfile config.ini
+   python rubem.py --configfile config.ini
    ```
  * Help usage example
    ```sh
-   python RainfallRunoff.py -h
+   python rubem.py -h
    ```   
 
 _For more examples, please refer to the [Documentation](https://example.com)_
