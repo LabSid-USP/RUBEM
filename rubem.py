@@ -110,12 +110,12 @@ class Modelo(pcrfw.DynamicModel):
         self.OutTssRun = 'outRun'
         self.OutTssPrec = 'outPrec'
         self.OutTssInt = 'outInt'
-        self.OutTssEb =  'outEb'
-        self.OutTssEsd = 'outEsd'
-        self.OutTssEvp = 'outEvp'
+        self.OutTssBflow =  'outBflow'
+        self.OutTssSfRun = 'outSfRun'
+        self.OutTssEtp = 'outEtp'
         self.OutTssLf =  'outLf'
         self.OutTssRec = 'outRec'
-        self.OutTssTur = 'outTur'
+        self.OutTssSsat = 'outSsat'
         self.OutTssAuxQtot = 'outAuxQtot'
         self.OutTssAuxRec = 'outAuxRec'
 
@@ -150,12 +150,12 @@ class Modelo(pcrfw.DynamicModel):
         self.TssFileRun = pcrfw.TimeoutputTimeseries(self.OutTssRun, self, self.sampleLocs, noHeader=True)
         self.TssFilePrec = pcrfw.TimeoutputTimeseries(self.OutTssPrec, self, self.sampleLocs, noHeader=True)
         self.TssFileInt = pcrfw.TimeoutputTimeseries(self.OutTssInt, self, self.sampleLocs, noHeader=True)
-        self.TssFileEb = pcrfw.TimeoutputTimeseries(self.OutTssEb, self, self.sampleLocs, noHeader=True)
-        self.TssFileEsd = pcrfw.TimeoutputTimeseries(self.OutTssEsd, self, self.sampleLocs, noHeader=True)
-        self.TssFileEvp = pcrfw.TimeoutputTimeseries(self.OutTssEvp, self, self.sampleLocs, noHeader=True)
+        self.TssFileBflow = pcrfw.TimeoutputTimeseries(self.OutTssBflow, self, self.sampleLocs, noHeader=True)
+        self.TssFileSfRun = pcrfw.TimeoutputTimeseries(self.OutTssSfRun, self, self.sampleLocs, noHeader=True)
+        self.TssFileEtp = pcrfw.TimeoutputTimeseries(self.OutTssEtp, self, self.sampleLocs, noHeader=True)
         self.TssFileLf = pcrfw.TimeoutputTimeseries(self.OutTssLf, self, self.sampleLocs, noHeader=True)
         self.TssFileRec = pcrfw.TimeoutputTimeseries(self.OutTssRec, self, self.sampleLocs, noHeader=True)
-        self.TssFileTur = pcrfw.TimeoutputTimeseries(self.OutTssTur, self, self.sampleLocs, noHeader=True)      
+        self.TssFileSsat = pcrfw.TimeoutputTimeseries(self.OutTssSsat, self, self.sampleLocs, noHeader=True)      
         self.TssFileAuxQtot = pcrfw.TimeoutputTimeseries(self.OutTssAuxQtot, self, self.sampleLocs, noHeader=True)      
         self.TssFileAuxRec = pcrfw.TimeoutputTimeseries(self.OutTssAuxRec, self, self.sampleLocs, noHeader=True)           
 
@@ -361,13 +361,13 @@ class Modelo(pcrfw.DynamicModel):
             # Function dictionary to export tss according to filename
             genTssDic = {   
                 'Int' : self.TssFileInt.sample, 
-                'Eb' : self.TssFileEb.sample, 
-                'Esd' : self.TssFileEsd.sample, 
-                'Evp' : self.TssFileEvp.sample, 
+                'Bflow' : self.TssFileBflow.sample, 
+                'SfRun' : self.TssFileSfRun.sample, 
+                'Etp' : self.TssFileEtp.sample, 
                 'Lf' : self.TssFileLf.sample, 
                 'Rec' : self.TssFileRec.sample, 
-                'Tur' : self.TssFileTur.sample, 
-                'Vazao' : self.TssFileRun.sample,
+                'Ssat' : self.TssFileSsat.sample, 
+                'Runoff' : self.TssFileRun.sample,
                 'auxQtot' : self.TssFileAuxQtot.sample, 
                 'auxRec' : self.TssFileAuxRec.sample
             }
@@ -375,13 +375,13 @@ class Modelo(pcrfw.DynamicModel):
         # Variable dictionary to export according to filename
         varDic = {
             'Int' : I, 
-            'Eb' : self.EB, 
-            'Esd' : self. ES, 
-            'Evp' : self.ETr, 
+            'Bflow' : self.EB, 
+            'SfRun' : self.ES, 
+            'Etp' : self.ETr, 
             'Lf' : self.LF, 
             'Rec' : self.REC, 
-            'Tur' : self.TUr, 
-            'Vazao' : self.runoff, 
+            'Ssat' : self.TUr, 
+            'Runoff' : self.runoff, 
             'auxQtot' : self.Qtot, 
             'auxRec' : self.REC
         }
@@ -433,7 +433,7 @@ if __name__ == "__main__":
         os.mkdir(str(config.get('FILES', 'output')))
 
     # Store which variables have or have not been selected for export
-    genFilesList = ['Int', 'Eb', 'Esd', 'Evp', 'Lf', 'Rec', 'Tur', 'Vazao', 'auxQtot', 'auxRec']
+    genFilesList = ['Int', 'Bflow', 'SfRun', 'Etp', 'Lf', 'Rec', 'Ssat', 'Runoff', 'auxQtot', 'auxRec']
     genFilesDic = {}
     for file in genFilesList:
         genFilesDic[file] = config.getboolean('GENERATE_FILE', file)
