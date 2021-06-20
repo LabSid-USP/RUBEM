@@ -1,144 +1,31 @@
 # coding=utf-8
-
 import os
 import time
-import datetime
-import calendar
 import configparser
 import argparse
-# importacao GDAL mais recente mantendo compatibilidade
-try:
-    from osgeo import gdal
-except ImportError:
-    import gdal
+
 import numpy as np
 import pcraster.framework as pcrfw
 import pcraster as pcr
 
-# importacao de funcoes do modelo chuva vazao
+# Importing rainfall runoff model functions
 from modules.interception import *
 from modules.evapotranspiration import *
 from modules.surface_runoff import *
 from modules.soil import *
 
 from utilities.file_convertions import tss2csv
-
-########## Funcoes auxiliares ##########
-gdal.UseExceptions() 
-def getRefInfo(self, sourceTif):
-    """
-    :param sourceTif:
-    :sourceTif type:
-
-    :returns:
-    :rtype:     
-    """ 
-    gdal.AllRegister()
-    ds = gdal.OpenEx(sourceTif)
-    cols = ds.RasterXSize
-    rows = ds.RasterYSize
-    trans = ds.GetGeoTransform()
-    driver = ds.GetDriver()
-    Ref = [cols, rows, trans, driver]
-    
-    return Ref 
-
-def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
-    """
-    :param tifRef:
-    :tifRef  type:
-
-    :param pcrObj: PCRaster object to export.
-    :pcrObj  type:    
-    
-    :param fileName: Base name of the output file.
-    :fileName  type: str
-
-    :param outpath: Path of the output directory.
-    :outpath  type: str   
-    
-    :param dyn: If dynamic mode is True, otherwise defaults to False.
-    :dyn  type: int
-    """ 
-    # sourceTif = file to get attibutes from - DEM
-    # pcrObj  = pcraster to export
-    # fileName = string format
-    # dyn = if dynamic mode = 1, otherwise 0
-    # outpath = path to save Tif file
-    
-    # convert to np array
-    npFile = pcrfw.pcr2numpy(pcrObj,-999)  
-    
-    # generate file name
-    if not dyn:
-        out_tif = str(outpath + '/'+ fileName+'.tif')
-    if dyn:
-        digits = 10 - len(fileName)
-        out_tif = str(outpath + '/'+ fileName + str(self.currentStep).zfill(digits)+'.tif')
-    
-    # initialize export    
-    cols = tifRef[0]
-    rows = tifRef[1]
-    trans = tifRef[2]
-    driver = tifRef[3]
-    
-    # create the output image 
-    outDs = driver.Create(out_tif, cols, rows, 1, gdal.GDT_Float32,  options = [ 'COMPRESS=LZW' ] )
-    outBand = outDs.GetRasterBand(1)
-    outBand.SetNoDataValue(-9999)
-    outBand.WriteArray(npFile)
-    outDs.SetGeoTransform(trans)
-    ds = None
-    outDs = None
-
-# Calculo de numero de meses (steps) com base nas datas inicial e final de simulacao
-def totalSteps(startDate, endDate):
-    """Get the number of months between start and end dates
-
-    :param startDate: Start date.
-    :startDate type: str
-
-    :param startDate: End date.
-    :startDate type: str
-
-    :return: First step, Last step and Number of months between start and end dates
-    :rtype: tuple(int, int ,int)
-    """
-    start = datetime.datetime.strptime(startDate ,'%d/%m/%Y')
-    end = datetime.datetime.strptime(endDate ,'%d/%m/%Y')
-    assert end > start, "End date must be greater than start date"
-    nTimeSteps = (end.year - start.year)*12 + (end.month - start.month)
-    lastTimeStep = nTimeSteps
-    # PCRaster: first timestep argument of DynamicFramework must be > 0
-    firstTimestep = 1  
-    return (firstTimestep, lastTimeStep, nTimeSteps)
-
-# Calculo de numero de dias no mes a partir do timestep (para conversao de vazao de mm para m3/s)
-def daysOfMonth(startDate, timestep):
-    """
-    :param startDate: Start date.
-    :startDate  type: str
-
-    :param timestep:
-    :timestep  type: int
-
-    :returns: Days of month.
-    :rtype: int        
-    """     
-    sourcedate = datetime.datetime.strptime(startDate,'%d/%m/%Y')
-    month = sourcedate.month -2 + timestep
-    year = sourcedate.year + month // 12
-    month = (month % 12) +1
-    days = calendar.monthrange(year,month)[1]
-    return days
+from utilities.file_generators import *
+from utilities.date_calc import *
  
-########## Dynamic Mode ##########
-#raise SystemExit
+########## Dynamic Model ##########
 class Modelo(pcrfw.DynamicModel):
     """Constructor"""
     def __init__(self):
         pcrfw.DynamicModel.__init__(self)
-        print("RUBEM::Lendo arquivos de entrada...", end=" ", flush=True)
+        print("RUBEM::Reading input files...", end=" ", flush=True)
+        
+        #TODO: Check if loaded config info is valid
         # Read file locations
         self.inpath = config.get('FILES', 'input')
         self.dem_file = config.get('FILES', 'dem')
@@ -183,7 +70,8 @@ class Modelo(pcrfw.DynamicModel):
         self.KcminTable = config.get('PARAMETERS', 'kcmin')
         self.KcmaxTable = config.get('PARAMETERS', 'kcmax')
 
-        # Area da celula #pendente = calculo automatico da area da celula
+        #TODO: Automatic calculation of cell area
+        # Cell area 
         self.A = config.getfloat('GRID', 'grid')
 
         # Read calibration parameters from config file
@@ -198,16 +86,16 @@ class Modelo(pcrfw.DynamicModel):
         self.x = config.getfloat('CALIBRATION', 'x')
 
         # Read soil conditions from config file
-        # teor de umidade inicial da zona radicular (fracao do teor de saturacao)
+        # Initial moisture content of the root zone (fraction of saturation content)
         self.ftur_ini = config.getfloat('INITIAL SOIL CONDITIONS', 'ftur_ini')
-        # escoamento basico inicial
+        # Initial baseflow
         self.EBini = pcrfw.scalar(config.getfloat('INITIAL SOIL CONDITIONS', 'eb_ini'))
-        # limite para escoamento basico
+        # limit for baseflow
         self.EBlim = pcrfw.scalar(config.getfloat('INITIAL SOIL CONDITIONS', 'eb_lim'))
-        # teor de umidade inicial da zona saturada
+        # Initial moisture content of the saturated zone
         self.Tusini = pcrfw.scalar(config.getfloat('INITIAL SOIL CONDITIONS', 'tus_ini'))
 
-        # constantes
+        # Constants
         self.fpar_max = config.getfloat('CONSTANT', 'fpar_max')
         self.fpar_min = config.getfloat('CONSTANT', 'fpar_min')
         self.lai_max = config.getfloat('CONSTANT', 'lai_max')
@@ -216,7 +104,7 @@ class Modelo(pcrfw.DynamicModel):
         # Make sure to close the input stream when finished
         args.configfile.close()
         
-        print("OK", flush=True) # RUBEM::Lendo arquivos de entrada...
+        print("OK", flush=True) # RUBEM::Reading input files...
 
         # # Initialize time series output
         self.OutTssRun = 'outRun'
@@ -242,7 +130,7 @@ class Modelo(pcrfw.DynamicModel):
    
     def initial(self):
         """  """       
-        # Read dem file
+        # Read DEM file
         self.dem = pcrfw.readmap(self.dem_file)
 
         # Generate the local drain direction map on basis of the elevation map
@@ -258,7 +146,7 @@ class Modelo(pcrfw.DynamicModel):
         # Creat cacthment area basins
         subbasins = pcrfw.catchment(self.ldd, self.pits)
 
-        # Initializa Tss report at sample locations or pits
+        # Initialize Tss report at sample locations or pits
         self.TssFileRun = pcrfw.TimeoutputTimeseries(self.OutTssRun, self, self.sampleLocs, noHeader=True)
         self.TssFilePrec = pcrfw.TimeoutputTimeseries(self.OutTssPrec, self, self.sampleLocs, noHeader=True)
         self.TssFileInt = pcrfw.TimeoutputTimeseries(self.OutTssInt, self, self.sampleLocs, noHeader=True)
@@ -279,19 +167,19 @@ class Modelo(pcrfw.DynamicModel):
         self.sr_min = sr_calc(self, pcr,self.ndvi_min)
         self.sr_max = sr_calc(self, pcr,self.ndvi_max)
 
-        # Read soil atributes
+        # Read soil attributes
         solo = pcrfw.readmap(self.soil_path)
-        self.Kr = pcrfw.lookupscalar(self.KrTable,solo) #coeficiente de condutividade hidraulica
-        self.dg = pcrfw.lookupscalar(self.dgTable,solo) #densidade do solo
-        self.Zr = pcrfw.lookupscalar(self.ZrTable,solo) # profundidade da zona radicular [cm]
-        self.TUsat = pcrfw.lookupscalar(self.TsatTable,solo)*self.dg*self.Zr*10 # umidade para saturacao da primeira camada [mm]
-        self.TUr_ini = (self.TUsat)*(self.ftur_ini) # teor de umidade inicial da zona radicular [mm]
-        self.TUw = pcrfw.lookupscalar(self.TwTable,solo)*self.dg*self.Zr*10  # ponto de mucrha do solo [mm]
-        self.TUcc = pcrfw.lookupscalar(self.TccTable,solo)*self.dg*self.Zr*10 # capacidade de campo [mm]
-        self.Tpor = pcrfw.lookupscalar(self.Tporosidade,solo) # porosidade [%]
-        self.EB_ini = self.EBini # escoamento basico inicial [mm]
-        self.EB_lim = self.EBlim # limite para condicao de escoamento basico [mm]
-        self.TUs_ini = self.Tusini # teor de umidade inicial da camada saturada [mm]
+        self.Kr = pcrfw.lookupscalar(self.KrTable,solo) # hydraulic conductivity coefficient
+        self.dg = pcrfw.lookupscalar(self.dgTable,solo) # soil density
+        self.Zr = pcrfw.lookupscalar(self.ZrTable,solo) # root zone depth [cm]
+        self.TUsat = pcrfw.lookupscalar(self.TsatTable,solo)*self.dg*self.Zr*10 # moisture for saturation of the first layer [mm]
+        self.TUr_ini = (self.TUsat)*(self.ftur_ini) # initial moisture content of the root zone [mm]
+        self.TUw = pcrfw.lookupscalar(self.TwTable,solo)*self.dg*self.Zr*10  # ground wilting point [mm]
+        self.TUcc = pcrfw.lookupscalar(self.TccTable,solo)*self.dg*self.Zr*10 # field capacity [mm]
+        self.Tpor = pcrfw.lookupscalar(self.Tporosidade,solo) # porosity [%]
+        self.EB_ini = self.EBini # initial baseflow [mm]
+        self.EB_lim = self.EBlim # limit for baseflow condition [mm]
+        self.TUs_ini = self.Tusini # initial moisture content of the saturated layer [mm]
 
         # steps
         self.steps = totalSteps(startDate,endDate)
@@ -322,7 +210,7 @@ class Modelo(pcrfw.DynamicModel):
     def dynamic(self):
         """  """         
         t = self.currentStep
-        print(f'Tempo: {t}', flush=True)     
+        print(f'Time: {t}', flush=True)     
 
         # Read NDVI
         try:
@@ -362,18 +250,17 @@ class Modelo(pcrfw.DynamicModel):
         self.kc_min = pcrfw.lookupscalar(self.KcminTable,self.landuse)
         self.kc_max = pcrfw.lookupscalar(self.KcmaxTable,self.landuse)
 
-        print("\tInterceptacao...", end=" ", flush=True)
+        print("\tInterception...", end=" ", flush=True)
         ######### compute interception #########      
         SR = sr_calc(self, pcr,NDVI)
         FPAR = fpar_calc(self, pcr, self.fpar_min, self.fpar_max, SR, self.sr_min, self.sr_max)
         LAI = lai_function(self, pcr, FPAR, self.fpar_max, self.lai_max)
         Id, Ir, Iv, I = Interception_function(self, pcr, self.alfa, LAI, precipitation, rainyDays, Av)
 
-        #print("\tInterceptacao... OK", flush=True)
-        print("OK", flush=True)  
+        print("OK", flush=True)  #print("\tInterception... OK", flush=True)
         
         ######### Compute Evapotranspiration #########
-        print("\tEvapotranspiracao...", end=" ", flush=True)
+        print("\tEvapotranspiration...", end=" ", flush=True)
 
         Kc_1 = kc_calc(self, pcr, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
         # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
@@ -400,11 +287,10 @@ class Modelo(pcrfw.DynamicModel):
         self.ET_as = ETas_calc(self, pcr, ETp, self.kc_min, Ks)
         self.ETr = (Av*self.ET_av) + (Ai*self.ET_ai) + (Ao*self.ET_ao) + (As*self.ET_as) 
 
-        #print("\tEvapotranspiracao... OK", flush=True)
-        print("OK", flush=True)  
+        print("OK", flush=True)  #print("\tEvapotranspiration... OK", flush=True)
 
         ######### Surface Runoff #########      
-        print("\tEscoamento Superficial...", end=" ", flush=True)
+        print("\tSurface Runoff...", end=" ", flush=True)
         
         Pdm = (precipitation/rainyDays)      
         Ch = Ch_calc(self, pcr, self.TUr, self.dg, self.Zr, self.Tpor, self.b)      
@@ -415,48 +301,45 @@ class Modelo(pcrfw.DynamicModel):
 
         self.ES = ES_calc(self, pcr, Csr, Ch, precipitation, I, Ao, self.ET_ao)
 
-        # print("\tEscoamento Superficial... OK", flush=True)
-        print("OK", flush=True)  
+        print("OK", flush=True)  #print("\tSurface Runoff... OK", flush=True)
 
         ######### Lateral Flow #########
-        print("\tFluxo Lateral...", end=" ", flush=True)
+        print("\tLateral Flow...", end=" ", flush=True)
 
         self.LF = LF_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
-        # print("\tFluxo Lateral... OK", flush=True)
-        print("OK", flush=True)  
+        print("OK", flush=True)  #print("\tLateral Flow... OK", flush=True)
 
         ######### Recharge Flow #########
-        print("\tRecarga...", end=" ", flush=True)
+        print("\tRecharge Flow...", end=" ", flush=True)
 
         self.REC = REC_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
-        # print("\tRecarga... OK", flush=True)
-        print("OK", flush=True)
+        print("OK", flush=True) #print("\tRecharge Flow... OK", flush=True)
 
-        ######### Base Flow #########
-        print("\tEscoamento basico...", end=" ", flush=True)
+        ######### Baseflow #########
+        print("\tBaseflow...", end=" ", flush=True)
         # reportTif(self, self.ref, self.EBprev, 'EBprev', self.outpath, dyn=True)
         # reportTif(self, self.ref, self.TUs, 'TUs2', self.outpath, dyn=True)
 
         self.EB = EB_calc(self, pcr, self.EBprev, self.alfa_gw, self.REC, self.TUs, self.EB_lim)
         self.EBprev = self.EB
         # reportTif(self, self.ref, self.EB, 'EB', self.outpath, dyn=True)
-        # print("\tEscoamento basico... OK", flush=True)
-        print("OK", flush=True)  
+        
+        print("OK", flush=True)  #print("\tBaseflow... OK", flush=True)
 
         ######### Soil Balance #########
-        print("\tBalanco hidrico do solo...", end=" ", flush=True)
+        print("\tSoil Balance...", end=" ", flush=True)
         self.TUr = TUr_calc(self, pcr, self.TUrprev, precipitation, I, self.ES, self.LF, self.REC, self.ETr, Ao, self.TUsat)
         self.TUs = TUs_calc(self, pcr, self.TUsprev, self.REC, self.EB)
         self.TUrprev = self.TUr
 
         self.TUsprev = self.TUs
-        # print("\tBalanco hidrico do solo... OK", flush=True)
-        print("OK", flush=True)  
+        
+        print("OK", flush=True)  #print("\tSoil Balance... OK", flush=True)
 
         ######### Compute Runoff ########    
-        print("\tVazao...", end=" ", flush=True)
+        print("\tRunoff...", end=" ", flush=True)
 
         days = daysOfMonth(startDate,t)  
         c = days*24*3600
@@ -469,14 +352,13 @@ class Modelo(pcrfw.DynamicModel):
         self.runoff = self.x*self.Qprev + (1-self.x)*self.Qt
         self.Qprev = self.runoff
 
-        # print("\tVazao... OK", flush=True)
-        print("OK", flush=True)  
+        print("OK", flush=True)  #print("\tRunoff... OK", flush=True)
 
         os.chdir(self.outpath)
-        print("Exportando variaveis para arquivos...", end=" ", flush=True)   
+        print("Exporting variables to files...", end=" ", flush=True)   
         # Create tss files
         if genTss: 
-            # Dicionario de funcoes para exportar tss de acordo com nome dos arquivos
+            # Function dictionary to export tss according to filename
             genTssDic = {   
                 'Int' : self.TssFileInt.sample, 
                 'Eb' : self.TssFileEb.sample, 
@@ -490,7 +372,7 @@ class Modelo(pcrfw.DynamicModel):
                 'auxRec' : self.TssFileAuxRec.sample
             }
         
-        # Dicionario de variaveis para exportar de acordo com nome dos arquivos
+        # Variable dictionary to export according to filename
         varDic = {
             'Int' : I, 
             'Eb' : self.EB, 
@@ -505,22 +387,21 @@ class Modelo(pcrfw.DynamicModel):
         }
 
         for fileName, isSelected in genFilesDic.items():
-
-            # Checar se a variavel (fileName) foi selecionada para exportacao
+            # Check if the variable (fileName) has been selected for export
             if isSelected:
 
-                # Exportar raster por padrao
+                # Export raster by default
                 reportTif(self, self.ref, varDic.get(fileName), fileName, self.outpath, dyn=True)
 
-                # Checar se temos que exportar a serie temporal da variavel (fileName) selecionada
+                # Check if we have to export the time series of the selected variable (fileName)
                 if genTss:
-                    # Exportar tss de acordo com a variavel (fileName) selecionada
-                    # self.TssFileXxx.sample(self.Xxx)
+                    # Export tss according to variable (fileName) selected
+                    # The same as self.TssFileXxx.sample(self.Xxx)
                     genTssDic.get(fileName)(varDic.get(fileName))
 
-        print("OK ", flush=True) # Exportando variaveis para arquivos...        
+        print("OK ", flush=True) # Exporting variables to files...       
 
-        print(f'Finalizando ciclo {t} de {self.lastStep}', flush=True)                        
+        print(f'Ending cycle {t} of {self.lastStep}', flush=True)                        
       
 if __name__ == "__main__":
     
@@ -534,47 +415,48 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     t1 = time.time()
-    print("RUBEM::Inicio", flush=True)
+    print("RUBEM::Started", flush=True)
 
-    print("RUBEM::Lendo arquivo de configuracao...", end=" ", flush=True)
-    # Leitura de arquivo config.ini
+    print("RUBEM::Reading configuration file...", end=" ", flush=True)
+    # Reading the config.ini file
     config = configparser.ConfigParser()
     config.read_file(args.configfile)
-    print("OK", flush=True) # RUBEM::Lendo arquivo de configuracao...
+    print("OK", flush=True) # RUBEM::Reading configuration file...
 
-    # Data inicial e final da simulacao
+    # Start and end date of simulation
     startDate = config.get('SIM_TIME', 'start')
     endDate = config.get('SIM_TIME', 'end')
 
-    # mkDir "OutPut"
+    # Check whether the output directory exists
     if not os.path.isdir(str(config.get('FILES', 'output'))):
+        # If the output directory doesn't exist create it
         os.mkdir(str(config.get('FILES', 'output')))
 
-    # Verifica quais variaveis foram selecionadas para exportacao
+    # Store which variables have or have not been selected for export
     genFilesList = ['Int', 'Eb', 'Esd', 'Evp', 'Lf', 'Rec', 'Tur', 'Vazao', 'auxQtot', 'auxRec']
     genFilesDic = {}
     for file in genFilesList:
         genFilesDic[file] = config.getboolean('GENERATE_FILE', file)
 
-    # Verifica se a geracao de series temporais foi ativada
+    # Check if time series generation has been activated
     genTss = config.getboolean('GENERATE_FILE', 'genTss')        
 
     steps = totalSteps(startDate,endDate)
     start = steps[0]
     end = steps[1]
     
-    print("RUBEM::Executando modelo dinamico...", flush=True)
+    print("RUBEM::Running dynamic model...", flush=True)
     myModel = Modelo()
     dynamicModel = pcrfw.DynamicFramework(myModel,lastTimeStep=end, firstTimestep=start)
     dynamicModel.run()
     tempoExec = time.time() - t1
-    print(f'RUBEM::Modelo dinamico executado em: {tempoExec:.2f} segundos')
+    print(f'RUBEM::Dynamic model runtime: {tempoExec:.2f} seconds')
 
-    # Verifica se foram geradas series temporais
+    # Check whether the generation of time series has been activated
     if genTss:
-        print("RUBEM::Convertendo arquivos *.tss para *.csv...", end=" ", flush=True)
-        # Converte as series temporais geradas para o formato .csv
+        print("RUBEM::Converting *.tss files to *.csv...", end=" ", flush=True)
+        # Converts generated time series to .csv format and removes .tss files
         tss2csv(myModel.outpath)
-        print("OK", flush=True)
+        print("OK", flush=True) # Converting *.tss files to *.csv...
 
-    print("RUBEM::Fim", flush=True)
+    print("RUBEM::Finished", flush=True)
