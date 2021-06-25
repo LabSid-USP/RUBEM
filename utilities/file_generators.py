@@ -8,6 +8,7 @@ except ImportError:
     from gdal import UseExceptions, AllRegister, OpenEx, GDT_Float32
 
 from pcraster.framework import pcr2numpy
+from pcraster.framework import *
 
 UseExceptions() 
 def getRefInfo(self, sourceTif):
@@ -75,3 +76,29 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     outDs.SetGeoTransform(trans)
     ds = None
     outDs = None
+
+
+def reportmapseries(self, VaribleName, fileName):
+    """
+    :param tifRef:
+    :tifRef  type:
+
+    :param pcrObj: PCRaster object to export.
+    :pcrObj  type:    
+    
+    :param fileName: Base name of the output file.
+    :fileName  type: str
+
+    :param outpath: Path of the output directory.
+    :outpath  type: str   
+    
+    :param dyn: If dynamic mode is True, otherwise defaults to False.
+    :dyn  type: int
+    """ 
+    # sourceTif = file to get attibutes from - DEM
+    # pcrObj  = pcraster to export
+    # fileName = string format
+    # dyn = if dynamic mode = 1, otherwise 0
+    # outpath = path to save Tif file
+    
+    pcraster.report fileName=(VaribleName)

@@ -116,8 +116,7 @@ class Modelo(pcrfw.DynamicModel):
         self.OutTssLf =  'outLf'
         self.OutTssRec = 'outRec'
         self.OutTssSsat = 'outSsat'
-        self.OutTssAuxQtot = 'outAuxQtot'
-        self.OutTssAuxRec = 'outAuxRec'
+        
 
         # Report file
         # name
@@ -391,7 +390,7 @@ class Modelo(pcrfw.DynamicModel):
             if isSelected:
 
                 # Export raster by default
-                reportTif(self, self.ref, varDic.get(fileName), fileName, self.outpath, dyn=True)
+                reportmapseries(self, varDic.get(fileName), fileName)
 
                 # Check if we have to export the time series of the selected variable (fileName)
                 if genTss:
