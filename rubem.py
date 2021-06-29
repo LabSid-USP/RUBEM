@@ -100,9 +100,6 @@ class Modelo(pcrfw.DynamicModel):
         self.fpar_min = config.getfloat('CONSTANT', 'fpar_min')
         self.lai_max = config.getfloat('CONSTANT', 'lai_max')
         self.I_i = config.getfloat('CONSTANT', 'i_imp')
-
-        # Make sure to close the input stream when finished
-        args.configfile.close()
         
         print("OK", flush=True) # RUBEM::Reading input files...
 
@@ -422,6 +419,9 @@ if __name__ == "__main__":
     config = configparser.ConfigParser()
     config.read_file(args.configfile)
     print("OK", flush=True) # RUBEM::Reading configuration file...
+    
+    # Make sure to close the input stream when finished
+    args.configfile.close()
 
     # Start and end date of simulation
     startDate = config.get('SIM_TIME', 'start')
