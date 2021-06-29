@@ -391,7 +391,7 @@ class Modelo(pcrfw.DynamicModel):
             if isSelected:
 
                 # Export raster by default
-                reportmapseries(self, varDic.get(fileName), fileName)
+                reportMapSeries(self, varDic.get(fileName), fileName)
 
                 # Check if we have to export the time series of the selected variable (fileName)
                 if genTss:

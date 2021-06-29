@@ -78,7 +78,7 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     outDs = None
 
 
-def reportmapseries(self, VariableName, fileName):
+def reportMapSeries(self, VariableName, fileName):
     """
     :param fileName: Prefix name of the output file.
     :fileName  type: str
