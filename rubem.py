@@ -364,9 +364,7 @@ class Modelo(pcrfw.DynamicModel):
                 'Lf' : self.TssFileLf.sample, 
                 'Rec' : self.TssFileRec.sample, 
                 'Ssat' : self.TssFileSsat.sample, 
-                'Runoff' : self.TssFileRun.sample,
-                'auxQtot' : self.TssFileAuxQtot.sample, 
-                'auxRec' : self.TssFileAuxRec.sample
+                'Runoff' : self.TssFileRun.sample
             }
         
         # Variable dictionary to export according to filename
@@ -378,9 +376,7 @@ class Modelo(pcrfw.DynamicModel):
             'Lf' : self.LF, 
             'Rec' : self.REC, 
             'Ssat' : self.TUr, 
-            'Runoff' : self.runoff, 
-            'auxQtot' : self.Qtot, 
-            'auxRec' : self.REC
+            'Runoff' : self.runoff
         }
 
         for fileName, isSelected in genFilesDic.items():
@@ -433,7 +429,7 @@ if __name__ == "__main__":
         os.mkdir(str(config.get('FILES', 'output')))
 
     # Store which variables have or have not been selected for export
-    genFilesList = ['Int', 'Bflow', 'SfRun', 'Etp', 'Lf', 'Rec', 'Ssat', 'Runoff', 'auxQtot', 'auxRec']
+    genFilesList = ['Int', 'Bflow', 'SfRun', 'Etp', 'Lf', 'Rec', 'Ssat', 'Runoff']
     genFilesDic = {}
     for file in genFilesList:
         genFilesDic[file] = config.getboolean('GENERATE_FILE', file)
