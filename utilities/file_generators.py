@@ -46,7 +46,7 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     :param dyn: If dynamic mode is True, otherwise defaults to False.
     :dyn  type: int
     """ 
-    # sourceTif = file to get attibutes from - DEM
+    # sourceTif = file to get attributes from - DEM
     # pcrObj  = pcraster to export
     # fileName = string format
     # dyn = if dynamic mode = 1, otherwise 0
@@ -83,7 +83,7 @@ def reportmapseries(self, VariableName, fileName):
     :param fileName: Prefix name of the output file.
     :fileName  type: str
     
-    :param VariableName: Base name of varaibel to be export.
+    :param VariableName: Base name of variable to be export.
     :fileName  type: str
 
     """ 
