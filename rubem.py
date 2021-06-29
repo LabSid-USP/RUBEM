@@ -192,7 +192,7 @@ class Modelo(pcrfw.DynamicModel):
         self.Qprev = self.Qini
 
         # initialize first landuse map
-        landuseFirstmap=self.land_path + self.coverPrefix+'0000.001'
+        landuseFirstmap=self.land_path + self.coverPrefix+'00000.001'
         self.landuse = pcrfw.scalar(pcrfw.readmap(landuseFirstmap))
         self.landuse_ant = self.landuse
 
