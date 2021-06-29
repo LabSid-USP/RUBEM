@@ -192,10 +192,6 @@ class Modelo(pcrfw.DynamicModel):
         self.Qini = pcrfw.scalar(0)
         self.Qprev = self.Qini
 
-        # initialize first landuse map
-        self.landuse = self.readmap(self.land_path + self.coverPrefix)
-        self.landuse_ant = self.landuse
-
         # Information for output, get sample location numbers - integer, from 1 to n
         sample_map = pcrfw.nominal(self.sampleLocs) # read sample map location as nominal
         self.mvalue = -999
