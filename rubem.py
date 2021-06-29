@@ -196,7 +196,7 @@ class Modelo(pcrfw.DynamicModel):
 
         # initialize first landuse map
         landuseFirstmap=self.land_path + self.coverPrefix+'0000.001'
-        self.landuse = scalar(readmap(landuseFirstmap))
+        self.landuse = pcrfw.scalar(pcrfw.readmap(landuseFirstmap))
         self.landuse_ant = self.landuse
 
         # Information for output, get sample location numbers - integer, from 1 to n

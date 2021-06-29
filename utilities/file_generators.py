@@ -8,7 +8,6 @@ except ImportError:
     from gdal import UseExceptions, AllRegister, OpenEx, GDT_Float32
 
 from pcraster.framework import pcr2numpy
-from pcraster.framework import *
 
 UseExceptions() 
 def getRefInfo(self, sourceTif):
