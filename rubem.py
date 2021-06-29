@@ -113,8 +113,6 @@ class Modelo(pcrfw.DynamicModel):
         self.OutTssLf =  'outLf'
         self.OutTssRec = 'outRec'
         self.OutTssSsat = 'outSsat'
-        self.OutTssAuxQtot = 'outAuxQtot'
-        self.OutTssAuxRec = 'outAuxRec'
 
         # Report file
         # name
@@ -152,9 +150,7 @@ class Modelo(pcrfw.DynamicModel):
         self.TssFileEtp = pcrfw.TimeoutputTimeseries(self.OutTssEtp, self, self.sampleLocs, noHeader=True)
         self.TssFileLf = pcrfw.TimeoutputTimeseries(self.OutTssLf, self, self.sampleLocs, noHeader=True)
         self.TssFileRec = pcrfw.TimeoutputTimeseries(self.OutTssRec, self, self.sampleLocs, noHeader=True)
-        self.TssFileSsat = pcrfw.TimeoutputTimeseries(self.OutTssSsat, self, self.sampleLocs, noHeader=True)      
-        self.TssFileAuxQtot = pcrfw.TimeoutputTimeseries(self.OutTssAuxQtot, self, self.sampleLocs, noHeader=True)      
-        self.TssFileAuxRec = pcrfw.TimeoutputTimeseries(self.OutTssAuxRec, self, self.sampleLocs, noHeader=True)           
+        self.TssFileSsat = pcrfw.TimeoutputTimeseries(self.OutTssSsat, self, self.sampleLocs, noHeader=True)        
 
         # Read min and max ndvi
         self.ndvi_min = pcrfw.scalar(pcrfw.readmap(self.ndviMinFile))
