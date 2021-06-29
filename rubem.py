@@ -113,8 +113,6 @@ class Modelo(pcrfw.DynamicModel):
         self.OutTssLf =  'outLf'
         self.OutTssRec = 'outRec'
         self.OutTssSsat = 'outSsat'
-        self.OutTssAuxQtot = 'outAuxQtot'
-        self.OutTssAuxRec = 'outAuxRec'
 
         # Report file
         # name
@@ -152,9 +150,7 @@ class Modelo(pcrfw.DynamicModel):
         self.TssFileEtp = pcrfw.TimeoutputTimeseries(self.OutTssEtp, self, self.sampleLocs, noHeader=True)
         self.TssFileLf = pcrfw.TimeoutputTimeseries(self.OutTssLf, self, self.sampleLocs, noHeader=True)
         self.TssFileRec = pcrfw.TimeoutputTimeseries(self.OutTssRec, self, self.sampleLocs, noHeader=True)
-        self.TssFileSsat = pcrfw.TimeoutputTimeseries(self.OutTssSsat, self, self.sampleLocs, noHeader=True)      
-        self.TssFileAuxQtot = pcrfw.TimeoutputTimeseries(self.OutTssAuxQtot, self, self.sampleLocs, noHeader=True)      
-        self.TssFileAuxRec = pcrfw.TimeoutputTimeseries(self.OutTssAuxRec, self, self.sampleLocs, noHeader=True)           
+        self.TssFileSsat = pcrfw.TimeoutputTimeseries(self.OutTssSsat, self, self.sampleLocs, noHeader=True)        
 
         # Read min and max ndvi
         self.ndvi_min = pcrfw.scalar(pcrfw.readmap(self.ndviMinFile))
@@ -364,9 +360,7 @@ class Modelo(pcrfw.DynamicModel):
                 'Lf' : self.TssFileLf.sample, 
                 'Rec' : self.TssFileRec.sample, 
                 'Ssat' : self.TssFileSsat.sample, 
-                'Runoff' : self.TssFileRun.sample,
-                'auxQtot' : self.TssFileAuxQtot.sample, 
-                'auxRec' : self.TssFileAuxRec.sample
+                'Runoff' : self.TssFileRun.sample
             }
         
         # Variable dictionary to export according to filename
@@ -378,9 +372,7 @@ class Modelo(pcrfw.DynamicModel):
             'Lf' : self.LF, 
             'Rec' : self.REC, 
             'Ssat' : self.TUr, 
-            'Runoff' : self.runoff, 
-            'auxQtot' : self.Qtot, 
-            'auxRec' : self.REC
+            'Runoff' : self.runoff
         }
 
         for fileName, isSelected in genFilesDic.items():
@@ -433,7 +425,7 @@ if __name__ == "__main__":
         os.mkdir(str(config.get('FILES', 'output')))
 
     # Store which variables have or have not been selected for export
-    genFilesList = ['Int', 'Bflow', 'SfRun', 'Etp', 'Lf', 'Rec', 'Ssat', 'Runoff', 'auxQtot', 'auxRec']
+    genFilesList = ['Int', 'Bflow', 'SfRun', 'Etp', 'Lf', 'Rec', 'Ssat', 'Runoff']
     genFilesDic = {}
     for file in genFilesList:
         genFilesDic[file] = config.getboolean('GENERATE_FILE', file)
