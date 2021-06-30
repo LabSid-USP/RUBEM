@@ -1,5 +1,5 @@
 # coding=utf-8
-# RUBEM RUBEM is a distributed hydrological model to calculate monthly 
+# RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2021 LabSid PHA EPUSP
 
@@ -18,55 +18,61 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-__author__ = 'LabSid PHA EPUSP'
+"""Rainfall rUnoff Balance Enhanced Model file conversion utilities."""
+
+__author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = 'Copyright 2020-2021, LabSid PHA EPUSP'
+__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
 __license__ = "GPL"
-__date__ = '2021-05-19'
+__date__ = "2021-05-19"
 __version__ = "0.1.0"
 
-from os import remove
-from os.path import splitext, join
 from glob import glob
+from os import remove
+from os.path import join, splitext
+
 from pandas import read_csv
 
-def tif2map(path):
-    """[summary]
 
-    :param path: [description]
-    :type path: [type]
+def tif2map(path):
+    """Convert all TIFF (*.tif or *.tiff) files present in the specified directory to PCRaster Map format (*.map).
+
+    :param path: Directory containing the files.
+    :type path: str
     """
     pass
 
-def tss2csv(tssPath):
-    """[summary]
 
-    :param path: [description]
-    :type path: [type]
+def tss2csv(tssPath):
+    """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.csv).
+
+    :param path: Directory containing the files.
+    :type path: str
     """
     # Create a list with all files in this folder with matching extension
-    tssFileList = glob(join(tssPath,'*.tss'))
-    
+    tssFileList = glob(join(tssPath, "*.tss"))
+
     # Iterate over file list to convert each tss file in a csv file
     for tssFile in tssFileList:
-        
+
         # Read tss file properly
         df = read_csv(tssFile, header=None, index_col=0, delim_whitespace=True)
-        
+
         # Remove tss extension and add csv extension preserving the filename
-        csvFileName = splitext(tssFile)[0] + '.csv'
+        csvFileName = splitext(tssFile)[0] + ".csv"
 
         # Export csv file
-        df.to_csv(csvFileName, sep=',', header=None)
+        df.to_csv(csvFileName, sep=",", header=None)
 
     # Remove tss files
     eraseFiles(tssFileList)
 
-def eraseFiles(fileList):
-    """[summary]
 
-    :param fileList: [description]
-    :type fileList: [type]
+def eraseFiles(fileList):
+    """Delete files from a specified list.
+
+    :param fileList: List of paths to files.
+    :type fileList: List
     """
     # Iterate over file list to remove each tss file
     for file in fileList:

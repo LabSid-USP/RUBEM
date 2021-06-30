@@ -1,5 +1,5 @@
 # coding=utf-8
-# RUBEM RUBEM is a distributed hydrological model to calculate monthly 
+# RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2021 LabSid PHA EPUSP
 
@@ -18,9 +18,11 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-__author__ = 'LabSid PHA EPUSP'
+"""Rainfall rUnoff Balance Enhanced Model components."""
+
+__author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = 'Copyright 2020-2021, LabSid PHA EPUSP'
+__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
 __license__ = "GPL"
-__date__ = '2021-05-19'
+__date__ = "2021-05-19"
 __version__ = "0.1.0"
