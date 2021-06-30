@@ -1,5 +1,5 @@
 # coding=utf-8
-# RUBEM RUBEM is a distributed hydrological model to calculate monthly
+# RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2021 LabSid PHA EPUSP
 
@@ -18,6 +18,8 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
+"""Rainfall rUnoff Balance Enhanced Model file conversion utilities."""
+
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
 __copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
@@ -33,19 +35,19 @@ from pandas import read_csv
 
 
 def tif2map(path):
-    """[summary]
+    """Convert all TIFF (*.tif or *.tiff) files present in the specified directory to PCRaster Map format (*.map).
 
-    :param path: [description]
-    :type path: [type]
+    :param path: Directory containing the files.
+    :type path: str
     """
     pass
 
 
 def tss2csv(tssPath):
-    """[summary]
+    """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.csv).
 
-    :param path: [description]
-    :type path: [type]
+    :param path: Directory containing the files.
+    :type path: str
     """
     # Create a list with all files in this folder with matching extension
     tssFileList = glob(join(tssPath, "*.tss"))
@@ -67,10 +69,10 @@ def tss2csv(tssPath):
 
 
 def eraseFiles(fileList):
-    """[summary]
+    """Delete files from a specified list.
 
-    :param fileList: [description]
-    :type fileList: [type]
+    :param fileList: List of paths to files.
+    :type fileList: List
     """
     # Iterate over file list to remove each tss file
     for file in fileList:

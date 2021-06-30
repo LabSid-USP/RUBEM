@@ -1,5 +1,5 @@
 # coding=utf-8
-# RUBEM RUBEM is a distributed hydrological model to calculate monthly
+# RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2021 LabSid PHA EPUSP
 
@@ -18,6 +18,8 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
+"""Rainfall rUnoff Balance Enhanced Model Surface Runoff."""
+
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
 __copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
@@ -27,9 +29,9 @@ __version__ = "0.1.0"
 
 ########## Surface runoff ##########
 
-# - Function that returns Ch
 def Ch_calc(self, pcr, TUr, dg, Zr, tpor, b):
-    """
+    """Return Ch.
+    
     :param pcr:
     :pcr  type:
 
@@ -56,9 +58,9 @@ def Ch_calc(self, pcr, TUr, dg, Zr, tpor, b):
     return Ch
 
 
-# - Function that returns Cper
 def Cper_calc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
-    """
+    """Return Cper.
+    
     :param pcr:
     :pcr  type:
 
@@ -94,9 +96,9 @@ def Cper_calc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
     return Cper
 
 
-# - Function that returns Cimp
 def Cimp_calc(self, pcr, ao, ai):
-    """
+    """Return Cimp.
+    
     :param pcr:
     :pcr  type:
 
@@ -114,9 +116,9 @@ def Cimp_calc(self, pcr, ao, ai):
     return Aimp, Cimp
 
 
-# - Function that returns Cwp
 def Cwp_calc(self, pcr, Aimp, Cper, Cimp):
-    """
+    """Return Cwp.
+    
     :param pcr:
     :pcr  type:
 
@@ -136,9 +138,9 @@ def Cwp_calc(self, pcr, Aimp, Cper, Cimp):
     return Cwp
 
 
-# - Function that returns Csr
 def Csr_calc(self, pcr, Cwp, P_24, RCD):
-    """
+    """Return Csr.
+    
     :param pcr:
     :pcr  type:
 
@@ -158,9 +160,9 @@ def Csr_calc(self, pcr, Cwp, P_24, RCD):
     return Csr
 
 
-# - Function that returns Surface runoff
 def ES_calc(self, pcr, Csr, Ch, prec, I, Ao, ETao):
-    """
+    """Return surface runoff.
+    
     :param pcr:
     :pcr  type:
 

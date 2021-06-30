@@ -1,5 +1,5 @@
 # coding=utf-8
-# RUBEM RUBEM is a distributed hydrological model to calculate monthly
+# RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2021 LabSid PHA EPUSP
 
@@ -17,6 +17,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 # Contact: rubem.hydrological@labsid.eng.br
+
+"""Rainfall rUnoff Balance Enhanced Model."""
 
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
@@ -45,11 +47,14 @@ from utilities.file_convertions import tss2csv
 from utilities.file_generators import *
 
 
-########## Dynamic Model ##########
 class Modelo(pcrfw.DynamicModel):
-    """Constructor"""
-
+    """Rainfall rUnoff Balance Enhanced Model.
+    
+    Uses the PCRaster Dynamic Modelling Framework.
+    """
+    
     def __init__(self):
+        """Contains the initialization of the model class."""
         pcrfw.DynamicModel.__init__(self)
         print("RUBEM::Reading input files...", end=" ", flush=True)
 
@@ -154,7 +159,11 @@ class Modelo(pcrfw.DynamicModel):
         self.ref = getRefInfo(self, self.demTif)
 
     def initial(self):
-        """ """
+        """Contains the initialization of variables used in the model.
+        
+        Contains operations to initialise the state of the model at time step 0.
+        Operations included in this section are executed once.
+        """
         # Read DEM file
         self.dem = pcrfw.readmap(self.dem_file)
 
@@ -257,13 +266,18 @@ class Modelo(pcrfw.DynamicModel):
             self.sampleLocs
         )  # read sample map location as nominal
         self.mvalue = -999
-        # converts sample location to multidimensional array
+        # Convert sample location to multidimensional array
         self.sample_array = pcrfw.pcr2numpy(sample_map, self.mvalue)
         # create 1d array with unique locations values (1 to N number os locations)
         self.sample_vals = np.asarray(np.unique(self.sample_array))
 
     def dynamic(self):
-        """ """
+        """Contains the implementation of the dynamic section of the model.
+        
+        Contains the operations that are executed consecutively each time step. 
+        Results of a previous time step can be used as input for the current time step. 
+        The dynamic section is executed a specified number of timesteps.
+        """
         t = self.currentStep
         print(f"Time: {t}", flush=True)
 
@@ -557,7 +571,7 @@ if __name__ == "__main__":
     # Check whether the generation of time series has been activated
     if genTss:
         print("RUBEM::Converting *.tss files to *.csv...", end=" ", flush=True)
-        # Converts generated time series to .csv format and removes .tss files
+        # Convert generated time series to .csv format and removes .tss files
         tss2csv(myModel.outpath)
         print("OK", flush=True)  # Converting *.tss files to *.csv...
 

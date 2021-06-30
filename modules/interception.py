@@ -1,5 +1,5 @@
 # coding=utf-8
-# RUBEM RUBEM is a distributed hydrological model to calculate monthly
+# RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2021 LabSid PHA EPUSP
 
@@ -18,6 +18,8 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
+"""Rainfall rUnoff Balance Enhanced Model Interception."""
+    
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
 __copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
@@ -27,9 +29,9 @@ __version__ = "0.1.0"
 
 ########## Interception Module ##########
 
-# - Function that returns srmin and srmax
 def sr_calc(self, pcr, NDVI):
-    """
+    """Return SRmin and SRmax.
+    
     :param pcr:
     :pcr type:
 
@@ -43,9 +45,9 @@ def sr_calc(self, pcr, NDVI):
     return SR
 
 
-# - Function that returns Kc
 def kc_calc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
-    """
+    """Return Kc.
+    
     :param pcr:
     :pcr type:
 
@@ -72,9 +74,9 @@ def kc_calc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
     return Kc
 
 
-# - Function that returns fpar
 def fpar_calc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
-    """
+    """Return FPAR.
+    
     :param pcr:
     :pcr type:
 
@@ -101,9 +103,9 @@ def fpar_calc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
     return FPAR
 
 
-# - Function that returns LAI
 def lai_function(self, pcr, FPAR, fpar_max, lai_max):
-    """
+    """Return LAI.
+    
     :param pcr:
     :pcr type:
 
@@ -123,9 +125,9 @@ def lai_function(self, pcr, FPAR, fpar_max, lai_max):
     return LAI
 
 
-# - Function that returns Interception
 def Interception_function(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
-    """
+    """Return Interception.
+    
     :param pcr:
     :pcr type:
 

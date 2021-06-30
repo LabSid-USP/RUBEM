@@ -1,5 +1,5 @@
 # coding=utf-8
-# RUBEM RUBEM is a distributed hydrological model to calculate monthly
+# RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2021 LabSid PHA EPUSP
 
@@ -18,6 +18,8 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
+"""Rainfall rUnoff Balance Enhanced Model Soil."""
+
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
 __copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
@@ -27,7 +29,8 @@ __version__ = "0.1.0"
 
 ########## Lateral Flow ##########
 def LF_calc(self, pcr, f, Kr, TUr, TUsat):
-    """
+    """[summary].
+    
     :param pcr:
     :pcr  type:
 
@@ -49,7 +52,8 @@ def LF_calc(self, pcr, f, Kr, TUr, TUsat):
 
 ########## Recharge ##########
 def REC_calc(self, pcr, f, Kr, TUr, TUsat):
-    """
+    """[summary].
+    
     :param pcr:
     :pcr  type:
 
@@ -74,7 +78,8 @@ def REC_calc(self, pcr, f, Kr, TUr, TUsat):
 
 ########## Base Flow ##########
 def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
-    """
+    """[summary].
+    
     :param pcr:
     :pcr  type:
 
@@ -105,7 +110,8 @@ def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
 ########## Soil Balance ##########
 # First soil layer
 def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
-    """
+    """[summary].
+    
     :param pcr:
     :pcr  type:
 
@@ -152,7 +158,8 @@ def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
 
 # Second soil layer
 def TUs_calc(self, pcr, TUsprev, REC, EB):
-    """
+    """[summary].
+    
     :param pcr:
     :pcr  type:
 

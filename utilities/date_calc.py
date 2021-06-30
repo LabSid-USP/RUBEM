@@ -1,5 +1,5 @@
 # coding=utf-8
-# RUBEM RUBEM is a distributed hydrological model to calculate monthly
+# RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2021 LabSid PHA EPUSP
 
@@ -18,6 +18,8 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
+"""Rainfall rUnoff Balance Enhanced Model date utilities."""
+
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
 __copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
@@ -31,7 +33,7 @@ from datetime import datetime
 
 # Calculation of number of months (steps) based on the start and end dates of simulation
 def totalSteps(startDate, endDate):
-    """Get the number of months between start and end dates
+    """Get the number of months between start and end dates.
 
     :param startDate: Start date.
     :startDate type: str
@@ -52,9 +54,9 @@ def totalSteps(startDate, endDate):
     return (firstTimestep, lastTimeStep, nTimeSteps)
 
 
-# Calculation of number of days in the month from timestep (for flow conversion from mm to m3/s)
 def daysOfMonth(startDate, timestep):
-    """
+    """Get the number of days in the month from timestep (for flow conversion from mm to m3/s).
+    
     :param startDate: Start date.
     :startDate  type: str
 

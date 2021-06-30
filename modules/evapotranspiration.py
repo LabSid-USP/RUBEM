@@ -1,5 +1,5 @@
 # coding=utf-8
-# RUBEM RUBEM is a distributed hydrological model to calculate monthly
+# RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2021 LabSid PHA EPUSP
 
@@ -18,6 +18,8 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
+"""Rainfall rUnoff Balance Enhanced Model Evapotranspiration."""
+
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
 __copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
@@ -27,9 +29,9 @@ __version__ = "0.1.0"
 
 ########## Evapotranspiration Module ##########
 
-# - Function that returns Ks for evapotranspiration of vegetated area
 def Ks_calc(self, pcr, TUr, TUw, TUcc):
-    """
+    """Return Ks for evapotranspiration of vegetated area.
+
     :param pcr:
     :pcr  type:
 
@@ -51,9 +53,9 @@ def Ks_calc(self, pcr, TUr, TUw, TUcc):
     return Ks
 
 
-# - Function that returns evapotranspiration of vegetated area
 def ETav_calc(self, pcr, ETp, Kc, Ks):
-    """
+    """Return evapotranspiration of vegetated area.
+
     :param pcr:
     :pcr  type:
 
@@ -73,9 +75,9 @@ def ETav_calc(self, pcr, ETp, Kc, Ks):
     return ETav
 
 
-# - Function that returns Kp for evapotranspiration of open water area
 def Kp_calc(self, pcr, B, U_2, UR):
-    """
+    """Return Kp for evapotranspiration of open water area.
+
     :param pcr:
     :pcr  type:
 
@@ -95,9 +97,9 @@ def Kp_calc(self, pcr, B, U_2, UR):
     return Kp
 
 
-# - Function that returns Ks for evapotranspiration of water area
 def ETao_calc(self, pcr, ETp, Kp, prec, Ao):
-    """
+    """Return Ks for evapotranspiration of water area.
+    
     :param pcr:
     :pcr  type:
 
@@ -136,9 +138,9 @@ def ETao_calc(self, pcr, ETp, Kp, prec, Ao):
     return ETao
 
 
-# - Function that returns Ks for evapotranspiration of bare soil area
 def ETas_calc(self, pcr, ETp, kc_min, Ks):
-    """
+    """Return Ks for evapotranspiration of bare soil area.
+    
     :param pcr:
     :pcr  type:
 
