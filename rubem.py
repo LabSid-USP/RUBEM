@@ -25,24 +25,25 @@ __license__ = "GPL"
 __date__ = "2021-05-19"
 __version__ = "0.1.0"
 
+import argparse
+import configparser
 import os
 import time
-import configparser
-import argparse
 
 import numpy as np
-import pcraster.framework as pcrfw
 import pcraster as pcr
+import pcraster.framework as pcrfw
 
 # Importing rainfall runoff model functions
-from modules.interception import *
 from modules.evapotranspiration import *
-from modules.surface_runoff import *
+from modules.interception import *
 from modules.soil import *
-
+from modules.surface_runoff import *
+# Import util functions
+from utilities.date_calc import *
 from utilities.file_convertions import tss2csv
 from utilities.file_generators import *
-from utilities.date_calc import *
+
 
 ########## Dynamic Model ##########
 class Modelo(pcrfw.DynamicModel):

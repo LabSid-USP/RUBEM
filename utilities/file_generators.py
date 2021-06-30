@@ -28,7 +28,7 @@ __version__ = "0.1.0"
 # Import the latest GDAL library while maintaining
 # backward compatibility
 try:
-    from osgeo.gdal import UseExceptions, AllRegister, OpenEx, GDT_Float32
+    from osgeo.gdal import AllRegister, GDT_Float32, OpenEx, UseExceptions
 except ImportError:
     from gdal import UseExceptions, AllRegister, OpenEx, GDT_Float32
 

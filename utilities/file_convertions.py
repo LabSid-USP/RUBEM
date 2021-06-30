@@ -25,9 +25,10 @@ __license__ = "GPL"
 __date__ = "2021-05-19"
 __version__ = "0.1.0"
 
-from os import remove
-from os.path import splitext, join
 from glob import glob
+from os import remove
+from os.path import join, splitext
+
 from pandas import read_csv
 
 

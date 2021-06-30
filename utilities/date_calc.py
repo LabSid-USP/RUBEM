@@ -25,8 +25,9 @@ __license__ = "GPL"
 __date__ = "2021-05-19"
 __version__ = "0.1.0"
 
-from datetime import datetime
 from calendar import monthrange
+from datetime import datetime
+
 
 # Calculation of number of months (steps) based on the start and end dates of simulation
 def totalSteps(startDate, endDate):
