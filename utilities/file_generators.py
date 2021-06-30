@@ -18,7 +18,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Rainfall rUnoff Balance Enhanced Model file generators utilities."""
+"""Common file generation functionality used by RUBEM."""
 
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"

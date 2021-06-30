@@ -18,7 +18,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Rainfall rUnoff Balance Enhanced Model date utilities."""
+"""Common date functionality used by RUBEM."""
 
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
