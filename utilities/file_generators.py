@@ -109,3 +109,14 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     outDs.SetGeoTransform(trans)
     ds = None
     outDs = None
+
+def reportMapSeries(self, VariableName, fileName):
+    """[summary].
+
+    :param fileName: Prefix name of the output file.
+    :fileName  type: str
+    
+    :param VariableName: Base name of variable to be export.
+    :fileName  type: str
+    """ 
+    self.report(VariableName,fileName)
