@@ -1,5 +1,5 @@
 # coding=utf-8
-# RUBEM RUBEM is a distributed hydrological model to calculate monthly 
+# RUBEM RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2021 LabSid PHA EPUSP
 
@@ -18,11 +18,11 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-__author__ = 'LabSid PHA EPUSP'
+__author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = 'Copyright 2020-2021, LabSid PHA EPUSP'
+__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
 __license__ = "GPL"
-__date__ = '2021-05-19'
+__date__ = "2021-05-19"
 __version__ = "0.1.0"
 
 ########## Lateral Flow ##########
@@ -32,19 +32,20 @@ def LF_calc(self, pcr, f, Kr, TUr, TUsat):
     :pcr  type:
 
     :param f:
-    :f  type:    
-    
+    :f  type:
+
     :param TUr:
     :TUr  type:
 
     :param TUsat:
-    :TUsat  type:    
-    
+    :TUsat  type:
+
     :returns:
-    :rtype: 
-    """         
-    LF = f*Kr*((TUr/TUsat)**2)
+    :rtype:
+    """
+    LF = f * Kr * ((TUr / TUsat) ** 2)
     return LF
+
 
 ########## Recharge ##########
 def REC_calc(self, pcr, f, Kr, TUr, TUsat):
@@ -53,22 +54,23 @@ def REC_calc(self, pcr, f, Kr, TUr, TUsat):
     :pcr  type:
 
     :param f:
-    :f  type:   
+    :f  type:
 
     :param Kr:
-    :Kr  type:  
-    
+    :Kr  type:
+
     :param TUr:
     :TUr  type:
 
     :param TUsat:
-    :TUsat  type:    
-    
+    :TUsat  type:
+
     :returns:
-    :rtype: 
-    """          
-    REC = (1-f)*Kr*((TUr/TUsat)**2)
-    return REC    
+    :rtype:
+    """
+    REC = (1 - f) * Kr * ((TUr / TUsat) ** 2)
+    return REC
+
 
 ########## Base Flow ##########
 def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
@@ -77,27 +79,30 @@ def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
     :pcr  type:
 
     :param EB_prev:
-    :EB_prev  type:   
+    :EB_prev  type:
 
     :param alfaS:
-    :alfaS  type:  
-    
+    :alfaS  type:
+
     :param REC:
     :REC  type:
 
     :param TUs:
-    :TUs  type: 
+    :TUs  type:
 
     :param EB_lim:
-    :EB_lim  type:    
-    
+    :EB_lim  type:
+
     :returns:
-    :rtype: 
-    """         
+    :rtype:
+    """
     # limit condition for base flow
     cond = pcr.scalar(TUs > EB_lim)
-    EB = ((EB_prev*((pcr.exp(1))**-alfaS))+(1-((pcr.exp(1))**-alfaS))*REC)*cond
+    EB = (
+        (EB_prev * ((pcr.exp(1)) ** -alfaS)) + (1 - ((pcr.exp(1)) ** -alfaS)) * REC
+    ) * cond
     return EB
+
 
 ########## Soil Balance ##########
 # First soil layer
@@ -107,44 +112,45 @@ def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
     :pcr  type:
 
     :param TUrprev:
-    :TUrprev  type:   
+    :TUrprev  type:
 
     :param P:
-    :P  type:  
-    
+    :P  type:
+
     :param I:
     :I  type:
 
     :param ES:
-    :ES  type: 
+    :ES  type:
 
     :param LF:
-    :LF  type: 
+    :LF  type:
 
     :param REC:
-    :REC  type:  
+    :REC  type:
 
     :param ETr:
-    :ETr  type:  
+    :ETr  type:
 
     :param Ao:
-    :Ao  type:  
+    :Ao  type:
 
     :param Tsat:
-    :Tsat  type:              
-    
+    :Tsat  type:
+
     :returns:
-    :rtype: 
-    """           
+    :rtype:
+    """
     # condition for pixel of water, if Ao different of 1 (not water)
     condw1 = pcr.scalar(Ao != 1)
     # soil balance
-    balance = TUrprev + P - I - ES - LF - REC - ETr    
+    balance = TUrprev + P - I - ES - LF - REC - ETr
     # condition for positivie balance
-    cond = pcr.scalar(balance>0)    
+    cond = pcr.scalar(balance > 0)
     # if balance is negative TUR = 0, + if pixel is water, TUR = TUsat
-    TUr = (balance*cond)*condw1 + Tsat*(1-condw1)
+    TUr = (balance * cond) * condw1 + Tsat * (1 - condw1)
     return TUr
+
 
 # Second soil layer
 def TUs_calc(self, pcr, TUsprev, REC, EB):
@@ -153,17 +159,17 @@ def TUs_calc(self, pcr, TUsprev, REC, EB):
     :pcr  type:
 
     :param TUsprev:
-    :TUsprev  type:   
+    :TUsprev  type:
 
     :param REC:
-    :REC  type:  
-    
+    :REC  type:
+
     :param EB:
     :EB  type:
 
     :returns:
-    :rtype: 
-    """            
+    :rtype:
+    """
     # soil balance
     balance = TUsprev + REC - EB
     TUs = balance
