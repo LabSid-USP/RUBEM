@@ -67,13 +67,8 @@ def kc_calc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
     :returns:
     :rtype:
     """
-    Kc = kc_min + (
-        (kc_max - kc_min)
-        * (
-            (NDVI - pcr.scalar(ndvi_min))
-            / (pcr.scalar(ndvi_max) - pcr.scalar(ndvi_min))
-        )
-    )
+    Kc = kc_min + ((kc_max - kc_min) * 
+        ((NDVI - pcr.scalar(ndvi_min)) / (pcr.scalar(ndvi_max) - pcr.scalar(ndvi_min))))
     return Kc
 
 
@@ -157,17 +152,8 @@ def Interception_function(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
     cond2 = pcr.scalar((precipitation == 0))
     prec = precipitation * cond1 + (precipitation * cond2 + 0.00001)
 
-    Id = (
-        alfa
-        * LAI
-        * (
-            1
-            - (
-                1
-                / (1 + (precipitation * ((1 - (pcr.exp(-0.463 * LAI))) / (alfa * LAI))))
-            )
-        )
-    )
+    Id = (alfa * LAI * 
+        (1 - (1 / (1 + (precipitation * ((1 - (pcr.exp(-0.463 * LAI))) / (alfa * LAI)))))))
     Ir = 1 - pcr.exp(-Id * rainy_days / prec)
     # Interception of the vegetated area
     Iv = precipitation * Ir

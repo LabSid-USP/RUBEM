@@ -98,9 +98,7 @@ def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
     """
     # limit condition for base flow
     cond = pcr.scalar(TUs > EB_lim)
-    EB = (
-        (EB_prev * ((pcr.exp(1)) ** -alfaS)) + (1 - ((pcr.exp(1)) ** -alfaS)) * REC
-    ) * cond
+    EB = ((EB_prev * ((pcr.exp(1)) ** -alfaS)) + (1 - ((pcr.exp(1)) ** -alfaS)) * REC) * cond
     return EB
 
 
