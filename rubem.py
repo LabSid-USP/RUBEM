@@ -486,20 +486,25 @@ class Modelo(pcrfw.DynamicModel):
             "Ssat": self.TUr,
             "Runoff": self.runoff,
         }
-
+        
         for fileName, isSelected in genFilesDic.items():
             # Check if the variable (fileName) has been selected for export
             if isSelected:
 
-                # Export raster by default
-                reportTif(
-                    self,
-                    self.ref,
-                    varDic.get(fileName),
-                    fileName,
-                    self.outpath,
-                    dyn=True,
-                )
+                # Export *.tiff raster 
+                if enableTIFFormat:
+                    reportTif(
+                        self,
+                        self.ref,
+                        varDic.get(fileName),
+                        fileName,
+                        self.outpath,
+                        dyn=True,
+                    )
+                
+                # Export *.map raster 
+                if enableMapFormat:
+                    reportMapSeries(self, varDic.get(fileName), fileName)
 
                 # Check if we have to export the time series of the selected variable (fileName)
                 if genTss:
@@ -552,8 +557,12 @@ if __name__ == "__main__":
     for file in genFilesList:
         genFilesDic[file] = config.getboolean("GENERATE_FILE", file)
 
-    # Check if time series generation has been activated
+    # Store the setting that enables the export of time series
     genTss = config.getboolean("GENERATE_FILE", "genTss")
+
+    # Store the format in which the resulting files will be exported (*.tif and/or *.map)
+    enableTIFFormat = config.getboolean("GENERATE_FILE_FORMAT", "enableTiff")
+    enableMapFormat = config.getboolean("GENERATE_FILE_FORMAT", "enableMapSeries")
 
     steps = totalSteps(startDate, endDate)
     start = steps[0]
