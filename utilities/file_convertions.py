@@ -43,7 +43,7 @@ def tif2map(path):
     pass
 
 
-def tss2csv(tssPath):
+def tss2csv(tssPath, colNames):
     """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.csv).
 
     :param path: Directory containing the files.
@@ -62,7 +62,7 @@ def tss2csv(tssPath):
         csvFileName = splitext(tssFile)[0] + ".csv"
 
         # Export csv file
-        df.to_csv(csvFileName, sep=",", header=None)
+        df.to_csv(csvFileName, sep=",", header=colNames)
 
     # Remove tss files
     eraseFiles(tssFileList)
