@@ -580,8 +580,9 @@ if __name__ == "__main__":
     # Check whether the generation of time series has been activated
     if genTss:
         print("RUBEM::Converting *.tss files to *.csv...", end=" ", flush=True)
+        cols = [str(n) for n in myModel.sample_vals[1:]]
         # Convert generated time series to .csv format and removes .tss files
-        tss2csv(myModel.outpath)
+        tss2csv(myModel.outpath, cols)
         print("OK", flush=True)  # Converting *.tss files to *.csv...
 
     print("RUBEM::Finished", flush=True)
