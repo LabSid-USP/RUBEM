@@ -105,7 +105,7 @@ class Modelo(pcrfw.DynamicModel):
 
         # TODO: Automatic calculation of cell area
         # Cell area
-        self.A = config.getfloat("GRID", "grid")
+        self.A = config.getfloat("GRID", "grid")**2
 
         # Read calibration parameters from config file
         self.alfa = config.getfloat("CALIBRATION", "alfa")
