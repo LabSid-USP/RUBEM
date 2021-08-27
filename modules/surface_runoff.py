@@ -29,7 +29,7 @@ __version__ = "0.1.0"
 
 ########## Surface runoff ##########
 
-def Ch_calc(self, pcr, TUr, dg, Zr, tpor, b):
+def Ch_calc(self, pcr, TUr, dg, Zr, Tsat, b):
     """Return Ch.
     
     :param pcr:
@@ -54,7 +54,7 @@ def Ch_calc(self, pcr, TUr, dg, Zr, tpor, b):
     :rtype:
     """
     tur = TUr / (dg * Zr * 10)  # [%] soil moisture
-    Ch = (tur / tpor) ** b
+    Ch = (tur / Tsat) ** b
     return Ch
 
 
@@ -160,7 +160,7 @@ def Csr_calc(self, pcr, Cwp, P_24, RCD):
     return Csr
 
 
-def ES_calc(self, pcr, Csr, Ch, prec, I, Ao, ETao):
+def ES_calc(self, pcr, Csr, Ch, prec, I, Ao, ETao,TUr,Tsat):
     """Return surface runoff.
     
     :param pcr:
@@ -192,5 +192,11 @@ def ES_calc(self, pcr, Csr, Ch, prec, I, Ao, ETao):
     # condition for positive value for (prec - ETao)
     cond2 = pcr.scalar((prec - ETao) > 0)
 
-    ES = (Csr * Ch * (prec - I)) * (1 - cond1) + (prec - ETao) * cond2 * cond1
+    ESin = (Csr * Ch * (prec - I)) * (1 - cond1) + (prec - ETao) * cond2 * cond1
+
+    #condition for tur >tursat
+    cond3=pcr.scalar(TUr == Tsat)
+
+    ES=(ESin*(1 - cond3))+(prec - I)*(cond3)*(1-cond1)+ESin*(cond1)
+
     return ES
