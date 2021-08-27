@@ -29,7 +29,7 @@ __version__ = "0.1.0"
 
 ########## Surface runoff ##########
 
-def Ch_calc(self, pcr, TUr, dg, Zr, tpor, b):
+def Ch_calc(self, pcr, TUr, dg, Zr, Tsat, b):
     """Return Ch.
     
     :param pcr:
@@ -54,7 +54,7 @@ def Ch_calc(self, pcr, TUr, dg, Zr, tpor, b):
     :rtype:
     """
     tur = TUr / (dg * Zr * 10)  # [%] soil moisture
-    Ch = (tur / tpor) ** b
+    Ch = (tur / Tsat) ** b
     return Ch
 
 

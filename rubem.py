@@ -96,7 +96,6 @@ class Modelo(pcrfw.DynamicModel):
         self.dgTable = config.get("PARAMETERS", "dg")
         self.KrTable = config.get("PARAMETERS", "kr")
         self.TccTable = config.get("PARAMETERS", "capCampo")
-        self.Tporosidade = config.get("PARAMETERS", "porosidade")
         self.TsatTable = config.get("PARAMETERS", "saturacao")
         self.TwTable = config.get("PARAMETERS", "pontomurcha")
         self.ZrTable = config.get("PARAMETERS", "zr")
@@ -236,7 +235,6 @@ class Modelo(pcrfw.DynamicModel):
         self.TUcc = (
             pcrfw.lookupscalar(self.TccTable, solo) * self.dg * self.Zr * 10
         )  # field capacity [mm]
-        self.Tpor = pcrfw.lookupscalar(self.Tporosidade, solo)  # porosity [%]
         self.EB_ini = self.EBini  # initial baseflow [mm]
         self.EB_lim = self.EBlim  # limit for baseflow condition [mm]
         self.TUs_ini = (
@@ -369,7 +367,7 @@ class Modelo(pcrfw.DynamicModel):
         print("\tSurface Runoff...", end=" ", flush=True)
 
         Pdm = precipitation / rainyDays
-        Ch = Ch_calc(self, pcr, self.TUr, self.dg, self.Zr, self.Tpor, self.b)
+        Ch = Ch_calc(self, pcr, self.TUr, self.dg, self.Zr, self.TUsat, self.b)
         Cper = Cper_calc(
             self,
             pcr,
