@@ -145,6 +145,7 @@ def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
     :returns:
     :rtype:
     """
+
     # condition for pixel of water, if Ao different of 1 (not water)
     condw1 = pcr.scalar(Ao != 1)
     # soil balance
@@ -152,8 +153,15 @@ def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
     # condition for positivie balance
     cond = pcr.scalar(balance > 0)
     # if balance is negative TUR = 0, + if pixel is water, TUR = TUsat
-    TUr = (balance * cond) * condw1 + Tsat * (1 - condw1)
+    TUrin = (balance * cond) * condw1 + Tsat * (1 - condw1)
+    #condition for tur >tursat
+    cond3=pcr.scalar(TUrin<Tsat)
+    #If Tur>tsat, TUR=TUsat
+    TUr=(TUrin*cond3)+Tsat*(1-cond3)
+  
     return TUr
+
+
 
 
 # Second soil layer
