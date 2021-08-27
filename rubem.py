@@ -386,7 +386,7 @@ class Modelo(pcrfw.DynamicModel):
         Cwp = Cwp_calc(self, pcr, Aimp, Cper, Cimp)
         Csr = Csr_calc(self, pcr, Cwp, Pdm, self.RCD)
 
-        self.ES = ES_calc(self, pcr, Csr, Ch, precipitation, I, Ao, self.ET_ao)
+        self.ES = ES_calc(self, pcr, Csr, Ch, precipitation, I, Ao, self.ET_ao, self.TUr, self.TUsat)
 
         print("OK", flush=True)  # print("\tSurface Runoff... OK", flush=True)
 

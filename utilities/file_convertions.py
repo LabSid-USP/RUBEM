@@ -62,7 +62,7 @@ def tss2csv(tssPath, colNames):
         csvFileName = splitext(tssFile)[0] + ".csv"
 
         # Export csv file
-        df.to_csv(csvFileName, sep=",", header=colNames)
+        df.to_csv(csvFileName, sep=";", header=colNames)
 
     # Remove tss files
     eraseFiles(tssFileList)
