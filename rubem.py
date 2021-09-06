@@ -179,34 +179,35 @@ class Modelo(pcrfw.DynamicModel):
         # Creat cacthment area basins
         subbasins = pcrfw.catchment(self.ldd, self.pits)
 
-        # Initialize Tss report at sample locations or pits
-        self.TssFileRun = pcrfw.TimeoutputTimeseries(
-            self.OutTssRun, self, self.sampleLocs, noHeader=True
-        )
-        self.TssFilePrec = pcrfw.TimeoutputTimeseries(
-            self.OutTssPrec, self, self.sampleLocs, noHeader=True
-        )
-        self.TssFileInt = pcrfw.TimeoutputTimeseries(
-            self.OutTssInt, self, self.sampleLocs, noHeader=True
-        )
-        self.TssFileBflow = pcrfw.TimeoutputTimeseries(
-            self.OutTssBflow, self, self.sampleLocs, noHeader=True
-        )
-        self.TssFileSfRun = pcrfw.TimeoutputTimeseries(
-            self.OutTssSfRun, self, self.sampleLocs, noHeader=True
-        )
-        self.TssFileEtp = pcrfw.TimeoutputTimeseries(
-            self.OutTssEtp, self, self.sampleLocs, noHeader=True
-        )
-        self.TssFileLf = pcrfw.TimeoutputTimeseries(
-            self.OutTssLf, self, self.sampleLocs, noHeader=True
-        )
-        self.TssFileRec = pcrfw.TimeoutputTimeseries(
-            self.OutTssRec, self, self.sampleLocs, noHeader=True
-        )
-        self.TssFileSsat = pcrfw.TimeoutputTimeseries(
-            self.OutTssSsat, self, self.sampleLocs, noHeader=True
-        )
+        if genTss:
+            # Initialize Tss report at sample locations or pits
+            self.TssFileRun = pcrfw.TimeoutputTimeseries(
+                self.OutTssRun, self, self.sampleLocs, noHeader=True
+            )
+            self.TssFilePrec = pcrfw.TimeoutputTimeseries(
+                self.OutTssPrec, self, self.sampleLocs, noHeader=True
+            )
+            self.TssFileInt = pcrfw.TimeoutputTimeseries(
+                self.OutTssInt, self, self.sampleLocs, noHeader=True
+            )
+            self.TssFileBflow = pcrfw.TimeoutputTimeseries(
+                self.OutTssBflow, self, self.sampleLocs, noHeader=True
+            )
+            self.TssFileSfRun = pcrfw.TimeoutputTimeseries(
+                self.OutTssSfRun, self, self.sampleLocs, noHeader=True
+            )
+            self.TssFileEtp = pcrfw.TimeoutputTimeseries(
+                self.OutTssEtp, self, self.sampleLocs, noHeader=True
+            )
+            self.TssFileLf = pcrfw.TimeoutputTimeseries(
+                self.OutTssLf, self, self.sampleLocs, noHeader=True
+            )
+            self.TssFileRec = pcrfw.TimeoutputTimeseries(
+                self.OutTssRec, self, self.sampleLocs, noHeader=True
+            )
+            self.TssFileSsat = pcrfw.TimeoutputTimeseries(
+                self.OutTssSsat, self, self.sampleLocs, noHeader=True
+            )
 
         # Read min and max ndvi
         self.ndvi_min = pcrfw.scalar(pcrfw.readmap(self.ndviMinFile))
@@ -255,15 +256,16 @@ class Modelo(pcrfw.DynamicModel):
         self.Qini = pcrfw.scalar(0)
         self.Qprev = self.Qini
 
-        # Information for output, get sample location numbers - integer, from 1 to n
-        sample_map = pcrfw.nominal(
-            self.sampleLocs
-        )  # read sample map location as nominal
-        self.mvalue = -999
-        # Convert sample location to multidimensional array
-        self.sample_array = pcrfw.pcr2numpy(sample_map, self.mvalue)
-        # create 1d array with unique locations values (1 to N number os locations)
-        self.sample_vals = np.asarray(np.unique(self.sample_array))
+        if genTss:
+            # Information for output, get sample location numbers - integer, from 1 to n
+            sample_map = pcrfw.nominal(
+                self.sampleLocs
+            )  # read sample map location as nominal
+            self.mvalue = -999
+            # Convert sample location to multidimensional array
+            self.sample_array = pcrfw.pcr2numpy(sample_map, self.mvalue)
+            # create 1d array with unique locations values (1 to N number os locations)
+            self.sample_vals = np.asarray(np.unique(self.sample_array))
 
     def dynamic(self):
         """Contains the implementation of the dynamic section of the model.
