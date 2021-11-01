@@ -54,23 +54,23 @@ def LF_calc(self, pcr, f, Kr, TUr, TUsat):
 def REC_calc(self, pcr, f, Kr, TUr, TUsat):
     """Function to calculate Recharge in the pixel [mm].
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: STR
 
-    :param f:
-    :f  type:
+    :param TUr: Actual soil moisture content non-saturated zone [mm]
+    :TUr  type: float
 
-    :param Kr:
-    :Kr  type:
+    :param Kr: Hydraulic Conductivity of soil class [mm/month]
+    :Kr  type: float
 
-    :param TUr:
-    :TUr  type:
+    :param TUr: Actual soil moisture content non-saturated zone [mm]
+    :TUr  type: float
 
-    :param TUsat:
-    :TUsat  type:
+    :param TUsat: Soil moisture content at saturation point []
+    :TUsat  type: float
 
-    :returns:
-    :rtype:
+    :returns: Monthly Recharge [mm]
+    :rtype: float
     """
     REC = (1 - f) * Kr * ((TUr / TUsat) ** 2)
     return REC
