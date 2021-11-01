@@ -30,15 +30,15 @@ __version__ = "0.1.0"
 ########## Interception Module ##########
 
 def sr_calc(self, pcr, NDVI):
-    """Return SRmin and SRmax.
+    """Return SR, SRmin and SRmax.
     
-    :param pcr:
+    :param pcr: PCRaster Library
     :pcr type:
 
-    :param NDVI:
-    :NDVI type:
+    :param NDVI: Normalized Difference Vegetation Index (NDVI) at the pixel
+    :NDVI type: float
 
-    :returns:
+    :returns: Reflectances Simple Ratio (SR) [-]
     :rtype:
     """
     SR = (1 + NDVI) / (1 - NDVI)
