@@ -56,20 +56,20 @@ def Ks_calc(self, pcr, TUr, TUw, TUcc):
 def ETav_calc(self, pcr, ETp, Kc, Ks):
     """Return evapotranspiration of vegetated area.
 
-    :param pcr:
+    :param pcr: PCRaster Library
     :pcr  type:
 
-    :param ETp:
-    :ETp  type:
+    :param ETp: Potential Evapotranspiration [mm]
+    :ETp  type: float
 
-    :param Kc:
-    :Kc  type:
+    :param Kc: Crop Coefficient [-]
+    :Kc  type: float
 
-    :param Ks:
-    :Ks  type:
+    :param Ks: Water Stress Coefficient [-]
+    :Ks  type: float
 
-    :returns:
-    :rtype:
+    :returns: Actual Evapotranspiration
+    :rtype: float
     """
     ETav = ETp * Kc * Ks
     return ETav
