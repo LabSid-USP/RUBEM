@@ -66,7 +66,7 @@ def REC_calc(self, pcr, f, Kr, TUr, TUsat):
     :param TUr: Actual soil moisture content non-saturated zone [mm]
     :TUr  type: float
 
-    :param TUsat: Soil moisture content at saturation point []
+    :param TUsat: Soil moisture content at saturation point [-]
     :TUsat  type: float
 
     :returns: Monthly Recharge [mm]
@@ -81,7 +81,7 @@ def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
     """Function to calculate Baseflow in the pixel [mm]..
     
     :param pcr: PCRaster Library
-    :pcr  type: STR
+    :pcr  type: str
 
     :param EB_prev: Baseflow at timestep t-1 [mm]
     :EB_prev  type: float
@@ -110,40 +110,40 @@ def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
 ########## Soil Balance ##########
 # First soil layer
 def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
-    """[summary].
+    """Function to calculate Actual Soil Moisture Content at non-saturated zone in the pixel [mm].
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param TUrprev:
-    :TUrprev  type:
+    :param TUrprev: Soil moisture content at timestep t-1 [mm]
+    :TUrprev  type: float
 
-    :param P:
-    :P  type:
+    :param P: Monthly precipitation [mm]
+    :P  type: float
 
-    :param I:
-    :I  type:
+    :param I: Monthly Interception [mm]
+    :I  type: float
 
-    :param ES:
-    :ES  type:
+    :param ES: Monthly Surface Runoff [mm]
+    :ES  type: float
 
-    :param LF:
-    :LF  type:
+    :param LF: Monthly Lateral Flow [mm]
+    :LF  type: float
 
-    :param REC:
-    :REC  type:
+    :param REC: Monthly Recharge [mm]
+    :REC  type: float
 
-    :param ETr:
-    :ETr  type:
+    :param ETr: Monthly Actual Evapotranspiration [mm]
+    :ETr  type: float
 
-    :param Ao:
-    :Ao  type:
+    :param Ao: Open Water Area Fraction [-]
+    :Ao  type: float
 
-    :param Tsat:
-    :Tsat  type:
+    :param Tsat: Soil moisture content at saturation point []
+    :Tsat  type: float
 
-    :returns:
-    :rtype:
+    :returns: Soil Moisture Content [mm]
+    :rtype: float
     """
 
     # condition for pixel of water, if Ao different of 1 (not water)
