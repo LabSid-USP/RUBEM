@@ -97,19 +97,19 @@ def Cper_calc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
 
 
 def Cimp_calc(self, pcr, ao, ai):
-    """Return Cimp.
+    """Function to calculate  runoff coefficient of the impervious area (Cimp).
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param ao:
-    :ao  type:
+    :param Ao: Open Water Area Fraction [-]
+    :Ao  type: float
 
-    :param ai:
-    :ai  type:
+    :param ai: Impervious Area Fraction [-]
+    :ai  type: float
 
-    :returns:
-    :rtype:
+    :returns: runoff coefficient of the impervious area [-]
+    :rtype: float
     """
     Aimp = ao + ai
     Cimp = 0.09 * pcr.exp((2.4 * Aimp))
