@@ -46,28 +46,28 @@ def sr_calc(self, pcr, NDVI):
 
 
 def kc_calc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
-    """Return Kc.
+    """Return Crop Coefficient (Kc).
     
-    :param pcr:
-    :pcr type:
+    :param pcr: PCRaster Library
+    :pcr type: str
 
-    :param NDVI:
-    :NDVI type:
+    :param NDVI: Normalized Difference Vegetation Index (NDVI) at the pixel
+    :NDVI type: float
 
-    :param ndvi_min:
-    :ndvi_min type:
+    :param ndvi_min: Minimum Normalized Difference Vegetation Index (NDVI) at the pixel
+    :ndvi_min type: float
 
-    :param ndvi_max:
-    :ndvi_max type:
+    :param ndvi_max: Maximum Normalized Difference Vegetation Index (NDVI) at the pixel
+    :ndvi_max type: float
 
-    :param kc_min:
-    :kc_min type:
+    :param kc_min: Minimum Crop Coefficient landuse class [-]
+    :kc_min type: float
 
-    :param kc_max:
-    :kc_max type:
+    :param kc_max: Maximum Crop Coefficient landuse class [-]
+    :kc_max type: float
 
-    :returns:
-    :rtype:
+    :returns: Crop Coefficient (Kc) [-]
+    :rtype: float
     """
     Kc = kc_min + ((kc_max - kc_min) * 
         ((NDVI - pcr.scalar(ndvi_min)) / (pcr.scalar(ndvi_max) - pcr.scalar(ndvi_min))))
