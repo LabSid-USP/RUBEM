@@ -30,28 +30,28 @@ __version__ = "0.1.0"
 ########## Surface runoff ##########
 
 def Ch_calc(self, pcr, TUr, dg, Zr, Tsat, b):
-    """Return Ch.
+    """ Function to calculate coefficient representing soil moisture conditions (Ch).
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param TUr:
-    :TUr  type:
+    :param TUr: Actual Soil moisture content [mm]
+    :TUr  type: float
 
-    :param dg:
-    :dg  type:
+    :param dg: Soil Bulk Density [g/cm3] 
+    :dg  type:float
 
-    :param Zr:
-    :Zr  type:
+    :param Zr: Depth Rootzone [cm]
+    :Zr  type: float
 
-    :param tpor:
-    :tpor  type:
+    :param tpor: Soil Porosity [%]
+    :tpor  type: float
 
-    :param b:
-    :b  type:
+    :param b: Ch parameter (calibrated)
+    :b  type: float
 
-    :returns:
-    :rtype:
+    :returns: coefficient representing soil moisture conditions [-]
+    :rtype: float
     """
     tur = TUr / (dg * Zr * 10)  # [%] soil moisture
     Ch = (tur / Tsat) ** b
