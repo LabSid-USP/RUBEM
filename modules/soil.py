@@ -166,22 +166,22 @@ def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
 
 # Second soil layer
 def TUs_calc(self, pcr, TUsprev, REC, EB):
-    """[summary].
+    """Function to calculate Actual Water Content at saturated zone in the pixel [mm].
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param TUsprev:
-    :TUsprev  type:
+    :param TUsprev: Water content at saturated zone at timestep t-1 [mm]
+    :TUrprev  type: float
 
-    :param REC:
-    :REC  type:
+    :param REC: Monthly Recharge [mm]
+    :REC  type: float
 
-    :param EB:
-    :EB  type:
+    :param EB: Monthly Baseflow[mm]
+    :EB  type: float
 
-    :returns:
-    :rtype:
+    :returns: Water content at saturated zone [mm]
+    :rtype: float
     """
     # soil balance
     balance = TUsprev + REC - EB
