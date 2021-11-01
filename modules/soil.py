@@ -78,28 +78,28 @@ def REC_calc(self, pcr, f, Kr, TUr, TUsat):
 
 ########## Base Flow ##########
 def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
-    """[summary].
+    """Function to calculate Baseflow in the pixel [mm]..
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: STR
 
-    :param EB_prev:
-    :EB_prev  type:
+    :param EB_prev: Baseflow at timestep t-1 [mm]
+    :EB_prev  type: float
 
-    :param alfaS:
-    :alfaS  type:
+    :param alfaS: Baseflow recession coefficient (Calibrated) [-]
+    :alfaS  type: float
 
-    :param REC:
-    :REC  type:
+    :param REC: Monthly Recharge at timestep t
+    :REC  type: float
 
-    :param TUs:
-    :TUs  type:
+    :param TUs: Water contect at saturated zone [mm]
+    :TUs  type: float
 
-    :param EB_lim:
-    :EB_lim  type:
+    :param EB_lim: Threshold for baseflow ocurrence [mm]
+    :EB_lim  type: float
 
-    :returns:
-    :rtype:
+    :returns: Monthly Baseflow [mm]
+    :rtype: float
     """
     # limit condition for base flow
     cond = pcr.scalar(TUs > EB_lim)
