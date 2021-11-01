@@ -104,22 +104,22 @@ def fpar_calc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
 
 
 def lai_function(self, pcr, FPAR, fpar_max, lai_max):
-    """Return LAI.
+    """Return Leaf Area Index (LAI).
     
-    :param pcr:
+    :param pcr: PCRaster Library
     :pcr type:
 
-    :param FPAR:
-    :FPAR type:
+    :param FPAR: Fraction of Photosynthetically Active Radiation (FPAR) [-]
+    :FPAR type: float
 
-    :param fpar_max:
-    :fpar_max type:
+    :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation (FPAR) [-]
+    :fpar_max type: float
 
-    :param lai_max:
-    :lai_max type:
+    :param lai_max: Maximum Leaf Area Index [-]
+    :lai_max type: float
 
-    :returns:
-    :rtype:
+    :returns: eaf Area Index (LAI) [-]
+    :rtype:float
     """
     LAI = lai_max * ((pcr.log10(1 - FPAR)) / (pcr.log10(1 - fpar_max)))
     return LAI
