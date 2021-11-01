@@ -98,25 +98,25 @@ def Kp_calc(self, pcr, B, U_2, UR):
 
 
 def ETao_calc(self, pcr, ETp, Kp, prec, Ao):
-    """Return Ks for evapotranspiration of water area.
+    """Return actual evapotranspiration of open water area.
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param ETp:
-    :ETp  type:
+    :param ETp: Monthly Potential Evapotranspiration [mm]
+    :ETp  type: float
 
-    :param Kp:
-    :Kp  type:
+    :param Kp: pan coefficient (Kp) []
+    :Kp  type: float
 
-    :param prec:
-    :prec  type:
+    :param prec: Monthly Precipitation [mm]
+    :prec  type: float
 
-    :param Ao:
-    :Ao  type:
+    :param Ao: Open water Area Fraction
+    :Ao  type: float
 
-    :returns:
-    :rtype:
+    :returns: Actual evapotranspiration of open water area
+    :rtype: float
     """
     # condition for pixel of water
     cond1 = pcr.scalar(Ao == 1)
