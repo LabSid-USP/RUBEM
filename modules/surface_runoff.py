@@ -139,22 +139,22 @@ def Cwp_calc(self, pcr, Aimp, Cper, Cimp):
 
 
 def Csr_calc(self, pcr, Cwp, P_24, RCD):
-    """Return Csr.
+    """ Function to calculate the actual runoff coefficient (Csr).
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param Cwp:
-    :Cwp  type:
+    :param Cwp: weighted potential runoff coefficient (Cwp)
+    :Cwp  type: float
 
-    :param P_24:
+    :param P_24: average daily rainfall in rainy days (mm/day per month)
     :P_24  type:
 
-    :param RCD:
-    :RCD  type:
+    :param RCD: Regional consecutive dryness level (mm)
+    :RCD  type: float
 
-    :returns:
-    :rtype:
+    :returns: actual runoff coefficient (Csr) [-]
+    :rtype: float
     """
     Csr = (Cwp * P_24) / (Cwp * P_24 - RCD * Cwp + RCD)
     return Csr
