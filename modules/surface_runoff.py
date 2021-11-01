@@ -59,37 +59,37 @@ def Ch_calc(self, pcr, TUr, dg, Zr, Tsat, b):
 
 
 def Cper_calc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
-    """Return Cper.
+    """Function to calculate runoff coefficient for permeable areas (Cper).
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param TUw:
-    :TUw  type:
+    :param TUw:  soil water content at wilting point
+    :TUw  type: float
 
-    :param dg:
-    :dg  type:
+    :param dg: Soil Bulk Density [g/cm3] 
+    :dg  type:float
 
-    :param Zr:
-    :Zr  type:
+    :param Zr: Depth Rootzone [cm]
+    :Zr  type: float
 
-    :param S:
-    :S  type:
+    :param S: Land surfafe slope [%]
+    :S  type: float
 
-    :param manning:
-    :manning  type:
+    :param manning: Manning’s roughness coefficient [-]
+    :manning  type: float
 
-    :param w1:
-    :w1  type:
+    :param w1: weight for landuse component [-]
+    :w1  type: float
 
-    :param w2:
-    :w2  type:
+    :param w2: weight for soil component [-]
+    :w2  type: float
 
-    :param w3:
-    :w3  type:
+    :param w3: weight for slope component [-]
+    :w3  type: float
 
-    :returns:
-    :rtype:
+    :returns: Runoff coefficient for permeable areas (Cper).
+    :rtype: float
     """
     tuw = TUw / (dg * Zr * 10)  # [%] soil wilting point
     Cper = w1 * (0.02 / manning) + w2 * (tuw / (1 - tuw)) + w3 * ((S / (10 + S)))
