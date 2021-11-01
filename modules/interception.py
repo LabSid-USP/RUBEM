@@ -118,7 +118,7 @@ def lai_function(self, pcr, FPAR, fpar_max, lai_max):
     :param lai_max: Maximum Leaf Area Index [-]
     :lai_max type: float
 
-    :returns: eaf Area Index (LAI) [-]
+    :returns: Leaf Area Index (LAI) [-]
     :rtype:float
     """
     LAI = lai_max * ((pcr.log10(1 - FPAR)) / (pcr.log10(1 - fpar_max)))
@@ -126,28 +126,28 @@ def lai_function(self, pcr, FPAR, fpar_max, lai_max):
 
 
 def Interception_function(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
-    """Return Interception.
+    """Return Interception [mm].
     
-    :param pcr:
-    :pcr type:
+    :param pcr: PCRaster Library
+    :pcr type: str
 
-    :param alfa:
-    :alfa type:
+    :param alfa: Interception Parameter [-]
+    :alfa type: float
 
-    :param LAI:
-    :LAI type:
+    :param LAI: Leaf Area Index (LAI) [-]
+    :LAI type: float
 
-    :param precipitation:
-    :precipitation type:
+    :param precipitation: Monthly Precipitation [mm]
+    :precipitation type: float
 
-    :param rainy_days:
-    :rainy_days type:
+    :param rainy_days: Number of rainy days for month
+    :rainy_days type: int
 
-    :param a_v:
-    :a_v type:
+    :param a_v: Vegetated Area Fraction 
+    :a_v type: float
 
-    :returns:
-    :rtype:
+    :returns: Monthly Interception [mm]
+    :rtype: float
     """
     # condition of precipitation, to divide by non zero number (missing value)
     cond1 = pcr.scalar((precipitation != 0))
