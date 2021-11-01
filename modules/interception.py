@@ -75,28 +75,28 @@ def kc_calc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
 
 
 def fpar_calc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
-    """Return FPAR.
+    """Return Fraction of Photosynthetically Active Radiation (FPAR).
     
-    :param pcr:
+    :param pcr: PCRaster Library
     :pcr type:
 
-    :param fpar_min:
-    :fpar_min type:
+    :param fpar_min: Minimum Fraction of Photosynthetically Active Radiation [-]
+    :fpar_min type: float
 
-    :param fpar_max:
-    :fpar_max type:
+    :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation [-]
+    :fpar_max type: float
 
-    :param SR:
-    :SR type:
+    :param SR: Reflectances Simple Ratio [-]
+    :SR type: float
 
-    :param sr_min:
-    :sr_min type:
+    :param sr_min: Mimimum Reflectances Simple Ratio [-]
+    :sr_min type: float
 
-    :param sr_max:
-    :sr_max type:
+    :param sr_max: Maximum Reflectances Simple Ratio [-]
+    :sr_max type: float
 
-    :returns:
-    :rtype:
+    :returns: Fraction of Photosynthetically Active Radiation (FPAR) [-]
+    :rtype: float
     """
     fpar_comp = ((SR - sr_min) * (fpar_max - fpar_min) / (sr_max - sr_min)) + fpar_min
     FPAR = pcr.min(fpar_comp, fpar_max)
