@@ -163,29 +163,35 @@ def Csr_calc(self, pcr, Cwp, P_24, RCD):
 def ES_calc(self, pcr, Csr, Ch, prec, I, Ao, ETao,TUr,Tsat):
     """Return surface runoff.
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param Csr:
-    :Csr  type:
+    :param Csr: actual runoff coefficient (Csr) [-]
+    :Csr  type: float
 
-    :param Ch:
-    :Ch  type:
+    :param Ch: coefficient representing soil moisture conditions (Ch)
+    :Ch  type: float
 
-    :param prec:
-    :prec  type:
+    :param prec: Monthly precipitation [mm]
+    :prec  type: float
 
-    :param I:
-    :I  type:
+    :param I: Monthly Interception [mm]
+    :I  type: float
 
-    :param Ao:
-    :Ao  type:
+    :param Ao: Open Water Area Fraction [-]
+    :Ao  type: float
 
-    :param ETao:
-    :ETao  type:
+    :param ETao: Evaporation of  Open Water Area [mm]
+    :ETao  type: float
 
-    :returns:
-    :rtype:
+    :param TUr: Actual soil moisture content non-saturated zone [mm]
+    :TUr  type: float
+
+    :param Tsat: Soil moisture content at saturation point [-]
+    :TUsat  type: float
+
+    :returns: Monthly surface runoff [mm]
+    :rtype: float
     """
     # condition for pixel of water
     cond1 = pcr.scalar(Ao == 1)
