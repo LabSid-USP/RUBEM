@@ -29,22 +29,22 @@ __version__ = "0.1.0"
 
 ########## Lateral Flow ##########
 def LF_calc(self, pcr, f, Kr, TUr, TUsat):
-    """[summary].
+    """Function to calculate Lateral Flow in the pixel [mm].
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param f:
-    :f  type:
+    :param f: preferred flow direction parameter [-]
+    :f  type: float
 
-    :param TUr:
-    :TUr  type:
+    :param TUr: Actual soil moisture content non-saturated zone [mm]
+    :TUr  type: float
 
-    :param TUsat:
-    :TUsat  type:
+    :param TUsat: Soil moisture content at saturation point []
+    :TUsat  type: float
 
-    :returns:
-    :rtype:
+    :returns: Lateral Flow [mm]
+    :rtype: float
     """
     LF = f * Kr * ((TUr / TUsat) ** 2)
     return LF
@@ -52,7 +52,7 @@ def LF_calc(self, pcr, f, Kr, TUr, TUsat):
 
 ########## Recharge ##########
 def REC_calc(self, pcr, f, Kr, TUr, TUsat):
-    """[summary].
+    """Function to calculate Recharge in the pixel [mm].
     
     :param pcr:
     :pcr  type:
