@@ -30,22 +30,22 @@ __version__ = "0.1.0"
 ########## Evapotranspiration Module ##########
 
 def Ks_calc(self, pcr, TUr, TUw, TUcc):
-    """Return Ks for evapotranspiration of vegetated area.
+    """Return Water Stress Coefficient (Ks) for evapotranspiration of vegetated area.
 
-    :param pcr:
+    :param pcr: PCRaster Library
     :pcr  type:
 
-    :param TUr:
-    :TUr  type:
+    :param TUr: Actual Soil Moisture Content [mm]
+    :TUr  type: float
 
-    :param TUw:
-    :TUw  type:
+    :param TUw: Wilting Point of soil class [mm]
+    :TUw  type: float
 
-    :param TUcc:
-    :TUcc  type:
+    :param TUcc: Field Capacity of soil class [mm]
+    :TUcc  type: float
 
-    :returns:
-    :rtype:
+    :returns: Water Stress Coefficient (Ks) [-]
+    :rtype: float
     """
     ks_cond = pcr.scalar(TUr > TUw)  # caso TUr < TUw, (false, ks = 0)
     # Multiply (TUr - TUw) to avoid negative ln
