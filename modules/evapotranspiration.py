@@ -76,22 +76,22 @@ def ETav_calc(self, pcr, ETp, Kc, Ks):
 
 
 def Kp_calc(self, pcr, B, U_2, UR):
-    """Return Kp for evapotranspiration of open water area.
+    """Return pan coefficient (Kp) for evapotranspiration of open water area.
 
-    :param pcr:
+    :param pcr: PCRaster Library
     :pcr  type:
 
-    :param B:
-    :B  type:
+    :param B: Fetch
+    :B  type: int
 
-    :param U_2:
-    :U_2  type:
+    :param U_2: Wind speed at 2 meters [m/s-1]
+    :U_2  type: float
 
-    :param UR:
-    :UR  type:
+    :param UR: Relative humidity [%]
+    :UR  type: float
 
-    :returns:
-    :rtype:
+    :returns: pan coefficient (Kp) []
+    :rtype:float
     """
     Kp = 0.482 + 0.024 * pcr.ln(B) - 0.000376 * U_2 + 0.0045 * UR
     return Kp
