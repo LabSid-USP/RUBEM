@@ -172,7 +172,7 @@ def TUs_calc(self, pcr, TUsprev, REC, EB):
     :pcr  type: str
 
     :param TUsprev: Water content at saturated zone at timestep t-1 [mm]
-    :TUrprev  type: float
+    :TUsprev  type: float
 
     :param REC: Monthly Recharge [mm]
     :REC  type: float

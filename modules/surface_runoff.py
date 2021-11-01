@@ -97,7 +97,7 @@ def Cper_calc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
 
 
 def Cimp_calc(self, pcr, ao, ai):
-    """Function to calculate  runoff coefficient of the impervious area (Cimp).
+    """Function to calculate percentage of impervious surface per grid cell and the runoff coefficient of the impervious area (Cimp).
     
     :param pcr: PCRaster Library
     :pcr  type: str
@@ -108,7 +108,7 @@ def Cimp_calc(self, pcr, ao, ai):
     :param ai: Impervious Area Fraction [-]
     :ai  type: float
 
-    :returns: runoff coefficient of the impervious area [-]
+    :returns: percentage of impervious surface per grid cell and the runoff coefficient of the impervious area [-]
     :rtype: float
     """
     Aimp = ao + ai
@@ -117,22 +117,22 @@ def Cimp_calc(self, pcr, ao, ai):
 
 
 def Cwp_calc(self, pcr, Aimp, Cper, Cimp):
-    """Return Cwp.
+    """Function to calculate The weighted potential runoff coefficient (Cwp).
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param Aimp:
-    :Aimp  type:
+    :param Aimp: percentage of impervious surface per grid cell 
+    :Aimp  type: float
 
-    :param Cper:
-    :Cper  type:
+    :param Cper: Runoff coefficient for permeable areas (Cper)
+    :Cper  type: float
 
-    :param Cimp:
-    :Cimp  type:
+    :param Cimp: the runoff coefficient of the impervious area [-]
+    :Cimp  type: float
 
-    :returns:
-    :rtype:
+    :returns: weighted potential runoff coefficient (Cwp)
+    :rtype: float
     """
     Cwp = (1 - Aimp) * Cper + Aimp * Cimp
     return Cwp
