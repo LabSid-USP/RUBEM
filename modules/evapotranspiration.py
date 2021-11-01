@@ -141,20 +141,20 @@ def ETao_calc(self, pcr, ETp, Kp, prec, Ao):
 def ETas_calc(self, pcr, ETp, kc_min, Ks):
     """Return Ks for evapotranspiration of bare soil area.
     
-    :param pcr:
+    :param pcr: PCRaster Library
     :pcr  type:
 
-    :param ETp:
-    :ETp  type:
+    :param ETp: Monthly Potential Evapotranspiration [mm]
+    :ETp  type: float
 
-    :param kc_min:
-    :kc_min  type:
+    :param kc_min: Minimum crop Coefficient [-]
+    :kc_min  type: float
 
-    :param Ks:
-    :Ks  type:
+    :param Ks: Water Stress Coefficient [-]
+    :Ks  type: float
 
-    :returns:
-    :rtype:
+    :returns: Actual Evapotranspiration of bare soil area
+    :rtype: float
     """
     cond = 1 * pcr.scalar(Ks != 0)  # caso ks seja diferente de 0
     ETas = ETp * kc_min * Ks * cond
