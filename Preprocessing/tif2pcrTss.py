@@ -76,9 +76,9 @@ class Tif2pcrTss(DynamicModel):
 
 #Number of timesteps must match to number of files
 nrOfTimeSteps = 8
-myModel = Tif2pcrTss('D:/ADP/scripttes/',
-                     'run',
-                     'D:/ADP/scripttes/clone.map')
+myModel = Tif2pcrTss('/path/to/files/to/be/converted',
+                     'prefix',
+                     '/path/to/clone.map')
 dynamicModel = DynamicFramework(myModel, nrOfTimeSteps)
 dynamicModel.run()
 

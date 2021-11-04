@@ -93,8 +93,7 @@ def pcrTss2Tif(inputFolder, demSrc):
     return()
 
 
-folder = 'D:/ADP/scripttes/'
-src='D:/ADP/scripttes/DEM.tif'
-pcrTss2Tif(folder, src)
+
+pcrTss2Tif('/path/to/files/to/be/converted', '/path/to/DEM.tif')
 
 

@@ -65,4 +65,4 @@ def tif2map(Tifs_Dir):
 
 
 
-tif2map()
+tif2map(‘/path/to/files/to/be/converted’)
