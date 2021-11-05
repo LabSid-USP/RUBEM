@@ -33,7 +33,7 @@ def Ks_calc(self, pcr, TUr, TUw, TUcc):
     """Return Water Stress Coefficient (Ks) for evapotranspiration of vegetated area.
 
     :param pcr: PCRaster Library
-    :pcr  type:
+    :pcr  type: str
 
     :param TUr: Actual Soil Moisture Content [mm]
     :TUr  type: float
@@ -57,7 +57,7 @@ def ETav_calc(self, pcr, ETp, Kc, Ks):
     """Return evapotranspiration of vegetated area.
 
     :param pcr: PCRaster Library
-    :pcr  type:
+    :pcr  type: str
 
     :param ETp: Potential Evapotranspiration [mm]
     :ETp  type: float
@@ -79,7 +79,7 @@ def Kp_calc(self, pcr, B, U_2, UR):
     """Return pan coefficient (Kp) for evapotranspiration of open water area.
 
     :param pcr: PCRaster Library
-    :pcr  type:
+    :pcr  type: str
 
     :param B: Fetch
     :B  type: int
@@ -142,7 +142,7 @@ def ETas_calc(self, pcr, ETp, kc_min, Ks):
     """Return Ks for evapotranspiration of bare soil area.
     
     :param pcr: PCRaster Library
-    :pcr  type:
+    :pcr  type: str
 
     :param ETp: Monthly Potential Evapotranspiration [mm]
     :ETp  type: float

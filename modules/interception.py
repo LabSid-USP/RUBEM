@@ -33,13 +33,13 @@ def sr_calc(self, pcr, NDVI):
     """Return SR, SRmin and SRmax.
     
     :param pcr: PCRaster Library
-    :pcr type:
+    :pcr type:str
 
     :param NDVI: Normalized Difference Vegetation Index (NDVI) at the pixel
     :NDVI type: float
 
     :returns: Reflectances Simple Ratio (SR) [-]
-    :rtype:
+    :rtype: float
     """
     SR = (1 + NDVI) / (1 - NDVI)
     return SR
@@ -78,7 +78,7 @@ def fpar_calc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
     """Return Fraction of Photosynthetically Active Radiation (FPAR).
     
     :param pcr: PCRaster Library
-    :pcr type:
+    :pcr type: str
 
     :param fpar_min: Minimum Fraction of Photosynthetically Active Radiation [-]
     :fpar_min type: float
@@ -107,7 +107,7 @@ def lai_function(self, pcr, FPAR, fpar_max, lai_max):
     """Return Leaf Area Index (LAI).
     
     :param pcr: PCRaster Library
-    :pcr type:
+    :pcr type: str
 
     :param FPAR: Fraction of Photosynthetically Active Radiation (FPAR) [-]
     :FPAR type: float

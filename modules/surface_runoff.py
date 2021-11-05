@@ -30,7 +30,7 @@ __version__ = "0.1.0"
 ########## Surface runoff ##########
 
 def Ch_calc(self, pcr, TUr, dg, Zr, Tsat, b):
-    """ Function to calculate coefficient representing soil moisture conditions (Ch).
+    """ Return coefficient representing soil moisture conditions (Ch).
     
     :param pcr: PCRaster Library
     :pcr  type: str
@@ -59,7 +59,7 @@ def Ch_calc(self, pcr, TUr, dg, Zr, Tsat, b):
 
 
 def Cper_calc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
-    """Function to calculate runoff coefficient for permeable areas (Cper).
+    """Return the runoff coefficient for permeable areas (Cper).
     
     :param pcr: PCRaster Library
     :pcr  type: str
@@ -97,7 +97,7 @@ def Cper_calc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
 
 
 def Cimp_calc(self, pcr, ao, ai):
-    """Function to calculate percentage of impervious surface per grid cell and the runoff coefficient of the impervious area (Cimp).
+    """Return percentage of impervious surface per grid cell and the runoff coefficient of the impervious area (Cimp).
     
     :param pcr: PCRaster Library
     :pcr  type: str
@@ -117,7 +117,7 @@ def Cimp_calc(self, pcr, ao, ai):
 
 
 def Cwp_calc(self, pcr, Aimp, Cper, Cimp):
-    """Function to calculate The weighted potential runoff coefficient (Cwp).
+    """Return weighted potential runoff coefficient (Cwp).
     
     :param pcr: PCRaster Library
     :pcr  type: str
@@ -139,7 +139,7 @@ def Cwp_calc(self, pcr, Aimp, Cper, Cimp):
 
 
 def Csr_calc(self, pcr, Cwp, P_24, RCD):
-    """ Function to calculate the actual runoff coefficient (Csr).
+    """ Return actual runoff coefficient (Csr).
     
     :param pcr: PCRaster Library
     :pcr  type: str
@@ -161,7 +161,7 @@ def Csr_calc(self, pcr, Cwp, P_24, RCD):
 
 
 def ES_calc(self, pcr, Csr, Ch, prec, I, Ao, ETao,TUr,Tsat):
-    """Return surface runoff.
+    """Return surface runoff [mm].
     
     :param pcr: PCRaster Library
     :pcr  type: str
