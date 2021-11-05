@@ -1,3 +1,32 @@
+# coding=utf-8
+# RUBEM is a distributed hydrological model to calculate monthly
+# flows with changes in land use over time.
+# Copyright (C) 2020-2021 LabSid PHA EPUSP
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Contact: rubem.hydrological@labsid.eng.br
+
+"""Interpolation method for generated metereological forcing maps series used by RUBEM."""
+
+__author__ = "LabSid PHA EPUSP"
+__email__ = "rubem.hydrological@labsid.eng.br"
+__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
+__license__ = "GPL"
+__date__ = "2019-06-23"
+__version__ = "0.1.0"
+
 import time
 t1 = time.time()
 import os
@@ -13,8 +42,7 @@ from pcraster.framework import *
 
 class Krige_Interpolation(DynamicModel):
     def __init__(self, path, demMap, CSV):
-
-        """Generated tss files with interpolate variable using krigging method.
+        """Return tss files with interpolate variable using krigging method.
     
         :param Path: Directory containing the files.
         :Path type: str
@@ -22,19 +50,20 @@ class Krige_Interpolation(DynamicModel):
         :param demMap: Path to Digital Elevetion Model (DEM) .map format
         :demMap  type: str
 
-        :param CSV: Path to dataset) 
+        :param CSV: Path to dataset 
         :type CSV: str
  
         :returns: tss files interpolated
-        :rtype"""
+        :rtype:*.00*
+        """
+
         DynamicModel.__init__(self)
         setclone(demMap)
         self.src_ds = demMap
         self.rain_file = CSV
         self.Files_path = path
+              
         
-        
-        #self.OutMap = outMap
     
     def initial(self):   
         # Get geometry data from raster
@@ -47,7 +76,7 @@ class Krige_Interpolation(DynamicModel):
         os.chdir(self.Files_path)
   
 
-        #Define Number of lags (depends on the number of stations)
+        #User must define Number of lags (depends on the number of stations)
         self.n_lags= 25
         
     def dynamic(self):
@@ -70,14 +99,15 @@ class Krige_Interpolation(DynamicModel):
             
         self.rain = numpy2pcr(Scalar,self.z1,-999)
 
+        #Second argument correspon to files prefix (e.g. 'prec','etp','kp')
         self.report(self.rain,'prec')
-        
+
+
+#Number of timesteps must to be <= csv columns data
 nrOfTimeSteps = 20
-myModel = Krige_Interpolation('D:/Krigagem/','D:/Krigagem/dem.map','D:/Krigagem/Rains.csv')
+myModel = Krige_Interpolation('/path/for/output/files/','/path/and/filename/dem.map','/path/and/filename/CSV/file/data.csv')
 dynamicModel = DynamicFramework(myModel, nrOfTimeSteps)
 dynamicModel.run()
 
-
-import time
 tempoExec = time.time() - t1
 print("Tempo de execução: {} segundos".format(tempoExec))

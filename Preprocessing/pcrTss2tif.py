@@ -18,18 +18,20 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Common file conversion functionality used by RUBEM."""
+"""Common file conversion to generate input data used by RUBEM"""
 
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
 __copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
 __license__ = "GPL"
-__date__ = "2021-05-19"
+__date__ = "2019-03-25"
 __version__ = "0.1.0"
 
 
 import gdal
 import numpy as np
+import pcraster as pcr
+import os
 
 
             
@@ -67,18 +69,17 @@ def numpy2tif(sourceTif, outpath, numpy_array):
 
 def pcrTss2Tif(inputFolder, demSrc):
     """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.tif).
-    
-    
+        
     :param inputFolder: Directory containing the files.
     :type inputFolder: str
 
     :param demSrc: Path to Digital Elevetion Model (DEM) with same resolution and size that tss files
     :demSrc type: .tif  file
 
-    
+    :returns: files in .tif format
+    :rtype:*.tif
     """
-    import pcraster as pcr
-    import os
+
     src = demSrc
     outpath = inputFolder
     print(outpath)

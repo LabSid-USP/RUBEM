@@ -18,23 +18,25 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Common file conversion functionality used by RUBEM."""
+"""Common file conversion to generate input data used by RUBEM."""
 
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
 __copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
 __license__ = "GPL"
-__date__ = "2021-05-19"
+__date__ = "2019-07-09"
 __version__ = "0.1.0"
 
 
 
 def tif2map(Tifs_Dir):
-
-    """Convert *.tif to .map
+    """Convert *.tif to *.map
     
     :param Tifs_Dir: Directory containing the files.
     :Tifs_Dir type: str
+
+    :returns: files in .map format
+    :rtype:*.map
 
     """
     import gdal
@@ -65,4 +67,4 @@ def tif2map(Tifs_Dir):
 
 
 
-tif2map(‘/path/to/files/to/be/converted’)
+tif2map('/path/to/files/to/be/converted')

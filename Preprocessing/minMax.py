@@ -24,17 +24,31 @@ from osgeo import gdal
 import numpy as np
 
 
-# Attributes, defined by the user
-Input_path =  'Directory containing the files'.
-dem_source = 'Path to Digital Elevetion Model (DEM) with same resolution and size that input_path files- example:D:/dem.tif'
-outpath_min = 'Path and name minimum output file example=D:/ndvi_min.tif'
-outpath_max = 'Path and name maximum output file example=D:/ndvi_max.tif'
+##Attributes, defined by the user
+#Input_path =  'Directory containing the files'.
+#dem_source = 'Path to Digital Elevetion Model (DEM) with same resolution and size that input_path files- example:D:/dem.tif'
+#outpath_min = 'Path and name minimum output file example=D:/ndvi_min.tif'
+#outpath_max = 'Path and name maximum output file example=D:/ndvi_max.tif'
+
+
+Input_path =  ''
+dem_source = ''
+outpath_min = ''
+outpath_max = ''
 
 #files
 Raster_files = glob.glob(os.path.join(Input_path,'*.tif'))
 
 
 def readfile(file):
+    """Read file usins Gdal.
+    
+    :param file: Path to file in .tif format
+    :file type: str
+ 
+    :returns: numpy array
+    :rtype: numpy array#
+    """
     open_file = gdal.Open(file)
     ds = np.array(open_file.GetRasterBand(1).ReadAsArray())
     
@@ -42,6 +56,20 @@ def readfile(file):
 
 # Export numpy 2 tif files using gdal            
 def numpy2tif(sourceTif, outpath, numpy_array):
+    """Convert numpy arrays to (*.tif).
+    
+    :param sourceTif: Path to Digital Elevetion Model (DEM) with same resolution and size that tss files
+    :sourceTif type: .tif  file
+
+    :param outpath: Path of the output directory.
+    :type path: str
+
+    :param numpy_array: Numpy object to be converter
+    :numpy_array  type: numpy.ndarray
+ 
+    :returns: File in .tif format
+    :rtype: .tif
+    """
     out_tif = str(outpath)        
     ds = gdal.Open(sourceTif)
     cols = ds.RasterXSize
