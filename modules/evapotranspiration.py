@@ -30,22 +30,22 @@ __version__ = "0.1.0"
 ########## Evapotranspiration Module ##########
 
 def Ks_calc(self, pcr, TUr, TUw, TUcc):
-    """Return Ks for evapotranspiration of vegetated area.
+    """Return Water Stress Coefficient (Ks) for evapotranspiration of vegetated area.
 
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param TUr:
-    :TUr  type:
+    :param TUr: Actual Soil Moisture Content [mm]
+    :TUr  type: float
 
-    :param TUw:
-    :TUw  type:
+    :param TUw: Wilting Point of soil class [mm]
+    :TUw  type: float
 
-    :param TUcc:
-    :TUcc  type:
+    :param TUcc: Field Capacity of soil class [mm]
+    :TUcc  type: float
 
-    :returns:
-    :rtype:
+    :returns: Water Stress Coefficient (Ks) [-]
+    :rtype: float
     """
     ks_cond = pcr.scalar(TUr > TUw)  # caso TUr < TUw, (false, ks = 0)
     # Multiply (TUr - TUw) to avoid negative ln
@@ -56,67 +56,67 @@ def Ks_calc(self, pcr, TUr, TUw, TUcc):
 def ETav_calc(self, pcr, ETp, Kc, Ks):
     """Return evapotranspiration of vegetated area.
 
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param ETp:
-    :ETp  type:
+    :param ETp: Potential Evapotranspiration [mm]
+    :ETp  type: float
 
-    :param Kc:
-    :Kc  type:
+    :param Kc: Crop Coefficient [-]
+    :Kc  type: float
 
-    :param Ks:
-    :Ks  type:
+    :param Ks: Water Stress Coefficient [-]
+    :Ks  type: float
 
-    :returns:
-    :rtype:
+    :returns: Actual Evapotranspiration
+    :rtype: float
     """
     ETav = ETp * Kc * Ks
     return ETav
 
 
 def Kp_calc(self, pcr, B, U_2, UR):
-    """Return Kp for evapotranspiration of open water area.
+    """Return pan coefficient (Kp) for evapotranspiration of open water area.
 
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param B:
-    :B  type:
+    :param B: Fetch
+    :B  type: int
 
-    :param U_2:
-    :U_2  type:
+    :param U_2: Wind speed at 2 meters [m/s-1]
+    :U_2  type: float
 
-    :param UR:
-    :UR  type:
+    :param UR: Relative humidity [%]
+    :UR  type: float
 
-    :returns:
-    :rtype:
+    :returns: pan coefficient (Kp) []
+    :rtype:float
     """
     Kp = 0.482 + 0.024 * pcr.ln(B) - 0.000376 * U_2 + 0.0045 * UR
     return Kp
 
 
 def ETao_calc(self, pcr, ETp, Kp, prec, Ao):
-    """Return Ks for evapotranspiration of water area.
+    """Return actual evapotranspiration of open water area.
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param ETp:
-    :ETp  type:
+    :param ETp: Monthly Potential Evapotranspiration [mm]
+    :ETp  type: float
 
-    :param Kp:
-    :Kp  type:
+    :param Kp: pan coefficient (Kp) []
+    :Kp  type: float
 
-    :param prec:
-    :prec  type:
+    :param prec: Monthly Precipitation [mm]
+    :prec  type: float
 
-    :param Ao:
-    :Ao  type:
+    :param Ao: Open water Area Fraction
+    :Ao  type: float
 
-    :returns:
-    :rtype:
+    :returns: Actual evapotranspiration of open water area
+    :rtype: float
     """
     # condition for pixel of water
     cond1 = pcr.scalar(Ao == 1)
@@ -141,20 +141,20 @@ def ETao_calc(self, pcr, ETp, Kp, prec, Ao):
 def ETas_calc(self, pcr, ETp, kc_min, Ks):
     """Return Ks for evapotranspiration of bare soil area.
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param ETp:
-    :ETp  type:
+    :param ETp: Monthly Potential Evapotranspiration [mm]
+    :ETp  type: float
 
-    :param kc_min:
-    :kc_min  type:
+    :param kc_min: Minimum crop Coefficient [-]
+    :kc_min  type: float
 
-    :param Ks:
-    :Ks  type:
+    :param Ks: Water Stress Coefficient [-]
+    :Ks  type: float
 
-    :returns:
-    :rtype:
+    :returns: Actual Evapotranspiration of bare soil area
+    :rtype: float
     """
     cond = 1 * pcr.scalar(Ks != 0)  # caso ks seja diferente de 0
     ETas = ETp * kc_min * Ks * cond

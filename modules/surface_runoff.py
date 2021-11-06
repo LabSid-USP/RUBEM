@@ -30,28 +30,28 @@ __version__ = "0.1.0"
 ########## Surface runoff ##########
 
 def Ch_calc(self, pcr, TUr, dg, Zr, Tsat, b):
-    """Return Ch.
+    """Return coefficient representing soil moisture conditions (Ch).
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param TUr:
-    :TUr  type:
+    :param TUr: Actual Soil moisture content [mm]
+    :TUr  type: float
 
-    :param dg:
-    :dg  type:
+    :param dg: Soil Bulk Density [g/cm3] 
+    :dg  type:float
 
-    :param Zr:
-    :Zr  type:
+    :param Zr: Depth Rootzone [cm]
+    :Zr  type: float
 
-    :param tpor:
-    :tpor  type:
+    :param tpor: Soil Porosity [%]
+    :tpor  type: float
 
-    :param b:
-    :b  type:
+    :param b: Ch parameter (calibrated)
+    :b  type: float
 
-    :returns:
-    :rtype:
+    :returns: coefficient representing soil moisture conditions [-]
+    :rtype: float
     """
     tur = TUr / (dg * Zr * 10)  # [%] soil moisture
     Ch = (tur / Tsat) ** b
@@ -59,37 +59,37 @@ def Ch_calc(self, pcr, TUr, dg, Zr, Tsat, b):
 
 
 def Cper_calc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
-    """Return Cper.
+    """Return the runoff coefficient for permeable areas (Cper).
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param TUw:
-    :TUw  type:
+    :param TUw:  soil water content at wilting point
+    :TUw  type: float
 
-    :param dg:
-    :dg  type:
+    :param dg: Soil Bulk Density [g/cm3] 
+    :dg  type:float
 
-    :param Zr:
-    :Zr  type:
+    :param Zr: Depth Rootzone [cm]
+    :Zr  type: float
 
-    :param S:
-    :S  type:
+    :param S: Land surfafe slope [%]
+    :S  type: float
 
-    :param manning:
-    :manning  type:
+    :param manning: Manning’s roughness coefficient [-]
+    :manning  type: float
 
-    :param w1:
-    :w1  type:
+    :param w1: weight for landuse component [-]
+    :w1  type: float
 
-    :param w2:
-    :w2  type:
+    :param w2: weight for soil component [-]
+    :w2  type: float
 
-    :param w3:
-    :w3  type:
+    :param w3: weight for slope component [-]
+    :w3  type: float
 
-    :returns:
-    :rtype:
+    :returns: Runoff coefficient for permeable areas (Cper).
+    :rtype: float
     """
     tuw = TUw / (dg * Zr * 10)  # [%] soil wilting point
     Cper = w1 * (0.02 / manning) + w2 * (tuw / (1 - tuw)) + w3 * ((S / (10 + S)))
@@ -97,19 +97,19 @@ def Cper_calc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
 
 
 def Cimp_calc(self, pcr, ao, ai):
-    """Return Cimp.
+    """Return percentage of impervious surface per grid cell and the runoff coefficient of the impervious area (Cimp).
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param ao:
-    :ao  type:
+    :param Ao: Open Water Area Fraction [-]
+    :Ao  type: float
 
-    :param ai:
-    :ai  type:
+    :param ai: Impervious Area Fraction [-]
+    :ai  type: float
 
-    :returns:
-    :rtype:
+    :returns: percentage of impervious surface per grid cell and the runoff coefficient of the impervious area [-]
+    :rtype: float
     """
     Aimp = ao + ai
     Cimp = 0.09 * pcr.exp((2.4 * Aimp))
@@ -117,75 +117,81 @@ def Cimp_calc(self, pcr, ao, ai):
 
 
 def Cwp_calc(self, pcr, Aimp, Cper, Cimp):
-    """Return Cwp.
+    """Return weighted potential runoff coefficient (Cwp).
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param Aimp:
-    :Aimp  type:
+    :param Aimp: percentage of impervious surface per grid cell 
+    :Aimp  type: float
 
-    :param Cper:
-    :Cper  type:
+    :param Cper: Runoff coefficient for permeable areas (Cper)
+    :Cper  type: float
 
-    :param Cimp:
-    :Cimp  type:
+    :param Cimp: the runoff coefficient of the impervious area [-]
+    :Cimp  type: float
 
-    :returns:
-    :rtype:
+    :returns: weighted potential runoff coefficient (Cwp)
+    :rtype: float
     """
     Cwp = (1 - Aimp) * Cper + Aimp * Cimp
     return Cwp
 
 
 def Csr_calc(self, pcr, Cwp, P_24, RCD):
-    """Return Csr.
+    """Return actual runoff coefficient (Csr).
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param Cwp:
-    :Cwp  type:
+    :param Cwp: weighted potential runoff coefficient (Cwp)
+    :Cwp  type: float
 
-    :param P_24:
+    :param P_24: average daily rainfall in rainy days (mm/day per month)
     :P_24  type:
 
-    :param RCD:
-    :RCD  type:
+    :param RCD: Regional consecutive dryness level (mm)
+    :RCD  type: float
 
-    :returns:
-    :rtype:
+    :returns: actual runoff coefficient (Csr) [-]
+    :rtype: float
     """
     Csr = (Cwp * P_24) / (Cwp * P_24 - RCD * Cwp + RCD)
     return Csr
 
 
 def ES_calc(self, pcr, Csr, Ch, prec, I, Ao, ETao,TUr,Tsat):
-    """Return surface runoff.
+    """Return surface runoff [mm].
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param Csr:
-    :Csr  type:
+    :param Csr: actual runoff coefficient (Csr) [-]
+    :Csr  type: float
 
-    :param Ch:
-    :Ch  type:
+    :param Ch: coefficient representing soil moisture conditions (Ch)
+    :Ch  type: float
 
-    :param prec:
-    :prec  type:
+    :param prec: Monthly precipitation [mm]
+    :prec  type: float
 
-    :param I:
-    :I  type:
+    :param I: Monthly Interception [mm]
+    :I  type: float
 
-    :param Ao:
-    :Ao  type:
+    :param Ao: Open Water Area Fraction [-]
+    :Ao  type: float
 
-    :param ETao:
-    :ETao  type:
+    :param ETao: Evaporation of  Open Water Area [mm]
+    :ETao  type: float
 
-    :returns:
-    :rtype:
+    :param TUr: Actual soil moisture content non-saturated zone [mm]
+    :TUr  type: float
+
+    :param Tsat: Soil moisture content at saturation point [-]
+    :TUsat  type: float
+
+    :returns: Monthly surface runoff [mm]
+    :rtype: float
     """
     # condition for pixel of water
     cond1 = pcr.scalar(Ao == 1)

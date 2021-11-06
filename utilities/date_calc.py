@@ -60,7 +60,7 @@ def daysOfMonth(startDate, timestep):
     :param startDate: Start date.
     :startDate  type: str
 
-    :param timestep:
+    :param timestep: Timestep for evaluate actual month
     :timestep  type: int
 
     :returns: Days of month.
