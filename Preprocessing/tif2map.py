@@ -27,7 +27,9 @@ __license__ = "GPL"
 __date__ = "2019-07-09"
 __version__ = "0.1.0"
 
-
+import gdal
+import glob
+import os
 
 def tif2map(Tifs_Dir):
     """Convert *.tif to *.map
@@ -39,9 +41,6 @@ def tif2map(Tifs_Dir):
     :rtype:*.map
 
     """
-    import gdal
-    import glob
-    import os
     
     # change the current directory 
     # to specified directory 

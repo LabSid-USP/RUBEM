@@ -36,19 +36,18 @@ import os
 
 class Tif2pcrTss(DynamicModel):
     def __init__(self, Path, Name_prefix, CloneMap):
-        """Convert *.tif to tss.
+        """Convert *.tif to PCRaster MAP Series.
     
         :param Path: Directory containing the files.
         :Path type: str
 
-        :param Name_prefix: Prefix for name the tss files.
+        :param Name_prefix: Prefix for name maps files.
         :type Name_prefix: str
 
         :param CloneMap: Path to clone file with resolution and size desired
         :CloneMap  type: str
  
-        :returns: File in tss format
-        :rtype: *.00*
+        
         """
         DynamicModel.__init__(self)
         setclone(CloneMap)
@@ -58,11 +57,18 @@ class Tif2pcrTss(DynamicModel):
         self.file_name = Name_prefix
     
     def initial(self):
+        """Prepare the set of input variables to run the timestep 1 """
+
         #files
         self.Raster_files = glob.glob(os.path.join(self.Raster_path,'*.tif'))
         os.chdir(self.Raster_path)
     
     def dynamic(self):
+        """Return PCRaster MAP Series files from .tif format files
+
+        :returns: File in tss format
+        :rtype: PCRaster MAP Series
+        """
         # Run raster list to generate Tss
         t= int(self.currentStep)
         

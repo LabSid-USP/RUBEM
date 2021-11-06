@@ -65,7 +65,7 @@ def numpy2tif(sourceTif, outpath, numpy_array):
     ds = None
     outDs = None
     
-    return()
+    
 
 def pcrTss2Tif(inputFolder, demSrc):
     """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.tif).
@@ -91,7 +91,7 @@ def pcrTss2Tif(inputFolder, demSrc):
         outfile = (str(files_path[i][:-4]) +str('-')+ str(i+1) + '.tif')
         numpy2tif(src, outfile, npFile)
     
-    return()
+    
 
 
 

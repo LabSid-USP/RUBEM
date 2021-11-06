@@ -18,7 +18,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Interpolation method for generated metereological forcing maps series used by RUBEM."""
+"""Interpolation method for generated metereological forcing maps series."""
 
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
@@ -42,7 +42,7 @@ from pcraster.framework import *
 
 class Krige_Interpolation(DynamicModel):
     def __init__(self, path, demMap, CSV):
-        """Return tss files with interpolate variable using krigging method.
+        """Variable interpolation using the kriging method.
     
         :param Path: Directory containing the files.
         :Path type: str
@@ -50,11 +50,10 @@ class Krige_Interpolation(DynamicModel):
         :param demMap: Path to Digital Elevetion Model (DEM) .map format
         :demMap  type: str
 
-        :param CSV: Path to dataset 
+        :param CSV: Path to data 
         :type CSV: str
  
-        :returns: tss files interpolated
-        :rtype:*.00*
+
         """
 
         DynamicModel.__init__(self)
@@ -65,7 +64,8 @@ class Krige_Interpolation(DynamicModel):
               
         
     
-    def initial(self):   
+    def initial(self):  
+        """Prepare the set of input variables to run the timestep 1 """
         # Get geometry data from raster
         ds = gdal.Open(self.src_ds)
         ulx, xres, xskew, uly, yskew, yres  = ds.GetGeoTransform()
@@ -80,8 +80,12 @@ class Krige_Interpolation(DynamicModel):
         self.n_lags= 25
         
     def dynamic(self):
-        # Pykrige - https://pypi.org/project/PyKrige/
-        # scikit - https://pypi.org/project/scikit-gstat/
+        """Return tss files with interpolate variable using krigging method
+
+        :returns: tss files interpolated
+        :rtype:PCRaster MAP Series"""
+
+    
         t= scalar(self.currentStep)
         x = int(np.unique(pcr2numpy(t+1,-999)))
         rain_data = np.genfromtxt(self.rain_file,delimiter=';')
