@@ -29,7 +29,7 @@ __version__ = "0.1.0"
 
 ########## Interception Module ##########
 
-def sr_calc(self, pcr, NDVI):
+def srCalc(self, pcr, NDVI):
     """Return Simple Ratio (SR) .
     
     :param pcr: PCRaster Library
@@ -45,7 +45,7 @@ def sr_calc(self, pcr, NDVI):
     return SR
 
 
-def kc_calc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
+def kcCalc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
     """Return Crop Coefficient (Kc).
     
     :param pcr: PCRaster Library
@@ -74,7 +74,7 @@ def kc_calc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
     return Kc
 
 
-def fpar_calc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
+def fparCalc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
     """Return Fraction of Photosynthetically Active Radiation (FPAR).
     
     :param pcr: PCRaster Library
@@ -103,7 +103,7 @@ def fpar_calc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
     return FPAR
 
 
-def lai_function(self, pcr, FPAR, fpar_max, lai_max):
+def laiCalc(self, pcr, FPAR, fpar_max, lai_max):
     """Return Leaf Area Index (LAI).
     
     :param pcr: PCRaster Library
@@ -125,7 +125,7 @@ def lai_function(self, pcr, FPAR, fpar_max, lai_max):
     return LAI
 
 
-def Interception_function(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
+def interceptionCalc(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
     """Return Interception [mm].
     
     :param pcr: PCRaster Library

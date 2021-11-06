@@ -216,8 +216,8 @@ class RUBEM(pcrfw.DynamicModel):
         self.ndvi_max = pcrfw.scalar(pcrfw.readmap(self.ndviMaxFile))
 
         # Compute min and max sr
-        self.sr_min = sr_calc(self, pcr, self.ndvi_min)
-        self.sr_max = sr_calc(self, pcr, self.ndvi_max)
+        self.sr_min = srCalc(self, pcr, self.ndvi_min)
+        self.sr_max = srCalc(self, pcr, self.ndvi_max)
 
         # Read soil attributes
         solo = pcrfw.readmap(self.soil_path)
@@ -319,12 +319,12 @@ class RUBEM(pcrfw.DynamicModel):
 
         print("\tInterception...", end=" ", flush=True)
         ######### compute interception #########
-        SR = sr_calc(self, pcr, NDVI)
-        FPAR = fpar_calc(
+        SR = srCalc(self, pcr, NDVI)
+        FPAR = fparCalc(
             self, pcr, self.fpar_min, self.fpar_max, SR, self.sr_min, self.sr_max
         )
-        LAI = lai_function(self, pcr, FPAR, self.fpar_max, self.lai_max)
-        Id, Ir, Iv, I = Interception_function(
+        LAI = laiCalc(self, pcr, FPAR, self.fpar_max, self.lai_max)
+        Id, Ir, Iv, I = interceptionCalc(
             self, pcr, self.alfa, LAI, precipitation, rainyDays, Av
         )
 
@@ -333,17 +333,17 @@ class RUBEM(pcrfw.DynamicModel):
         ######### Compute Evapotranspiration #########
         print("\tEvapotranspiration...", end=" ", flush=True)
 
-        Kc_1 = kc_calc(
+        Kc_1 = kcCalc(
             self, pcr, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max
         )
         # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
         kc_cond1 = pcrfw.scalar(NDVI < 1.1 * self.ndvi_min)
         kc_cond2 = pcrfw.scalar(NDVI > 1.1 * self.ndvi_min)
         Kc = pcr.scalar((kc_cond2 * Kc_1) + (kc_cond1 * self.kc_min))
-        Ks = pcr.scalar(Ks_calc(self, pcr, self.TUr, self.TUw, self.TUcc))
+        Ks = pcr.scalar(ksCalc(self, pcr, self.TUr, self.TUw, self.TUcc))
 
         # Vegetated area
-        self.ET_av = ETav_calc(self, pcr, ETp, Kc, Ks)
+        self.ET_av = etavCalc(self, pcr, ETp, Kc, Ks)
 
         # Impervious area
         # ET impervious area = Interception of impervious area
@@ -353,11 +353,11 @@ class RUBEM(pcrfw.DynamicModel):
         self.ET_ai = self.I_i * cond
 
         # Open water
-        self.ET_ao = ETao_calc(self, pcr, ETp, Kp, precipitation, Ao)
+        self.ET_ao = etaoCalc(self, pcr, ETp, Kp, precipitation, Ao)
         # self.report(ET_ao,self.outpath+'ETao')
 
         # Bare soil
-        self.ET_as = ETas_calc(self, pcr, ETp, self.kc_min, Ks)
+        self.ET_as = etasCalc(self, pcr, ETp, self.kc_min, Ks)
         self.ETr = (
             (Av * self.ET_av)
             + (Ai * self.ET_ai)
@@ -371,8 +371,8 @@ class RUBEM(pcrfw.DynamicModel):
         print("\tSurface Runoff...", end=" ", flush=True)
 
         Pdm = precipitation / rainyDays
-        Ch = Ch_calc(self, pcr, self.TUr, self.dg, self.Zr, self.TUsat, self.b)
-        Cper = Cper_calc(
+        Ch = chCalc(self, pcr, self.TUr, self.dg, self.Zr, self.TUsat, self.b)
+        Cper = cperCalc(
             self,
             pcr,
             self.TUw,
@@ -384,11 +384,11 @@ class RUBEM(pcrfw.DynamicModel):
             self.w2,
             self.w3,
         )
-        Aimp, Cimp = Cimp_calc(self, pcr, Ao, Ai)
-        Cwp = Cwp_calc(self, pcr, Aimp, Cper, Cimp)
-        Csr = Csr_calc(self, pcr, Cwp, Pdm, self.RCD)
+        Aimp, Cimp = cimpCalc(self, pcr, Ao, Ai)
+        Cwp = cwpCalc(self, pcr, Aimp, Cper, Cimp)
+        Csr = csrCalc(self, pcr, Cwp, Pdm, self.RCD)
 
-        self.ES = ES_calc(
+        self.ES = sRunoffCalc(
             self, pcr, Csr, Ch, precipitation, I, Ao, self.ET_ao, self.TUr, self.TUsat
         )
 
@@ -397,14 +397,14 @@ class RUBEM(pcrfw.DynamicModel):
         ######### Lateral Flow #########
         print("\tLateral Flow...", end=" ", flush=True)
 
-        self.LF = LF_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
+        self.LF = lfCalc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
         print("OK", flush=True)  # print("\tLateral Flow... OK", flush=True)
 
         ######### Recharge Flow #########
         print("\tRecharge Flow...", end=" ", flush=True)
 
-        self.REC = REC_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
+        self.REC = recCalc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
         print("OK", flush=True)  # print("\tRecharge Flow... OK", flush=True)
 
@@ -413,7 +413,7 @@ class RUBEM(pcrfw.DynamicModel):
         # reportTif(self, self.ref, self.EBprev, 'EBprev', self.outpath, dyn=True)
         # reportTif(self, self.ref, self.TUs, 'TUs2', self.outpath, dyn=True)
 
-        self.EB = EB_calc(
+        self.EB = baseflowCalc(
             self, pcr, self.EBprev, self.alfa_gw, self.REC, self.TUs, self.EB_lim
         )
         self.EBprev = self.EB
@@ -423,7 +423,7 @@ class RUBEM(pcrfw.DynamicModel):
 
         ######### Soil Balance #########
         print("\tSoil Balance...", end=" ", flush=True)
-        self.TUr = TUr_calc(
+        self.TUr = turCalc(
             self,
             pcr,
             self.TUrprev,
@@ -436,7 +436,7 @@ class RUBEM(pcrfw.DynamicModel):
             Ao,
             self.TUsat,
         )
-        self.TUs = TUs_calc(self, pcr, self.TUsprev, self.REC, self.EB)
+        self.TUs = tusCalc(self, pcr, self.TUsprev, self.REC, self.EB)
         self.TUrprev = self.TUr
 
         self.TUsprev = self.TUs
