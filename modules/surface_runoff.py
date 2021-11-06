@@ -30,7 +30,7 @@ __version__ = "0.1.0"
 ########## Surface runoff ##########
 
 def Ch_calc(self, pcr, TUr, dg, Zr, Tsat, b):
-    """ Return coefficient representing soil moisture conditions (Ch).
+    """Return coefficient representing soil moisture conditions (Ch).
     
     :param pcr: PCRaster Library
     :pcr  type: str
@@ -139,7 +139,7 @@ def Cwp_calc(self, pcr, Aimp, Cper, Cimp):
 
 
 def Csr_calc(self, pcr, Cwp, P_24, RCD):
-    """ Return actual runoff coefficient (Csr).
+    """Return actual runoff coefficient (Csr).
     
     :param pcr: PCRaster Library
     :pcr  type: str

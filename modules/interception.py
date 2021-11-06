@@ -30,7 +30,7 @@ __version__ = "0.1.0"
 ########## Interception Module ##########
 
 def sr_calc(self, pcr, NDVI):
-    """Return SR, SRmin and SRmax.
+    """Return Simple Ratio (SR) .
     
     :param pcr: PCRaster Library
     :pcr type:str

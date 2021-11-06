@@ -40,7 +40,7 @@ UseExceptions()
 
 
 def getRefInfo(self, sourceTif):
-    """Return size and other information from a Raster file (DEM in RUBEM).
+    """Return size, resolution and corner coordinates from a Raster file (DEM in RUBEM).
     
     :param sourceTif: Path to DEM file to get information
     :sourceTif type: str
@@ -110,7 +110,7 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     outDs = None
 
 def reportMapSeries(self, VariableName, fileName):
-    """Write data from a file to a file.
+    """Store map data in the specified file.
 
     :param fileName: Prefix name of the output file.
     :fileName  type: str
