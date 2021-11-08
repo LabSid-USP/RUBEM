@@ -29,7 +29,7 @@ __version__ = "0.1.0"
 
 ########## Evapotranspiration Module ##########
 
-def Ks_calc(self, pcr, TUr, TUw, TUcc):
+def ksCalc(self, pcr, TUr, TUw, TUcc):
     """Return Water Stress Coefficient (Ks) for evapotranspiration of vegetated area.
 
     :param pcr: PCRaster Library
@@ -53,7 +53,7 @@ def Ks_calc(self, pcr, TUr, TUw, TUcc):
     return Ks
 
 
-def ETav_calc(self, pcr, ETp, Kc, Ks):
+def etavCalc(self, pcr, ETp, Kc, Ks):
     """Return evapotranspiration of vegetated area.
 
     :param pcr: PCRaster Library
@@ -75,7 +75,7 @@ def ETav_calc(self, pcr, ETp, Kc, Ks):
     return ETav
 
 
-def Kp_calc(self, pcr, B, U_2, UR):
+def kpCalc(self, pcr, B, U_2, UR):
     """Return pan coefficient (Kp) for evapotranspiration of open water area.
 
     :param pcr: PCRaster Library
@@ -97,7 +97,7 @@ def Kp_calc(self, pcr, B, U_2, UR):
     return Kp
 
 
-def ETao_calc(self, pcr, ETp, Kp, prec, Ao):
+def etaoCalc(self, pcr, ETp, Kp, prec, Ao):
     """Return actual evapotranspiration of open water area.
     
     :param pcr: PCRaster Library
@@ -121,7 +121,7 @@ def ETao_calc(self, pcr, ETp, Kp, prec, Ao):
     # condition for pixel of water
     cond1 = pcr.scalar(Ao == 1)
 
-    ETao_calc = ETp / Kp
+    etaoCalc = ETp / Kp
 
     # conditions for max value for ETao_calc, 
     # if ETao_calc > Prec in Pixel with Ao = 1, then ETao = Prec
@@ -131,14 +131,14 @@ def ETao_calc(self, pcr, ETp, Kp, prec, Ao):
     # open water + prec (if ET_calc>prec, for Aio = 1) + ET_calc for Ao = 1, 
     # if ET_calc < prec
     ETao = (
-        (ETao_calc) * (1 - cond1)
+        (etaoCalc) * (1 - cond1)
         + prec * cond1 * cond2
-        + (ETao_calc) * cond1 * (1 - cond2)
+        + (etaoCalc) * cond1 * (1 - cond2)
     )
     return ETao
 
 
-def ETas_calc(self, pcr, ETp, kc_min, Ks):
+def etasCalc(self, pcr, ETp, kc_min, Ks):
     """Return Ks for evapotranspiration of bare soil area.
     
     :param pcr: PCRaster Library

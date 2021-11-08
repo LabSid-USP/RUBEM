@@ -28,7 +28,7 @@ __date__ = "2021-05-19"
 __version__ = "0.1.0"
 
 ########## Lateral Flow ##########
-def LF_calc(self, pcr, f, Kr, TUr, TUsat):
+def lfCalc(self, pcr, f, Kr, TUr, TUsat):
     """Return Lateral Flow in the pixel [mm].
     
     :param pcr: PCRaster Library
@@ -51,7 +51,7 @@ def LF_calc(self, pcr, f, Kr, TUr, TUsat):
 
 
 ########## Recharge ##########
-def REC_calc(self, pcr, f, Kr, TUr, TUsat):
+def recCalc(self, pcr, f, Kr, TUr, TUsat):
     """Return Recharge in the pixel [mm].
     
     :param pcr: PCRaster Library
@@ -77,7 +77,7 @@ def REC_calc(self, pcr, f, Kr, TUr, TUsat):
 
 
 ########## Base Flow ##########
-def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
+def baseflowCalc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
     """Return Baseflow in the pixel [mm]..
     
     :param pcr: PCRaster Library
@@ -109,7 +109,7 @@ def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
 
 ########## Soil Balance ##########
 # First soil layer
-def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
+def turCalc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
     """Return Actual Soil Moisture Content at non-saturated zone in the pixel [mm].
     
     :param pcr: PCRaster Library
@@ -165,7 +165,7 @@ def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
 
 
 # Second soil layer
-def TUs_calc(self, pcr, TUsprev, REC, EB):
+def tusCalc(self, pcr, TUsprev, REC, EB):
     """Return Actual Water Content at saturated zone in the pixel [mm].
     
     :param pcr: PCRaster Library
