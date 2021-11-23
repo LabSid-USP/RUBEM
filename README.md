@@ -1,9 +1,11 @@
 <!-- PROJECT SHIELDS -->
 [![Documentation Status][readthedocs-shield]][readthedocs-url]
 [![Contributors][contributors-shield]][contributors-url]
+[![GitHub Commit Activity][commit-activity-shield]][commit-activity-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
+[![LabSid YouTube Channel][youtube-shield]][youtube-url]
 <!-- [![GPL v3 License][license-shield]][license-url] -->
 
 <!-- PROJECT LOGO -->
@@ -174,6 +176,8 @@ In any of our communication channels please abide by the [RUBEM Code of Conduct]
 [readthedocs-url]: https://rubem.readthedocs.io/en/latest/?badge=latest
 [contributors-shield]: https://img.shields.io/github/contributors/LabSid-USP/RUBEM
 [contributors-url]: https://github.com/LabSid-USP/RUBEM/graphs/contributors
+[commit-activity-shield]: https://img.shields.io/github/commit-activity/m/LabSid-USP/RUBEM
+[commit-activity-url]: https://github.com/LabSid-USP/RUBEM/pulse
 [forks-shield]: https://img.shields.io/github/forks/LabSid-USP/RUBEM
 [forks-url]: https://github.com/LabSid-USP/RUBEM/network/members
 [stars-shield]: https://img.shields.io/github/stars/LabSid-USP/RUBEM
@@ -182,3 +186,5 @@ In any of our communication channels please abide by the [RUBEM Code of Conduct]
 [issues-url]: https://github.com/LabSid-USP/RUBEM/issues
 [license-shield]: https://img.shields.io/github/license/LabSid-USP/RUBEM
 [license-url]: https://github.com/LabSid-USP/RUBEM/blob/master/LICENSE.md
+[youtube-shield]: https://img.shields.io/youtube/channel/subscribers/UCZOGKRCW5mQOY9_w8L7lKJg
+[youtube-url]: https://www.youtube.com/user/labsidengbr
