@@ -1,5 +1,10 @@
 <!-- PROJECT SHIELDS -->
 [![Documentation Status][readthedocs-shield]][readthedocs-url]
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+<!-- [![GPL v3 License][license-shield]][license-url] -->
 
 <!-- PROJECT LOGO -->
 <br />
@@ -167,3 +172,13 @@ In any of our communication channels please abide by the [RUBEM Code of Conduct]
 <!-- MARKDOWN LINKS & IMAGES -->
 [readthedocs-shield]: https://readthedocs.org/projects/rubem/badge/?version=latest
 [readthedocs-url]: https://rubem.readthedocs.io/en/latest/?badge=latest
+[contributors-shield]: https://img.shields.io/github/contributors/LabSid-USP/RUBEM
+[contributors-url]: https://github.com/LabSid-USP/RUBEM/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/LabSid-USP/RUBEM
+[forks-url]: https://github.com/LabSid-USP/RUBEM/network/members
+[stars-shield]: https://img.shields.io/github/stars/LabSid-USP/RUBEM
+[stars-url]: https://github.com/LabSid-USP/RUBEM/stargazers
+[issues-shield]: https://img.shields.io/github/issues/LabSid-USP/RUBEM
+[issues-url]: https://github.com/LabSid-USP/RUBEM/issues
+[license-shield]: https://img.shields.io/github/license/LabSid-USP/RUBEM
+[license-url]: https://github.com/LabSid-USP/RUBEM/blob/master/LICENSE.md
