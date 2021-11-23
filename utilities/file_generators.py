@@ -40,13 +40,13 @@ UseExceptions()
 
 
 def getRefInfo(self, sourceTif):
-    """[summary].
+    """Return size, resolution and corner coordinates from a Raster file (DEM in RUBEM).
     
-    :param sourceTif:
-    :sourceTif type:
+    :param sourceTif: Path to DEM file to get information
+    :sourceTif type: str
 
-    :returns:
-    :rtype:
+    :returns: Array with information
+    :rtype: array
     """
     AllRegister()
     ds = OpenEx(sourceTif)
@@ -60,13 +60,13 @@ def getRefInfo(self, sourceTif):
 
 
 def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
-    """[summary].
+    """Create a .tif raster from a PCRaster object.
     
-    :param tifRef:
-    :tifRef  type:
+    :param tifRef: array with dem raster information
+    :tifRef  type: array
 
     :param pcrObj: PCRaster object to export.
-    :pcrObj  type:
+    :pcrObj  type: Either Boolean, Nominal, Ordinal, Scalar, Directional or Ldd
 
     :param fileName: Base name of the output file.
     :fileName  type: str
@@ -76,12 +76,11 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
 
     :param dyn: If dynamic mode is True, otherwise defaults to False.
     :dyn  type: int
+
+    :returns: File in .tif format
+    :rtype: .tif
     """
-    # sourceTif = file to get attibutes from - DEM
-    # pcrObj  = pcraster to export
-    # fileName = string format
-    # dyn = if dynamic mode = 1, otherwise 0
-    # outpath = path to save Tif file
+ 
 
     # convert to np array
     npFile = pcr2numpy(pcrObj, -999)
@@ -111,7 +110,7 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     outDs = None
 
 def reportMapSeries(self, VariableName, fileName):
-    """[summary].
+    """Store map data in the specified file.
 
     :param fileName: Prefix name of the output file.
     :fileName  type: str

@@ -1,0 +1,15 @@
+To cite RUBEM in publications use:
+
+    Méllo, A. V., L. M. O. Olivos, C. Billerbeck, S. S. Marcellini, W. D. Vichete, D. M. Pasetti, L. M. d. Silva, G. A. d. S. Soares, J. R. B. Tercini (2021). Rainfall-Runoff Balance Enhanced Model Applied to Tropical Hydrology, ?????, http://url
+
+A BibTeX entry for LaTeX users is
+
+  @article{,
+    title = {Rainfall-Runoff Balance Enhanced Model Applied to Tropical Hydrology},
+    author = {Méllo, A. V., L. M. O. Olivos, C. Billerbeck, S. S. Marcellini, W. D. Vichete, D. M. Pasetti, L. M. d. Silva, G. A. d. S. Soares, J. R. B. Tercini},
+    journal  = {??},
+    year     = {2021},
+    volume   = {??},
+    number   = {?},
+    pages    = {??--??},
+  }

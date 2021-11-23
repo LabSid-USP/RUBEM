@@ -28,78 +28,78 @@ __date__ = "2021-05-19"
 __version__ = "0.1.0"
 
 ########## Lateral Flow ##########
-def LF_calc(self, pcr, f, Kr, TUr, TUsat):
-    """[summary].
+def lfCalc(self, pcr, f, Kr, TUr, TUsat):
+    """Return Lateral Flow in the pixel [mm].
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param f:
-    :f  type:
+    :param f: preferred flow direction parameter [-]
+    :f  type: float
 
-    :param TUr:
-    :TUr  type:
+    :param TUr: Actual soil moisture content non-saturated zone [mm]
+    :TUr  type: float
 
-    :param TUsat:
-    :TUsat  type:
+    :param TUsat: Soil moisture content at saturation point []
+    :TUsat  type: float
 
-    :returns:
-    :rtype:
+    :returns: Lateral Flow [mm]
+    :rtype: float
     """
     LF = f * Kr * ((TUr / TUsat) ** 2)
     return LF
 
 
 ########## Recharge ##########
-def REC_calc(self, pcr, f, Kr, TUr, TUsat):
-    """[summary].
+def recCalc(self, pcr, f, Kr, TUr, TUsat):
+    """Return Recharge in the pixel [mm].
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: STR
 
-    :param f:
-    :f  type:
+    :param TUr: Actual soil moisture content non-saturated zone [mm]
+    :TUr  type: float
 
-    :param Kr:
-    :Kr  type:
+    :param Kr: Hydraulic Conductivity of soil class [mm/month]
+    :Kr  type: float
 
-    :param TUr:
-    :TUr  type:
+    :param TUr: Actual soil moisture content non-saturated zone [mm]
+    :TUr  type: float
 
-    :param TUsat:
-    :TUsat  type:
+    :param TUsat: Soil moisture content at saturation point [-]
+    :TUsat  type: float
 
-    :returns:
-    :rtype:
+    :returns: Monthly Recharge [mm]
+    :rtype: float
     """
     REC = (1 - f) * Kr * ((TUr / TUsat) ** 2)
     return REC
 
 
 ########## Base Flow ##########
-def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
-    """[summary].
+def baseflowCalc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
+    """Return Baseflow in the pixel [mm]..
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param EB_prev:
-    :EB_prev  type:
+    :param EB_prev: Baseflow at timestep t-1 [mm]
+    :EB_prev  type: float
 
-    :param alfaS:
-    :alfaS  type:
+    :param alfaS: Baseflow recession coefficient (Calibrated) [-]
+    :alfaS  type: float
 
-    :param REC:
-    :REC  type:
+    :param REC: Monthly Recharge at timestep t
+    :REC  type: float
 
-    :param TUs:
-    :TUs  type:
+    :param TUs: Water contect at saturated zone [mm]
+    :TUs  type: float
 
-    :param EB_lim:
-    :EB_lim  type:
+    :param EB_lim: Threshold for baseflow ocurrence [mm]
+    :EB_lim  type: float
 
-    :returns:
-    :rtype:
+    :returns: Monthly Baseflow [mm]
+    :rtype: float
     """
     # limit condition for base flow
     cond = pcr.scalar(TUs > EB_lim)
@@ -109,41 +109,41 @@ def EB_calc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
 
 ########## Soil Balance ##########
 # First soil layer
-def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
-    """[summary].
+def turCalc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
+    """Return Actual Soil Moisture Content at non-saturated zone in the pixel [mm].
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param TUrprev:
-    :TUrprev  type:
+    :param TUrprev: Soil moisture content at timestep t-1 [mm]
+    :TUrprev  type: float
 
-    :param P:
-    :P  type:
+    :param P: Monthly precipitation [mm]
+    :P  type: float
 
-    :param I:
-    :I  type:
+    :param I: Monthly Interception [mm]
+    :I  type: float
 
-    :param ES:
-    :ES  type:
+    :param ES: Monthly Surface Runoff [mm]
+    :ES  type: float
 
-    :param LF:
-    :LF  type:
+    :param LF: Monthly Lateral Flow [mm]
+    :LF  type: float
 
-    :param REC:
-    :REC  type:
+    :param REC: Monthly Recharge [mm]
+    :REC  type: float
 
-    :param ETr:
-    :ETr  type:
+    :param ETr: Monthly Actual Evapotranspiration [mm]
+    :ETr  type: float
 
-    :param Ao:
-    :Ao  type:
+    :param Ao: Open Water Area Fraction [-]
+    :Ao  type: float
 
-    :param Tsat:
-    :Tsat  type:
+    :param Tsat: Soil moisture content at saturation point []
+    :Tsat  type: float
 
-    :returns:
-    :rtype:
+    :returns: Soil Moisture Content [mm]
+    :rtype: float
     """
 
     # condition for pixel of water, if Ao different of 1 (not water)
@@ -165,23 +165,23 @@ def TUr_calc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
 
 
 # Second soil layer
-def TUs_calc(self, pcr, TUsprev, REC, EB):
-    """[summary].
+def tusCalc(self, pcr, TUsprev, REC, EB):
+    """Return Actual Water Content at saturated zone in the pixel [mm].
     
-    :param pcr:
-    :pcr  type:
+    :param pcr: PCRaster Library
+    :pcr  type: str
 
-    :param TUsprev:
-    :TUsprev  type:
+    :param TUsprev: Water content at saturated zone at timestep t-1 [mm]
+    :TUsprev  type: float
 
-    :param REC:
-    :REC  type:
+    :param REC: Monthly Recharge [mm]
+    :REC  type: float
 
-    :param EB:
-    :EB  type:
+    :param EB: Monthly Baseflow[mm]
+    :EB  type: float
 
-    :returns:
-    :rtype:
+    :returns: Water content at saturated zone [mm]
+    :rtype: float
     """
     # soil balance
     balance = TUsprev + REC - EB

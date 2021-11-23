@@ -41,18 +41,19 @@ from modules.evapotranspiration import *
 from modules.interception import *
 from modules.soil import *
 from modules.surface_runoff import *
+
 # Import util functions
 from utilities.date_calc import *
 from utilities.file_convertions import tss2csv
 from utilities.file_generators import *
 
 
-class Modelo(pcrfw.DynamicModel):
+class RUBEM(pcrfw.DynamicModel):
     """Rainfall rUnoff Balance Enhanced Model.
-    
+
     Uses the PCRaster Dynamic Modelling Framework.
     """
-    
+
     def __init__(self):
         """Contains the initialization of the model class."""
         pcrfw.DynamicModel.__init__(self)
@@ -60,93 +61,94 @@ class Modelo(pcrfw.DynamicModel):
 
         # TODO: Check if loaded config info is valid
         # Read file locations
-        self.inpath = config.get("FILES", "input")
-        self.dem_file = config.get("FILES", "dem")
-        self.demTif = config.get("FILES", "demtif")
-        self.clone_file = config.get("FILES", "clone")
-        # self.ldd_file = config.get('FILES', 'lddTif')
-        self.etp_path = config.get("FILES", "etp")
-        self.prec_path = config.get("FILES", "prec")
-        self.ndvi_path = config.get("FILES", "ndvi")
-        self.kp_path = config.get("FILES", "kp")
-        self.land_path = config.get("FILES", "landuse")
-        self.soil_path = config.get("FILES", "solo")
-        self.outpath = config.get("FILES", "output")
-        self.sampleLocs = config.get("FILES", "samples")
+        self.inpath = config.get("DIRECTORIES", "input")
+        self.outpath = config.get("DIRECTORIES", "output")
+        self.etp_path = config.get("DIRECTORIES", "etp")
+        self.prec_path = config.get("DIRECTORIES", "prec")
+        self.kp_path = config.get("DIRECTORIES", "Kp")
+        self.ndvi_path = config.get("DIRECTORIES", "ndvi")
+        self.land_path = config.get("DIRECTORIES", "landuse")
+
+        # Read temporal filenames prefix
+        self.etpPrefix = config.get("FILENAME_PREFIXES", "etp_prefix")
+        self.precPrefix = config.get("FILENAME_PREFIXES", "prec_prefix")
+        self.ndviPrefix = config.get("FILENAME_PREFIXES", "ndvi_prefix")
+        self.kpPrefix = config.get("FILENAME_PREFIXES", "kp_prefix")
+        self.coverPrefix = config.get("FILENAME_PREFIXES", "landuse_prefix")
+
+        self.dem_file = config.get("RASTERS", "dem")
+        self.demTif = config.get("RASTERS", "demtif")
+        self.clone_file = config.get("RASTERS", "clone")
+        # self.ldd_file = config.get('RASTERS', 'lddTif')
+        self.soil_path = config.get("RASTERS", "soil")
+        self.sampleLocs = config.get("RASTERS", "samples")
+        self.ndviMaxFile = config.get("RASTERS", "ndvi_max")
+        self.ndviMinFile = config.get("RASTERS", "ndvi_min")
 
         # Set clone
         pcr.setclone(self.clone_file)
 
-        # Read temporal filenames prefix
-        self.etpPrefix = config.get("FILES", "etpFilePrefix")
-        self.precPrefix = config.get("FILES", "precFilePrefix")
-        self.ndviPrefix = config.get("FILES", "ndviFilePrefix")
-        self.ndviMaxFile = config.get("FILES", "ndvimax")
-        self.ndviMinFile = config.get("FILES", "ndvimin")
-        self.kpPrefix = config.get("FILES", "kpFilePrefix")
-        self.coverPrefix = config.get("FILES", "landuseFilePrefix")
-
         # Read text lookuptables from config file
-        self.rainyDaysTable = config.get("PARAMETERS", "rainydays")
-        self.aiTable = config.get("PARAMETERS", "a_i")
-        self.aoTable = config.get("PARAMETERS", "a_o")
-        self.asTable = config.get("PARAMETERS", "a_s")
-        self.avTable = config.get("PARAMETERS", "a_v")
-        self.manningTable = config.get("PARAMETERS", "manning")
-        self.dgTable = config.get("PARAMETERS", "dg")
-        self.KrTable = config.get("PARAMETERS", "kr")
-        self.TccTable = config.get("PARAMETERS", "capCampo")
-        self.TsatTable = config.get("PARAMETERS", "saturacao")
-        self.TwTable = config.get("PARAMETERS", "pontomurcha")
-        self.ZrTable = config.get("PARAMETERS", "zr")
-        self.KcminTable = config.get("PARAMETERS", "kcmin")
-        self.KcmaxTable = config.get("PARAMETERS", "kcmax")
+        self.rainyDaysTable = config.get("TABLES", "rainydays")
+        self.aiTable = config.get("TABLES", "a_i")
+        self.aoTable = config.get("TABLES", "a_o")
+        self.asTable = config.get("TABLES", "a_s")
+        self.avTable = config.get("TABLES", "a_v")
+        self.manningTable = config.get("TABLES", "manning")
+        self.dgTable = config.get("TABLES", "bulk_density")
+        self.KrTable = config.get("TABLES", "K_sat")
+        self.TccTable = config.get("TABLES", "T_fcap")
+        self.TsatTable = config.get("TABLES", "T_sat")
+        self.TwTable = config.get("TABLES", "T_wp")
+        self.ZrTable = config.get("TABLES", "rootzone_depth")
+        self.KcminTable = config.get("TABLES", "K_c_min")
+        self.KcmaxTable = config.get("TABLES", "K_c_max")
 
         # TODO: Automatic calculation of cell area
         # Cell area
-        self.A = config.getfloat("GRID", "grid")**2
+        self.A = config.getfloat("GRID", "grid") ** 2
 
         # Read calibration parameters from config file
-        self.alfa = config.getfloat("CALIBRATION", "alfa")
+        self.alfa = config.getfloat("CALIBRATION", "alpha")
         self.b = config.getfloat("CALIBRATION", "b")
-        self.w1 = config.getfloat("CALIBRATION", "w1")
-        self.w2 = config.getfloat("CALIBRATION", "w2")
-        self.w3 = config.getfloat("CALIBRATION", "w3")
+        self.w1 = config.getfloat("CALIBRATION", "w_1")
+        self.w2 = config.getfloat("CALIBRATION", "w_2")
+        self.w3 = config.getfloat("CALIBRATION", "w_3")
         self.RCD = config.getfloat("CALIBRATION", "rcd")
         self.f = config.getfloat("CALIBRATION", "f")
-        self.alfa_gw = config.getfloat("CALIBRATION", "alfa_gw")
+        self.alfa_gw = config.getfloat("CALIBRATION", "alpha_gw")
         self.x = config.getfloat("CALIBRATION", "x")
 
         # Read soil conditions from config file
         # Initial moisture content of the root zone (fraction of saturation content)
-        self.ftur_ini = config.getfloat("INITIAL SOIL CONDITIONS", "ftur_ini")
+        self.ftur_ini = config.getfloat("INITIAL_SOIL_CONDITIONS", "T_ini")
         # Initial baseflow
-        self.EBini = pcrfw.scalar(config.getfloat("INITIAL SOIL CONDITIONS", "eb_ini"))
+        self.EBini = pcrfw.scalar(config.getfloat("INITIAL_SOIL_CONDITIONS", "bfw_ini"))
         # limit for baseflow
-        self.EBlim = pcrfw.scalar(config.getfloat("INITIAL SOIL CONDITIONS", "eb_lim"))
+        self.EBlim = pcrfw.scalar(config.getfloat("INITIAL_SOIL_CONDITIONS", "bfw_lim"))
         # Initial moisture content of the saturated zone
         self.Tusini = pcrfw.scalar(
-            config.getfloat("INITIAL SOIL CONDITIONS", "tus_ini")
+            config.getfloat("INITIAL_SOIL_CONDITIONS", "S_sat_ini")
         )
 
         # Constants
-        self.fpar_max = config.getfloat("CONSTANT", "fpar_max")
-        self.fpar_min = config.getfloat("CONSTANT", "fpar_min")
-        self.lai_max = config.getfloat("CONSTANT", "lai_max")
-        self.I_i = config.getfloat("CONSTANT", "i_imp")
+        self.fpar_max = config.getfloat("CONSTANTS", "fpar_max")
+        self.fpar_min = config.getfloat("CONSTANTS", "fpar_min")
+        self.lai_max = config.getfloat("CONSTANTS", "lai_max")
+        self.I_i = config.getfloat("CONSTANTS", "i_imp")
 
         print("OK", flush=True)  # RUBEM::Reading input files...
 
         # # Initialize time series output
-        self.OutTssRun = "outRun"
-        self.OutTssPrec = "outPrec"
-        self.OutTssInt = "outInt"
-        self.OutTssBflow = "outBflow"
-        self.OutTssSfRun = "outSfRun"
-        self.OutTssEtp = "outEtp"
-        self.OutTssLf = "outLf"
-        self.OutTssRec = "outRec"
-        self.OutTssSsat = "outSsat"
+        self.OutTssRun = "tss_rnf"
+        # self.OutTssPrec =   "tssPrec"
+        self.OutTssInt = "tss_itp"
+        self.OutTssBflow = "tss_bfw"
+        self.OutTssSfRun = "tss_srn"
+        self.OutTssEta = "tss_eta"
+        self.OutTssLf = "tss_lfw"
+        self.OutTssRec = "tss_rec"
+        self.OutTssSsat = "tss_smc"
 
         # Report file
         # name
@@ -159,7 +161,7 @@ class Modelo(pcrfw.DynamicModel):
 
     def initial(self):
         """Contains the initialization of variables used in the model.
-        
+
         Contains operations to initialise the state of the model at time step 0.
         Operations included in this section are executed once.
         """
@@ -184,9 +186,9 @@ class Modelo(pcrfw.DynamicModel):
             self.TssFileRun = pcrfw.TimeoutputTimeseries(
                 self.OutTssRun, self, self.sampleLocs, noHeader=True
             )
-            self.TssFilePrec = pcrfw.TimeoutputTimeseries(
-                self.OutTssPrec, self, self.sampleLocs, noHeader=True
-            )
+            # self.TssFilePrec = pcrfw.TimeoutputTimeseries(
+            #     self.OutTssPrec, self, self.sampleLocs, noHeader=True
+            # )
             self.TssFileInt = pcrfw.TimeoutputTimeseries(
                 self.OutTssInt, self, self.sampleLocs, noHeader=True
             )
@@ -196,8 +198,8 @@ class Modelo(pcrfw.DynamicModel):
             self.TssFileSfRun = pcrfw.TimeoutputTimeseries(
                 self.OutTssSfRun, self, self.sampleLocs, noHeader=True
             )
-            self.TssFileEtp = pcrfw.TimeoutputTimeseries(
-                self.OutTssEtp, self, self.sampleLocs, noHeader=True
+            self.TssFileEta = pcrfw.TimeoutputTimeseries(
+                self.OutTssEta, self, self.sampleLocs, noHeader=True
             )
             self.TssFileLf = pcrfw.TimeoutputTimeseries(
                 self.OutTssLf, self, self.sampleLocs, noHeader=True
@@ -214,8 +216,8 @@ class Modelo(pcrfw.DynamicModel):
         self.ndvi_max = pcrfw.scalar(pcrfw.readmap(self.ndviMaxFile))
 
         # Compute min and max sr
-        self.sr_min = sr_calc(self, pcr, self.ndvi_min)
-        self.sr_max = sr_calc(self, pcr, self.ndvi_max)
+        self.sr_min = srCalc(self, pcr, self.ndvi_min)
+        self.sr_max = srCalc(self, pcr, self.ndvi_max)
 
         # Read soil attributes
         solo = pcrfw.readmap(self.soil_path)
@@ -269,9 +271,9 @@ class Modelo(pcrfw.DynamicModel):
 
     def dynamic(self):
         """Contains the implementation of the dynamic section of the model.
-        
-        Contains the operations that are executed consecutively each time step. 
-        Results of a previous time step can be used as input for the current time step. 
+
+        Contains the operations that are executed consecutively each time step.
+        Results of a previous time step can be used as input for the current time step.
         The dynamic section is executed a specified number of timesteps.
         """
         t = self.currentStep
@@ -317,12 +319,12 @@ class Modelo(pcrfw.DynamicModel):
 
         print("\tInterception...", end=" ", flush=True)
         ######### compute interception #########
-        SR = sr_calc(self, pcr, NDVI)
-        FPAR = fpar_calc(
+        SR = srCalc(self, pcr, NDVI)
+        FPAR = fparCalc(
             self, pcr, self.fpar_min, self.fpar_max, SR, self.sr_min, self.sr_max
         )
-        LAI = lai_function(self, pcr, FPAR, self.fpar_max, self.lai_max)
-        Id, Ir, Iv, I = Interception_function(
+        LAI = laiCalc(self, pcr, FPAR, self.fpar_max, self.lai_max)
+        Id, Ir, Iv, I = interceptionCalc(
             self, pcr, self.alfa, LAI, precipitation, rainyDays, Av
         )
 
@@ -331,17 +333,17 @@ class Modelo(pcrfw.DynamicModel):
         ######### Compute Evapotranspiration #########
         print("\tEvapotranspiration...", end=" ", flush=True)
 
-        Kc_1 = kc_calc(
+        Kc_1 = kcCalc(
             self, pcr, NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max
         )
         # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
         kc_cond1 = pcrfw.scalar(NDVI < 1.1 * self.ndvi_min)
         kc_cond2 = pcrfw.scalar(NDVI > 1.1 * self.ndvi_min)
         Kc = pcr.scalar((kc_cond2 * Kc_1) + (kc_cond1 * self.kc_min))
-        Ks = pcr.scalar(Ks_calc(self, pcr, self.TUr, self.TUw, self.TUcc))
+        Ks = pcr.scalar(ksCalc(self, pcr, self.TUr, self.TUw, self.TUcc))
 
         # Vegetated area
-        self.ET_av = ETav_calc(self, pcr, ETp, Kc, Ks)
+        self.ET_av = etavCalc(self, pcr, ETp, Kc, Ks)
 
         # Impervious area
         # ET impervious area = Interception of impervious area
@@ -351,11 +353,11 @@ class Modelo(pcrfw.DynamicModel):
         self.ET_ai = self.I_i * cond
 
         # Open water
-        self.ET_ao = ETao_calc(self, pcr, ETp, Kp, precipitation, Ao)
+        self.ET_ao = etaoCalc(self, pcr, ETp, Kp, precipitation, Ao)
         # self.report(ET_ao,self.outpath+'ETao')
 
         # Bare soil
-        self.ET_as = ETas_calc(self, pcr, ETp, self.kc_min, Ks)
+        self.ET_as = etasCalc(self, pcr, ETp, self.kc_min, Ks)
         self.ETr = (
             (Av * self.ET_av)
             + (Ai * self.ET_ai)
@@ -369,8 +371,8 @@ class Modelo(pcrfw.DynamicModel):
         print("\tSurface Runoff...", end=" ", flush=True)
 
         Pdm = precipitation / rainyDays
-        Ch = Ch_calc(self, pcr, self.TUr, self.dg, self.Zr, self.TUsat, self.b)
-        Cper = Cper_calc(
+        Ch = chCalc(self, pcr, self.TUr, self.dg, self.Zr, self.TUsat, self.b)
+        Cper = cperCalc(
             self,
             pcr,
             self.TUw,
@@ -382,25 +384,27 @@ class Modelo(pcrfw.DynamicModel):
             self.w2,
             self.w3,
         )
-        Aimp, Cimp = Cimp_calc(self, pcr, Ao, Ai)
-        Cwp = Cwp_calc(self, pcr, Aimp, Cper, Cimp)
-        Csr = Csr_calc(self, pcr, Cwp, Pdm, self.RCD)
+        Aimp, Cimp = cimpCalc(self, pcr, Ao, Ai)
+        Cwp = cwpCalc(self, pcr, Aimp, Cper, Cimp)
+        Csr = csrCalc(self, pcr, Cwp, Pdm, self.RCD)
 
-        self.ES = ES_calc(self, pcr, Csr, Ch, precipitation, I, Ao, self.ET_ao, self.TUr, self.TUsat)
+        self.ES = sRunoffCalc(
+            self, pcr, Csr, Ch, precipitation, I, Ao, self.ET_ao, self.TUr, self.TUsat
+        )
 
         print("OK", flush=True)  # print("\tSurface Runoff... OK", flush=True)
 
         ######### Lateral Flow #########
         print("\tLateral Flow...", end=" ", flush=True)
 
-        self.LF = LF_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
+        self.LF = lfCalc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
         print("OK", flush=True)  # print("\tLateral Flow... OK", flush=True)
 
         ######### Recharge Flow #########
         print("\tRecharge Flow...", end=" ", flush=True)
 
-        self.REC = REC_calc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
+        self.REC = recCalc(self, pcr, self.f, self.Kr, self.TUr, self.TUsat)
 
         print("OK", flush=True)  # print("\tRecharge Flow... OK", flush=True)
 
@@ -409,7 +413,7 @@ class Modelo(pcrfw.DynamicModel):
         # reportTif(self, self.ref, self.EBprev, 'EBprev', self.outpath, dyn=True)
         # reportTif(self, self.ref, self.TUs, 'TUs2', self.outpath, dyn=True)
 
-        self.EB = EB_calc(
+        self.EB = baseflowCalc(
             self, pcr, self.EBprev, self.alfa_gw, self.REC, self.TUs, self.EB_lim
         )
         self.EBprev = self.EB
@@ -419,7 +423,7 @@ class Modelo(pcrfw.DynamicModel):
 
         ######### Soil Balance #########
         print("\tSoil Balance...", end=" ", flush=True)
-        self.TUr = TUr_calc(
+        self.TUr = turCalc(
             self,
             pcr,
             self.TUrprev,
@@ -432,7 +436,7 @@ class Modelo(pcrfw.DynamicModel):
             Ao,
             self.TUsat,
         )
-        self.TUs = TUs_calc(self, pcr, self.TUsprev, self.REC, self.EB)
+        self.TUs = tusCalc(self, pcr, self.TUsprev, self.REC, self.EB)
         self.TUrprev = self.TUr
 
         self.TUsprev = self.TUs
@@ -461,33 +465,33 @@ class Modelo(pcrfw.DynamicModel):
         if genTss:
             # Function dictionary to export tss according to filename
             genTssDic = {
-                "Int": self.TssFileInt.sample,
-                "Bflow": self.TssFileBflow.sample,
-                "SfRun": self.TssFileSfRun.sample,
-                "Etp": self.TssFileEtp.sample,
-                "Lf": self.TssFileLf.sample,
-                "Rec": self.TssFileRec.sample,
-                "Ssat": self.TssFileSsat.sample,
-                "Runoff": self.TssFileRun.sample,
+                "itp": self.TssFileInt.sample,
+                "bfw": self.TssFileBflow.sample,
+                "srn": self.TssFileSfRun.sample,
+                "eta": self.TssFileEta.sample,
+                "lfw": self.TssFileLf.sample,
+                "rec": self.TssFileRec.sample,
+                "smc": self.TssFileSsat.sample,
+                "rnf": self.TssFileRun.sample,
             }
 
         # Variable dictionary to export according to filename
         varDic = {
-            "Int": I,
-            "Bflow": self.EB,
-            "SfRun": self.ES,
-            "Etp": self.ETr,
-            "Lf": self.LF,
-            "Rec": self.REC,
-            "Ssat": self.TUr,
-            "Runoff": self.runoff,
+            "itp": I,
+            "bfw": self.EB,
+            "srn": self.ES,
+            "eta": self.ETr,
+            "lfw": self.LF,
+            "rec": self.REC,
+            "smc": self.TUr,
+            "rnf": self.runoff,
         }
-        
+
         for fileName, isSelected in genFilesDic.items():
             # Check if the variable (fileName) has been selected for export
             if isSelected:
 
-                # Export *.tiff raster 
+                # Export *.tiff raster
                 if enableTIFFormat:
                     reportTif(
                         self,
@@ -497,8 +501,8 @@ class Modelo(pcrfw.DynamicModel):
                         self.outpath,
                         dyn=True,
                     )
-                
-                # Export *.map raster 
+
+                # Export *.map raster
                 if enableMapFormat:
                     reportMapSeries(self, varDic.get(fileName), fileName)
 
@@ -543,32 +547,30 @@ if __name__ == "__main__":
     endDate = config.get("SIM_TIME", "end")
 
     # Check whether the output directory exists
-    if not os.path.isdir(str(config.get("FILES", "output"))):
+    if not os.path.isdir(str(config.get("DIRECTORIES", "output"))):
         # If the output directory doesn't exist create it
-        os.mkdir(str(config.get("FILES", "output")))
+        os.mkdir(str(config.get("DIRECTORIES", "output")))
 
     # Store which variables have or have not been selected for export
-    genFilesList = ["Int", "Bflow", "SfRun", "Etp", "Lf", "Rec", "Ssat", "Runoff"]
+    genFilesList = ["itp", "bfw", "srn", "eta", "lfw", "rec", "smc", "rnf"]
     genFilesDic = {}
     for file in genFilesList:
         genFilesDic[file] = config.getboolean("GENERATE_FILE", file)
 
     # Store the setting that enables the export of time series
-    genTss = config.getboolean("GENERATE_FILE", "genTss")
+    genTss = config.getboolean("GENERATE_FILE", "tss")
 
     # Store the format in which the resulting files will be exported (*.tif and/or *.map)
-    enableTIFFormat = config.getboolean("GENERATE_FILE_FORMAT", "enableTiff")
-    enableMapFormat = config.getboolean("GENERATE_FILE_FORMAT", "enableMapSeries")
+    enableTIFFormat = config.getboolean("RASTER_FILE_FORMAT", "tiff_raster_series")
+    enableMapFormat = config.getboolean("RASTER_FILE_FORMAT", "map_raster_series")
 
     steps = totalSteps(startDate, endDate)
     start = steps[0]
     end = steps[1]
 
     print("RUBEM::Running dynamic model...", flush=True)
-    myModel = Modelo()
-    dynamicModel = pcrfw.DynamicFramework(
-        myModel, lastTimeStep=end, firstTimestep=start
-    )
+    model = RUBEM()
+    dynamicModel = pcrfw.DynamicFramework(model, lastTimeStep=end, firstTimestep=start)
     dynamicModel.run()
     tempoExec = time.time() - t1
     print(f"RUBEM::Dynamic model runtime: {tempoExec:.2f} seconds")
@@ -576,9 +578,9 @@ if __name__ == "__main__":
     # Check whether the generation of time series has been activated
     if genTss:
         print("RUBEM::Converting *.tss files to *.csv...", end=" ", flush=True)
-        cols = [str(n) for n in myModel.sample_vals[1:]]
+        cols = [str(n) for n in model.sample_vals[1:]]
         # Convert generated time series to .csv format and removes .tss files
-        tss2csv(myModel.outpath, cols)
+        tss2csv(model.outpath, cols)
         print("OK", flush=True)  # Converting *.tss files to *.csv...
 
     print("RUBEM::Finished", flush=True)

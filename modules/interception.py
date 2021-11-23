@@ -29,125 +29,125 @@ __version__ = "0.1.0"
 
 ########## Interception Module ##########
 
-def sr_calc(self, pcr, NDVI):
-    """Return SRmin and SRmax.
+def srCalc(self, pcr, NDVI):
+    """Return Simple Ratio (SR) .
     
-    :param pcr:
-    :pcr type:
+    :param pcr: PCRaster Library
+    :pcr type:str
 
-    :param NDVI:
-    :NDVI type:
+    :param NDVI: Normalized Difference Vegetation Index (NDVI) at the pixel
+    :NDVI type: float
 
-    :returns:
-    :rtype:
+    :returns: Reflectances Simple Ratio (SR) [-]
+    :rtype: float
     """
     SR = (1 + NDVI) / (1 - NDVI)
     return SR
 
 
-def kc_calc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
-    """Return Kc.
+def kcCalc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
+    """Return Crop Coefficient (Kc).
     
-    :param pcr:
-    :pcr type:
+    :param pcr: PCRaster Library
+    :pcr type: str
 
-    :param NDVI:
-    :NDVI type:
+    :param NDVI: Normalized Difference Vegetation Index (NDVI) at the pixel
+    :NDVI type: float
 
-    :param ndvi_min:
-    :ndvi_min type:
+    :param ndvi_min: Minimum Normalized Difference Vegetation Index (NDVI) at the pixel
+    :ndvi_min type: float
 
-    :param ndvi_max:
-    :ndvi_max type:
+    :param ndvi_max: Maximum Normalized Difference Vegetation Index (NDVI) at the pixel
+    :ndvi_max type: float
 
-    :param kc_min:
-    :kc_min type:
+    :param kc_min: Minimum Crop Coefficient landuse class [-]
+    :kc_min type: float
 
-    :param kc_max:
-    :kc_max type:
+    :param kc_max: Maximum Crop Coefficient landuse class [-]
+    :kc_max type: float
 
-    :returns:
-    :rtype:
+    :returns: Crop Coefficient (Kc) [-]
+    :rtype: float
     """
     Kc = kc_min + ((kc_max - kc_min) * 
         ((NDVI - pcr.scalar(ndvi_min)) / (pcr.scalar(ndvi_max) - pcr.scalar(ndvi_min))))
     return Kc
 
 
-def fpar_calc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
-    """Return FPAR.
+def fparCalc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
+    """Return Fraction of Photosynthetically Active Radiation (FPAR).
     
-    :param pcr:
-    :pcr type:
+    :param pcr: PCRaster Library
+    :pcr type: str
 
-    :param fpar_min:
-    :fpar_min type:
+    :param fpar_min: Minimum Fraction of Photosynthetically Active Radiation [-]
+    :fpar_min type: float
 
-    :param fpar_max:
-    :fpar_max type:
+    :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation [-]
+    :fpar_max type: float
 
-    :param SR:
-    :SR type:
+    :param SR: Reflectances Simple Ratio [-]
+    :SR type: float
 
-    :param sr_min:
-    :sr_min type:
+    :param sr_min: Mimimum Reflectances Simple Ratio [-]
+    :sr_min type: float
 
-    :param sr_max:
-    :sr_max type:
+    :param sr_max: Maximum Reflectances Simple Ratio [-]
+    :sr_max type: float
 
-    :returns:
-    :rtype:
+    :returns: Fraction of Photosynthetically Active Radiation (FPAR) [-]
+    :rtype: float
     """
     fpar_comp = ((SR - sr_min) * (fpar_max - fpar_min) / (sr_max - sr_min)) + fpar_min
     FPAR = pcr.min(fpar_comp, fpar_max)
     return FPAR
 
 
-def lai_function(self, pcr, FPAR, fpar_max, lai_max):
-    """Return LAI.
+def laiCalc(self, pcr, FPAR, fpar_max, lai_max):
+    """Return Leaf Area Index (LAI).
     
-    :param pcr:
-    :pcr type:
+    :param pcr: PCRaster Library
+    :pcr type: str
 
-    :param FPAR:
-    :FPAR type:
+    :param FPAR: Fraction of Photosynthetically Active Radiation (FPAR) [-]
+    :FPAR type: float
 
-    :param fpar_max:
-    :fpar_max type:
+    :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation (FPAR) [-]
+    :fpar_max type: float
 
-    :param lai_max:
-    :lai_max type:
+    :param lai_max: Maximum Leaf Area Index [-]
+    :lai_max type: float
 
-    :returns:
-    :rtype:
+    :returns: Leaf Area Index (LAI) [-]
+    :rtype:float
     """
     LAI = lai_max * ((pcr.log10(1 - FPAR)) / (pcr.log10(1 - fpar_max)))
     return LAI
 
 
-def Interception_function(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
-    """Return Interception.
+def interceptionCalc(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
+    """Return Interception [mm].
     
-    :param pcr:
-    :pcr type:
+    :param pcr: PCRaster Library
+    :pcr type: str
 
-    :param alfa:
-    :alfa type:
+    :param alfa: Interception Parameter [-]
+    :alfa type: float
 
-    :param LAI:
-    :LAI type:
+    :param LAI: Leaf Area Index (LAI) [-]
+    :LAI type: float
 
-    :param precipitation:
-    :precipitation type:
+    :param precipitation: Monthly Precipitation [mm]
+    :precipitation type: float
 
-    :param rainy_days:
-    :rainy_days type:
+    :param rainy_days: Number of rainy days for month
+    :rainy_days type: int
 
-    :param a_v:
-    :a_v type:
+    :param a_v: Vegetated Area Fraction 
+    :a_v type: float
 
-    :returns:
-    :rtype:
+    :returns: Monthly Interception [mm]
+    :rtype: float
     """
     # condition of precipitation, to divide by non zero number (missing value)
     cond1 = pcr.scalar((precipitation != 0))
