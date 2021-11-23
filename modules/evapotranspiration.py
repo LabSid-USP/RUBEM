@@ -123,9 +123,9 @@ def etaoCalc(self, pcr, ETp, Kp, prec, Ao):
 
     etaoCalc = ETp / Kp
 
-    # conditions for max value for ETao_calc, 
+    # conditions for max value for etaoCalc, 
     # if ETao_calc > Prec in Pixel with Ao = 1, then ETao = Prec
-    cond2 = pcr.scalar((ETao_calc) > prec)
+    cond2 = pcr.scalar((etaoCalc) > prec)
 
     # ET for open water is ET_calc for 
     # open water + prec (if ET_calc>prec, for Aio = 1) + ET_calc for Ao = 1, 
