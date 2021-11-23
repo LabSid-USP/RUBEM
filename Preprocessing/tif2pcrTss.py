@@ -20,13 +20,6 @@
 
 """Common file conversion functionality used by RUBEM."""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2020-03-19"
-__version__ = "0.1.0"
-
 import gdal
 import numpy as np
 import glob
@@ -34,10 +27,11 @@ from pcraster import *
 from pcraster.framework import *
 import os
 
+
 class Tif2pcrTss(DynamicModel):
     def __init__(self, Path, Name_prefix, CloneMap):
         """Convert *.tif to PCRaster MAP Series.
-    
+
         :param Path: Directory containing the files.
         :Path type: str
 
@@ -46,23 +40,23 @@ class Tif2pcrTss(DynamicModel):
 
         :param CloneMap: Path to clone file with resolution and size desired
         :CloneMap  type: str
- 
-        
+
+
         """
         DynamicModel.__init__(self)
         setclone(CloneMap)
 
-        #folders containing files to read
+        # folders containing files to read
         self.Raster_path = Path
         self.file_name = Name_prefix
-    
-    def initial(self):
-        """Prepare the set of input variables to run the timestep 1 """
 
-        #files
-        self.Raster_files = glob.glob(os.path.join(self.Raster_path,'*.tif'))
+    def initial(self):
+        """Prepare the set of input variables to run the timestep 1"""
+
+        # files
+        self.Raster_files = glob.glob(os.path.join(self.Raster_path, "*.tif"))
         os.chdir(self.Raster_path)
-    
+
     def dynamic(self):
         """Return PCRaster MAP Series files from .tif format files
 
@@ -70,21 +64,19 @@ class Tif2pcrTss(DynamicModel):
         :rtype: PCRaster MAP Series
         """
         # Run raster list to generate Tss
-        t= int(self.currentStep)
-        
-        # Read as array 
-        file = gdal.Open(self.Raster_files[t-1])
+        t = int(self.currentStep)
+
+        # Read as array
+        file = gdal.Open(self.Raster_files[t - 1])
         file_array = np.array(file.GetRasterBand(1).ReadAsArray())
 
-        pcr_file = numpy2pcr(Scalar,file_array,-999)
+        pcr_file = numpy2pcr(Scalar, file_array, -999)
 
-        self.report(pcr_file,self.file_name)
+        self.report(pcr_file, self.file_name)
 
-#Number of timesteps must match to number of files
+
+# Number of timesteps must match to number of files
 nrOfTimeSteps = 8
-myModel = Tif2pcrTss('/path/to/files/to/be/converted',
-                     'prefix',
-                     '/path/to/clone.map')
+myModel = Tif2pcrTss("/path/to/files/to/be/converted", "prefix", "/path/to/clone.map")
 dynamicModel = DynamicFramework(myModel, nrOfTimeSteps)
 dynamicModel.run()
-

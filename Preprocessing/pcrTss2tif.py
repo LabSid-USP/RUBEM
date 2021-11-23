@@ -20,13 +20,6 @@
 
 """Common file conversion to generate input data used by RUBEM"""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2019-03-25"
-__version__ = "0.1.0"
-
 
 import gdal
 import numpy as np
@@ -34,10 +27,9 @@ import pcraster as pcr
 import os
 
 
-            
 def numpy2tif(sourceTif, outpath, numpy_array):
     """Convert numpy arrays to (*.tif).
-    
+
     :param sourceTif: Path to Digital Elevetion Model (DEM) with same resolution and size that tss files
     :sourceTif type: .tif  file
 
@@ -46,30 +38,31 @@ def numpy2tif(sourceTif, outpath, numpy_array):
 
     :param numpy_array: Numpy object to be converter
     :numpy_array  type: numpy.ndarray
- 
+
     :returns: File in .tif format
     :rtype: .tif
     """
-    out_tif = str(outpath)        
+    out_tif = str(outpath)
     ds = gdal.Open(sourceTif)
     cols = ds.RasterXSize
     rows = ds.RasterYSize
-    trans = ds.GetGeoTransform()   
+    trans = ds.GetGeoTransform()
     # create the output image
     driver = ds.GetDriver()
-    outDs = driver.Create(out_tif, cols, rows, 1, gdal.GDT_Int32,  options = [ 'COMPRESS=LZW' ] )
+    outDs = driver.Create(
+        out_tif, cols, rows, 1, gdal.GDT_Int32, options=["COMPRESS=LZW"]
+    )
     outBand = outDs.GetRasterBand(1)
     outBand.SetNoDataValue(-9999)
     outBand.WriteArray(numpy_array)
     outDs.SetGeoTransform(trans)
     ds = None
     outDs = None
-    
-    
+
 
 def pcrTss2Tif(inputFolder, demSrc):
     """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.tif).
-        
+
     :param inputFolder: Directory containing the files.
     :type inputFolder: str
 
@@ -88,13 +81,8 @@ def pcrTss2Tif(inputFolder, demSrc):
         print(files_path[i])
         readFile = pcr.readmap(files_path[i])
         npFile = pcr.pcr2numpy(readFile, -9999)
-        outfile = (str(files_path[i][:-4]) +str('-')+ str(i+1) + '.tif')
+        outfile = str(files_path[i][:-4]) + str("-") + str(i + 1) + ".tif"
         numpy2tif(src, outfile, npFile)
-    
-    
 
 
-
-pcrTss2Tif('/path/to/files/to/be/converted', '/path/to/DEM.tif')
-
-
+pcrTss2Tif("/path/to/files/to/be/converted", "/path/to/DEM.tif")

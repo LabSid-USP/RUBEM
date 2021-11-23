@@ -20,14 +20,8 @@
 
 """Interpolation method for generated metereological forcing maps series."""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2019-06-23"
-__version__ = "0.1.0"
-
 import time
+
 t1 = time.time()
 import os
 import gdal
@@ -39,20 +33,19 @@ from pcraster import *
 from pcraster.framework import *
 
 
-
 class Krige_Interpolation(DynamicModel):
     def __init__(self, path, demMap, CSV):
         """Variable interpolation using the kriging method.
-    
+
         :param Path: Directory containing the files.
         :Path type: str
 
         :param demMap: Path to Digital Elevetion Model (DEM) .map format
         :demMap  type: str
 
-        :param CSV: Path to data 
+        :param CSV: Path to data
         :type CSV: str
- 
+
 
         """
 
@@ -61,55 +54,73 @@ class Krige_Interpolation(DynamicModel):
         self.src_ds = demMap
         self.rain_file = CSV
         self.Files_path = path
-              
-        
-    
-    def initial(self):  
-        """Prepare the set of input variables to run the timestep 1 """
+
+    def initial(self):
+        """Prepare the set of input variables to run the timestep 1"""
         # Get geometry data from raster
         ds = gdal.Open(self.src_ds)
-        ulx, xres, xskew, uly, yskew, yres  = ds.GetGeoTransform()
+        ulx, xres, xskew, uly, yskew, yres = ds.GetGeoTransform()
         lrx = ulx + (ds.RasterXSize * xres)
         lry = uly + (ds.RasterYSize * yres)
-        self.gridx = np.arange(ulx+(xres/2), lrx, xres)
-        self.gridy = np.arange(lry+(-yres/2), uly, -yres)
+        self.gridx = np.arange(ulx + (xres / 2), lrx, xres)
+        self.gridy = np.arange(lry + (-yres / 2), uly, -yres)
         os.chdir(self.Files_path)
-  
 
-        #User must define Number of lags (depends on the number of stations)
-        self.n_lags= 25
-        
+        # User must define Number of lags (depends on the number of stations)
+        self.n_lags = 25
+
     def dynamic(self):
         """Return tss files with interpolate variable using krigging method
 
         :returns: tss files interpolated
         :rtype:PCRaster MAP Series"""
 
-    
-        t= scalar(self.currentStep)
-        x = int(np.unique(pcr2numpy(t+1,-999)))
-        rain_data = np.genfromtxt(self.rain_file,delimiter=';')
-        values=rain_data[:, x] 
+        t = scalar(self.currentStep)
+        x = int(np.unique(pcr2numpy(t + 1, -999)))
+        rain_data = np.genfromtxt(self.rain_file, delimiter=";")
+        values = rain_data[:, x]
         result = np.all(values == values[0])
         if result:
             self.z1 = np.full((self.gridy.size, self.gridx.size), values[0])
         else:
-            self.V = skg.Variogram(coordinates=(np.array([rain_data[:, 0],rain_data[:, 1]]).T), values=rain_data[:, x] ,bin_func='uniform', n_lags=self.n_lags)
-            OK = OrdinaryKriging(rain_data[:, 0], rain_data[:, 1], rain_data[:, x],
-                                variogram_model='spherical', variogram_parameters= [(self.V.parameters[1]),(self.V.parameters[0]),(self.V.parameters[2])], verbose=False, nlags=self.n_lags, weight=True, enable_plotting=False, coordinates_type='geographic')
-            self.z, ss = OK.execute('grid', self.gridx, (np.flip(self.gridy,axis=0)))
-            self.z1 = np.where(self.z<0,0,self.z)
-          
-            
-        self.rain = numpy2pcr(Scalar,self.z1,-999)
+            self.V = skg.Variogram(
+                coordinates=(np.array([rain_data[:, 0], rain_data[:, 1]]).T),
+                values=rain_data[:, x],
+                bin_func="uniform",
+                n_lags=self.n_lags,
+            )
+            OK = OrdinaryKriging(
+                rain_data[:, 0],
+                rain_data[:, 1],
+                rain_data[:, x],
+                variogram_model="spherical",
+                variogram_parameters=[
+                    (self.V.parameters[1]),
+                    (self.V.parameters[0]),
+                    (self.V.parameters[2]),
+                ],
+                verbose=False,
+                nlags=self.n_lags,
+                weight=True,
+                enable_plotting=False,
+                coordinates_type="geographic",
+            )
+            self.z, ss = OK.execute("grid", self.gridx, (np.flip(self.gridy, axis=0)))
+            self.z1 = np.where(self.z < 0, 0, self.z)
 
-        #Second argument correspon to files prefix (e.g. 'prec','etp','kp')
-        self.report(self.rain,'prec')
+        self.rain = numpy2pcr(Scalar, self.z1, -999)
+
+        # Second argument correspon to files prefix (e.g. 'prec','etp','kp')
+        self.report(self.rain, "prec")
 
 
-#Number of timesteps must to be <= csv columns data
+# Number of timesteps must to be <= csv columns data
 nrOfTimeSteps = 20
-myModel = Krige_Interpolation('/path/for/output/files/','/path/and/filename/dem.map','/path/and/filename/CSV/file/data.csv')
+myModel = Krige_Interpolation(
+    "/path/for/output/files/",
+    "/path/and/filename/dem.map",
+    "/path/and/filename/CSV/file/data.csv",
+)
 dynamicModel = DynamicFramework(myModel, nrOfTimeSteps)
 dynamicModel.run()
 

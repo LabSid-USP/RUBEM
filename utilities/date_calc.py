@@ -20,13 +20,6 @@
 
 """Common date functionality used by RUBEM."""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2021-05-19"
-__version__ = "0.1.0"
-
 from calendar import monthrange
 from datetime import datetime
 
@@ -56,7 +49,7 @@ def totalSteps(startDate, endDate):
 
 def daysOfMonth(startDate, timestep):
     """Get the number of days in the month from timestep (for flow conversion from mm to m3/s).
-    
+
     :param startDate: Start date.
     :startDate  type: str
 

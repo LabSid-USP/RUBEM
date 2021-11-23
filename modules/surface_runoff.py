@@ -20,25 +20,19 @@
 
 """Rainfall rUnoff Balance Enhanced Model Surface Runoff."""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2021-05-19"
-__version__ = "0.1.0"
-
 ########## Surface runoff ##########
+
 
 def chCalc(self, pcr, TUr, dg, Zr, Tsat, b):
     """Return coefficient representing soil moisture conditions (Ch).
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 
     :param TUr: Actual Soil moisture content [mm]
     :TUr  type: float
 
-    :param dg: Soil Bulk Density [g/cm3] 
+    :param dg: Soil Bulk Density [g/cm3]
     :dg  type:float
 
     :param Zr: Depth Rootzone [cm]
@@ -60,14 +54,14 @@ def chCalc(self, pcr, TUr, dg, Zr, Tsat, b):
 
 def cperCalc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
     """Return the runoff coefficient for permeable areas (Cper).
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 
     :param TUw:  soil water content at wilting point
     :TUw  type: float
 
-    :param dg: Soil Bulk Density [g/cm3] 
+    :param dg: Soil Bulk Density [g/cm3]
     :dg  type:float
 
     :param Zr: Depth Rootzone [cm]
@@ -98,7 +92,7 @@ def cperCalc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
 
 def cimpCalc(self, pcr, ao, ai):
     """Return percentage of impervious surface per grid cell and the runoff coefficient of the impervious area (Cimp).
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 
@@ -118,11 +112,11 @@ def cimpCalc(self, pcr, ao, ai):
 
 def cwpCalc(self, pcr, Aimp, Cper, Cimp):
     """Return weighted potential runoff coefficient (Cwp).
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 
-    :param Aimp: percentage of impervious surface per grid cell 
+    :param Aimp: percentage of impervious surface per grid cell
     :Aimp  type: float
 
     :param Cper: Runoff coefficient for permeable areas (Cper)
@@ -140,7 +134,7 @@ def cwpCalc(self, pcr, Aimp, Cper, Cimp):
 
 def csrCalc(self, pcr, Cwp, P_24, RCD):
     """Return actual runoff coefficient (Csr).
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 
@@ -160,9 +154,9 @@ def csrCalc(self, pcr, Cwp, P_24, RCD):
     return Csr
 
 
-def sRunoffCalc(self, pcr, Csr, Ch, prec, I, Ao, ETao,TUr,Tsat):
+def sRunoffCalc(self, pcr, Csr, Ch, prec, I, Ao, ETao, TUr, Tsat):
     """Return surface runoff [mm].
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 
@@ -200,9 +194,9 @@ def sRunoffCalc(self, pcr, Csr, Ch, prec, I, Ao, ETao,TUr,Tsat):
 
     ESin = (Csr * Ch * (prec - I)) * (1 - cond1) + (prec - ETao) * cond2 * cond1
 
-    #condition for tur >tursat
-    cond3=pcr.scalar(TUr == Tsat)
+    # condition for tur >tursat
+    cond3 = pcr.scalar(TUr == Tsat)
 
-    ES=(ESin*(1 - cond3))+(prec - I)*(cond3)*(1-cond1)+ESin*(cond1)
+    ES = (ESin * (1 - cond3)) + (prec - I) * (cond3) * (1 - cond1) + ESin * (cond1)
 
     return ES

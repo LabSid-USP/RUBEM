@@ -20,12 +20,6 @@
 
 """Common file generation functionality used by RUBEM."""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2021-05-19"
-__version__ = "0.1.0"
 
 # Import the latest GDAL library while maintaining
 # backward compatibility
@@ -41,7 +35,7 @@ UseExceptions()
 
 def getRefInfo(self, sourceTif):
     """Return size, resolution and corner coordinates from a Raster file (DEM in RUBEM).
-    
+
     :param sourceTif: Path to DEM file to get information
     :sourceTif type: str
 
@@ -61,7 +55,7 @@ def getRefInfo(self, sourceTif):
 
 def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     """Create a .tif raster from a PCRaster object.
-    
+
     :param tifRef: array with dem raster information
     :tifRef  type: array
 
@@ -80,7 +74,6 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     :returns: File in .tif format
     :rtype: .tif
     """
- 
 
     # convert to np array
     npFile = pcr2numpy(pcrObj, -999)
@@ -109,13 +102,14 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     ds = None
     outDs = None
 
+
 def reportMapSeries(self, VariableName, fileName):
     """Store map data in the specified file.
 
     :param fileName: Prefix name of the output file.
     :fileName  type: str
-    
+
     :param VariableName: Base name of variable to be export.
     :fileName  type: str
-    """ 
-    self.report(VariableName,fileName)
+    """
+    self.report(VariableName, fileName)

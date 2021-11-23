@@ -10,14 +10,6 @@
 
 """Common file conversion functionality used by RUBEM."""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "Thu Dec 19 10:12:10 2019"
-__version__ = "0.1.0"
-
-
 import os
 import glob
 from osgeo import gdal
@@ -25,39 +17,40 @@ import numpy as np
 
 
 ##Attributes, defined by the user
-#Input_path =  'Directory containing the files'.
-#dem_source = 'Path to Digital Elevetion Model (DEM) with same resolution and size that input_path files- example:D:/dem.tif'
-#outpath_min = 'Path and name minimum output file example=D:/ndvi_min.tif'
-#outpath_max = 'Path and name maximum output file example=D:/ndvi_max.tif'
+# Input_path =  'Directory containing the files'.
+# dem_source = 'Path to Digital Elevetion Model (DEM) with same resolution and size that input_path files- example:D:/dem.tif'
+# outpath_min = 'Path and name minimum output file example=D:/ndvi_min.tif'
+# outpath_max = 'Path and name maximum output file example=D:/ndvi_max.tif'
 
 
-Input_path =  ''
-dem_source = ''
-outpath_min = ''
-outpath_max = ''
+Input_path = ""
+dem_source = ""
+outpath_min = ""
+outpath_max = ""
 
-#files
-Raster_files = glob.glob(os.path.join(Input_path,'*.tif'))
+# files
+Raster_files = glob.glob(os.path.join(Input_path, "*.tif"))
 
 
 def readfile(file):
     """Read file usins Gdal.
-    
+
     :param file: Path to file in .tif format
     :file type: str
- 
+
     :returns: numpy array
     :rtype: numpy array#
     """
     open_file = gdal.Open(file)
     ds = np.array(open_file.GetRasterBand(1).ReadAsArray())
-    
-    return(ds)
 
-# Export numpy 2 tif files using gdal            
+    return ds
+
+
+# Export numpy 2 tif files using gdal
 def numpy2tif(sourceTif, outpath, numpy_array):
     """Convert numpy arrays to (*.tif).
-    
+
     :param sourceTif: Path to Digital Elevetion Model (DEM) with same resolution and size that tss files
     :sourceTif type: .tif  file
 
@@ -66,29 +59,32 @@ def numpy2tif(sourceTif, outpath, numpy_array):
 
     :param numpy_array: Numpy object to be converter
     :numpy_array  type: numpy.ndarray
- 
+
     :returns: File in .tif format
     :rtype: .tif
     """
-    out_tif = str(outpath)        
+    out_tif = str(outpath)
     ds = gdal.Open(sourceTif)
     cols = ds.RasterXSize
     rows = ds.RasterYSize
-    trans = ds.GetGeoTransform()   
+    trans = ds.GetGeoTransform()
     # create the output image
     driver = ds.GetDriver()
-    outDs = driver.Create(out_tif, cols, rows, 1, gdal.GDT_Float64,  options = [ 'COMPRESS=LZW' ] )
+    outDs = driver.Create(
+        out_tif, cols, rows, 1, gdal.GDT_Float64, options=["COMPRESS=LZW"]
+    )
     outBand = outDs.GetRasterBand(1)
     outBand.SetNoDataValue(-999)
     outBand.WriteArray(numpy_array)
     outDs.SetGeoTransform(trans)
     ds = None
     outDs = None
-    
-    return()
+
+    return ()
+
 
 # apply function, and convert type list to type array
-dataset = np.asarray([readfile(x) for x in Raster_files ])
+dataset = np.asarray([readfile(x) for x in Raster_files])
 
 # lenght of list has to be the number of files on the given path
 print(len(dataset))
@@ -100,5 +96,3 @@ numpy2tif(dem_source, outpath_min, min_data)
 # converts the input to an array before finding the minimum along that axis 0
 max_data = dataset.max(0)
 numpy2tif(dem_source, outpath_max, max_data)
-
-

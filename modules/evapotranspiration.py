@@ -20,14 +20,8 @@
 
 """Rainfall rUnoff Balance Enhanced Model Evapotranspiration."""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2021-05-19"
-__version__ = "0.1.0"
-
 ########## Evapotranspiration Module ##########
+
 
 def ksCalc(self, pcr, TUr, TUw, TUcc):
     """Return Water Stress Coefficient (Ks) for evapotranspiration of vegetated area.
@@ -99,7 +93,7 @@ def kpCalc(self, pcr, B, U_2, UR):
 
 def etaoCalc(self, pcr, ETp, Kp, prec, Ao):
     """Return actual evapotranspiration of open water area.
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 
@@ -123,12 +117,12 @@ def etaoCalc(self, pcr, ETp, Kp, prec, Ao):
 
     etaoCalc = ETp / Kp
 
-    # conditions for max value for etaoCalc, 
+    # conditions for max value for etaoCalc,
     # if ETao_calc > Prec in Pixel with Ao = 1, then ETao = Prec
     cond2 = pcr.scalar((etaoCalc) > prec)
 
-    # ET for open water is ET_calc for 
-    # open water + prec (if ET_calc>prec, for Aio = 1) + ET_calc for Ao = 1, 
+    # ET for open water is ET_calc for
+    # open water + prec (if ET_calc>prec, for Aio = 1) + ET_calc for Ao = 1,
     # if ET_calc < prec
     ETao = (
         (etaoCalc) * (1 - cond1)
@@ -140,7 +134,7 @@ def etaoCalc(self, pcr, ETp, Kp, prec, Ao):
 
 def etasCalc(self, pcr, ETp, kc_min, Ks):
     """Return Ks for evapotranspiration of bare soil area.
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 

@@ -20,17 +20,11 @@
 
 """Rainfall rUnoff Balance Enhanced Model Soil."""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2021-05-19"
-__version__ = "0.1.0"
 
 ########## Lateral Flow ##########
 def lfCalc(self, pcr, f, Kr, TUr, TUsat):
     """Return Lateral Flow in the pixel [mm].
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 
@@ -53,7 +47,7 @@ def lfCalc(self, pcr, f, Kr, TUr, TUsat):
 ########## Recharge ##########
 def recCalc(self, pcr, f, Kr, TUr, TUsat):
     """Return Recharge in the pixel [mm].
-    
+
     :param pcr: PCRaster Library
     :pcr  type: STR
 
@@ -79,7 +73,7 @@ def recCalc(self, pcr, f, Kr, TUr, TUsat):
 ########## Base Flow ##########
 def baseflowCalc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
     """Return Baseflow in the pixel [mm]..
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 
@@ -103,7 +97,9 @@ def baseflowCalc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
     """
     # limit condition for base flow
     cond = pcr.scalar(TUs > EB_lim)
-    EB = ((EB_prev * ((pcr.exp(1)) ** -alfaS)) + (1 - ((pcr.exp(1)) ** -alfaS)) * REC) * cond
+    EB = (
+        (EB_prev * ((pcr.exp(1)) ** -alfaS)) + (1 - ((pcr.exp(1)) ** -alfaS)) * REC
+    ) * cond
     return EB
 
 
@@ -111,7 +107,7 @@ def baseflowCalc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
 # First soil layer
 def turCalc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
     """Return Actual Soil Moisture Content at non-saturated zone in the pixel [mm].
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 
@@ -154,20 +150,18 @@ def turCalc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
     cond = pcr.scalar(balance > 0)
     # if balance is negative TUR = 0, + if pixel is water, TUR = TUsat
     TUrin = (balance * cond) * condw1 + Tsat * (1 - condw1)
-    #condition for tur >tursat
-    cond3=pcr.scalar(TUrin<Tsat)
-    #If Tur>tsat, TUR=TUsat
-    TUr=(TUrin*cond3)+Tsat*(1-cond3)
-  
+    # condition for tur >tursat
+    cond3 = pcr.scalar(TUrin < Tsat)
+    # If Tur>tsat, TUR=TUsat
+    TUr = (TUrin * cond3) + Tsat * (1 - cond3)
+
     return TUr
-
-
 
 
 # Second soil layer
 def tusCalc(self, pcr, TUsprev, REC, EB):
     """Return Actual Water Content at saturated zone in the pixel [mm].
-    
+
     :param pcr: PCRaster Library
     :pcr  type: str
 

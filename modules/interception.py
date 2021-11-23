@@ -19,19 +19,13 @@
 # Contact: rubem.hydrological@labsid.eng.br
 
 """Rainfall rUnoff Balance Enhanced Model Interception."""
-    
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2021-05-19"
-__version__ = "0.1.0"
 
 ########## Interception Module ##########
 
+
 def srCalc(self, pcr, NDVI):
     """Return Simple Ratio (SR) .
-    
+
     :param pcr: PCRaster Library
     :pcr type:str
 
@@ -47,7 +41,7 @@ def srCalc(self, pcr, NDVI):
 
 def kcCalc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
     """Return Crop Coefficient (Kc).
-    
+
     :param pcr: PCRaster Library
     :pcr type: str
 
@@ -69,14 +63,19 @@ def kcCalc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
     :returns: Crop Coefficient (Kc) [-]
     :rtype: float
     """
-    Kc = kc_min + ((kc_max - kc_min) * 
-        ((NDVI - pcr.scalar(ndvi_min)) / (pcr.scalar(ndvi_max) - pcr.scalar(ndvi_min))))
+    Kc = kc_min + (
+        (kc_max - kc_min)
+        * (
+            (NDVI - pcr.scalar(ndvi_min))
+            / (pcr.scalar(ndvi_max) - pcr.scalar(ndvi_min))
+        )
+    )
     return Kc
 
 
 def fparCalc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
     """Return Fraction of Photosynthetically Active Radiation (FPAR).
-    
+
     :param pcr: PCRaster Library
     :pcr type: str
 
@@ -105,7 +104,7 @@ def fparCalc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
 
 def laiCalc(self, pcr, FPAR, fpar_max, lai_max):
     """Return Leaf Area Index (LAI).
-    
+
     :param pcr: PCRaster Library
     :pcr type: str
 
@@ -127,7 +126,7 @@ def laiCalc(self, pcr, FPAR, fpar_max, lai_max):
 
 def interceptionCalc(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
     """Return Interception [mm].
-    
+
     :param pcr: PCRaster Library
     :pcr type: str
 
@@ -143,7 +142,7 @@ def interceptionCalc(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
     :param rainy_days: Number of rainy days for month
     :rainy_days type: int
 
-    :param a_v: Vegetated Area Fraction 
+    :param a_v: Vegetated Area Fraction
     :a_v type: float
 
     :returns: Monthly Interception [mm]
@@ -154,8 +153,17 @@ def interceptionCalc(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
     cond2 = pcr.scalar((precipitation == 0))
     prec = precipitation * cond1 + (precipitation * cond2 + 0.00001)
 
-    Id = (alfa * LAI * 
-        (1 - (1 / (1 + (precipitation * ((1 - (pcr.exp(-0.463 * LAI))) / (alfa * LAI)))))))
+    Id = (
+        alfa
+        * LAI
+        * (
+            1
+            - (
+                1
+                / (1 + (precipitation * ((1 - (pcr.exp(-0.463 * LAI))) / (alfa * LAI))))
+            )
+        )
+    )
     Ir = 1 - pcr.exp(-Id * rainy_days / prec)
     # Interception of the vegetated area
     Iv = precipitation * Ir

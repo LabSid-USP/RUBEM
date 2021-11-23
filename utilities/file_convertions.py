@@ -20,13 +20,6 @@
 
 """Common file conversion functionality used by RUBEM."""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2021-05-19"
-__version__ = "0.1.0"
-
 from glob import glob
 from os import remove
 from os.path import join, splitext
