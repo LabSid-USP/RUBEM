@@ -14,10 +14,7 @@
   <a href="https://github.com/LabSid-USP/RUBEM">
     <img src="doc/source/_static/icon.png" alt="Logo" width="120" height="120">
   </a>
-
-  <h1 align="center"><b>RUBEM</b></h1>
-  <h2 align="center">Rainfall rUnoff Balance Enhanced Model</h2>
-
+  <h1 align="center">RUBEM<br>Rainfall rUnoff Balance Enhanced Model</br></h1>
   <p align="center">
     RUBEM is a distributed hydrological model to calculate monthly flows with changes in land use over time.
     <br />
@@ -49,7 +46,6 @@
       <ul>
         <li><a href="#prerequisites">Prerequisites</a></li>
         <li><a href="#installation">Installation</a></li>
-        <li><a href="#packaging">Packaging</a></li>
       </ul>
     </li>
     <li><a href="#usage">Usage</a></li>
