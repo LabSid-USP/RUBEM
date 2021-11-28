@@ -20,7 +20,7 @@
 
 """Common file conversion to generate input data used by RUBEM."""
 
-import gdal
+from osgeo import gdal
 import glob
 import os
 

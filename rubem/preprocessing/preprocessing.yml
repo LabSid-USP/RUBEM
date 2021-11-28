@@ -1,4 +1,4 @@
-name: conda_env
+name: rubem-preprocessing
 channels:
   - anaconda
   - conda-forge

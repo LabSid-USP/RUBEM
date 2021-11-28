@@ -20,7 +20,7 @@
 
 """Common file conversion functionality used by RUBEM."""
 
-import gdal
+from osgeo import gdal
 import numpy as np
 import glob
 from pcraster import *

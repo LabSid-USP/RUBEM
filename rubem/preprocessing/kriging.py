@@ -24,7 +24,7 @@ import time
 
 t1 = time.time()
 import os
-import gdal
+from osgeo import gdal
 import numpy as np
 import skgstat as skg
 import pykrige.kriging_tools as kt

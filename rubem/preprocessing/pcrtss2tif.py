@@ -20,8 +20,7 @@
 
 """Common file conversion to generate input data used by RUBEM"""
 
-
-import gdal
+from osgeo import gdal
 import numpy as np
 import pcraster as pcr
 import os
