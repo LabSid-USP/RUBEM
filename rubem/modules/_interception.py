@@ -22,12 +22,14 @@
 
 ########## Interception Module ##########
 
+import logging
+from pcraster import scalar, min, log10, exp
 
-def srCalc(self, pcr, NDVI):
-    """Return Simple Ratio (SR) .
+logger = logging.getLogger(__name__)
 
-    :param pcr: PCRaster Library
-    :pcr type:str
+
+def srCalc(NDVI):
+    """Return Simple Ratio (SR).
 
     :param NDVI: Normalized Difference Vegetation Index (NDVI) at the pixel
     :NDVI type: float
@@ -39,11 +41,8 @@ def srCalc(self, pcr, NDVI):
     return SR
 
 
-def kcCalc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
+def kcCalc(NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
     """Return Crop Coefficient (Kc).
-
-    :param pcr: PCRaster Library
-    :pcr type: str
 
     :param NDVI: Normalized Difference Vegetation Index (NDVI) at the pixel
     :NDVI type: float
@@ -65,19 +64,13 @@ def kcCalc(self, pcr, NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
     """
     Kc = kc_min + (
         (kc_max - kc_min)
-        * (
-            (NDVI - pcr.scalar(ndvi_min))
-            / (pcr.scalar(ndvi_max) - pcr.scalar(ndvi_min))
-        )
+        * ((NDVI - scalar(ndvi_min)) / (scalar(ndvi_max) - scalar(ndvi_min)))
     )
     return Kc
 
 
-def fparCalc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
+def fparCalc(fpar_min, fpar_max, SR, sr_min, sr_max):
     """Return Fraction of Photosynthetically Active Radiation (FPAR).
-
-    :param pcr: PCRaster Library
-    :pcr type: str
 
     :param fpar_min: Minimum Fraction of Photosynthetically Active Radiation [-]
     :fpar_min type: float
@@ -98,15 +91,12 @@ def fparCalc(self, pcr, fpar_min, fpar_max, SR, sr_min, sr_max):
     :rtype: float
     """
     fpar_comp = ((SR - sr_min) * (fpar_max - fpar_min) / (sr_max - sr_min)) + fpar_min
-    FPAR = pcr.min(fpar_comp, fpar_max)
+    FPAR = min(fpar_comp, fpar_max)
     return FPAR
 
 
-def laiCalc(self, pcr, FPAR, fpar_max, lai_max):
+def laiCalc(FPAR, fpar_max, lai_max):
     """Return Leaf Area Index (LAI).
-
-    :param pcr: PCRaster Library
-    :pcr type: str
 
     :param FPAR: Fraction of Photosynthetically Active Radiation (FPAR) [-]
     :FPAR type: float
@@ -120,15 +110,12 @@ def laiCalc(self, pcr, FPAR, fpar_max, lai_max):
     :returns: Leaf Area Index (LAI) [-]
     :rtype:float
     """
-    LAI = lai_max * ((pcr.log10(1 - FPAR)) / (pcr.log10(1 - fpar_max)))
+    LAI = lai_max * ((log10(1 - FPAR)) / (log10(1 - fpar_max)))
     return LAI
 
 
-def interceptionCalc(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
+def interceptionCalc(alfa, LAI, precipitation, rainy_days, a_v):
     """Return Interception [mm].
-
-    :param pcr: PCRaster Library
-    :pcr type: str
 
     :param alfa: Interception Parameter [-]
     :alfa type: float
@@ -149,22 +136,16 @@ def interceptionCalc(self, pcr, alfa, LAI, precipitation, rainy_days, a_v):
     :rtype: float
     """
     # condition of precipitation, to divide by non zero number (missing value)
-    cond1 = pcr.scalar((precipitation != 0))
-    cond2 = pcr.scalar((precipitation == 0))
+    cond1 = scalar((precipitation != 0))
+    cond2 = scalar((precipitation == 0))
     prec = precipitation * cond1 + (precipitation * cond2 + 0.00001)
 
     Id = (
         alfa
         * LAI
-        * (
-            1
-            - (
-                1
-                / (1 + (precipitation * ((1 - (pcr.exp(-0.463 * LAI))) / (alfa * LAI))))
-            )
-        )
+        * (1 - (1 / (1 + (precipitation * ((1 - (exp(-0.463 * LAI))) / (alfa * LAI))))))
     )
-    Ir = 1 - pcr.exp(-Id * rainy_days / prec)
+    Ir = 1 - exp(-Id * rainy_days / prec)
     # Interception of the vegetated area
     Iv = precipitation * Ir
     # Total interception

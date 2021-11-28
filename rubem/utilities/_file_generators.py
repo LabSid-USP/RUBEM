@@ -20,20 +20,18 @@
 
 """Common file generation functionality used by RUBEM."""
 
+import logging
 
-# Import the latest GDAL library while maintaining
-# backward compatibility
-try:
-    from osgeo.gdal import AllRegister, GDT_Float32, OpenEx, UseExceptions
-except ImportError:
-    from gdal import UseExceptions, AllRegister, OpenEx, GDT_Float32
-
+from osgeo.gdal import AllRegister, GDT_Float32, OpenEx, UseExceptions
 from pcraster.framework import pcr2numpy
+
+logger = logging.getLogger(__name__)
+
 
 UseExceptions()
 
 
-def getRefInfo(self, sourceTif):
+def getRefInfo(sourceTif):
     """Return size, resolution and corner coordinates from a Raster file (DEM in RUBEM).
 
     :param sourceTif: Path to DEM file to get information
@@ -53,7 +51,7 @@ def getRefInfo(self, sourceTif):
     return Ref
 
 
-def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
+def reportTIFFSeries(self, tifRef, pcrObj, fileName, outpath, currentStep, dyn=False):
     """Create a .tif raster from a PCRaster object.
 
     :param tifRef: array with dem raster information
@@ -67,6 +65,9 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
 
     :param outpath: Path of the output directory.
     :outpath  type: str
+
+    :param currentStep: Current model simulation step.
+    :outpath  type: int
 
     :param dyn: If dynamic mode is True, otherwise defaults to False.
     :dyn  type: int
@@ -84,7 +85,7 @@ def reportTif(self, tifRef, pcrObj, fileName, outpath, dyn=False):
     if dyn:
         digits = 10 - len(fileName)
         out_tif = str(
-            outpath + "/" + fileName + str(self.currentStep).zfill(digits) + ".tif"
+            outpath + "/" + fileName + str(currentStep).zfill(digits) + ".tif"
         )
 
     # initialize export

@@ -22,6 +22,9 @@
 
 from calendar import monthrange
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Calculation of number of months (steps) based on the start and end dates of simulation

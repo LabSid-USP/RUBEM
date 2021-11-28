@@ -22,11 +22,15 @@
 
 
 ########## Lateral Flow ##########
-def lfCalc(self, pcr, f, Kr, TUr, TUsat):
-    """Return Lateral Flow in the pixel [mm].
 
-    :param pcr: PCRaster Library
-    :pcr  type: str
+import logging
+from pcraster import scalar, exp
+
+logger = logging.getLogger(__name__)
+
+
+def lfCalc(f, Kr, TUr, TUsat):
+    """Return Lateral Flow in the pixel [mm].
 
     :param f: preferred flow direction parameter [-]
     :f  type: float
@@ -45,11 +49,8 @@ def lfCalc(self, pcr, f, Kr, TUr, TUsat):
 
 
 ########## Recharge ##########
-def recCalc(self, pcr, f, Kr, TUr, TUsat):
+def recCalc(f, Kr, TUr, TUsat):
     """Return Recharge in the pixel [mm].
-
-    :param pcr: PCRaster Library
-    :pcr  type: STR
 
     :param TUr: Actual soil moisture content non-saturated zone [mm]
     :TUr  type: float
@@ -71,11 +72,8 @@ def recCalc(self, pcr, f, Kr, TUr, TUsat):
 
 
 ########## Base Flow ##########
-def baseflowCalc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
-    """Return Baseflow in the pixel [mm]..
-
-    :param pcr: PCRaster Library
-    :pcr  type: str
+def baseflowCalc(EB_prev, alfaS, REC, TUs, EB_lim):
+    """Return Baseflow in the pixel [mm].
 
     :param EB_prev: Baseflow at timestep t-1 [mm]
     :EB_prev  type: float
@@ -96,20 +94,15 @@ def baseflowCalc(self, pcr, EB_prev, alfaS, REC, TUs, EB_lim):
     :rtype: float
     """
     # limit condition for base flow
-    cond = pcr.scalar(TUs > EB_lim)
-    EB = (
-        (EB_prev * ((pcr.exp(1)) ** -alfaS)) + (1 - ((pcr.exp(1)) ** -alfaS)) * REC
-    ) * cond
+    cond = scalar(TUs > EB_lim)
+    EB = ((EB_prev * ((exp(1)) ** -alfaS)) + (1 - ((exp(1)) ** -alfaS)) * REC) * cond
     return EB
 
 
 ########## Soil Balance ##########
 # First soil layer
-def turCalc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
+def turCalc(TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
     """Return Actual Soil Moisture Content at non-saturated zone in the pixel [mm].
-
-    :param pcr: PCRaster Library
-    :pcr  type: str
 
     :param TUrprev: Soil moisture content at timestep t-1 [mm]
     :TUrprev  type: float
@@ -143,15 +136,15 @@ def turCalc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
     """
 
     # condition for pixel of water, if Ao different of 1 (not water)
-    condw1 = pcr.scalar(Ao != 1)
+    condw1 = scalar(Ao != 1)
     # soil balance
     balance = TUrprev + P - I - ES - LF - REC - ETr
     # condition for positivie balance
-    cond = pcr.scalar(balance > 0)
+    cond = scalar(balance > 0)
     # if balance is negative TUR = 0, + if pixel is water, TUR = TUsat
     TUrin = (balance * cond) * condw1 + Tsat * (1 - condw1)
     # condition for tur >tursat
-    cond3 = pcr.scalar(TUrin < Tsat)
+    cond3 = scalar(TUrin < Tsat)
     # If Tur>tsat, TUR=TUsat
     TUr = (TUrin * cond3) + Tsat * (1 - cond3)
 
@@ -159,11 +152,8 @@ def turCalc(self, pcr, TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
 
 
 # Second soil layer
-def tusCalc(self, pcr, TUsprev, REC, EB):
+def tusCalc(TUsprev, REC, EB):
     """Return Actual Water Content at saturated zone in the pixel [mm].
-
-    :param pcr: PCRaster Library
-    :pcr  type: str
 
     :param TUsprev: Water content at saturated zone at timestep t-1 [mm]
     :TUsprev  type: float

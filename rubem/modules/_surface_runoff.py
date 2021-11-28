@@ -22,12 +22,14 @@
 
 ########## Surface runoff ##########
 
+import logging
+from pcraster import scalar, exp
 
-def chCalc(self, pcr, TUr, dg, Zr, Tsat, b):
+logger = logging.getLogger(__name__)
+
+
+def chCalc(TUr, dg, Zr, Tsat, b):
     """Return coefficient representing soil moisture conditions (Ch).
-
-    :param pcr: PCRaster Library
-    :pcr  type: str
 
     :param TUr: Actual Soil moisture content [mm]
     :TUr  type: float
@@ -52,11 +54,8 @@ def chCalc(self, pcr, TUr, dg, Zr, Tsat, b):
     return Ch
 
 
-def cperCalc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
+def cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3):
     """Return the runoff coefficient for permeable areas (Cper).
-
-    :param pcr: PCRaster Library
-    :pcr  type: str
 
     :param TUw:  soil water content at wilting point
     :TUw  type: float
@@ -90,11 +89,8 @@ def cperCalc(self, pcr, TUw, dg, Zr, S, manning, w1, w2, w3):
     return Cper
 
 
-def cimpCalc(self, pcr, ao, ai):
+def cimpCalc(ao, ai):
     """Return percentage of impervious surface per grid cell and the runoff coefficient of the impervious area (Cimp).
-
-    :param pcr: PCRaster Library
-    :pcr  type: str
 
     :param Ao: Open Water Area Fraction [-]
     :Ao  type: float
@@ -106,15 +102,12 @@ def cimpCalc(self, pcr, ao, ai):
     :rtype: float
     """
     Aimp = ao + ai
-    Cimp = 0.09 * pcr.exp((2.4 * Aimp))
+    Cimp = 0.09 * exp((2.4 * Aimp))
     return Aimp, Cimp
 
 
-def cwpCalc(self, pcr, Aimp, Cper, Cimp):
+def cwpCalc(Aimp, Cper, Cimp):
     """Return weighted potential runoff coefficient (Cwp).
-
-    :param pcr: PCRaster Library
-    :pcr  type: str
 
     :param Aimp: percentage of impervious surface per grid cell
     :Aimp  type: float
@@ -132,11 +125,8 @@ def cwpCalc(self, pcr, Aimp, Cper, Cimp):
     return Cwp
 
 
-def csrCalc(self, pcr, Cwp, P_24, RCD):
+def csrCalc(Cwp, P_24, RCD):
     """Return actual runoff coefficient (Csr).
-
-    :param pcr: PCRaster Library
-    :pcr  type: str
 
     :param Cwp: weighted potential runoff coefficient (Cwp)
     :Cwp  type: float
@@ -154,11 +144,8 @@ def csrCalc(self, pcr, Cwp, P_24, RCD):
     return Csr
 
 
-def sRunoffCalc(self, pcr, Csr, Ch, prec, I, Ao, ETao, TUr, Tsat):
+def sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat):
     """Return surface runoff [mm].
-
-    :param pcr: PCRaster Library
-    :pcr  type: str
 
     :param Csr: actual runoff coefficient (Csr) [-]
     :Csr  type: float
@@ -188,15 +175,12 @@ def sRunoffCalc(self, pcr, Csr, Ch, prec, I, Ao, ETao, TUr, Tsat):
     :rtype: float
     """
     # condition for pixel of water
-    cond1 = pcr.scalar(Ao == 1)
+    cond1 = scalar(Ao == 1)
     # condition for positive value for (prec - ETao)
-    cond2 = pcr.scalar((prec - ETao) > 0)
-
+    cond2 = scalar((prec - ETao) > 0)
     ESin = (Csr * Ch * (prec - I)) * (1 - cond1) + (prec - ETao) * cond2 * cond1
 
     # condition for tur >tursat
-    cond3 = pcr.scalar(TUr == Tsat)
-
+    cond3 = scalar(TUr == Tsat)
     ES = (ESin * (1 - cond3)) + (prec - I) * (cond3) * (1 - cond1) + ESin * (cond1)
-
     return ES

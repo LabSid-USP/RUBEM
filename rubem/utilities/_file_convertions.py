@@ -21,10 +21,13 @@
 """Common file conversion functionality used by RUBEM."""
 
 from glob import glob
+import logging
 from os import remove
 from os.path import join, splitext
 
 from pandas import read_csv
+
+logger = logging.getLogger(__name__)
 
 
 def tif2map(path):
