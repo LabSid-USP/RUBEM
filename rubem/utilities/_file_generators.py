@@ -18,7 +18,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Common file generation functionality used by RUBEM."""
+"""Common file generation functionality used by RUBEM"""
 
 import logging
 

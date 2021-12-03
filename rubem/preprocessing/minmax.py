@@ -8,7 +8,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Common file conversion functionality used by RUBEM."""
+"""Common file conversion functionality used by RUBEM"""
 
 import os
 import glob

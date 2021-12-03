@@ -18,4 +18,4 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Rainfall rUnoff Balance Enhanced Model components."""
+"""Rainfall rUnoff Balance Enhanced Model components"""

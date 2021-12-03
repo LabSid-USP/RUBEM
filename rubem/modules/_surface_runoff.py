@@ -18,7 +18,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Rainfall rUnoff Balance Enhanced Model Surface Runoff."""
+"""Rainfall rUnoff Balance Enhanced Model Surface Runoff"""
 
 ########## Surface runoff ##########
 

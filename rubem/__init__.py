@@ -18,7 +18,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Rainfall rUnoff Balance Enhanced Model."""
+"""Rainfall rUnoff Balance Enhanced Model"""
 
 # Set default logging handler to avoid "No handler found" warnings.
 import logging

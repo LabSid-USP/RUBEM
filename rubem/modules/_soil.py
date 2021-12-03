@@ -18,7 +18,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Rainfall rUnoff Balance Enhanced Model Soil."""
+"""Rainfall rUnoff Balance Enhanced Model Soil"""
 
 
 ########## Lateral Flow ##########

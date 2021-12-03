@@ -18,7 +18,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Rainfall rUnoff Balance Enhanced Model Evapotranspiration."""
+"""Rainfall rUnoff Balance Enhanced Model Evapotranspiration"""
 
 ########## Evapotranspiration Module ##########
 

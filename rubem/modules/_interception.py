@@ -18,7 +18,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Rainfall rUnoff Balance Enhanced Model Interception."""
+"""Rainfall rUnoff Balance Enhanced Model Interception"""
 
 ########## Interception Module ##########
 
