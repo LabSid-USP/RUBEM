@@ -1,0 +1,86 @@
+[SIM_TIME]
+start = 01/01/2000
+end = 01/02/2000
+
+[DIRECTORIES]
+input = {PARENT_DIR}/fixtures/base/
+output = {PARENT_DIR}/fixtures/base/out/
+etp = {PARENT_DIR}/fixtures/base/maps/etp/
+prec = {PARENT_DIR}/fixtures/base/maps/rain/
+ndvi = {PARENT_DIR}/fixtures/base/maps/ndvi/
+kp = {PARENT_DIR}/fixtures/base/maps/kp/
+landuse = {PARENT_DIR}/fixtures/base/maps/cover/
+
+[FILENAME_PREFIXES]
+etp_prefix = etp
+prec_prefix = prec
+ndvi_prefix = ndvi
+kp_prefix = kp
+landuse_prefix = cob
+
+[RASTERS]
+dem = {PARENT_DIR}/fixtures/base/maps/dem/dem.map
+demtif = {PARENT_DIR}/fixtures/base/maps/dem/dem.tif
+clone = {PARENT_DIR}/fixtures/base/maps/clone/clone.map
+ndvi_max = {PARENT_DIR}/fixtures/base/maps/ndvi/ndvi_max.map
+ndvi_min = {PARENT_DIR}/fixtures/base/maps/ndvi/ndvi_min.map
+soil = {PARENT_DIR}/fixtures/base/maps/soil/soil.map
+samples = {PARENT_DIR}/fixtures/base/maps/samples/samples.map
+
+[TABLES]
+rainydays = {PARENT_DIR}/fixtures/base/txt/rainydays.txt
+a_i = {PARENT_DIR}/fixtures/base/txt/cover/a_i.txt
+a_o = {PARENT_DIR}/fixtures/base/txt/cover/a_o.txt
+a_s = {PARENT_DIR}/fixtures/base/txt/cover/a_s.txt
+a_v = {PARENT_DIR}/fixtures/base/txt/cover/a_v.txt
+manning = {PARENT_DIR}/fixtures/base/txt/cover/manning.txt
+bulk_density = {PARENT_DIR}/fixtures/base/txt/soil/dg.txt
+k_sat = {PARENT_DIR}/fixtures/base/txt/soil/Kr.txt
+t_fcap = {PARENT_DIR}/fixtures/base/txt/soil/Tcc.txt
+t_sat = {PARENT_DIR}/fixtures/base/txt/soil/Tsat.txt
+t_wp = {PARENT_DIR}/fixtures/base/txt/soil/Tw.txt
+rootzone_depth = {PARENT_DIR}/fixtures/base/txt/soil/Zr.txt
+k_c_min = {PARENT_DIR}/fixtures/base/txt/cover/kcmin.txt
+k_c_max = {PARENT_DIR}/fixtures/base/txt/cover/kcmax.txt
+t_por = {PARENT_DIR}/fixtures/base/txt/soil/Tpor.txt
+
+[GRID]
+grid = 500.0
+
+[CALIBRATION]
+alpha = 4.5
+b = 0.5
+w_1 = 0.333
+w_2 = 0.333
+w_3 = 0.334
+rcd = 5.0
+f = 0.5
+alpha_gw = 0.5
+x = 0.5
+
+[INITIAL_SOIL_CONDITIONS]
+t_ini = 1.0
+bfw_ini = 0.1
+bfw_lim = 1.0
+s_sat_ini = 1.0
+
+[CONSTANTS]
+fpar_max = 0.95
+fpar_min = 0.001
+lai_max = 12.0
+i_imp = 2.5
+
+[GENERATE_FILE]
+itp = True
+bfw = True
+srn = True
+eta = True
+lfw = True
+rec = True
+smc = True
+rnf = True
+tss = True
+
+[RASTER_FILE_FORMAT]
+map_raster_series = True
+tiff_raster_series = True

@@ -27,21 +27,14 @@ All development activity is coordinated via the `RUBEM Github page <https://gith
    tutorials.rst 
    fileformats.rst
    datasets.rst
-   preprocessing.rst  
+   preprocessing.rst
+   Python API Reference <generated/rubem.core.rst>     
    changelog.rst
    code-of-conduct.rst
    support.rst
    team.rst
    faq.rst
    license.rst   
-
-.. .. autosummary::
-..    :toctree: _autosummary
-..    :template: custom-module-template.rst
-..    :recursive:
-
-..    rubem.main
-..    rubem      
 
 Indices and tables
 ==================
