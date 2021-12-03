@@ -18,7 +18,7 @@
 #
 # Contact: hydrological@labsid.eng.br
 
-"""Rainfall rUnoff Balance Enhanced Model."""
+"""RUBEM as a PCRaster Dynamic Model"""
 
 import os
 import logging
@@ -39,14 +39,14 @@ try:
     from utilities._date_calc import *
     from utilities._file_generators import *
 except ImportError:
-    from ..modules._evapotranspiration import *
-    from ..modules._interception import *
-    from ..modules._soil import *
-    from ..modules._surface_runoff import *
+    from .modules._evapotranspiration import *
+    from .modules._interception import *
+    from .modules._soil import *
+    from .modules._surface_runoff import *
 
     # Import util functions
-    from ..utilities._date_calc import *
-    from ..utilities._file_generators import *
+    from .utilities._date_calc import *
+    from .utilities._file_generators import *
 
 
 logger = logging.getLogger(__name__)
