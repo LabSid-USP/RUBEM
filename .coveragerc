@@ -1,0 +1,8 @@
+[run]
+omit =
+    tests/*
+    doc/*
+
+[paths]
+source =
+    rubem/*
