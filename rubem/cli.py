@@ -18,19 +18,23 @@
 #
 # Contact: hydrological@labsid.eng.br
 
-"""Rainfall rUnoff Balance Enhanced Model CLI."""
+"""RUBEM Command Line Interface (CLI)"""
 
 import logging
 import argparse
 
 from __version__ import __release__
-from core.model import Model
+from core import Model
 from validation._validators import filePathArgValidator
 
 logger = logging.getLogger(__name__)
 
 
 def main():
+    """[summary]
+
+    :raises SystemExit: [description]
+    """
     # Configure CLI
     parser = argparse.ArgumentParser(
         prog="rubem",
@@ -62,10 +66,10 @@ def main():
 
     args.verbose = 30 - (10 * args.verbose) if args.verbose > 0 else 0
     logging.basicConfig(
-        # filename="rubem.log",
         level=args.verbose,
         format="%(asctime)s %(name)s %(levelname)s:%(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
+        handlers=[logging.FileHandler("rubem.log"), logging.StreamHandler()],
     )
 
     try:
@@ -74,5 +78,4 @@ def main():
         raise SystemExit(1) from e
     else:
         model.run()
-        model.exportTablesAsCSV()
         logger.info("Done")
