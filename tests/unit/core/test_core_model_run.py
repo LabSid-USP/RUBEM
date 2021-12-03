@@ -1,9 +1,8 @@
 import os
-import tempfile
 import unittest
 
 from tests.utils import parentDirUpdate, removeFile, removeDirectory
-from rubem.core.model import Model
+from rubem.core import Model
 
 
 class ModelRunTest(unittest.TestCase):
@@ -12,7 +11,9 @@ class ModelRunTest(unittest.TestCase):
     def setUp(self):
         """Runs before each test."""
 
-        self.currentDir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        self.currentDir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        )
         self.templateBaseProject = os.path.join(
             self.currentDir, "fixtures/base.template"
         )
@@ -73,14 +74,14 @@ class ModelRunTest(unittest.TestCase):
                 "srn00000.002",
                 "srn0000001.tif",
                 "srn0000002.tif",
-                "tss_bfw.tss",
-                "tss_eta.tss",
-                "tss_itp.tss",
-                "tss_lfw.tss",
-                "tss_rec.tss",
-                "tss_rnf.tss",
-                "tss_smc.tss",
-                "tss_srn.tss",
+                "tss_bfw.csv",
+                "tss_eta.csv",
+                "tss_itp.csv",
+                "tss_lfw.csv",
+                "tss_rec.csv",
+                "tss_rnf.csv",
+                "tss_smc.csv",
+                "tss_srn.csv",
             ],
         )
 

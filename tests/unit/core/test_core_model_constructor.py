@@ -2,7 +2,7 @@ import os
 import unittest
 
 from tests.utils import parentDirUpdate, removeFile
-from rubem.core.model import Model
+from rubem.core import Model
 
 
 class ModelConstructorTest(unittest.TestCase):
@@ -11,7 +11,9 @@ class ModelConstructorTest(unittest.TestCase):
     def setUp(self):
         """Runs before each test."""
 
-        self.currentDir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        self.currentDir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        )
         self.templateBaseProject = os.path.join(
             self.currentDir, "fixtures/base.template"
         )
