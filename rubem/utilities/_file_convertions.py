@@ -30,15 +30,6 @@ from pandas import read_csv
 logger = logging.getLogger(__name__)
 
 
-def tif2map(path):
-    """Convert all TIFF (*.tif or *.tiff) files present in the specified directory to PCRaster Map format (*.map).
-
-    :param path: Directory containing the files.
-    :type path: str
-    """
-    pass
-
-
 def tss2csv(tssPath, colNames):
     """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.csv).
 
