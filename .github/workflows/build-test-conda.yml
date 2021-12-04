@@ -1,4 +1,4 @@
-name: Python Package using Conda
+name: Build and test using Conda
 
 on:
   push:
@@ -24,8 +24,7 @@ jobs:
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Install dependencies
       run: |
-        conda install pandas -y
-        conda install -c conda-forge pcraster gdal -y
+        conda env update --file env-prod.yml --name base
     - name: Lint with flake8
       run: |
         conda install flake8
