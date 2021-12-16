@@ -1,4 +1,7 @@
+import os
 import unittest
+
+from pcraster import setclone
 
 from rubem.modules._soil import lfCalc, recCalc, baseflowCalc, turCalc, tusCalc
 
@@ -19,6 +22,11 @@ class LateralFlowSoilModuleTest(unittest.TestCase):
         # lfCalc(f, Kr, TUr, TUsat)
         raise NotImplementedError
 
+    def test_lfCalc_None_values(self):
+        """"""
+        # lfCalc(f, Kr, TUr, TUsat)
+        self.assertRaises(TypeError, lfCalc, None, None, None, None)
+
 
 class RechargeSoilModuleTest(unittest.TestCase):
     """[summary]"""
@@ -35,6 +43,11 @@ class RechargeSoilModuleTest(unittest.TestCase):
         """"""
         # recCalc(f, Kr, TUr, TUsat)
         raise NotImplementedError
+
+    def test_recCalc_None_values(self):
+        """"""
+        # recCalc(f, Kr, TUr, TUsat)
+        self.assertRaises(TypeError, recCalc, None, None, None, None)
 
 
 class BaseFlowSoilModuleTest(unittest.TestCase):
@@ -53,13 +66,21 @@ class BaseFlowSoilModuleTest(unittest.TestCase):
         # baseflowCalc(EB_prev, alfaS, REC, TUs, EB_lim)
         raise NotImplementedError
 
+    def test_baseflowCalc_None_values(self):
+        """"""
+        # baseflowCalc(EB_prev, alfaS, REC, TUs, EB_lim)
+        self.assertRaises(TypeError, baseflowCalc, None, None, None, None, None)
+
 
 class SoilBalanceSoilModuleTest(unittest.TestCase):
     """[summary]"""
 
     def setUp(self):
         """Runs before each test."""
-        pass
+        self.currentDir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        )
+        setclone(os.path.join(self.currentDir, "fixtures/dem.map"))
 
     def tearDown(self):
         """Runs after each test."""
@@ -74,6 +95,18 @@ class SoilBalanceSoilModuleTest(unittest.TestCase):
         """"""
         # tusCalc(TUsprev, REC, EB)
         raise NotImplementedError
+
+    def test_turCalc_None_values(self):
+        """"""
+        # turCalc(TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat)
+        self.assertRaises(
+            TypeError, turCalc, None, None, None, None, None, None, None, None, None
+        )
+
+    def test_tusCalc_None_values(self):
+        """"""
+        # tusCalc(TUsprev, REC, EB)
+        self.assertRaises(TypeError, tusCalc, None, None, None)
 
 
 def suite():

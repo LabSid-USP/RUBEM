@@ -1,4 +1,7 @@
+import os
 import unittest
+
+from pcraster import setclone
 
 from rubem.modules._evapotranspiration import (
     ksCalc,
@@ -14,7 +17,11 @@ class EvapotranspirationModuleTest(unittest.TestCase):
 
     def setUp(self):
         """Runs before each test."""
-        pass
+
+        self.currentDir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        )
+        setclone(os.path.join(self.currentDir, "fixtures/dem.map"))
 
     def tearDown(self):
         """Runs after each test."""
@@ -22,10 +29,7 @@ class EvapotranspirationModuleTest(unittest.TestCase):
 
     def test_ksCalc_None_values(self):
         """"""
-        TUr = None
-        TUw = None
-        TUcc = None
-        self.assertRaises(TypeError, ksCalc, TUr, TUw, TUcc)
+        self.assertRaises(TypeError, ksCalc, None, None, None)
 
     def test_ksCalc_valid_values(self):
         """"""
@@ -46,7 +50,7 @@ class EvapotranspirationModuleTest(unittest.TestCase):
     def test_etavCalc_None_values(self):
         """"""
         # etavCalc(ETp, Kc, Ks)
-        raise NotImplementedError
+        self.assertRaises(TypeError, etavCalc, None, None, None)
 
     def test_kpCalc_valid_values(self):
         """"""
@@ -56,7 +60,7 @@ class EvapotranspirationModuleTest(unittest.TestCase):
     def test_kpCalc_None_values(self):
         """"""
         # kpCalc(B, U_2, UR)
-        raise NotImplementedError
+        self.assertRaises(RuntimeError, kpCalc, None, None, None)
 
     def test_etaoCalc_valid_values(self):
         """"""
@@ -66,7 +70,7 @@ class EvapotranspirationModuleTest(unittest.TestCase):
     def test_etaoCalc_None_values(self):
         """"""
         # etaoCalc(ETp, Kp, prec, Ao)
-        raise NotImplementedError
+        self.assertRaises(TypeError, kpCalc, None, None, None, None)
 
     def test_etasCalc_valid_values(self):
         """"""
@@ -76,7 +80,7 @@ class EvapotranspirationModuleTest(unittest.TestCase):
     def test_etasCalc_None_values(self):
         """"""
         # etasCalc(ETp, kc_min, Ks)
-        raise NotImplementedError
+        self.assertRaises(TypeError, etasCalc, None, None, None)
 
 
 if __name__ == "__main__":
