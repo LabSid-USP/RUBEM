@@ -82,7 +82,7 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         """"""
         # sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat)
         self.assertRaises(
-            RuntimeError, sRunoffCalc, None, None, None, None, None, None, None, None
+            TypeError, sRunoffCalc, None, None, None, None, None, None, None, None
         )
 
 
