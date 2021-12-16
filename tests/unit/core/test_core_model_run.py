@@ -39,7 +39,7 @@ class ModelRunTest(unittest.TestCase):
         """Test we can run a model from a configuration file"""
         model = Model.load(self.baseProjectFile)
         model.run()
-        self.assertListEqual(
+        self.assertCountEqual(
             os.listdir(self.baseProjectOutputDir),
             [
                 "bfw00000.001",
