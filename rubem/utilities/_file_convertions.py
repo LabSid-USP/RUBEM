@@ -57,6 +57,11 @@ def tss2csv(tssPath: str, colNames: list[str], eraseTSS: bool = True) -> None:
         # Read tss file properly
         df = read_csv(tssFile, header=None, index_col=0, delim_whitespace=True)
 
+        if not df.shape[1] == len(colNames):
+            raise ValueError(
+                f"The number of columns {(df.shape[1])} of data and header {len(colNames)} are not the same."
+            )
+
         # Remove tss extension and add csv extension preserving the filename
         csvFileName = splitext(tssFile)[0] + ".csv"
 
