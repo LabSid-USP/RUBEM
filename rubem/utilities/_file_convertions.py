@@ -33,8 +33,11 @@ logger = logging.getLogger(__name__)
 def tss2csv(tssPath, colNames):
     """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.csv).
 
-    :param path: Directory containing the files.
-    :type path: str
+    :param tssPath: Directory containing the files.
+    :type tssPath: str
+
+    :param colNames: List of strings of aliases for the column names.
+    :type colNames: list[str]
     """
     # Create a list with all files in this folder with matching extension
     tssFileList = glob(join(tssPath, "*.tss"))
