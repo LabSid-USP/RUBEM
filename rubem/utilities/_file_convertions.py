@@ -30,7 +30,7 @@ from pandas import read_csv
 logger = logging.getLogger(__name__)
 
 
-def tss2csv(tssPath, colNames):
+def tss2csv(tssPath: str, colNames: list[str]) -> None:
     """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.csv).
 
     :param tssPath: Directory containing the files.
