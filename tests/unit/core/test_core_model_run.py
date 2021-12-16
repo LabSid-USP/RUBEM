@@ -15,7 +15,7 @@ class ModelRunTest(unittest.TestCase):
             os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         )
         self.templateBaseProject = os.path.join(
-            self.currentDir, "fixtures/base.template"
+            self.currentDir, "fixtures/base2.template"
         )
         self.baseProjectFile = os.path.join(self.currentDir, "fixtures/base2.ini")
         if not os.path.exists(self.baseProjectFile):
