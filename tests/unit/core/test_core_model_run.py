@@ -17,7 +17,7 @@ class ModelRunTest(unittest.TestCase):
         self.templateBaseProject = os.path.join(
             self.currentDir, "fixtures/base.template"
         )
-        self.baseProjectFile = os.path.join(self.currentDir, "fixtures/base.ini")
+        self.baseProjectFile = os.path.join(self.currentDir, "fixtures/base2.ini")
         if not os.path.exists(self.baseProjectFile):
             parentDirUpdate(
                 template=self.templateBaseProject,
@@ -26,7 +26,7 @@ class ModelRunTest(unittest.TestCase):
                 currentDir=self.currentDir,
             )
 
-        self.baseProjectOutputDir = os.path.join(self.currentDir, "fixtures/base/out")
+        self.baseProjectOutputDir = os.path.join(self.currentDir, "fixtures/base/out2")
         if not os.path.exists(self.baseProjectOutputDir):
             os.mkdir(self.baseProjectOutputDir)
 
