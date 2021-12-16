@@ -30,7 +30,7 @@ from pandas import read_csv
 logger = logging.getLogger(__name__)
 
 
-def tss2csv(tssPath: str, colNames: list[str]) -> None:
+def tss2csv(tssPath: str, colNames: list[str], eraseTSS: bool = True) -> None:
     """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.csv).
 
     :param tssPath: Directory containing the files.
@@ -38,6 +38,9 @@ def tss2csv(tssPath: str, colNames: list[str]) -> None:
 
     :param colNames: List of strings of aliases for the column names.
     :type colNames: list[str]
+
+    :param eraseTSS: Remove PCRaster Time Series (*.tss) files after conversion, default to `True`
+    :type eraseTSS: bool, optional
     """
     # Create a list with all files in this folder with matching extension
     tssFileList = glob(join(tssPath, "*.tss"))
@@ -54,8 +57,9 @@ def tss2csv(tssPath: str, colNames: list[str]) -> None:
         # Export csv file
         df.to_csv(csvFileName, sep=";", header=colNames)
 
-    # Remove tss files
-    eraseFiles(tssFileList)
+    if eraseTSS:
+        # Remove tss files
+        eraseFiles(tssFileList)
 
 
 def eraseFiles(fileList):
