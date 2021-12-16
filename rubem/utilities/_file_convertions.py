@@ -42,6 +42,12 @@ def tss2csv(tssPath: str, colNames: list[str], eraseTSS: bool = True) -> None:
     :param eraseTSS: Remove PCRaster Time Series (*.tss) files after conversion, default to `True`
     :type eraseTSS: bool, optional
     """
+
+    if not colNames:
+        raise TypeError(
+            f"List of strings of aliases for the column names can't be {type(colNames)}"
+        )
+
     # Create a list with all files in this folder with matching extension
     tssFileList = glob(join(tssPath, "*.tss"))
 
