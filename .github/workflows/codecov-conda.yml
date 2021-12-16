@@ -23,7 +23,7 @@ jobs:
         conda env update --file env-prod.yml --name base        
     - name: Generate coverage report
       run: |
-        conda install -c conda-forge pytest, pytest-cov -y
+        conda install -c conda-forge pytest pytest-cov -y
         pytest --cov=./ --cov-report=xml
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
