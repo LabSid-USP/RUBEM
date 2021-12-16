@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from tests.utils import parentDirUpdate, removeFile
+from tests.utils import parentDirUpdate, removeFile, removeDirectory
 from rubem.core import Model
 
 
@@ -25,6 +25,10 @@ class ModelConstructorTest(unittest.TestCase):
                 target=self.baseProjectFile,
                 currentDir=self.currentDir,
             )
+
+        self.baseProjectOutputDir = os.path.join(self.currentDir, "fixtures/base/out")
+        if not os.path.exists(self.baseProjectOutputDir):
+            os.mkdir(self.baseProjectOutputDir)
 
         self.configDict = {
             "SIM_TIME": {"start": "01/01/2000", "end": "01/02/2000"},
@@ -127,6 +131,7 @@ class ModelConstructorTest(unittest.TestCase):
     def tearDown(self):
         """Runs after each test."""
         removeFile(self.baseProjectFile)
+        removeDirectory(self.baseProjectOutputDir)
 
     def test_config_ini_file(self):
         """Test we can read a model configuration file"""
