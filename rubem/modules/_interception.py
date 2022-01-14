@@ -25,6 +25,8 @@
 import logging
 from pcraster import scalar, min, log10, exp
 
+from validation._exception_validation import ValidationException
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +39,9 @@ def srCalc(NDVI):
     :returns: Reflectances Simple Ratio (SR) [-]
     :rtype: float
     """
+    if not -1.0 <= NDVI <= 1.0:
+        raise ValidationException(f"NDVI must be in the value range [-1.0, 1.0], value was {NDVI}")
+        
     SR = (1 + NDVI) / (1 - NDVI)
     return SR
 
