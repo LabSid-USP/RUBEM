@@ -114,6 +114,23 @@ def booleanTypeValidator(config: ConfigParser):
                 raise ValidationException from e
 
 
+def value_range_validator(config: ConfigParser):
+    sections = ["CALIBRATION", "INITIAL_SOIL_CONDITIONS", "CONSTANTS"]
+    for section in sections:
+        for option in config.options(section):
+            if option in _schemas.parameters_value_ranges.get(section).keys():
+                value = config.getfloat(section, option)
+                value_min, value_max = _schemas.parameters_value_ranges.get(
+                    section
+                ).get(option)
+                var_name = _schemas.parameters_titles.get(section).get(option)
+                if not value_min <= value <= value_max:
+                    raise ValidationException(
+                        f"The {var_name} ({option}) value must be in the value"
+                        f" range [{value_min}, {value_max}]"
+                    )
+
+
 def schemaValidator(config: ConfigParser):
     for section, keys in _schemas.required_config_schema.items():
         if section not in config:
