@@ -36,8 +36,8 @@ try:
     from modules._surface_runoff import *
 
     # Import util functions
-    from utilities._date_calc import *
-    from utilities._file_generators import *
+    from date._date_calc import *
+    from file._file_generators import *
 except ImportError:
     from .modules._evapotranspiration import *
     from .modules._interception import *
@@ -45,8 +45,8 @@ except ImportError:
     from .modules._surface_runoff import *
 
     # Import util functions
-    from .utilities._date_calc import *
-    from .utilities._file_generators import *
+    from .date._date_calc import *
+    from .file._file_generators import *
 
 
 logger = logging.getLogger(__name__)
