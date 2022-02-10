@@ -12,7 +12,7 @@ def removeDirectory(dirPath):
     if os.path.exists(dirPath):
         try:
             shutil.rmtree(dirPath)
-        except WindowsError:
+        except OSError:
             time.sleep(0.5)
 
 
