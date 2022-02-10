@@ -31,7 +31,8 @@ logger = logging.getLogger(__name__)
 
 
 def tss2csv(tssPath: str, colNames: list[str], eraseTSS: bool = True) -> None:
-    """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.csv).
+    """Convert all PCRaster Time Series (*.tss) files present in the specified\
+        directory to (*.csv).
 
     :param tssPath: Directory containing the files.
     :type tssPath: str
@@ -39,13 +40,15 @@ def tss2csv(tssPath: str, colNames: list[str], eraseTSS: bool = True) -> None:
     :param colNames: List of strings of aliases for the column names.
     :type colNames: list[str]
 
-    :param eraseTSS: Remove PCRaster Time Series (*.tss) files after conversion, default to `True`
+    :param eraseTSS: Remove PCRaster Time Series (*.tss) files after\
+        conversion, default to `True`
     :type eraseTSS: bool, optional
     """
 
     if not colNames:
         raise TypeError(
-            f"List of strings of aliases for the column names can't be {type(colNames)}"
+            "List of strings of aliases for the column names can't be"
+            f" {type(colNames)}"
         )
 
     # Create a list with all files in this folder with matching extension
@@ -59,7 +62,8 @@ def tss2csv(tssPath: str, colNames: list[str], eraseTSS: bool = True) -> None:
 
         if not df.shape[1] == len(colNames):
             raise ValueError(
-                f"The number of columns {(df.shape[1])} of data and header {len(colNames)} are not the same."
+                f"The number of columns {(df.shape[1])} of data and header"
+                f" {len(colNames)} are not the same."
             )
 
         # Remove tss extension and add csv extension preserving the filename

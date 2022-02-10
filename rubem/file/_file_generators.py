@@ -32,7 +32,8 @@ UseExceptions()
 
 
 def getRefInfo(sourceTif):
-    """Return size, resolution and corner coordinates from a Raster file (DEM in RUBEM).
+    """Return size, resolution and corner coordinates from a\
+        Raster file (DEM in RUBEM).
 
     :param sourceTif: Path to DEM file to get information
     :sourceTif type: str
@@ -51,7 +52,9 @@ def getRefInfo(sourceTif):
     return Ref
 
 
-def reportTIFFSeries(self, tifRef, pcrObj, fileName, outpath, currentStep, dyn=False):
+def reportTIFFSeries(
+    self, tifRef, pcrObj, fileName, outpath, currentStep, dyn=False
+):
     """Create a .tif raster from a PCRaster object.
 
     :param tifRef: array with dem raster information
@@ -95,22 +98,12 @@ def reportTIFFSeries(self, tifRef, pcrObj, fileName, outpath, currentStep, dyn=F
     driver = tifRef[3]
 
     # create the output image
-    outDs = driver.Create(out_tif, cols, rows, 1, GDT_Float32, options=["COMPRESS=LZW"])
+    outDs = driver.Create(
+        out_tif, cols, rows, 1, GDT_Float32, options=["COMPRESS=LZW"]
+    )
     outBand = outDs.GetRasterBand(1)
     outBand.SetNoDataValue(-9999)
     outBand.WriteArray(npFile)
     outDs.SetGeoTransform(trans)
     ds = None
     outDs = None
-
-
-def reportMapSeries(self, VariableName, fileName):
-    """Store map data in the specified file.
-
-    :param fileName: Prefix name of the output file.
-    :fileName  type: str
-
-    :param VariableName: Base name of variable to be export.
-    :fileName  type: str
-    """
-    self.report(VariableName, fileName)
