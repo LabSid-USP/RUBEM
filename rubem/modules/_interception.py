@@ -20,15 +20,18 @@
 
 """Rainfall rUnoff Balance Enhanced Model Interception"""
 
-########## Interception Module ##########
 
+import typing
 import logging
-from pcraster import scalar, min, log10, exp
+
+import pcraster as pcr
+from pcraster.framework import generalfunctions
+
 
 logger = logging.getLogger(__name__)
 
 
-def srCalc(NDVI):
+def srCalc(NDVI: pcr._pcraster.Field) -> pcr._pcraster.Field:
     """Return Simple Ratio (SR).
 
     :param NDVI: Normalized Difference Vegetation Index (NDVI) at the pixel
@@ -41,16 +44,24 @@ def srCalc(NDVI):
     return SR
 
 
-def kcCalc(NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
+def kcCalc(
+    NDVI: pcr._pcraster.Field,
+    ndvi_min: pcr._pcraster.Field,
+    ndvi_max: pcr._pcraster.Field,
+    kc_min: pcr._pcraster.Field,
+    kc_max: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return Crop Coefficient (Kc).
 
     :param NDVI: Normalized Difference Vegetation Index (NDVI) at the pixel
     :NDVI type: float
 
-    :param ndvi_min: Minimum Normalized Difference Vegetation Index (NDVI) at the pixel
+    :param ndvi_min: Minimum Normalized Difference Vegetation Index (NDVI)\
+        at the pixel
     :ndvi_min type: float
 
-    :param ndvi_max: Maximum Normalized Difference Vegetation Index (NDVI) at the pixel
+    :param ndvi_max: Maximum Normalized Difference Vegetation Index (NDVI)\
+        at the pixel
     :ndvi_max type: float
 
     :param kc_min: Minimum Crop Coefficient landuse class [-]
@@ -64,18 +75,29 @@ def kcCalc(NDVI, ndvi_min, ndvi_max, kc_min, kc_max):
     """
     Kc = kc_min + (
         (kc_max - kc_min)
-        * ((NDVI - scalar(ndvi_min)) / (scalar(ndvi_max) - scalar(ndvi_min)))
+        * (
+            (NDVI - pcr.scalar(ndvi_min))
+            / (pcr.scalar(ndvi_max) - pcr.scalar(ndvi_min))
+        )
     )
     return Kc
 
 
-def fparCalc(fpar_min, fpar_max, SR, sr_min, sr_max):
+def fparCalc(
+    fpar_min: pcr._pcraster.Field,
+    fpar_max: pcr._pcraster.Field,
+    SR: pcr._pcraster.Field,
+    sr_min: pcr._pcraster.Field,
+    sr_max: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return Fraction of Photosynthetically Active Radiation (FPAR).
 
-    :param fpar_min: Minimum Fraction of Photosynthetically Active Radiation [-]
+    :param fpar_min: Minimum Fraction of Photosynthetically Active Radiation\
+        [-]
     :fpar_min type: float
 
-    :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation [-]
+    :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation\
+        [-]
     :fpar_max type: float
 
     :param SR: Reflectances Simple Ratio [-]
@@ -90,18 +112,25 @@ def fparCalc(fpar_min, fpar_max, SR, sr_min, sr_max):
     :returns: Fraction of Photosynthetically Active Radiation (FPAR) [-]
     :rtype: float
     """
-    fpar_comp = ((SR - sr_min) * (fpar_max - fpar_min) / (sr_max - sr_min)) + fpar_min
-    FPAR = min(fpar_comp, fpar_max)
+    fpar_comp = (
+        (SR - sr_min) * (fpar_max - fpar_min) / (sr_max - sr_min)
+    ) + fpar_min
+    FPAR = pcr.min(fpar_comp, fpar_max)
     return FPAR
 
 
-def laiCalc(FPAR, fpar_max, lai_max):
+def laiCalc(
+    FPAR: pcr._pcraster.Field,
+    fpar_max: pcr._pcraster.Field,
+    lai_max: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return Leaf Area Index (LAI).
 
     :param FPAR: Fraction of Photosynthetically Active Radiation (FPAR) [-]
     :FPAR type: float
 
-    :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation (FPAR) [-]
+    :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation\
+        (FPAR) [-]
     :fpar_max type: float
 
     :param lai_max: Maximum Leaf Area Index [-]
@@ -110,11 +139,22 @@ def laiCalc(FPAR, fpar_max, lai_max):
     :returns: Leaf Area Index (LAI) [-]
     :rtype:float
     """
-    LAI = lai_max * ((log10(1 - FPAR)) / (log10(1 - fpar_max)))
+    LAI = lai_max * ((pcr.log10(1 - FPAR)) / (pcr.log10(1 - fpar_max)))
     return LAI
 
 
-def interceptionCalc(alfa, LAI, precipitation, rainy_days, a_v):
+def interceptionCalc(
+    alfa: pcr._pcraster.Field,
+    LAI: pcr._pcraster.Field,
+    precipitation: pcr._pcraster.Field,
+    rainy_days: pcr._pcraster.Field,
+    a_v: pcr._pcraster.Field,
+) -> typing.Tuple[
+    pcr._pcraster.Field,
+    pcr._pcraster.Field,
+    pcr._pcraster.Field,
+    pcr._pcraster.Field,
+]:
     """Return Interception [mm].
 
     :param alfa: Interception Parameter [-]
@@ -136,18 +176,30 @@ def interceptionCalc(alfa, LAI, precipitation, rainy_days, a_v):
     :rtype: float
     """
     # condition of precipitation, to divide by non zero number (missing value)
-    cond1 = scalar((precipitation != 0))
-    cond2 = scalar((precipitation == 0))
+    cond1 = pcr.scalar((precipitation != 0))
+    cond2 = pcr.scalar((precipitation == 0))
     prec = precipitation * cond1 + (precipitation * cond2 + 0.00001)
 
     Id = (
         alfa
         * LAI
-        * (1 - (1 / (1 + (precipitation * ((1 - (exp(-0.463 * LAI))) / (alfa * LAI))))))
+        * (
+            1
+            - (
+                1
+                / (
+                    1
+                    + (
+                        precipitation
+                        * ((1 - (pcr.exp(-0.463 * LAI))) / (alfa * LAI))
+                    )
+                )
+            )
+        )
     )
-    Ir = 1 - exp(-Id * rainy_days / prec)
+    Ir = 1 - pcr.exp(-Id * rainy_days / prec)
     # Interception of the vegetated area
     Iv = precipitation * Ir
     # Total interception
-    I = a_v * Iv
-    return Id, Ir, Iv, I
+    interception = a_v * Iv
+    return Id, Ir, Iv, interception

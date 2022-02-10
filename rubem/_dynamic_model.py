@@ -36,8 +36,8 @@ try:
     from modules._surface_runoff import *
 
     # Import util functions
-    from utilities._date_calc import *
-    from utilities._file_generators import *
+    from date._date_calc import *
+    from file._file_generators import *
 except ImportError:
     from .modules._evapotranspiration import *
     from .modules._interception import *
@@ -45,8 +45,8 @@ except ImportError:
     from .modules._surface_runoff import *
 
     # Import util functions
-    from .utilities._date_calc import *
-    from .utilities._file_generators import *
+    from .date._date_calc import *
+    from .file._file_generators import *
 
 
 logger = logging.getLogger(__name__)
@@ -72,9 +72,13 @@ class RUBEM(pcrfw.DynamicModel):
         self.A = self.config.getfloat("GRID", "grid") ** 2
 
         # Initial baseflow
-        self.EBini = pcrfw.scalar(config.getfloat("INITIAL_SOIL_CONDITIONS", "bfw_ini"))
+        self.EBini = pcrfw.scalar(
+            config.getfloat("INITIAL_SOIL_CONDITIONS", "bfw_ini")
+        )
         # limit for baseflow
-        self.EBlim = pcrfw.scalar(config.getfloat("INITIAL_SOIL_CONDITIONS", "bfw_lim"))
+        self.EBlim = pcrfw.scalar(
+            config.getfloat("INITIAL_SOIL_CONDITIONS", "bfw_lim")
+        )
         # Initial moisture content of the saturated zone
         self.Tusini = pcrfw.scalar(
             config.getfloat("INITIAL_SOIL_CONDITIONS", "S_sat_ini")
@@ -87,7 +91,16 @@ class RUBEM(pcrfw.DynamicModel):
 
     def __getEnabledOutputVars(self):
         # Store which variables have or have not been selected for export
-        availabeOutputVars = ["itp", "bfw", "srn", "eta", "lfw", "rec", "smc", "rnf"]
+        availabeOutputVars = [
+            "itp",
+            "bfw",
+            "srn",
+            "eta",
+            "lfw",
+            "rec",
+            "smc",
+            "rnf",
+        ]
         self.enabledOuputVars = []
         for var in availabeOutputVars:
             if self.config.getboolean("GENERATE_FILE", var):
@@ -95,7 +108,7 @@ class RUBEM(pcrfw.DynamicModel):
 
     def __stepUpdateOutputVars(self):
         self.outputVarsDict = {
-            "itp": self.I,
+            "itp": self.Itp,
             "bfw": self.EB,
             "srn": self.ES,
             "eta": self.ETr,
@@ -111,7 +124,9 @@ class RUBEM(pcrfw.DynamicModel):
 
         for enabledOutpurVar in self.enabledOuputVars:
             # Export TIFF raster series
-            if self.config.getboolean("RASTER_FILE_FORMAT", "tiff_raster_series"):
+            if self.config.getboolean(
+                "RASTER_FILE_FORMAT", "tiff_raster_series"
+            ):
                 reportTIFFSeries(
                     self,
                     self.ref,
@@ -123,12 +138,15 @@ class RUBEM(pcrfw.DynamicModel):
                 )
 
             # Export PCRaster map format raster series
-            if self.config.getboolean("RASTER_FILE_FORMAT", "map_raster_series"):
-                reportMapSeries(
-                    self, self.outputVarsDict.get(enabledOutpurVar), enabledOutpurVar
+            if self.config.getboolean(
+                "RASTER_FILE_FORMAT", "map_raster_series"
+            ):
+                self.report(
+                    self.outputVarsDict.get(enabledOutpurVar), enabledOutpurVar
                 )
 
-            # Check if we have to export the time series of the selected variable (fileName)
+            # Check if we have to export the time series of the selected
+            # variable (fileName)
             if self.config.getboolean("GENERATE_FILE", "tss"):
                 # Export tss according to variable (fileName) selected
                 # The same as self.TssFileXxx.sample(self.Xxx)
@@ -197,20 +215,22 @@ class RUBEM(pcrfw.DynamicModel):
             "smc": self.TssFileSsat.sample,
             "rnf": self.TssFileRun.sample,
         }
-        # Information for output, get sample location numbers - integer, from 1 to n
+        # Information for output, get sample location numbers - integer,
+        # from 1 to n
         sample_map = pcrfw.nominal(
             self.config.get("RASTERS", "samples")
         )  # read sample map location as nominal
         self.mvalue = -999
         # Convert sample location to multidimensional array
         self.sample_array = pcrfw.pcr2numpy(sample_map, self.mvalue)
-        # create 1d array with unique locations values (1 to N number os locations)
+        # create 1d array with unique locations values
+        # (1 to N number os locations)
         self.sample_vals = np.asarray(np.unique(self.sample_array))
 
     def initial(self):
         """Contains the initialization of variables used in the model.
 
-        Contains operations to initialise the state of the model at time step 0.
+        Contains operations to init the state of the model at time step 0.
         Operations included in this section are executed once.
         """
         # Read DEM file
@@ -278,7 +298,8 @@ class RUBEM(pcrfw.DynamicModel):
 
         # steps
         _, self.lastStep, _ = totalSteps(
-            self.config.get("SIM_TIME", "start"), self.config.get("SIM_TIME", "end")
+            self.config.get("SIM_TIME", "start"),
+            self.config.get("SIM_TIME", "end"),
         )
 
         # Conditions for t = first loop
@@ -295,7 +316,7 @@ class RUBEM(pcrfw.DynamicModel):
         """Contains the implementation of the dynamic section of the model.
 
         Contains the operations that are executed consecutively each time step.
-        Results of a previous time step can be used as input for the current time step.
+        Results of prev time step can be used as input for the curr time step.
         The dynamic section is executed a specified number of timesteps.
         """
         t = self.currentStep
@@ -348,7 +369,9 @@ class RUBEM(pcrfw.DynamicModel):
 
         # Number of rainy days
         month = ((t - 1) % 12) + 1
-        rainyDays = pcrfw.lookupscalar(self.config.get("TABLES", "rainydays"), month)
+        rainyDays = pcrfw.lookupscalar(
+            self.config.get("TABLES", "rainydays"), month
+        )
 
         # Read Landuse attributes
         n_manning = pcrfw.lookupscalar(
@@ -366,7 +389,6 @@ class RUBEM(pcrfw.DynamicModel):
         )
 
         logger.debug("Interception")
-        ######### compute interception #########
         SR = srCalc(NDVI)
         FPAR = fparCalc(
             self.config.getfloat("CONSTANTS", "fpar_min"),
@@ -380,7 +402,7 @@ class RUBEM(pcrfw.DynamicModel):
             self.config.getfloat("CONSTANTS", "fpar_max"),
             self.config.getfloat("CONSTANTS", "lai_max"),
         )
-        Id, Ir, Iv, self.I = interceptionCalc(
+        Id, Ir, Iv, self.Itp = interceptionCalc(
             self.config.getfloat("CALIBRATION", "alpha"),
             LAI,
             precipitation,
@@ -388,12 +410,11 @@ class RUBEM(pcrfw.DynamicModel):
             Av,
         )
 
-        # print("\tInterception... OK", flush=True)
-
-        ######### Compute Evapotranspiration #########
         logger.debug("Evapotranspiration")
 
-        Kc_1 = kcCalc(NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
+        Kc_1 = kcCalc(
+            NDVI, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max
+        )
         # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
         kc_cond1 = pcrfw.scalar(NDVI < 1.1 * self.ndvi_min)
         kc_cond2 = pcrfw.scalar(NDVI > 1.1 * self.ndvi_min)
@@ -421,9 +442,6 @@ class RUBEM(pcrfw.DynamicModel):
             + (As * self.ET_as)
         )
 
-        # print("\tEvapotranspiration... OK", flush=True)
-
-        ######### Surface Runoff #########
         logger.debug("Surface Runoff")
 
         Pdm = precipitation / rainyDays
@@ -449,30 +467,34 @@ class RUBEM(pcrfw.DynamicModel):
         Csr = csrCalc(Cwp, Pdm, self.config.getfloat("CALIBRATION", "rcd"))
 
         self.ES = sRunoffCalc(
-            Csr, Ch, precipitation, self.I, Ao, self.ET_ao, self.TUr, self.TUsat
+            Csr,
+            Ch,
+            precipitation,
+            self.Itp,
+            Ao,
+            self.ET_ao,
+            self.TUr,
+            self.TUsat,
         )
 
-        # print("\tSurface Runoff... OK", flush=True)
-
-        ######### Lateral Flow #########
         logger.debug("Lateral Flow")
 
         self.LF = lfCalc(
-            self.config.getfloat("CALIBRATION", "f"), self.Kr, self.TUr, self.TUsat
+            self.config.getfloat("CALIBRATION", "f"),
+            self.Kr,
+            self.TUr,
+            self.TUsat,
         )
 
-        # print("\tLateral Flow... OK", flush=True)
-
-        ######### Recharge Flow #########
         logger.debug("Recharge Flow")
 
         self.REC = recCalc(
-            self.config.getfloat("CALIBRATION", "f"), self.Kr, self.TUr, self.TUsat
+            self.config.getfloat("CALIBRATION", "f"),
+            self.Kr,
+            self.TUr,
+            self.TUsat,
         )
 
-        # print("\tRecharge Flow... OK", flush=True)
-
-        ######### Baseflow #########
         logger.debug("Baseflow")
 
         self.EB = baseflowCalc(
@@ -484,14 +506,11 @@ class RUBEM(pcrfw.DynamicModel):
         )
         self.EBprev = self.EB
 
-        # print("\tBaseflow... OK", flush=True)
-
-        ######### Soil Balance #########
         logger.debug("Soil Balance")
         self.TUr = turCalc(
             self.TUrprev,
             precipitation,
-            self.I,
+            self.Itp,
             self.ES,
             self.LF,
             self.REC,
@@ -504,9 +523,6 @@ class RUBEM(pcrfw.DynamicModel):
 
         self.TUsprev = self.TUs
 
-        # print("\tSoil Balance... OK", flush=True)
-
-        ######### Compute Runoff ########
         logger.debug("Runoff")
 
         days = daysOfMonth(self.config.get("SIM_TIME", "start"), t)
@@ -518,12 +534,12 @@ class RUBEM(pcrfw.DynamicModel):
         self.Qt = pcrfw.accuflux(self.ldd, self.Qtotvol)
 
         self.runoff = (
-            self.config.getfloat("INITIAL_SOIL_CONDITIONS", "T_ini") * self.Qprev
-            + (1 - self.config.getfloat("INITIAL_SOIL_CONDITIONS", "T_ini")) * self.Qt
+            self.config.getfloat("INITIAL_SOIL_CONDITIONS", "T_ini")
+            * self.Qprev
+            + (1 - self.config.getfloat("INITIAL_SOIL_CONDITIONS", "T_ini"))
+            * self.Qt
         )
         self.Qprev = self.runoff
-
-        # print("\tRunoff... OK", flush=True)
 
         os.chdir(self.config.get("DIRECTORIES", "output"))
         logger.debug("Exporting variables to files")

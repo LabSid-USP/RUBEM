@@ -20,15 +20,21 @@
 
 """Rainfall rUnoff Balance Enhanced Model Surface Runoff"""
 
-########## Surface runoff ##########
 
 import logging
-from pcraster import scalar, exp
+
+import pcraster as pcr
 
 logger = logging.getLogger(__name__)
 
 
-def chCalc(TUr, dg, Zr, Tsat, b):
+def chCalc(
+    TUr: pcr._pcraster.Field,
+    dg: pcr._pcraster.Field,
+    Zr: pcr._pcraster.Field,
+    Tsat: pcr._pcraster.Field,
+    b: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return coefficient representing soil moisture conditions (Ch).
 
     :param TUr: Actual Soil moisture content [mm]
@@ -54,7 +60,16 @@ def chCalc(TUr, dg, Zr, Tsat, b):
     return Ch
 
 
-def cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3):
+def cperCalc(
+    TUw: pcr._pcraster.Field,
+    dg: pcr._pcraster.Field,
+    Zr: pcr._pcraster.Field,
+    S: pcr._pcraster.Field,
+    manning: pcr._pcraster.Field,
+    w1: float,
+    w2: float,
+    w3: float,
+) -> pcr._pcraster.Field:
     """Return the runoff coefficient for permeable areas (Cper).
 
     :param TUw:  soil water content at wilting point
@@ -69,7 +84,7 @@ def cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3):
     :param S: Land surfafe slope [%]
     :S  type: float
 
-    :param manning: Manning’s roughness coefficient [-]
+    :param manning: Manning's roughness coefficient [-]
     :manning  type: float
 
     :param w1: weight for landuse component [-]
@@ -85,12 +100,17 @@ def cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3):
     :rtype: float
     """
     tuw = TUw / (dg * Zr * 10)  # [%] soil wilting point
-    Cper = w1 * (0.02 / manning) + w2 * (tuw / (1 - tuw)) + w3 * ((S / (10 + S)))
+    Cper = (
+        w1 * (0.02 / manning) + w2 * (tuw / (1 - tuw)) + w3 * ((S / (10 + S)))
+    )
     return Cper
 
 
-def cimpCalc(ao, ai):
-    """Return percentage of impervious surface per grid cell and the runoff coefficient of the impervious area (Cimp).
+def cimpCalc(
+    ao: pcr._pcraster.Field, ai: pcr._pcraster.Field
+) -> pcr._pcraster.Field:
+    """Return percentage of impervious surface per grid cell and\
+        the runoff coefficient of the impervious area (Cimp).
 
     :param Ao: Open Water Area Fraction [-]
     :Ao  type: float
@@ -98,15 +118,20 @@ def cimpCalc(ao, ai):
     :param ai: Impervious Area Fraction [-]
     :ai  type: float
 
-    :returns: percentage of impervious surface per grid cell and the runoff coefficient of the impervious area [-]
+    :returns: percentage of impervious surface per grid cell and\
+        the runoff coefficient of the impervious area [-]
     :rtype: float
     """
     Aimp = ao + ai
-    Cimp = 0.09 * exp((2.4 * Aimp))
+    Cimp = 0.09 * pcr.exp((2.4 * Aimp))
     return Aimp, Cimp
 
 
-def cwpCalc(Aimp, Cper, Cimp):
+def cwpCalc(
+    Aimp: pcr._pcraster.Field,
+    Cper: pcr._pcraster.Field,
+    Cimp: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return weighted potential runoff coefficient (Cwp).
 
     :param Aimp: percentage of impervious surface per grid cell
@@ -125,7 +150,11 @@ def cwpCalc(Aimp, Cper, Cimp):
     return Cwp
 
 
-def csrCalc(Cwp, P_24, RCD):
+def csrCalc(
+    Cwp: pcr._pcraster.Field,
+    P_24: pcr._pcraster.Field,
+    RCD: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return actual runoff coefficient (Csr).
 
     :param Cwp: weighted potential runoff coefficient (Cwp)
@@ -144,7 +173,16 @@ def csrCalc(Cwp, P_24, RCD):
     return Csr
 
 
-def sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat):
+def sRunoffCalc(
+    Csr: pcr._pcraster.Field,
+    Ch: pcr._pcraster.Field,
+    prec: pcr._pcraster.Field,
+    Itp: pcr._pcraster.Field,
+    Ao: pcr._pcraster.Field,
+    ETao: pcr._pcraster.Field,
+    TUr: pcr._pcraster.Field,
+    Tsat: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return surface runoff [mm].
 
     :param Csr: actual runoff coefficient (Csr) [-]
@@ -157,7 +195,7 @@ def sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat):
     :prec  type: float
 
     :param I: Monthly Interception [mm]
-    :I  type: float
+    :Itp  type: float
 
     :param Ao: Open Water Area Fraction [-]
     :Ao  type: float
@@ -175,12 +213,18 @@ def sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat):
     :rtype: float
     """
     # condition for pixel of water
-    cond1 = scalar(Ao == 1)
+    cond1 = pcr.scalar(Ao == 1)
     # condition for positive value for (prec - ETao)
-    cond2 = scalar((prec - ETao) > 0)
-    ESin = (Csr * Ch * (prec - I)) * (1 - cond1) + (prec - ETao) * cond2 * cond1
+    cond2 = pcr.scalar((prec - ETao) > 0)
+    ESin = (Csr * Ch * (prec - Itp)) * (1 - cond1) + (
+        prec - ETao
+    ) * cond2 * cond1
 
     # condition for tur >tursat
-    cond3 = scalar(TUr == Tsat)
-    ES = (ESin * (1 - cond3)) + (prec - I) * (cond3) * (1 - cond1) + ESin * (cond1)
+    cond3 = pcr.scalar(TUr == Tsat)
+    ES = (
+        (ESin * (1 - cond3))
+        + (prec - Itp) * (cond3) * (1 - cond1)
+        + ESin * (cond1)
+    )
     return ES

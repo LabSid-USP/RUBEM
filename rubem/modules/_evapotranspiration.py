@@ -20,16 +20,20 @@
 
 """Rainfall rUnoff Balance Enhanced Model Evapotranspiration"""
 
-########## Evapotranspiration Module ##########
 
 import logging
-from pcraster import scalar, ln
+import pcraster as pcr
 
 logger = logging.getLogger(__name__)
 
 
-def ksCalc(TUr, TUw, TUcc):
-    """Return Water Stress Coefficient (Ks) for evapotranspiration of vegetated area.
+def ksCalc(
+    TUr: pcr._pcraster.Field,
+    TUw: pcr._pcraster.Field,
+    TUcc: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
+    """Return Water Stress Coefficient (Ks) for evapotranspiration of\
+        vegetated area.
 
     :param TUr: Actual Soil Moisture Content [mm]
     :TUr  type: float
@@ -43,13 +47,15 @@ def ksCalc(TUr, TUw, TUcc):
     :returns: Water Stress Coefficient (Ks) [-]
     :rtype: float
     """
-    ks_cond = scalar(TUr > TUw)  # caso TUr < TUw, (false, ks = 0)
-    # Multiply (TUr - TUw) to avoid negative ln
-    Ks = (ln((TUr - TUw) * ks_cond + 1)) / (ln(TUcc - TUw + 1))
+    ks_cond = pcr.scalar(TUr > TUw)  # caso TUr < TUw, (false, ks = 0)
+    # Multiply (TUr - TUw) to avoid negative pcr.ln
+    Ks = (pcr.ln((TUr - TUw) * ks_cond + 1)) / (pcr.ln(TUcc - TUw + 1))
     return Ks
 
 
-def etavCalc(ETp, Kc, Ks):
+def etavCalc(
+    ETp: pcr._pcraster.Field, Kc: pcr._pcraster.Field, Ks: pcr._pcraster.Field
+) -> pcr._pcraster.Field:
     """Return evapotranspiration of vegetated area.
 
     :param ETp: Potential Evapotranspiration [mm]
@@ -83,11 +89,16 @@ def kpCalc(B, U_2, UR):
     :returns: pan coefficient (Kp) []
     :rtype:float
     """
-    Kp = 0.482 + 0.024 * ln(B) - 0.000376 * U_2 + 0.0045 * UR
+    Kp = 0.482 + 0.024 * pcr.ln(B) - 0.000376 * U_2 + 0.0045 * UR
     return Kp
 
 
-def etaoCalc(ETp, Kp, prec, Ao):
+def etaoCalc(
+    ETp: pcr._pcraster.Field,
+    Kp: pcr._pcraster.Field,
+    prec: pcr._pcraster.Field,
+    Ao: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return actual evapotranspiration of open water area.
 
     :param ETp: Monthly Potential Evapotranspiration [mm]
@@ -106,13 +117,13 @@ def etaoCalc(ETp, Kp, prec, Ao):
     :rtype: float
     """
     # condition for pixel of water
-    cond1 = scalar(Ao == 1)
+    cond1 = pcr.scalar(Ao == 1)
 
     etaoCalc = ETp / Kp
 
     # conditions for max value for etaoCalc,
     # if ETao_calc > Prec in Pixel with Ao = 1, then ETao = Prec
-    cond2 = scalar((etaoCalc) > prec)
+    cond2 = pcr.scalar((etaoCalc) > prec)
 
     # ET for open water is ET_calc for
     # open water + prec (if ET_calc>prec, for Aio = 1) + ET_calc for Ao = 1,
@@ -125,7 +136,11 @@ def etaoCalc(ETp, Kp, prec, Ao):
     return ETao
 
 
-def etasCalc(ETp, kc_min, Ks):
+def etasCalc(
+    ETp: pcr._pcraster.Field,
+    kc_min: pcr._pcraster.Field,
+    Ks: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return Ks for evapotranspiration of bare soil area.
 
     :param ETp: Monthly Potential Evapotranspiration [mm]
@@ -140,6 +155,6 @@ def etasCalc(ETp, kc_min, Ks):
     :returns: Actual Evapotranspiration of bare soil area
     :rtype: float
     """
-    cond = 1 * scalar(Ks != 0)  # caso ks seja diferente de 0
+    cond = 1 * pcr.scalar(Ks != 0)  # caso ks seja diferente de 0
     ETas = ETp * kc_min * Ks * cond
     return ETas

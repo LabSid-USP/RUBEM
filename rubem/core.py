@@ -29,32 +29,15 @@ from pcraster.framework import DynamicFramework
 
 try:
     from _dynamic_model import RUBEM
-    from utilities._date_calc import totalSteps
-    from utilities._file_convertions import tss2csv
-    from validation._exception_validation import ValidationException
-    from validation._validators import (
-        filePathValidator,
-        fileNamePrefixValidator,
-        floatTypeValidator,
-        booleanTypeValidator,
-        dateValidator,
-        directoryPathValidator,
-        schemaValidator,
-    )
+    from date._date_calc import totalSteps
+    from file._file_convertions import tss2csv
+    from validation import _validators
 except ImportError:
     from ._dynamic_model import RUBEM
-    from .utilities._date_calc import totalSteps
-    from .utilities._file_convertions import tss2csv
-    from .validation._exception_validation import ValidationException
-    from .validation._validators import (
-        filePathValidator,
-        fileNamePrefixValidator,
-        floatTypeValidator,
-        booleanTypeValidator,
-        dateValidator,
-        directoryPathValidator,
-        schemaValidator,
-    )
+    from .date._date_calc import totalSteps
+    from .file._file_convertions import tss2csv
+    from .validation import _validators
+
 
 logger = logging.getLogger(__name__)
 
@@ -68,21 +51,20 @@ class Model:
 
         :param modelConfig: Configuration parser object
         :type modelConfig: ConfigParser
-        :raises TypeError: The class constructor did not take an argument of the expected type
-        :raises SystemExit: The class constructor was unable to validate the given settings
+        :raises TypeError: The class constructor did not take an\
+            argument of the expected type
+        :raises SystemExit: The class constructor was unable to\
+            validate the given settings
         """
 
         if not isinstance(modelConfig, ConfigParser):
             raise TypeError(
-                f"The model constructor expected an argument type like ConfigParser, but got {type(modelConfig)}"
+                "The model constructor expected an argument type like"
+                f" ConfigParser, but got {type(modelConfig)}"
             )
 
-        try:
-            self.__validateModelConfig(modelConfig)
-        except Exception as e:
-            raise SystemExit(1) from e
-        else:
-            self.config = modelConfig
+        self.__validateModelConfig(modelConfig)
+        self.config = modelConfig
 
         startDate = self.config.get("SIM_TIME", "start")
         endDate = self.config.get("SIM_TIME", "end")
@@ -95,22 +77,17 @@ class Model:
 
         :param modelConfig: Configuration parser object
         :type modelConfig: ConfigParser
-        :raises ValidationException: Null configuration parser object
-        :raises ValidationException: It is not a configuration parser object
         """
-        if not modelConfig:
-            raise ValidationException("Model configuration file cannot be null")
-        elif not isinstance(modelConfig, ConfigParser):
-            raise ValidationException(
-                "Model configuration file must be an instance of ConfigParser"
-            )
-        schemaValidator(modelConfig)
-        dateValidator(modelConfig)
-        directoryPathValidator(modelConfig)
-        fileNamePrefixValidator(modelConfig)
-        filePathValidator(modelConfig)
-        floatTypeValidator(modelConfig)
-        booleanTypeValidator(modelConfig)
+
+        _validators.schemaValidator(modelConfig)
+        _validators.dateValidator(modelConfig)
+        _validators.directoryPathValidator(modelConfig)
+        _validators.fileNamePrefixValidator(modelConfig)
+        _validators.filePathValidator(modelConfig)
+        _validators.floatTypeValidator(modelConfig)
+        _validators.booleanTypeValidator(modelConfig)
+        _validators.value_range_validator(modelConfig)
+        _validators.domain_validator(modelConfig)
 
     def __setup(self) -> None:
         """Perform model initialization procedures"""
@@ -153,7 +130,8 @@ class Model:
     def load(cls, data):
         """Load an existing model
 
-        :param data: A file-like object to read INI data from, path to a filename to read, or a parsed dict
+        :param data: A file-like object to read INI data from, path\
+            to a filename to read, or a parsed dict
         :type data: file-like, str, dict
         :raises Exception: Unsupported model configuration format
         """
@@ -162,7 +140,9 @@ class Model:
         elif isinstance(data, dict):
             return cls.__loadFromDict(data)
         else:
-            raise Exception("Unsupported model configuration format", type(data))
+            raise Exception(
+                "Unsupported model configuration format", type(data)
+            )
 
     @classmethod
     def __loadFromConfigFile(cls, filePath):
@@ -193,7 +173,8 @@ class Model:
         if self.config.getboolean("GENERATE_FILE", "tss"):
             logger.info("Exporting tables as CSV...")
             cols = [str(n) for n in self.model.sample_vals[1:]]
-            # Convert generated time series to .csv format and removes .tss files
+            # Convert generated time series to .csv format and
+            # removes .tss files
             tss2csv(self.config.get("DIRECTORIES", "output"), cols)
         else:
             raise RuntimeError("Generation of time series must be activated")
