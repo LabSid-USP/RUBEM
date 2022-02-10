@@ -27,7 +27,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# Calculation of number of months (steps) based on the start and end dates of simulation
+# Calculation of number of months (steps) based on the start
+# and end dates of simulation
 def totalSteps(startDate, endDate):
     """Get the number of months between start and end dates.
 
@@ -37,7 +38,8 @@ def totalSteps(startDate, endDate):
     :param startDate: End date.
     :startDate type: str
 
-    :return: First step, Last step and Number of months between start and end dates
+    :return: First step, Last step and Number of months between start\
+        and end dates
     :rtype: tuple(int, int ,int)
     """
     start = datetime.strptime(startDate, "%d/%m/%Y")
@@ -51,7 +53,8 @@ def totalSteps(startDate, endDate):
 
 
 def daysOfMonth(startDate, timestep):
-    """Get the number of days in the month from timestep (for flow conversion from mm to m3/s).
+    """Get the number of days in the month from timestep (for flow\
+        conversion from mm to m3/s).
 
     :param startDate: Start date.
     :startDate  type: str
