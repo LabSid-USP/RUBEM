@@ -153,7 +153,8 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         with self.assertRaises(Exception) as cm:
             _surface_runoff.cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3)
         self.assertEqual(
-            "The sum of the weight factors Land Use (w1), Soil Moisture (w2) and Slope (w3) must equal 1.0",
+            "The sum of the weight factors Land Use (w1), Soil Moisture (w2)"
+            " and Slope (w3) must equal 1.0",
             str(cm.exception),
         )
 
@@ -172,7 +173,8 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         with self.assertRaises(Exception) as cm:
             _surface_runoff.cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3)
         self.assertEqual(
-            "The sum of the weight factors Land Use (w1), Soil Moisture (w2) and Slope (w3) must equal 1.0",
+            "The sum of the weight factors Land Use (w1), Soil Moisture (w2)"
+            " and Slope (w3) must equal 1.0",
             str(cm.exception),
         )
 
@@ -212,7 +214,8 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         with self.assertRaises(Exception) as cm:
             _surface_runoff.cimpCalc(ao, ai)
         self.assertEqual(
-            "The sum of the area factors Open Water (ao), Impervious (ai), Vegetated (av) and Bare Soil (as) must equal 1.0",
+            "The sum of the area factors Open Water (ao), Impervious (ai),"
+            " Vegetated (av) and Bare Soil (as) must equal 1.0",
             str(cm.exception),
         )
 
@@ -261,7 +264,8 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         with self.assertRaises(Exception) as cm:
             _surface_runoff.csrCalc(Cwp, P_24, RCD)
         self.assertEqual(
-            "The Regional Consecutive Dryness (RCD) level must be in the value range [1.0, 10.0]",
+            "The Regional Consecutive Dryness (RCD) level must be in the value"
+            " range [1.0, 10.0]",
             str(cm.exception),
         )
 
@@ -278,8 +282,10 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         Tsat = pcr.scalar(1.0)
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
-        I = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat)
+        Itp = pcr.scalar(1.0)
+        field = _surface_runoff.sRunoffCalc(
+            Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat
+        )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         self.assertEqual(result, expected)
@@ -293,8 +299,10 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         Tsat = pcr.scalar(1.0)
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
-        I = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat)
+        Itp = pcr.scalar(1.0)
+        field = _surface_runoff.sRunoffCalc(
+            Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat
+        )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 2.0
         self.assertEqual(result, expected)
@@ -308,8 +316,10 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         Tsat = pcr.scalar(1.0)
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
-        I = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat)
+        Itp = pcr.scalar(1.0)
+        field = _surface_runoff.sRunoffCalc(
+            Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat
+        )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         self.assertEqual(result, expected)
@@ -323,8 +333,10 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         Tsat = pcr.scalar(1.0)
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
-        I = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat)
+        Itp = pcr.scalar(1.0)
+        field = _surface_runoff.sRunoffCalc(
+            Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat
+        )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         self.assertEqual(result, expected)
@@ -338,8 +350,10 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         Tsat = pcr.scalar(1.0)
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
-        I = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat)
+        Itp = pcr.scalar(1.0)
+        field = _surface_runoff.sRunoffCalc(
+            Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat
+        )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         self.assertEqual(result, expected)
@@ -353,8 +367,10 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         Tsat = pcr.scalar(1.0)
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
-        I = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat)
+        Itp = pcr.scalar(1.0)
+        field = _surface_runoff.sRunoffCalc(
+            Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat
+        )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         self.assertEqual(result, expected)
@@ -368,8 +384,10 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         Tsat = pcr.scalar(1.0)
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
-        I = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat)
+        Itp = pcr.scalar(1.0)
+        field = _surface_runoff.sRunoffCalc(
+            Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat
+        )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         self.assertEqual(result, expected)
@@ -383,8 +401,10 @@ class SurfaceRunoffModuleTest(unittest.TestCase):
         Tsat = pcr.scalar(1.0)
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
-        I = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, I, Ao, ETao, TUr, Tsat)
+        Itp = pcr.scalar(1.0)
+        field = _surface_runoff.sRunoffCalc(
+            Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat
+        )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         self.assertEqual(result, expected)

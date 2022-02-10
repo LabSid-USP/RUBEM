@@ -20,7 +20,9 @@ class EvapotranspirationModuleTest(unittest.TestCase):
 
     def test_ksCalc_None_values(self):
         """"""
-        self.assertRaises(TypeError, _evapotranspiration.ksCalc, None, None, None)
+        self.assertRaises(
+            TypeError, _evapotranspiration.ksCalc, None, None, None
+        )
 
     def test_ksCalc_ks_cond_true(self):
         """"""
@@ -74,7 +76,9 @@ class EvapotranspirationModuleTest(unittest.TestCase):
 
     def test_etavCalc_None_values(self):
         """"""
-        self.assertRaises(TypeError, _evapotranspiration.etavCalc, None, None, None)
+        self.assertRaises(
+            TypeError, _evapotranspiration.etavCalc, None, None, None
+        )
 
     def test_kpCalc_B_eq_0(self):
         """"""
@@ -97,7 +101,9 @@ class EvapotranspirationModuleTest(unittest.TestCase):
 
     def test_kpCalc_None_values(self):
         """"""
-        self.assertRaises(RuntimeError, _evapotranspiration.kpCalc, None, None, None)
+        self.assertRaises(
+            RuntimeError, _evapotranspiration.kpCalc, None, None, None
+        )
 
     def test_etaoCalc_cond1_true_cond_2_true(self):
         """"""
@@ -145,7 +151,9 @@ class EvapotranspirationModuleTest(unittest.TestCase):
 
     def test_etaoCalc_None_values(self):
         """"""
-        self.assertRaises(TypeError, _evapotranspiration.kpCalc, None, None, None, None)
+        self.assertRaises(
+            TypeError, _evapotranspiration.kpCalc, None, None, None, None
+        )
 
     def test_etasCalc_cond_true_gt_0(self):
         """"""
@@ -179,7 +187,9 @@ class EvapotranspirationModuleTest(unittest.TestCase):
 
     def test_etasCalc_None_values(self):
         """"""
-        self.assertRaises(TypeError, _evapotranspiration.etasCalc, None, None, None)
+        self.assertRaises(
+            TypeError, _evapotranspiration.etasCalc, None, None, None
+        )
 
 
 if __name__ == "__main__":

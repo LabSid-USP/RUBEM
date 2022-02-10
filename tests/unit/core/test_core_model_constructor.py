@@ -24,7 +24,9 @@ class ModelConstructorTest(unittest.TestCase):
         """Test we can't read an empty model configuration dictionary"""
         with self.assertRaises(Exception) as cm:
             Model.load({})
-        self.assertEqual("Empty model configuration dictionay", str(cm.exception))
+        self.assertEqual(
+            "Empty model configuration dictionay", str(cm.exception)
+        )
 
     def test_empty_config_list(self):
         """Test we can't read an empty model configuration list"""
@@ -39,7 +41,8 @@ class ModelConstructorTest(unittest.TestCase):
         with self.assertRaises(Exception) as cm:
             Model(42)
         self.assertEqual(
-            "The model constructor expected an argument type like ConfigParser, but got <class 'int'>",
+            "The model constructor expected an argument type like"
+            " ConfigParser, but got <class 'int'>",
             str(cm.exception),
         )
 
@@ -47,7 +50,8 @@ class ModelConstructorTest(unittest.TestCase):
         with self.assertRaises(Exception) as cm:
             Model({})
         self.assertEqual(
-            "The model constructor expected an argument type like ConfigParser, but got <class 'dict'>",
+            "The model constructor expected an argument type like"
+            " ConfigParser, but got <class 'dict'>",
             str(cm.exception),
         )
 
@@ -81,7 +85,8 @@ class ModelConstructorFileDictTest(unittest.TestCase):
         parser = ConfigParser()
         parser.read(self.baseProjectFile)
         self.configDict = {
-            section: dict(parser.items(section)) for section in parser.sections()
+            section: dict(parser.items(section))
+            for section in parser.sections()
         }
 
         self.validConfigSections = [

@@ -35,7 +35,8 @@ class InterceptionModuleTest(unittest.TestCase):
         with self.assertRaises(Exception) as cm:
             _interception.srCalc(NDVI)
         self.assertEqual(
-            f"NDVI must be in the value range [-1.0, 1.0], value range was [{value}, {value}]",
+            "NDVI must be in the value range [-1.0, 1.0], value range was"
+            f" [{value}, {value}]",
             str(cm.exception),
         )
 
@@ -73,11 +74,15 @@ class InterceptionModuleTest(unittest.TestCase):
         kc_max = pcr.scalar(0.933)
         with self.assertRaises(RuntimeError) as cm:
             _interception.kcCalc(NDVI, ndvi_min, ndvi_max, kc_min, kc_max)
-        self.assertEqual("pcrfdiv: operator /: Domain Error\n", str(cm.exception))
+        self.assertEqual(
+            "pcrfdiv: operator /: Domain Error\n", str(cm.exception)
+        )
 
     def test_kcCalc_None_values(self):
         """"""
-        self.assertRaises(TypeError, _interception.kcCalc, None, None, None, None, None)
+        self.assertRaises(
+            TypeError, _interception.kcCalc, None, None, None, None, None
+        )
 
     def test_fparCalc(self):
         """"""
@@ -129,7 +134,9 @@ class InterceptionModuleTest(unittest.TestCase):
         lai_max = pcr.scalar(1.0)
         with self.assertRaises(RuntimeError) as cm:
             _interception.laiCalc(FPAR, fpar_max, lai_max)
-        self.assertEqual("log10: function log10: Domain Error\n", str(cm.exception))
+        self.assertEqual(
+            "log10: function log10: Domain Error\n", str(cm.exception)
+        )
 
     def test_laiCalc_FPAR_eq_1(self):
         """"""
@@ -138,7 +145,9 @@ class InterceptionModuleTest(unittest.TestCase):
         lai_max = pcr.scalar(1.0)
         with self.assertRaises(RuntimeError) as cm:
             _interception.laiCalc(FPAR, fpar_max, lai_max)
-        self.assertEqual("log10: function log10: Domain Error\n", str(cm.exception))
+        self.assertEqual(
+            "log10: function log10: Domain Error\n", str(cm.exception)
+        )
 
     def test_laiCalc_FPARmax_gt_1(self):
         """"""
@@ -147,7 +156,9 @@ class InterceptionModuleTest(unittest.TestCase):
         lai_max = pcr.scalar(1.0)
         with self.assertRaises(RuntimeError) as cm:
             _interception.laiCalc(FPAR, fpar_max, lai_max)
-        self.assertEqual("log10: function log10: Domain Error\n", str(cm.exception))
+        self.assertEqual(
+            "log10: function log10: Domain Error\n", str(cm.exception)
+        )
 
     def test_laiCalc_FPARmax_eq_1(self):
         """"""
@@ -156,7 +167,9 @@ class InterceptionModuleTest(unittest.TestCase):
         lai_max = pcr.scalar(1.0)
         with self.assertRaises(RuntimeError) as cm:
             _interception.laiCalc(FPAR, fpar_max, lai_max)
-        self.assertEqual("log10: function log10: Domain Error\n", str(cm.exception))
+        self.assertEqual(
+            "log10: function log10: Domain Error\n", str(cm.exception)
+        )
 
     def test_interceptionCalc_cond1_true_cond2_false(self):
         """"""
@@ -203,8 +216,12 @@ class InterceptionModuleTest(unittest.TestCase):
         rainy_days = pcr.scalar(15)
         a_v = pcr.scalar(0.255)
         with self.assertRaises(RuntimeError) as cm:
-            _interception.interceptionCalc(alfa, LAI, precipitation, rainy_days, a_v)
-        self.assertEqual("pcrfdiv: operator /: Domain Error\n", str(cm.exception))
+            _interception.interceptionCalc(
+                alfa, LAI, precipitation, rainy_days, a_v
+            )
+        self.assertEqual(
+            "pcrfdiv: operator /: Domain Error\n", str(cm.exception)
+        )
 
     def test_interceptionCalc_cond1_true_cond2_false_LAI_eq_0(self):
         """"""
@@ -214,13 +231,23 @@ class InterceptionModuleTest(unittest.TestCase):
         rainy_days = pcr.scalar(15)
         a_v = pcr.scalar(0.255)
         with self.assertRaises(RuntimeError) as cm:
-            _interception.interceptionCalc(alfa, LAI, precipitation, rainy_days, a_v)
-        self.assertEqual("pcrfdiv: operator /: Domain Error\n", str(cm.exception))
+            _interception.interceptionCalc(
+                alfa, LAI, precipitation, rainy_days, a_v
+            )
+        self.assertEqual(
+            "pcrfdiv: operator /: Domain Error\n", str(cm.exception)
+        )
 
     def test_interceptionCalc_None_values(self):
         """"""
         self.assertRaises(
-            RuntimeError, _interception.interceptionCalc, None, None, None, None, None
+            RuntimeError,
+            _interception.interceptionCalc,
+            None,
+            None,
+            None,
+            None,
+            None,
         )
 
 
