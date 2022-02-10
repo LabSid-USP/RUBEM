@@ -94,6 +94,8 @@ class Model:
         _validators.filePathValidator(modelConfig)
         _validators.floatTypeValidator(modelConfig)
         _validators.booleanTypeValidator(modelConfig)
+        _validators.value_range_validator(modelConfig)
+        _validators.domain_validator(modelConfig)
 
     def __setup(self) -> None:
         """Perform model initialization procedures"""
