@@ -156,6 +156,16 @@ def fpar_constraints_enforcer(config: ConfigParser):
         raise ValidationException("fpar_max must be greater than fpar_min")
 
 
+def bfw_constraints_enforcer(config: ConfigParser):
+    bfw_lim = config.getfloat("INITIAL_SOIL_CONDITIONS", "bfw_lim")
+    bfw_ini = config.getfloat("INITIAL_SOIL_CONDITIONS", "bfw_ini")
+    if not bfw_lim > bfw_ini:
+        raise ValidationException(
+            "Baseflow threshold (bfw_lim) must be greater than zero and"
+            " Initial Baseflow (bfw_ini)"
+        )
+
+
 def schemaValidator(config: ConfigParser):
     for section, keys in _schemas.required_config_schema.items():
         if section not in config:
