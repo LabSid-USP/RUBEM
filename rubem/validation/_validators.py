@@ -142,6 +142,13 @@ def output_generation_enforcer(config: ConfigParser):
         )
 
 
+def output_format_enforcer(config: ConfigParser):
+    if all(
+        value == "False" for value in config["RASTER_FILE_FORMAT"].values()
+    ):
+        raise ValidationException("An output file format must be selected")
+
+
 def schemaValidator(config: ConfigParser):
     for section, keys in _schemas.required_config_schema.items():
         if section not in config:
