@@ -31,13 +31,11 @@ try:
     from _dynamic_model import RUBEM
     from date._date_calc import totalSteps
     from file._file_convertions import tss2csv
-    from validation._exception_validation import ValidationException
     from validation import _validators
 except ImportError:
     from ._dynamic_model import RUBEM
     from .date._date_calc import totalSteps
     from .file._file_convertions import tss2csv
-    from .validation._exception_validation import ValidationException
     from .validation import _validators
 
 
