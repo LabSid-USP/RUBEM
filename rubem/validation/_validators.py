@@ -166,6 +166,17 @@ def bfw_constraints_enforcer(config: ConfigParser):
         )
 
 
+def weights_constraints_enforcer(config: ConfigParser):
+    w1 = config.getfloat("CALIBRATION", "w_1")
+    w2 = config.getfloat("CALIBRATION", "w_2")
+    w3 = config.getfloat("CALIBRATION", "w_3")
+    if not w1 + w2 + w3 == 1.0:
+        raise ValidationException(
+            "The sum of the weight factors Land Use (w1), Soil Moisture (w2)"
+            " and Slope (w3) must equal 1.0"
+        )
+
+
 def schemaValidator(config: ConfigParser):
     for section, keys in _schemas.required_config_schema.items():
         if section not in config:
