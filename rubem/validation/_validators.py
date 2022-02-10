@@ -177,6 +177,14 @@ def weights_constraints_enforcer(config: ConfigParser):
         )
 
 
+def domain_validator(config: ConfigParser):
+    output_generation_enforcer(config)
+    output_format_enforcer(config)
+    fpar_constraints_enforcer(config)
+    bfw_constraints_enforcer(config)
+    weights_constraints_enforcer(config)
+
+
 def schemaValidator(config: ConfigParser):
     for section, keys in _schemas.required_config_schema.items():
         if section not in config:
