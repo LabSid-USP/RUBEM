@@ -29,8 +29,8 @@ from pcraster.framework import DynamicFramework
 
 try:
     from _dynamic_model import RUBEM
-    from utilities._date_calc import totalSteps
-    from utilities._file_convertions import tss2csv
+    from date._date_calc import totalSteps
+    from file._file_convertions import tss2csv
     from validation._exception_validation import ValidationException
     from validation._validators import (
         filePathValidator,
@@ -43,8 +43,8 @@ try:
     )
 except ImportError:
     from ._dynamic_model import RUBEM
-    from .utilities._date_calc import totalSteps
-    from .utilities._file_convertions import tss2csv
+    from .date._date_calc import totalSteps
+    from .file._file_convertions import tss2csv
     from .validation._exception_validation import ValidationException
     from .validation._validators import (
         filePathValidator,
