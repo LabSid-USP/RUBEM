@@ -79,7 +79,7 @@ lfw = True
 rec = True
 smc = True
 rnf = True
-tss = True
+tss = False
 
 [RASTER_FILE_FORMAT]
 map_raster_series = True

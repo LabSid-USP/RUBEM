@@ -4,7 +4,7 @@ end = 01/02/2000
 
 [DIRECTORIES]
 input = {PARENT_DIR}/fixtures/base/
-output = {PARENT_DIR}/fixtures/base/out2/
+output = {TEMP_DIR}/out/
 etp = {PARENT_DIR}/fixtures/base/maps/etp/
 prec = {PARENT_DIR}/fixtures/base/maps/rain/
 ndvi = {PARENT_DIR}/fixtures/base/maps/ndvi/
@@ -62,7 +62,7 @@ x = 0.5
 t_ini = 1.0
 bfw_ini = 0.1
 bfw_lim = 1.0
-s_sat_ini = 1.0
+s_sat_ini = 1.1
 
 [CONSTANTS]
 fpar_max = 0.95
