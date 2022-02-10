@@ -5,10 +5,10 @@ from datetime import datetime
 from configparser import ConfigParser
 
 try:
-    from validation._schemas import requiredConfigSchema
+    from validation import _schemas
     from validation._exception_validation import ValidationException
 except ImportError:
-    from ._schemas import requiredConfigSchema
+    from . import _schemas
     from ._exception_validation import ValidationException
 
 logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ def booleanTypeValidator(config: ConfigParser):
 
 
 def schemaValidator(config: ConfigParser):
-    for section, keys in requiredConfigSchema.items():
+    for section, keys in _schemas.required_config_schema.items():
         if section not in config:
             raise ValidationException(
                 f"Missing section {section} in the configuration file"
