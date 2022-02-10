@@ -21,15 +21,19 @@
 """Rainfall rUnoff Balance Enhanced Model Soil"""
 
 
-########## Lateral Flow ##########
-
 import logging
-from pcraster import scalar, exp
+
+import pcraster as pcr
 
 logger = logging.getLogger(__name__)
 
 
-def lfCalc(f, Kr, TUr, TUsat):
+def lfCalc(
+    f: pcr._pcraster.Field,
+    Kr: pcr._pcraster.Field,
+    TUr: pcr._pcraster.Field,
+    TUsat: pcr._pcraster.Field,
+):
     """Return Lateral Flow in the pixel [mm].
 
     :param f: preferred flow direction parameter [-]
@@ -48,8 +52,12 @@ def lfCalc(f, Kr, TUr, TUsat):
     return LF
 
 
-########## Recharge ##########
-def recCalc(f, Kr, TUr, TUsat):
+def recCalc(
+    f: pcr._pcraster.Field,
+    Kr: pcr._pcraster.Field,
+    TUr: pcr._pcraster.Field,
+    TUsat: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return Recharge in the pixel [mm].
 
     :param TUr: Actual soil moisture content non-saturated zone [mm]
@@ -71,8 +79,13 @@ def recCalc(f, Kr, TUr, TUsat):
     return REC
 
 
-########## Base Flow ##########
-def baseflowCalc(EB_prev, alfaS, REC, TUs, EB_lim):
+def baseflowCalc(
+    EB_prev: pcr._pcraster.Field,
+    alfaS: pcr._pcraster.Field,
+    REC: pcr._pcraster.Field,
+    TUs: pcr._pcraster.Field,
+    EB_lim: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return Baseflow in the pixel [mm].
 
     :param EB_prev: Baseflow at timestep t-1 [mm]
@@ -94,15 +107,28 @@ def baseflowCalc(EB_prev, alfaS, REC, TUs, EB_lim):
     :rtype: float
     """
     # limit condition for base flow
-    cond = scalar(TUs > EB_lim)
-    EB = ((EB_prev * ((exp(1)) ** -alfaS)) + (1 - ((exp(1)) ** -alfaS)) * REC) * cond
+    cond = pcr.scalar(TUs > EB_lim)
+    EB = (
+        (EB_prev * ((pcr.exp(1)) ** -alfaS))
+        + (1 - ((pcr.exp(1)) ** -alfaS)) * REC
+    ) * cond
     return EB
 
 
-########## Soil Balance ##########
 # First soil layer
-def turCalc(TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
-    """Return Actual Soil Moisture Content at non-saturated zone in the pixel [mm].
+def turCalc(
+    TUrprev: pcr._pcraster.Field,
+    P: pcr._pcraster.Field,
+    Itp: pcr._pcraster.Field,
+    ES: pcr._pcraster.Field,
+    LF: pcr._pcraster.Field,
+    REC: pcr._pcraster.Field,
+    ETr: pcr._pcraster.Field,
+    Ao: pcr._pcraster.Field,
+    Tsat: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
+    """Return Actual Soil Moisture Content at non-saturated zone in\
+        the pixel [mm].
 
     :param TUrprev: Soil moisture content at timestep t-1 [mm]
     :TUrprev  type: float
@@ -111,7 +137,7 @@ def turCalc(TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
     :P  type: float
 
     :param I: Monthly Interception [mm]
-    :I  type: float
+    :Itp type: float
 
     :param ES: Monthly Surface Runoff [mm]
     :ES  type: float
@@ -136,15 +162,15 @@ def turCalc(TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
     """
 
     # condition for pixel of water, if Ao different of 1 (not water)
-    condw1 = scalar(Ao != 1)
+    condw1 = pcr.scalar(Ao != 1)
     # soil balance
-    balance = TUrprev + P - I - ES - LF - REC - ETr
+    balance = TUrprev + P - Itp - ES - LF - REC - ETr
     # condition for positivie balance
-    cond = scalar(balance > 0)
+    cond = pcr.scalar(balance > 0)
     # if balance is negative TUR = 0, + if pixel is water, TUR = TUsat
     TUrin = (balance * cond) * condw1 + Tsat * (1 - condw1)
     # condition for tur >tursat
-    cond3 = scalar(TUrin < Tsat)
+    cond3 = pcr.scalar(TUrin < Tsat)
     # If Tur>tsat, TUR=TUsat
     TUr = (TUrin * cond3) + Tsat * (1 - cond3)
 
@@ -152,7 +178,11 @@ def turCalc(TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat):
 
 
 # Second soil layer
-def tusCalc(TUsprev, REC, EB):
+def tusCalc(
+    TUsprev: pcr._pcraster.Field,
+    REC: pcr._pcraster.Field,
+    EB: pcr._pcraster.Field,
+) -> pcr._pcraster.Field:
     """Return Actual Water Content at saturated zone in the pixel [mm].
 
     :param TUsprev: Water content at saturated zone at timestep t-1 [mm]
