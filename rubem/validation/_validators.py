@@ -131,6 +131,17 @@ def value_range_validator(config: ConfigParser):
                     )
 
 
+def output_generation_enforcer(config: ConfigParser):
+    if all(
+        value == "False"
+        for option, value in config["GENERATE_FILE"].items()
+        if option != "tss"
+    ):
+        raise ValidationException(
+            "At least one output variable must be selected"
+        )
+
+
 def schemaValidator(config: ConfigParser):
     for section, keys in _schemas.required_config_schema.items():
         if section not in config:
