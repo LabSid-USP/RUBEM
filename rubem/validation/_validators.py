@@ -149,6 +149,13 @@ def output_format_enforcer(config: ConfigParser):
         raise ValidationException("An output file format must be selected")
 
 
+def fpar_constraints_enforcer(config: ConfigParser):
+    fpar_min = config.getfloat("CONSTANTS", "fpar_min")
+    fpar_max = config.getfloat("CONSTANTS", "fpar_max")
+    if not fpar_max > fpar_min:
+        raise ValidationException("fpar_max must be greater than fpar_min")
+
+
 def schemaValidator(config: ConfigParser):
     for section, keys in _schemas.required_config_schema.items():
         if section not in config:
