@@ -1,0 +1,25 @@
+[RASTERS]
+dem = {PARENT_DIR}/fixtures/base/maps/dem/dem.mapp
+demtif = {PARENT_DIR}/fixtures/base/maps/dem/dem.tif
+clone = {PARENT_DIR}/fixtures/base/maps/clone/clone.map
+ndvi_max = {PARENT_DIR}/fixtures/base/maps/ndvi/ndvi_max.map
+ndvi_min = {PARENT_DIR}/fixtures/base/maps/ndvi/ndvi_min.map
+soil = {PARENT_DIR}/fixtures/base/maps/soil/soil.map
+samples = {PARENT_DIR}/fixtures/base/maps/samples/samples.map
+
+[TABLES]
+rainydays = {PARENT_DIR}/fixtures/base/txt/rainydays.txt
+a_i = {PARENT_DIR}/fixtures/base/txt/ldcover/a_i.txt
+a_o = {PARENT_DIR}/fixtures/base/txt/ldcover/a_o.txt
+a_s = {PARENT_DIR}/fixtures/base/txt/ldcover/a_s.txt
+a_v = {PARENT_DIR}/fixtures/base/txt/ldcover/a_v.txt
+manning = {PARENT_DIR}/fixtures/base/txt/ldcover/manning.txt
+bulk_density = {PARENT_DIR}/fixtures/base/txt/soil/dg.txt
+k_sat = {PARENT_DIR}/fixtures/base/txt/soil/Kr.txt
+t_fcap = {PARENT_DIR}/fixtures/base/txt/soil/Tcc.txt
+t_sat = {PARENT_DIR}/fixtures/base/txt/soil/Tsat.txt
+t_wp = {PARENT_DIR}/fixtures/base/txt/soil/Tw.txt
+rootzone_depth = {PARENT_DIR}/fixtures/base/txt/soil/Zr.txt
+k_c_min = {PARENT_DIR}/fixtures/base/txt/ldcover/kcmin.txt
+k_c_max = {PARENT_DIR}/fixtures/base/txt/ldcover/kcmax.txt
+t_por = {PARENT_DIR}/fixtures/base/txt/soil/Tpor.txt
