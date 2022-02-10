@@ -32,30 +32,13 @@ try:
     from date._date_calc import totalSteps
     from file._file_convertions import tss2csv
     from validation._exception_validation import ValidationException
-    from validation._validators import (
-        filePathValidator,
-        fileNamePrefixValidator,
-        floatTypeValidator,
-        booleanTypeValidator,
-        dateValidator,
-        directoryPathValidator,
-        schemaValidator,
-    )
+    from validation import _validators
 except ImportError:
     from ._dynamic_model import RUBEM
     from .date._date_calc import totalSteps
     from .file._file_convertions import tss2csv
     from .validation._exception_validation import ValidationException
-    from .validation._validators import (
-        filePathValidator,
-        fileNamePrefixValidator,
-        floatTypeValidator,
-        booleanTypeValidator,
-        dateValidator,
-        directoryPathValidator,
-        schemaValidator,
-    )
-
+    from .validation import _validators
 logger = logging.getLogger(__name__)
 
 
@@ -104,13 +87,13 @@ class Model:
             raise ValidationException(
                 "Model configuration file must be an instance of ConfigParser"
             )
-        schemaValidator(modelConfig)
-        dateValidator(modelConfig)
-        directoryPathValidator(modelConfig)
-        fileNamePrefixValidator(modelConfig)
-        filePathValidator(modelConfig)
-        floatTypeValidator(modelConfig)
-        booleanTypeValidator(modelConfig)
+        _validators.schemaValidator(modelConfig)
+        _validators.dateValidator(modelConfig)
+        _validators.directoryPathValidator(modelConfig)
+        _validators.fileNamePrefixValidator(modelConfig)
+        _validators.filePathValidator(modelConfig)
+        _validators.floatTypeValidator(modelConfig)
+        _validators.booleanTypeValidator(modelConfig)
 
     def __setup(self) -> None:
         """Perform model initialization procedures"""
