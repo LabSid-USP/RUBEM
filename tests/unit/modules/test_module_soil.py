@@ -1,9 +1,10 @@
 import os
 import unittest
 
-from pcraster import setclone
+import pcraster as pcr
+from pcraster.framework import generalfunctions
 
-from rubem.modules._soil import lfCalc, recCalc, baseflowCalc, turCalc, tusCalc
+from rubem.modules import _soil
 
 
 class LateralFlowSoilModuleTest(unittest.TestCase):
@@ -11,21 +12,34 @@ class LateralFlowSoilModuleTest(unittest.TestCase):
 
     def setUp(self):
         """Runs before each test."""
-        pass
-
-    def tearDown(self):
-        """Runs after each test."""
-        pass
+        self.currentDir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        )
+        pcr.setclone(os.path.join(self.currentDir, "fixtures/clone1x1.map"))
 
     def test_lfCalc(self):
         """"""
-        # lfCalc(f, Kr, TUr, TUsat)
-        raise NotImplementedError
+        f = pcr.scalar(1.0)
+        Kr = pcr.scalar(1.0)
+        TUr = pcr.scalar(1.0)
+        TUsat = pcr.scalar(1.0)
+        result = _soil.lfCalc(f, Kr, TUr, TUsat)
+        expected = 1.0
+        self.assertEqual(result, expected)
+
+    def test_lfCalc_TUsat_eq_0(self):
+        """"""
+        f = pcr.scalar(1.0)
+        Kr = pcr.scalar(1.0)
+        TUr = pcr.scalar(1.0)
+        TUsat = pcr.scalar(0.0)
+        with self.assertRaises(RuntimeError) as cm:
+            _soil.lfCalc(f, Kr, TUr, TUsat)
+        self.assertIn("pcrfdiv: operator /: Domain Error", str(cm.exception))
 
     def test_lfCalc_None_values(self):
         """"""
-        # lfCalc(f, Kr, TUr, TUsat)
-        self.assertRaises(TypeError, lfCalc, None, None, None, None)
+        self.assertRaises(TypeError, _soil.lfCalc, None, None, None, None)
 
 
 class RechargeSoilModuleTest(unittest.TestCase):
@@ -33,21 +47,34 @@ class RechargeSoilModuleTest(unittest.TestCase):
 
     def setUp(self):
         """Runs before each test."""
-        pass
-
-    def tearDown(self):
-        """Runs after each test."""
-        pass
+        self.currentDir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        )
+        pcr.setclone(os.path.join(self.currentDir, "fixtures/clone1x1.map"))
 
     def test_recCalc(self):
         """"""
-        # recCalc(f, Kr, TUr, TUsat)
-        raise NotImplementedError
+        f = pcr.scalar(0.50)
+        Kr = pcr.scalar(1.0)
+        TUr = pcr.scalar(1.0)
+        TUsat = pcr.scalar(1.0)
+        result = _soil.recCalc(f, Kr, TUr, TUsat)
+        expected = 0.5
+        self.assertEqual(result, expected)
+
+    def test_recCalc_TUsat_eq_0(self):
+        """"""
+        f = pcr.scalar(1.0)
+        Kr = pcr.scalar(1.0)
+        TUr = pcr.scalar(1.0)
+        TUsat = pcr.scalar(0.0)
+        with self.assertRaises(RuntimeError) as cm:
+            _soil.recCalc(f, Kr, TUr, TUsat)
+        self.assertIn("pcrfdiv: operator /: Domain Error", str(cm.exception))
 
     def test_recCalc_None_values(self):
         """"""
-        # recCalc(f, Kr, TUr, TUsat)
-        self.assertRaises(TypeError, recCalc, None, None, None, None)
+        self.assertRaises(TypeError, _soil.recCalc, None, None, None, None)
 
 
 class BaseFlowSoilModuleTest(unittest.TestCase):
@@ -55,21 +82,52 @@ class BaseFlowSoilModuleTest(unittest.TestCase):
 
     def setUp(self):
         """Runs before each test."""
-        pass
+        self.currentDir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        )
+        pcr.setclone(os.path.join(self.currentDir, "fixtures/clone1x1.map"))
 
-    def tearDown(self):
-        """Runs after each test."""
-        pass
-
-    def test_baseflowCalc(self):
+    def test_baseflowCalc_cond_true(self):
         """"""
-        # baseflowCalc(EB_prev, alfaS, REC, TUs, EB_lim)
-        raise NotImplementedError
+        EB_prev = pcr.scalar(1.0)
+        alfaS = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        TUs = pcr.scalar(2.0)
+        EB_lim = pcr.scalar(1.0)
+        field = _soil.baseflowCalc(EB_prev, alfaS, REC, TUs, EB_lim)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 1.0
+        self.assertEqual(result, expected)
+
+    def test_baseflowCalc_cond_false_TUs_eq_EBlim(self):
+        """"""
+        EB_prev = pcr.scalar(1.0)
+        alfaS = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        TUs = pcr.scalar(1.0)
+        EB_lim = pcr.scalar(1.0)
+        field = _soil.baseflowCalc(EB_prev, alfaS, REC, TUs, EB_lim)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 0.0
+        self.assertEqual(result, expected)
+
+    def test_baseflowCalc_cond_false_TUs_lt_EBlim(self):
+        """"""
+        EB_prev = pcr.scalar(1.0)
+        alfaS = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        TUs = pcr.scalar(1.0)
+        EB_lim = pcr.scalar(2.0)
+        field = _soil.baseflowCalc(EB_prev, alfaS, REC, TUs, EB_lim)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 0.0
+        self.assertEqual(result, expected)
 
     def test_baseflowCalc_None_values(self):
         """"""
-        # baseflowCalc(EB_prev, alfaS, REC, TUs, EB_lim)
-        self.assertRaises(TypeError, baseflowCalc, None, None, None, None, None)
+        self.assertRaises(
+            TypeError, _soil.baseflowCalc, None, None, None, None, None
+        )
 
 
 class SoilBalanceSoilModuleTest(unittest.TestCase):
@@ -80,33 +138,164 @@ class SoilBalanceSoilModuleTest(unittest.TestCase):
         self.currentDir = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         )
-        setclone(os.path.join(self.currentDir, "fixtures/dem.map"))
+        pcr.setclone(os.path.join(self.currentDir, "fixtures/clone1x1.map"))
 
-    def tearDown(self):
-        """Runs after each test."""
-        pass
-
-    def test_turCalc(self):
+    def test_turCalc_condw1_true_cond_true_cond3_true(self):
         """"""
-        # turCalc(TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat)
-        raise NotImplementedError
+        TUrprev = pcr.scalar(5.0)
+        P = pcr.scalar(5.0)
+        Itp = pcr.scalar(1.0)
+        ES = pcr.scalar(1.0)
+        LF = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        ETr = pcr.scalar(1.0)
+        Ao = pcr.scalar(1.1)
+        Tsat = pcr.scalar(5.5)
+        field = _soil.turCalc(TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 5.0
+        self.assertEqual(result, expected)
+
+    def test_turCalc_condw1_true_cond_true_cond3_false(self):
+        """"""
+        TUrprev = pcr.scalar(5.0)
+        P = pcr.scalar(5.0)
+        Itp = pcr.scalar(1.0)
+        ES = pcr.scalar(1.0)
+        LF = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        ETr = pcr.scalar(1.0)
+        Ao = pcr.scalar(1.1)
+        Tsat = pcr.scalar(4.5)
+        field = _soil.turCalc(TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 4.5
+        self.assertEqual(result, expected)
+
+    def test_turCalc_condw1_true_cond_false_cond3_true(self):
+        """"""
+        TUrprev = pcr.scalar(1.0)
+        P = pcr.scalar(2.0)
+        Itp = pcr.scalar(1.0)
+        ES = pcr.scalar(1.0)
+        LF = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        ETr = pcr.scalar(1.0)
+        Ao = pcr.scalar(1.1)
+        Tsat = pcr.scalar(5.5)
+        field = _soil.turCalc(TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 0.0
+        self.assertEqual(result, expected)
+
+    def test_turCalc_condw1_true_cond_false_cond3_false(self):
+        """"""
+        TUrprev = pcr.scalar(1.0)
+        P = pcr.scalar(2.0)
+        Itp = pcr.scalar(1.0)
+        ES = pcr.scalar(1.0)
+        LF = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        ETr = pcr.scalar(1.0)
+        Ao = pcr.scalar(1.1)
+        Tsat = pcr.scalar(0.0)
+        field = _soil.turCalc(TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 0.0
+        self.assertEqual(result, expected)
+
+    def test_turCalc_condw1_false_cond_true_cond3_true(self):
+        """"""
+        TUrprev = pcr.scalar(5.0)
+        P = pcr.scalar(5.0)
+        Itp = pcr.scalar(1.0)
+        ES = pcr.scalar(1.0)
+        LF = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        ETr = pcr.scalar(1.0)
+        Ao = pcr.scalar(1.0)
+        Tsat = pcr.scalar(5.5)
+        field = _soil.turCalc(TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 5.5
+        self.assertEqual(result, expected)
+
+    def test_turCalc_condw1_false_cond_true_cond3_false(self):
+        """"""
+        TUrprev = pcr.scalar(5.0)
+        P = pcr.scalar(5.0)
+        Itp = pcr.scalar(1.0)
+        ES = pcr.scalar(1.0)
+        LF = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        ETr = pcr.scalar(1.0)
+        Ao = pcr.scalar(1.0)
+        Tsat = pcr.scalar(4.5)
+        field = _soil.turCalc(TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 4.5
+        self.assertEqual(result, expected)
+
+    def test_turCalc_condw1_false_cond_false_cond3_true(self):
+        """"""
+        TUrprev = pcr.scalar(1.0)
+        P = pcr.scalar(2.0)
+        Itp = pcr.scalar(1.0)
+        ES = pcr.scalar(1.0)
+        LF = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        ETr = pcr.scalar(1.0)
+        Ao = pcr.scalar(1.0)
+        Tsat = pcr.scalar(5.5)
+        field = _soil.turCalc(TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 5.5
+        self.assertEqual(result, expected)
+
+    def test_turCalc_condw1_false_cond_false_cond3_false(self):
+        """"""
+        TUrprev = pcr.scalar(1.0)
+        P = pcr.scalar(2.0)
+        Itp = pcr.scalar(1.0)
+        ES = pcr.scalar(1.0)
+        LF = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        ETr = pcr.scalar(1.0)
+        Ao = pcr.scalar(1.0)
+        Tsat = pcr.scalar(0.0)
+        field = _soil.turCalc(TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 0.0
+        self.assertEqual(result, expected)
 
     def test_tusCalc(self):
         """"""
-        # tusCalc(TUsprev, REC, EB)
-        raise NotImplementedError
+        TUsprev = pcr.scalar(1.0)
+        REC = pcr.scalar(1.0)
+        EB = pcr.scalar(1.0)
+        result = _soil.tusCalc(TUsprev, REC, EB)
+        expected = 1.0
+        self.assertEqual(result, expected)
 
     def test_turCalc_None_values(self):
         """"""
-        # turCalc(TUrprev, P, I, ES, LF, REC, ETr, Ao, Tsat)
         self.assertRaises(
-            TypeError, turCalc, None, None, None, None, None, None, None, None, None
+            TypeError,
+            _soil.turCalc,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         )
 
     def test_tusCalc_None_values(self):
         """"""
-        # tusCalc(TUsprev, REC, EB)
-        self.assertRaises(TypeError, tusCalc, None, None, None)
+        self.assertRaises(TypeError, _soil.tusCalc, None, None, None)
 
 
 def suite():
