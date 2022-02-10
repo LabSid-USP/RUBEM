@@ -23,3 +23,10 @@ def parentDirUpdate(template, tags, target, dirs):
             content = content.replace(tag, dir)
     with open(target, "w") as outputFile:
         outputFile.write(content)
+
+
+def areIdendicalFiles(filePath1, filePath2):
+    if os.path.getsize(filePath1) == os.path.getsize(filePath2):
+        if open(filePath1, "r").read() == open(filePath2, "r").read():
+            return True
+    return False
