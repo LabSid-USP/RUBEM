@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 
 def filePathArgValidator(path: str):
     if not os.path.exists(path):
-        raise argparse.ArgumentTypeError(f'model config file "{path}" does not exist')
+        raise argparse.ArgumentTypeError(
+            f'model config file "{path}" does not exists'
+        )
     elif not os.path.isfile(path):
         raise argparse.ArgumentTypeError(
             f'model config file "{path}" is not a valid file'
@@ -39,7 +41,8 @@ def dateValidator(config: ConfigParser):
                 datetime.strptime(date_string, format)
             except ValueError as e:
                 raise ValidationException(
-                    "Incorrect date string format. It should be DD/MM/YYYY"
+                    f"Incorrect SIM_TIME:{option} date string format. It"
+                    " should be DD/MM/YYYY"
                 ) from e
             except Exception as e:
                 raise SystemExit(1, e)
@@ -53,15 +56,15 @@ def fileNamePrefixValidator(config: ConfigParser):
             raise ValidationException from e
 
         try:
-            assert (
-                1 <= len(prefix) <= 8
-            ), "The raster map series prefix must follow the standard 8.3 DOS style format"
-        except AssertionError as e:
-            raise SystemExit(
-                1,
-                e,
-                ValidationException(f'Invalid filename prefix length "{prefix}"'),
+            assert 1 <= len(prefix) <= 8, (
+                "The raster map series prefix must follow"
+                "the standard 8.3 DOS style format"
             )
+        except AssertionError as e:
+            raise ValidationException(
+                "Invalid filename prefix length"
+                f" FILENAME_PREFIXES:{option}:{prefix}"
+            ) from e
         except Exception as e:
             raise SystemExit(1, e)
 
@@ -76,9 +79,13 @@ def filePathValidator(config: ConfigParser):
                 raise ValidationException from e
             else:
                 if not os.path.exists(path):
-                    raise ValidationException(f'"{path}" does not exist')
+                    raise ValidationException(
+                        f"{section}:{option}:{path} does not exists"
+                    )
                 elif not os.path.isfile(path):
-                    raise ValidationException(f'"{path}" is not a valid file')
+                    raise ValidationException(
+                        f"{section}:{option}:{path} is not a valid file"
+                    )
 
 
 def directoryPathValidator(config: ConfigParser):
@@ -89,9 +96,13 @@ def directoryPathValidator(config: ConfigParser):
             raise ValidationException from e
         else:
             if not os.path.exists(path):
-                raise ValidationException(f'"{path}" does not exist')
+                raise ValidationException(
+                    f"DIRECTORIES:{option}:{path} does not exists"
+                )
             elif not os.path.isdir(path):
-                raise ValidationException(f'"{path}" is not a valid directory')
+                raise ValidationException(
+                    f"DIRECTORIES:{option}:{path} is not a valid directory"
+                )
 
 
 def floatTypeValidator(config: ConfigParser):
@@ -101,7 +112,9 @@ def floatTypeValidator(config: ConfigParser):
             try:
                 config.getfloat(section, option)
             except Exception as e:
-                raise ValidationException from e
+                raise ValidationException(
+                    f"{section}:{option} does not contain a valid float value"
+                ) from e
 
 
 def booleanTypeValidator(config: ConfigParser):
@@ -111,7 +124,10 @@ def booleanTypeValidator(config: ConfigParser):
             try:
                 config.getboolean(section, option)
             except Exception as e:
-                raise ValidationException from e
+                raise ValidationException(
+                    f"{section}:{option} does not contain a valid boolean"
+                    " value"
+                ) from e
 
 
 def value_range_validator(config: ConfigParser):
@@ -189,11 +205,12 @@ def schemaValidator(config: ConfigParser):
     for section, keys in _schemas.required_config_schema.items():
         if section not in config:
             raise ValidationException(
-                f"Missing section {section} in the configuration file"
+                f"Missing section '{section}' in the configuration file"
             )
 
         for key, values in keys.items():
             if key not in config[section] or config.get(section, key) == "":
                 raise ValidationException(
-                    f"Missing value for {key} under section {section} in the config file"
+                    f"Missing value for '{key}' under section {section} in the"
+                    " config file"
                 )
