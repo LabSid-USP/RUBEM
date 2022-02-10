@@ -39,6 +39,8 @@ except ImportError:
     from .file._file_convertions import tss2csv
     from .validation._exception_validation import ValidationException
     from .validation import _validators
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,7 +61,8 @@ class Model:
 
         if not isinstance(modelConfig, ConfigParser):
             raise TypeError(
-                f"The model constructor expected an argument type like ConfigParser, but got {type(modelConfig)}"
+                "The model constructor expected an argument type like"
+                f" ConfigParser, but got {type(modelConfig)}"
             )
 
         self.__validateModelConfig(modelConfig)
@@ -129,7 +132,8 @@ class Model:
     def load(cls, data):
         """Load an existing model
 
-        :param data: A file-like object to read INI data from, path to a filename to read, or a parsed dict
+        :param data: A file-like object to read INI data from, path\
+            to a filename to read, or a parsed dict
         :type data: file-like, str, dict
         :raises Exception: Unsupported model configuration format
         """
@@ -138,7 +142,9 @@ class Model:
         elif isinstance(data, dict):
             return cls.__loadFromDict(data)
         else:
-            raise Exception("Unsupported model configuration format", type(data))
+            raise Exception(
+                "Unsupported model configuration format", type(data)
+            )
 
     @classmethod
     def __loadFromConfigFile(cls, filePath):
@@ -169,7 +175,8 @@ class Model:
         if self.config.getboolean("GENERATE_FILE", "tss"):
             logger.info("Exporting tables as CSV...")
             cols = [str(n) for n in self.model.sample_vals[1:]]
-            # Convert generated time series to .csv format and removes .tss files
+            # Convert generated time series to .csv format and
+            # removes .tss files
             tss2csv(self.config.get("DIRECTORIES", "output"), cols)
         else:
             raise RuntimeError("Generation of time series must be activated")
