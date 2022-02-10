@@ -13,7 +13,7 @@ def removeDirectory(dirPath):
         try:
             shutil.rmtree(dirPath)
         except OSError:
-            time.sleep(0.5)
+            time.sleep(0.42)
 
 
 def parentDirUpdate(template, tag, target, currentDir):
