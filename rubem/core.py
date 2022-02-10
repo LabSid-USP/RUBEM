@@ -51,8 +51,10 @@ class Model:
 
         :param modelConfig: Configuration parser object
         :type modelConfig: ConfigParser
-        :raises TypeError: The class constructor did not take an argument of the expected type
-        :raises SystemExit: The class constructor was unable to validate the given settings
+        :raises TypeError: The class constructor did not take an\
+            argument of the expected type
+        :raises SystemExit: The class constructor was unable to\
+            validate the given settings
         """
 
         if not isinstance(modelConfig, ConfigParser):
@@ -60,12 +62,8 @@ class Model:
                 f"The model constructor expected an argument type like ConfigParser, but got {type(modelConfig)}"
             )
 
-        try:
-            self.__validateModelConfig(modelConfig)
-        except Exception as e:
-            raise SystemExit(1) from e
-        else:
-            self.config = modelConfig
+        self.__validateModelConfig(modelConfig)
+        self.config = modelConfig
 
         startDate = self.config.get("SIM_TIME", "start")
         endDate = self.config.get("SIM_TIME", "end")
@@ -78,15 +76,8 @@ class Model:
 
         :param modelConfig: Configuration parser object
         :type modelConfig: ConfigParser
-        :raises ValidationException: Null configuration parser object
-        :raises ValidationException: It is not a configuration parser object
         """
-        if not modelConfig:
-            raise ValidationException("Model configuration file cannot be null")
-        elif not isinstance(modelConfig, ConfigParser):
-            raise ValidationException(
-                "Model configuration file must be an instance of ConfigParser"
-            )
+
         _validators.schemaValidator(modelConfig)
         _validators.dateValidator(modelConfig)
         _validators.directoryPathValidator(modelConfig)
