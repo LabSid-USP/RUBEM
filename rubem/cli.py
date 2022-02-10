@@ -39,10 +39,12 @@ def main():
     parser = argparse.ArgumentParser(
         prog="rubem",
         description="Rainfall rUnoff Balance Enhanced Model (RUBEM)",
-        epilog=f"RUBEM {__release__} Copyright (C) 2020-2021 - LabSid PHA EPUSP -\
-        This program comes with ABSOLUTELY NO WARRANTY.\
-        This is free software, and you are welcome to redistribute it\
-        under certain conditions.",
+        epilog=(
+            f"RUBEM {__release__} Copyright (C) 2020-2021 - LabSid PHA EPUSP -"
+            "        This program comes with ABSOLUTELY NO WARRANTY.       "
+            " This is free software, and you are welcome to redistribute it  "
+            "      under certain conditions."
+        ),
     )
     parser.add_argument(
         "-c",
