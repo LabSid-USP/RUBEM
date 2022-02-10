@@ -1,8 +1,49 @@
 import os
+import tempfile
 import unittest
 
 from tests.utils import parentDirUpdate, removeFile, removeDirectory
 from rubem.core import Model
+
+
+class ModelRunNoExportTablesTest(unittest.TestCase):
+    """"""
+
+    def setUp(self):
+        """Runs before each test."""
+
+        self.currentDir = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        )
+        self.tempDir = tempfile.mkdtemp()
+        self.templateBaseProject = os.path.join(
+            self.currentDir, "fixtures/base3.template"
+        )
+        self.baseProjectFile = os.path.join(self.tempDir, "base.ini")
+        if not os.path.exists(self.baseProjectFile):
+            parentDirUpdate(
+                template=self.templateBaseProject,
+                tags=["{PARENT_DIR}", "{TEMP_DIR}"],
+                target=self.baseProjectFile,
+                dirs=[self.currentDir, self.tempDir],
+            )
+
+        self.baseProjectOutputDir = os.path.join(self.tempDir, "out")
+        if not os.path.exists(self.baseProjectOutputDir):
+            os.mkdir(self.baseProjectOutputDir)
+
+    def tearDown(self):
+        """Runs after each test."""
+        removeDirectory(self.tempDir)
+
+    def test_run_tss_false_config_ini_file(self):
+        """"""
+        model = Model.load(self.baseProjectFile)
+        with self.assertRaises(Exception) as cm:
+            model.run()
+        self.assertEqual(
+            "Generation of time series must be activated", str(cm.exception)
+        )
 
 
 class ModelRunTest(unittest.TestCase):
@@ -14,26 +55,26 @@ class ModelRunTest(unittest.TestCase):
         self.currentDir = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         )
+        self.tempDir = tempfile.mkdtemp()
         self.templateBaseProject = os.path.join(
             self.currentDir, "fixtures/base2.template"
         )
-        self.baseProjectFile = os.path.join(self.currentDir, "fixtures/base2.ini")
+        self.baseProjectFile = os.path.join(self.tempDir, "base.ini")
         if not os.path.exists(self.baseProjectFile):
             parentDirUpdate(
                 template=self.templateBaseProject,
-                tag="{PARENT_DIR}",
+                tags=["{PARENT_DIR}", "{TEMP_DIR}"],
                 target=self.baseProjectFile,
-                currentDir=self.currentDir,
+                dirs=[self.currentDir, self.tempDir],
             )
 
-        self.baseProjectOutputDir = os.path.join(self.currentDir, "fixtures/base/out2")
+        self.baseProjectOutputDir = os.path.join(self.tempDir, "out")
         if not os.path.exists(self.baseProjectOutputDir):
             os.mkdir(self.baseProjectOutputDir)
 
     def tearDown(self):
         """Runs after each test."""
-        removeFile(self.baseProjectFile)
-        removeDirectory(self.baseProjectOutputDir)
+        removeDirectory(self.tempDir)
 
     def test_run_config_ini_file(self):
         """Test we can run a model from a configuration file"""
@@ -86,7 +127,17 @@ class ModelRunTest(unittest.TestCase):
         )
 
 
+def suite():
+    """
+    Gather all the tests from this module in a test suite.
+    """
+    testSuite = unittest.TestSuite()
+    testSuite.addTest(unittest.makeSuite(ModelRunTest))
+    testSuite.addTest(unittest.makeSuite(ModelRunNoExportTablesTest))
+    return testSuite
+
+
 if __name__ == "__main__":
-    suite = unittest.makeSuite(ModelRunTest)
+    testSuite = suite()
     runner = unittest.TextTestRunner(verbosity=2)
-    runner.run(suite)
+    runner.run(testSuite)
