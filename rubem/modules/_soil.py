@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 def lfCalc(
-    f: pcr._pcraster.Field,
+    f: float,
     Kr: pcr._pcraster.Field,
     TUr: pcr._pcraster.Field,
     TUsat: pcr._pcraster.Field,
@@ -40,40 +40,43 @@ def lfCalc(
     :f  type: float
 
     :param TUr: Actual soil moisture content non-saturated zone [mm]
-    :TUr  type: float
+    :TUr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param TUsat: Soil moisture content at saturation point []
-    :TUsat  type: float
+    :TUsat  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: Lateral Flow [mm]
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     LF = f * Kr * ((TUr / TUsat) ** 2)
     return LF
 
 
 def recCalc(
-    f: pcr._pcraster.Field,
+    f: float,
     Kr: pcr._pcraster.Field,
     TUr: pcr._pcraster.Field,
     TUsat: pcr._pcraster.Field,
 ) -> pcr._pcraster.Field:
     """Return Recharge in the pixel [mm].
-
+    
+    :param f: preferred flow direction parameter [-]
+    :f  type: float
+    
     :param TUr: Actual soil moisture content non-saturated zone [mm]
-    :TUr  type: float
+    :TUr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Kr: Hydraulic Conductivity of soil class [mm/month]
-    :Kr  type: float
+    :Kr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param TUr: Actual soil moisture content non-saturated zone [mm]
-    :TUr  type: float
+    :TUr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param TUsat: Soil moisture content at saturation point [-]
-    :TUsat  type: float
+    :TUsat  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: Monthly Recharge [mm]
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     REC = (1 - f) * Kr * ((TUr / TUsat) ** 2)
     return REC
@@ -81,7 +84,7 @@ def recCalc(
 
 def baseflowCalc(
     EB_prev: pcr._pcraster.Field,
-    alfaS: pcr._pcraster.Field,
+    alfaS: float,
     REC: pcr._pcraster.Field,
     TUs: pcr._pcraster.Field,
     EB_lim: pcr._pcraster.Field,
@@ -89,22 +92,22 @@ def baseflowCalc(
     """Return Baseflow in the pixel [mm].
 
     :param EB_prev: Baseflow at timestep t-1 [mm]
-    :EB_prev  type: float
+    :EB_prev  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param alfaS: Baseflow recession coefficient (Calibrated) [-]
     :alfaS  type: float
 
     :param REC: Monthly Recharge at timestep t
-    :REC  type: float
+    :REC  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param TUs: Water contect at saturated zone [mm]
-    :TUs  type: float
+    :TUs  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param EB_lim: Threshold for baseflow ocurrence [mm]
-    :EB_lim  type: float
+    :EB_lim  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: Monthly Baseflow [mm]
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     # limit condition for base flow
     cond = pcr.scalar(TUs > EB_lim)
@@ -131,34 +134,34 @@ def turCalc(
         the pixel [mm].
 
     :param TUrprev: Soil moisture content at timestep t-1 [mm]
-    :TUrprev  type: float
+    :TUrprev  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param P: Monthly precipitation [mm]
-    :P  type: float
+    :P  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param I: Monthly Interception [mm]
-    :Itp type: float
+    :Itp type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param ES: Monthly Surface Runoff [mm]
-    :ES  type: float
+    :ES  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param LF: Monthly Lateral Flow [mm]
-    :LF  type: float
+    :LF  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param REC: Monthly Recharge [mm]
-    :REC  type: float
+    :REC  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param ETr: Monthly Actual Evapotranspiration [mm]
-    :ETr  type: float
+    :ETr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Ao: Open Water Area Fraction [-]
-    :Ao  type: float
+    :Ao  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Tsat: Soil moisture content at saturation point []
-    :Tsat  type: float
+    :Tsat  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: Soil Moisture Content [mm]
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
 
     # condition for pixel of water, if Ao different of 1 (not water)
@@ -186,16 +189,16 @@ def tusCalc(
     """Return Actual Water Content at saturated zone in the pixel [mm].
 
     :param TUsprev: Water content at saturated zone at timestep t-1 [mm]
-    :TUsprev  type: float
+    :TUsprev  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param REC: Monthly Recharge [mm]
-    :REC  type: float
+    :REC  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param EB: Monthly Baseflow[mm]
-    :EB  type: float
+    :EB  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: Water content at saturated zone [mm]
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     # soil balance
     balance = TUsprev + REC - EB
