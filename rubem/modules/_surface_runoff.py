@@ -33,27 +33,27 @@ def chCalc(
     dg: pcr._pcraster.Field,
     Zr: pcr._pcraster.Field,
     Tsat: pcr._pcraster.Field,
-    b: pcr._pcraster.Field,
+    b: float,
 ) -> pcr._pcraster.Field:
     """Return coefficient representing soil moisture conditions (Ch).
 
     :param TUr: Actual Soil moisture content [mm]
-    :TUr  type: float
+    :TUr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param dg: Soil Bulk Density [g/cm3]
-    :dg  type:float
+    :dg  type:pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Zr: Depth Rootzone [cm]
-    :Zr  type: float
+    :Zr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param tpor: Soil Porosity [%]
-    :tpor  type: float
+    :tpor  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param b: Ch parameter (calibrated)
     :b  type: float
 
     :returns: coefficient representing soil moisture conditions [-]
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     tur = TUr / (dg * Zr * 10)  # [%] soil moisture
     Ch = (tur / Tsat) ** b
@@ -73,19 +73,19 @@ def cperCalc(
     """Return the runoff coefficient for permeable areas (Cper).
 
     :param TUw:  soil water content at wilting point
-    :TUw  type: float
+    :TUw  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param dg: Soil Bulk Density [g/cm3]
-    :dg  type:float
+    :dg  type:pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Zr: Depth Rootzone [cm]
-    :Zr  type: float
+    :Zr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param S: Land surfafe slope [%]
-    :S  type: float
+    :S  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param manning: Manning's roughness coefficient [-]
-    :manning  type: float
+    :manning  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param w1: weight for landuse component [-]
     :w1  type: float
@@ -97,7 +97,7 @@ def cperCalc(
     :w3  type: float
 
     :returns: Runoff coefficient for permeable areas (Cper).
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     tuw = TUw / (dg * Zr * 10)  # [%] soil wilting point
     Cper = (
@@ -107,20 +107,21 @@ def cperCalc(
 
 
 def cimpCalc(
-    ao: pcr._pcraster.Field, ai: pcr._pcraster.Field
+    ao: pcr._pcraster.Field, 
+    ai: pcr._pcraster.Field
 ) -> pcr._pcraster.Field:
     """Return percentage of impervious surface per grid cell and\
         the runoff coefficient of the impervious area (Cimp).
 
     :param Ao: Open Water Area Fraction [-]
-    :Ao  type: float
+    :ao  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param ai: Impervious Area Fraction [-]
-    :ai  type: float
+    :ai  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: percentage of impervious surface per grid cell and\
         the runoff coefficient of the impervious area [-]
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     Aimp = ao + ai
     Cimp = 0.09 * pcr.exp((2.4 * Aimp))
@@ -135,16 +136,16 @@ def cwpCalc(
     """Return weighted potential runoff coefficient (Cwp).
 
     :param Aimp: percentage of impervious surface per grid cell
-    :Aimp  type: float
+    :Aimp  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Cper: Runoff coefficient for permeable areas (Cper)
-    :Cper  type: float
+    :Cper  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Cimp: the runoff coefficient of the impervious area [-]
-    :Cimp  type: float
+    :Cimp  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: weighted potential runoff coefficient (Cwp)
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     Cwp = (1 - Aimp) * Cper + Aimp * Cimp
     return Cwp
@@ -153,21 +154,21 @@ def cwpCalc(
 def csrCalc(
     Cwp: pcr._pcraster.Field,
     P_24: pcr._pcraster.Field,
-    RCD: pcr._pcraster.Field,
+    RCD: float,
 ) -> pcr._pcraster.Field:
     """Return actual runoff coefficient (Csr).
 
     :param Cwp: weighted potential runoff coefficient (Cwp)
-    :Cwp  type: float
+    :Cwp  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param P_24: average daily rainfall in rainy days (mm/day per month)
-    :P_24  type:
+    :P_24  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param RCD: Regional consecutive dryness level (mm)
     :RCD  type: float
 
     :returns: actual runoff coefficient (Csr) [-]
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     Csr = (Cwp * P_24) / (Cwp * P_24 - RCD * Cwp + RCD)
     return Csr
@@ -186,31 +187,31 @@ def sRunoffCalc(
     """Return surface runoff [mm].
 
     :param Csr: actual runoff coefficient (Csr) [-]
-    :Csr  type: float
+    :Csr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Ch: coefficient representing soil moisture conditions (Ch)
-    :Ch  type: float
+    :Ch  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param prec: Monthly precipitation [mm]
-    :prec  type: float
+    :prec  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param I: Monthly Interception [mm]
-    :Itp  type: float
+    :Itp  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Ao: Open Water Area Fraction [-]
-    :Ao  type: float
+    :Ao  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param ETao: Evaporation of  Open Water Area [mm]
-    :ETao  type: float
+    :ETao  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param TUr: Actual soil moisture content non-saturated zone [mm]
-    :TUr  type: float
+    :TUr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Tsat: Soil moisture content at saturation point [-]
-    :TUsat  type: float
+    :TUsat  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: Monthly surface runoff [mm]
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     # condition for pixel of water
     cond1 = pcr.scalar(Ao == 1)

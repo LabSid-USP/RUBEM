@@ -36,16 +36,16 @@ def ksCalc(
         vegetated area.
 
     :param TUr: Actual Soil Moisture Content [mm]
-    :TUr  type: float
+    :TUr  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param TUw: Wilting Point of soil class [mm]
-    :TUw  type: float
+    :TUw  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param TUcc: Field Capacity of soil class [mm]
-    :TUcc  type: float
+    :TUcc  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: Water Stress Coefficient (Ks) [-]
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     ks_cond = pcr.scalar(TUr > TUw)  # caso TUr < TUw, (false, ks = 0)
     # Multiply (TUr - TUw) to avoid negative pcr.ln
@@ -59,16 +59,16 @@ def etavCalc(
     """Return evapotranspiration of vegetated area.
 
     :param ETp: Potential Evapotranspiration [mm]
-    :ETp  type: float
+    :ETp  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Kc: Crop Coefficient [-]
-    :Kc  type: float
+    :Kc  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Ks: Water Stress Coefficient [-]
-    :Ks  type: float
+    :Ks  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: Actual Evapotranspiration
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     ETav = ETp * Kc * Ks
     return ETav
@@ -102,19 +102,19 @@ def etaoCalc(
     """Return actual evapotranspiration of open water area.
 
     :param ETp: Monthly Potential Evapotranspiration [mm]
-    :ETp  type: float
+    :ETp  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Kp: pan coefficient (Kp) []
-    :Kp  type: float
+    :Kp  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param prec: Monthly Precipitation [mm]
-    :prec  type: float
+    :prec  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Ao: Open water Area Fraction
-    :Ao  type: float
+    :Ao  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: Actual evapotranspiration of open water area
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     # condition for pixel of water
     cond1 = pcr.scalar(Ao == 1)
@@ -144,16 +144,16 @@ def etasCalc(
     """Return Ks for evapotranspiration of bare soil area.
 
     :param ETp: Monthly Potential Evapotranspiration [mm]
-    :ETp  type: float
+    :ETp  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param kc_min: Minimum crop Coefficient [-]
-    :kc_min  type: float
+    :kc_min  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :param Ks: Water Stress Coefficient [-]
-    :Ks  type: float
+    :Ks  type: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
 
     :returns: Actual Evapotranspiration of bare soil area
-    :rtype: float
+    :rtype: pcr._pcraster.Field PCRASTER_VALUESCALE=VS_SCALAR
     """
     cond = 1 * pcr.scalar(Ks != 0)  # caso ks seja diferente de 0
     ETas = ETp * kc_min * Ks * cond
