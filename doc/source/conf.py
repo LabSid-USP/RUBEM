@@ -18,7 +18,7 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""RUBEM help setup."""
+"""RUBEM help setup"""
 
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
@@ -62,6 +62,9 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.viewcode",
+    "sphinx_autodoc_typehints",
     "sphinx.ext.autodoc",
     "sphinx.ext.coverage",
     "sphinx.ext.napoleon",
@@ -74,6 +77,19 @@ email_automode = True
 
 # Turn on sphinx.ext.autosummary
 autosummary_generate = True
+autodoc_mock_imports = ["pcraster", "osgeo", "skgstat", "pykrige", "numpy", "pandas"]
+# Add __init__ doc (ie. params) to class summaries
+autoclass_content = "both"
+# Remove 'view source code' from top of page (for html, not python)
+html_show_sourcelink = False
+# If no docstring, inherit from base class
+autodoc_inherit_docstrings = True
+# Enable 'expensive' imports for sphinx_autodoc_typehints
+set_type_checking_flag = True
+# Sphinx-native method. Not as good as sphinx_autodoc_typehints
+# autodoc_typehints = "description"
+# Remove namespaces from class/method signatures
+add_module_names = False
 
 mathjax_path = (
     "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"

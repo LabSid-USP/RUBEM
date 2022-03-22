@@ -1,0 +1,8 @@
+[DIRECTORIES]
+input = {PARENT_DIR}/fixtures/base/
+output = {TEMP_DIR}/out/
+etp = {PARENT_DIR}/fixtures/base/maps/etp/
+prec = {PARENT_DIR}/fixtures/base/maps/rain/
+ndvi = {PARENT_DIR}/fixtures/base/maps/ndvi/
+kp = {PARENT_DIR}/fixtures/base/maps/kp/
+landuse = {PARENT_DIR}/fixtures/base/maps/ldcover/
