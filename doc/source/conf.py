@@ -1,7 +1,7 @@
 # coding=utf-8
 # RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
-# Copyright (C) 2020-2021 LabSid PHA EPUSP
+# Copyright (C) 2020-2022 LabSid PHA EPUSP
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 
 __author__ = "LabSid PHA EPUSP"
 __email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2021, LabSid PHA EPUSP"
+__copyright__ = "Copyright 2020-2022, LabSid PHA EPUSP"
 __license__ = "GPL"
 __date__ = "2021-11-23"
 __version__ = "0.1.0"
@@ -49,8 +49,15 @@ sys.path.insert(0, os.path.abspath("../.."))
 # -- Project information -----------------------------------------------------
 
 project = "Rainfall rUnoff Balance Enhanced Model (RUBEM)"
-copyright = "2021, Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia Ambiental e de Recursos Hídricos (LabSid) PHA-EPUSP & contributors"
-author = "Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia Ambiental e de Recursos Hídricos (LabSid) PHA-EPUSP & contributors"
+copyright = (
+    "2020-2022, Laboratório de Sistemas de Suporte a Decisões Aplicados à"
+    " Engenharia Ambiental e de Recursos Hídricos (LabSid) PHA-EPUSP &"
+    " contributors"
+)
+author = (
+    "Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia"
+    " Ambiental e de Recursos Hídricos (LabSid) PHA-EPUSP & contributors"
+)
 
 
 # -- General configuration ---------------------------------------------------
@@ -77,7 +84,14 @@ email_automode = True
 
 # Turn on sphinx.ext.autosummary
 autosummary_generate = True
-autodoc_mock_imports = ["pcraster", "osgeo", "skgstat", "pykrige", "numpy", "pandas"]
+autodoc_mock_imports = [
+    "pcraster",
+    "osgeo",
+    "skgstat",
+    "pykrige",
+    "numpy",
+    "pandas",
+]
 # Add __init__ doc (ie. params) to class summaries
 autoclass_content = "both"
 # Remove 'view source code' from top of page (for html, not python)
@@ -91,9 +105,7 @@ set_type_checking_flag = True
 # Remove namespaces from class/method signatures
 add_module_names = False
 
-mathjax_path = (
-    "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
-)
+mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -241,7 +253,8 @@ latex_documents = [
         "index",
         "RUBEMHydrological.tex",
         "RUBEM Hydrological Documentation",
-        "Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia Ambiental e de Recursos Hídricos LabSid-PHA-EPUSP & contributors",
+        "Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia"
+        " Ambiental e de Recursos Hídricos LabSid-PHA-EPUSP & contributors",
         "manual",
     ),
 ]
@@ -280,7 +293,9 @@ man_pages = [
         "TemplateClass",
         "RUBEM Hydrological Documentation",
         [
-            "Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia Ambiental e de Recursos Hídricos LabSid-PHA-EPUSP & contributors"
+            "Laboratório de Sistemas de Suporte a Decisões Aplicados à"
+            " Engenharia Ambiental e de Recursos Hídricos LabSid-PHA-EPUSP &"
+            " contributors"
         ],
         1,
     )

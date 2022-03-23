@@ -1,7 +1,7 @@
 # coding=utf-8
 # RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
-# Copyright (C) 2020-2021 LabSid PHA EPUSP
+# Copyright (C) 2020-2022 LabSid PHA EPUSP
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -105,7 +105,9 @@ class Krige_Interpolation(DynamicModel):
                 enable_plotting=False,
                 coordinates_type="geographic",
             )
-            self.z, ss = OK.execute("grid", self.gridx, (np.flip(self.gridy, axis=0)))
+            self.z, ss = OK.execute(
+                "grid", self.gridx, (np.flip(self.gridy, axis=0))
+            )
             self.z1 = np.where(self.z < 0, 0, self.z)
 
         self.rain = numpy2pcr(Scalar, self.z1, -999)

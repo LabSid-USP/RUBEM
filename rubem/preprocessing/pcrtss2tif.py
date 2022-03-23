@@ -1,7 +1,7 @@
 # coding=utf-8
 # RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
-# Copyright (C) 2020-2021 LabSid PHA EPUSP
+# Copyright (C) 2020-2022 LabSid PHA EPUSP
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -75,7 +75,9 @@ def pcrTss2Tif(inputFolder, demSrc):
     src = demSrc
     outpath = inputFolder
     print(outpath)
-    files_path = [os.path.join(outpath, fn) for fn in next(os.walk(outpath))[2]]
+    files_path = [
+        os.path.join(outpath, fn) for fn in next(os.walk(outpath))[2]
+    ]
     for i in range(len(files_path)):
         print(files_path[i])
         readFile = pcr.readmap(files_path[i])
