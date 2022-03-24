@@ -42,4 +42,4 @@ Version 0.1.0-alpha
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Refactoring of core module (`#76 <https://github.com/LabSid-USP/RUBEM/pull/76>`__);
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Review of the source code base (`#5 <https://github.com/LabSid-USP/RUBEM/pull/4 and https://github.com/LabSid-USP/RUBEM/pull/5>`__); 
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Clean up the source code base (`#18 <https://github.com/LabSid-USP/RUBEM/pull/18>`__);
-- 
+
