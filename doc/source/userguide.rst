@@ -394,7 +394,7 @@ Mandatory path to file with values of fraction of vegetated area values for each
 Crop Coefficient (K\ :sub:`C`\)
 ```````````````````````````````
 
-:raw-html:`Maximum K<sub>C</sub>`
+:raw-html:`Maximum (K<sub>C</sub>)`
 ''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Mandatory path to a tabular file with values of maximum crop coefficient for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
@@ -404,7 +404,7 @@ Mandatory path to a tabular file with values of maximum crop coefficient for eac
    [TABLES]
    K_c_max = /Dataset/UIGCRB/input/txt/landuse/kcmax.txt
 
-:raw-html:`Minimum K<sub>C</sub>`
+:raw-html:`Minimum (K<sub>C</sub>)`
 ''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Mandatory path to a tabular file with values of minimum crop coefficient for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
@@ -537,7 +537,7 @@ Regional Consecutive Dryness Level (RCD)
 
 Mandatory float value [mm] that incorporates the intensity of rain and the number of consecutive days in runoff calculation.
 
-.. math:: 1.0 \leq RCD \leq 10
+.. math:: 0 \leq RCD \leq 10
 
 :math:`RCD = 1.0` can be used for very heavy or torrential rainfall and more than 10 consecutive rainy days/month, and :math:`RCD = 10.0` for low regional intensity rainfall less than 2 consecutive rainy days per month.
 
@@ -560,7 +560,7 @@ Mandatory float value [dimensionless quantity] used to partition the flow out of
    [CALIBRATION]
    f = 0.5
 
-:raw-html:`Baseflow Recession Coefficient (α<sub>GW</sub>)`
+:raw-html:`Soil Factor Weigh (w<sub>2</sub>)`
 ````````````````````````````````````````````````````````````````````````````
 
 Mandatory float value [dimensionless quantity] that relates the baseflow response to changes in groundwater recharge. 
@@ -591,11 +591,7 @@ Mandatory float value [dimensionless quantity] that incorporates a flow delay in
 Weight Factors
 ``````````````
 
-Land Use (:math:`w_1`), Soil Moisture (:math:`w_2`) and Slope (:math:`w_3`) are the weight factors for the three components contributing to the runoff coefficient for permeable areas, used in surface runoff formulation. Their sum must be equal to 1.
-
-.. math:: w_1 + w_2 + w_3 = 1 
-
-:raw-html:`Land Use Factor Weight (w<sub>1</sub>)`
+:raw-html:`Soil Factor Weigh (w<sub>2</sub>)``
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Mandatory float value [dimensionless quantity] that contributes to calculating permeables areas runoff, and is related to the Manning coefficient for each land use class. It measures the effect of the land use on the potential runoff produced. 
@@ -605,7 +601,7 @@ Mandatory float value [dimensionless quantity] that contributes to calculating p
    [CALIBRATION]
    w_1 = 0.333
 
-:raw-html:`Soil Factor Weight (w<sub>2</sub>)`
+:raw-html:`Soil Factor Weigh (w<sub>2</sub>)`
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Mandatory float value [dimensionless quantity] that contributes to calculating permeables area runoff, and is related to wilting points for each soil class. It measures the effect of the soil class on the potential runoff produced.
@@ -615,7 +611,7 @@ Mandatory float value [dimensionless quantity] that contributes to calculating p
    [CALIBRATION]
    w_2 = 0.333
 
-:raw-html:`Slope Factor Weight (w<sub>3</sub>)`
+:raw-html:`Soil Factor Weigh (w<sub>2</sub>)`
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Mandatory float value [dimensionless quantity] that contributes to calculating of permeables areas runoff, and is related to pixel slope. It measures the effect of the slope on the potential runoff produced.
@@ -625,6 +621,9 @@ Mandatory float value [dimensionless quantity] that contributes to calculating o
    [CALIBRATION]
    w_3 = 0.334
 
+:math:`w_1`, :math:`w_2` and :math:`w_3` are the weight factors for the three components contributing to the runoff coefficient for permeable areas, used in surface runoff formulation. Their sum must be equal to 1.
+
+.. math:: w_1 + w_2 + w_3 = 1 
 
 Model Output Formats
 ---------------------
