@@ -1,7 +1,7 @@
 # coding=utf-8
 # RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
-# Copyright (C) 2020-2021 LabSid PHA EPUSP
+# Copyright (C) 2020-2022 LabSid PHA EPUSP
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -107,8 +107,7 @@ def cperCalc(
 
 
 def cimpCalc(
-    ao: pcr._pcraster.Field, 
-    ai: pcr._pcraster.Field
+    ao: pcr._pcraster.Field, ai: pcr._pcraster.Field
 ) -> pcr._pcraster.Field:
     """Return percentage of impervious surface per grid cell and\
         the runoff coefficient of the impervious area (Cimp).
