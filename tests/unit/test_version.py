@@ -25,10 +25,10 @@ class VersionTest(unittest.TestCase):
         self.assertEqual("GPL", rbv.__license__)
 
     def test_date_str(self):
-        self.assertEqual("2021-11-23", rbv.__date__)
+        self.assertEqual("2022-03-23", rbv.__date__)
 
     def test_version_str(self):
-        self.assertEqual("0.1.0", rbv.__version__)
+        self.assertEqual("0.1.3", rbv.__version__)
 
     def test_release_str(self):
-        self.assertEqual("0.1.0-alpha", rbv.__release__)
+        self.assertEqual("0.1.3-alpha", rbv.__release__)

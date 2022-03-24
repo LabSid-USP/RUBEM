@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rubem"
-version = "0.1.0"
+version = "0.1.3"
 description = "Rainfall rUnoff Balance Enhanced Model (RUBEM) is a distributed hydrological model to calculate monthly flows with changes in land use over time"
 authors = ["LabSid PHA EPUSP <rubem.hydrological@labsid.eng.br>"]
 license = "GPL v3"
