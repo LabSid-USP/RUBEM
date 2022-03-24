@@ -1,5 +1,12 @@
 <!-- PROJECT SHIELDS -->
 [![Documentation Status][readthedocs-shield]][readthedocs-url]
+[![Contributors][contributors-shield]][contributors-url]
+[![GitHub Commit Activity][commit-activity-shield]][commit-activity-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+[![LabSid YouTube Channel][youtube-shield]][youtube-url]
+<!-- [![GPL v3 License][license-shield]][license-url] -->
 
 <!-- PROJECT LOGO -->
 <br />
@@ -7,10 +14,7 @@
   <a href="https://github.com/LabSid-USP/RUBEM">
     <img src="doc/source/_static/icon.png" alt="Logo" width="120" height="120">
   </a>
-
-  <h1 align="center"><b>RUBEM</b></h1>
-  <h2 align="center">Rainfall rUnoff Balance Enhanced Model</h2>
-
+  <h1 align="center">RUBEM<br>Rainfall rUnoff Balance Enhanced Model</br></h1>
   <p align="center">
     RUBEM is a distributed hydrological model to calculate monthly flows with changes in land use over time.
     <br />
@@ -42,7 +46,6 @@
       <ul>
         <li><a href="#prerequisites">Prerequisites</a></li>
         <li><a href="#installation">Installation</a></li>
-        <li><a href="#packaging">Packaging</a></li>
       </ul>
     </li>
     <li><a href="#usage">Usage</a></li>
@@ -167,3 +170,17 @@ In any of our communication channels please abide by the [RUBEM Code of Conduct]
 <!-- MARKDOWN LINKS & IMAGES -->
 [readthedocs-shield]: https://readthedocs.org/projects/rubem/badge/?version=latest
 [readthedocs-url]: https://rubem.readthedocs.io/en/latest/?badge=latest
+[contributors-shield]: https://img.shields.io/github/contributors/LabSid-USP/RUBEM
+[contributors-url]: https://github.com/LabSid-USP/RUBEM/graphs/contributors
+[commit-activity-shield]: https://img.shields.io/github/commit-activity/m/LabSid-USP/RUBEM
+[commit-activity-url]: https://github.com/LabSid-USP/RUBEM/pulse
+[forks-shield]: https://img.shields.io/github/forks/LabSid-USP/RUBEM
+[forks-url]: https://github.com/LabSid-USP/RUBEM/network/members
+[stars-shield]: https://img.shields.io/github/stars/LabSid-USP/RUBEM
+[stars-url]: https://github.com/LabSid-USP/RUBEM/stargazers
+[issues-shield]: https://img.shields.io/github/issues/LabSid-USP/RUBEM
+[issues-url]: https://github.com/LabSid-USP/RUBEM/issues
+[license-shield]: https://img.shields.io/github/license/LabSid-USP/RUBEM
+[license-url]: https://github.com/LabSid-USP/RUBEM/blob/master/LICENSE.md
+[youtube-shield]: https://img.shields.io/youtube/channel/subscribers/UCZOGKRCW5mQOY9_w8L7lKJg
+[youtube-url]: https://www.youtube.com/user/labsidengbr
