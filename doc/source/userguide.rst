@@ -874,7 +874,7 @@ Use ``-V`` or ``--version`` to get the version of the RUBEM.
 .. code-block:: console
 
    $ python rubem.py --version
-   RUBEM v0.1.0
+   RUBEM v0.1.3
 
 Use ``-c`` or ``--configfile`` to set the path of the RUBEM configuration file.
 
