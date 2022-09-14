@@ -7,6 +7,35 @@ Datasets
 Brazil datasets
 ---------------
 
+Paraíba do Sul River Basin (PSRB)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Paraiba do Sul is located in the South-East region of Brazil, been one of the most significant river basins in terms of urban water supply. This interstate basin forms part of the states of Minas Gerais, Rio de Janeiro and São Paulo, and covers an area of 55,500 :raw-html:`km<sup>2</sup>`. An interconnected system of dams in the area are responsible for the water supply of Rio de Janeiro City system, and a transposition to Cantareira System in São Paulo.
+
+`Download here <https://drive.google.com/drive/folders/1nYMieZ7Z-b23axpO644vq3kNBcXJlaGl?usp=sharing>`__ 
+
+- **Data Format:** GeoTIFF and PCRaster raster files, .txt;
+- **Size:** ~15 GB
+- **Projection:** EPSG:4326 - WGS 84;
+- **Extent (dd):**
+
+  - xmin: -46.755
+  - xmax: -40.7457
+  - ymin: -23.9934
+  - ymax: -20.3418
+
+- **Spatial Resolution:** 250m
+- **Temporal Resolution:** monthly 
+- **Time period:** jan/2000 - dec/2021 
+- **Available data:**
+
+  - Monthly meteorological raster series of: rainfall [mm/month], potential evapotranspiration [mm/month], evaporation coefficient - kp [-];
+  - Monthly filled images of NDVI [-]
+  - Maps of gridded of soil characteristics and tables- wilting point :raw-html:`[θ (cm<sup>3</sup>/cm<sup>3</sup>)]`, field capacity :raw-html:`[θ (cm<sup>3</sup>/cm<sup>3</sup>)]`, hydraulic conductivity [mm/month], depth root zone [cm], saturated capacity water content :raw-html:`[θ (cm<sup>3</sup>/cm<sup>3</sup>)]`, soil bulk density :raw-html:`[g/cm<sup>3</sup>]`;
+  - Annual land use raster maps and land use parameters tables;
+  - Digital elevation model.
+
+
 Upper Iguaçu River Basin (UIRB)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -16,7 +45,7 @@ Upper Iguaçu basin is located in the south portion of Brazil. The Iguaçu River
 
 - **Data Format:** GeoTIFF and PCRaster raster files, .txt;
 - **Size:** 222 MB
-- **Projection:** EPSG:4326- WGS 84;
+- **Projection:** EPSG:4326 - WGS 84;
 - **Extent (dd):**
 
   - xmin: -49.6871
@@ -45,8 +74,8 @@ The Piracicaba River Basin is located in the southeastern portion of Brazil in a
 `Download here <https://drive.google.com/drive/folders/1u-jbmzv_gflAn9loPCJFEBCKbvEXE7-N?usp=sharing>`__ | `Alternative link <http://labsid.eng.br/rubemdataset/Piracicaba_Basin.zip>`__
 
 - **Data Format:** GeoTIFF and PCRaster raster files, .txt;
-- **Size:** 1,73 GB
-- **Projection:** EPSG:4326- WGS 84
+- **Size:** 1.73 GB
+- **Projection:** EPSG:4326 - WGS 84
 - **Extent (dd):**
 
   - xmin: -48.4988
@@ -80,7 +109,7 @@ Its main tributaries, on the right bank, are Liberal stream, Taquara stream and 
 
 - **Data Format:** GeoTIFF and PCRaster raster files, .txt;
 - **Size:** 746 MB
-- **Projection:** EPSG:4326- WGS 84
+- **Projection:** EPSG:4326 - WGS 84
 - **Extent (dd):**
 
   - xmin: -37.0455
