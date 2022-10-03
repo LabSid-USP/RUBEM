@@ -104,6 +104,11 @@ where:
 - :math:`FPAR` - Fraction Photosynthetically Active Radiation (-);
 - :math:`FPAR_{min}`, :math:`FPAR_{max}` - minimum and maximum values for FPAR (0.001 and 0.95, respectively), corresponding to the minimum and maximum values for LAI for a particular vegetation class.
 
+.. note:: 
+
+   If :math:`P_m = 0` then :math:`I_R = 0`.
+
+
 Evapotranspiration
 ```````````````````
 
@@ -128,6 +133,11 @@ where:
 - :math:`\alpha_A` – Water area fraction (%);
 - :math:`\alpha_I` – Impervious area fraction (%).
 
+.. note:: 
+
+   If :math:`\alpha_A = 1` and :math:`ET_{R,A} > P_m` then :math:`ET_{R,A} = P_m`.
+
+
 Vegetated Area Fraction
 ''''''''''''''''''''''''
 
@@ -150,7 +160,10 @@ where:
 - :math:`ks` – Soil moisture reduction coefficient (-).
 - :math:`NDVI` - Normalized Difference Vegetation Index (-).
 
-If :math:`NDVI \leq 1.1 \cdot NDVI_{min}` then :math:`kc = kc_{min}`
+.. note::
+
+   If :math:`NDVI \leq 1.1 \cdot NDVI_{min}` then :math:`kc = kc_{min}`.
+
 
 Bare Soil Area Fraction
 ''''''''''''''''''''''''
@@ -176,7 +189,10 @@ where:
 - :math:`TU_{CC}` – Moisture content of the soil at field capacity (mm);
 - :math:`TU_R` – Actual moisture content of the soil (mm).
 
-If :math:`TU_R < TU_{PM}` then :math:`ks = 0`
+.. note::
+
+   If :math:`TU_R < TU_{PM}` then :math:`ks = 0`.
+
 
 Water Area Fraction
 ''''''''''''''''''''
@@ -209,7 +225,8 @@ Impervious Area Fraction
 
 where:
 
-- :math:`I_I` – Interception for impervious areas (3 -5 mm).
+- :math:`I_I` – Interception for impervious areas (3 -5 mm);
+- :math:`ET_{R,I}` – Real evapotranspiration at the impervious area (mm).
 
 Surface Runoff
 ```````````````
@@ -299,9 +316,14 @@ where:
 - :math:`d_g` – overall soil density in the root layer (:raw-html:`g cm<sup>3</sup>`);
 - :math:`Z_r` – root layer thickness (cm).
 
-If :math:`\theta_{TUR} > \theta_{POR}` then :math:`\theta_{TUR} = \theta_{POR}`. 
+.. note:: 
 
-If :math:`\alpha_A = 1` then :math:`SR = P_m - ET_{R,A}`.
+   If :math:`\theta_{TUR} > \theta_{POR}` then :math:`\theta_{TUR} = \theta_{POR}`. 
+
+.. note::
+
+   If :math:`\alpha_A = 1` then :math:`SR = P_m - ET_{R,A}`.
+
 
 Lateral Flow
 `````````````
@@ -341,6 +363,8 @@ where:
 - :math:`TU_R` – Root zone moisture content (mm);
 - :math:`TU_{SAT}` – Root zone moisture content at saturation (mm).
 
+.. _baseflow-overview-section:
+
 Baseflow
 `````````
 
@@ -368,7 +392,7 @@ where:
 - :math:`TU_S` – Saturated zone moisture content (mm);
 - :math:`BF_{thresh}` – Threshold baseflow, attributed for each watershed (mm).
 
-Water balance
+Water Balance
 ``````````````
 
 RUBEM is governed by the mass balance for the water in the soil layer. Soil moisture at the root and saturated zones are calculated through a water balance equation on each respective layer according to equations :eq:`pe`, :eq:`tus` and :eq:`tur`.
@@ -413,12 +437,16 @@ where:
 - :math:`REC` – Recharge (mm);
 - :math:`ET_{REAL}` – Total real evapotranspiration (mm).
 
+.. note:: 
+
+   If :math:`\alpha_A = 1` then :math:`TU_R = TU_{SAT}`.
+
 In the root zone, the surface runoff relies on the soil moisture conditions, based on the lateral flow, recharge, and evapotranspiration. The saturated zone of the soil affected the calculation of the base flow and recharge parameters. The water balance equation adopted in RUBEM aims to calculate the total superficial flow.
 
-Total discharge
+Total Discharge
 ````````````````
 
-Total discharge corresponds to the contribution of the flows produced in each cell. It is computed at the grid level of the model, and the total flow is computed using the Digital Elevation Model to generate the Local Drainage Direction (LDD). The superficial flow is computed at any grid cell, Equation :eq:`qt`, and the total flow is computed using an aggregate result according to the LDD [KARSSENBERG2010]_; [TERINK2015]_.
+Total Discharge corresponds to the contribution of the flows produced in each cell. It is computed at the grid level of the model, and the total flow is computed using the Digital Elevation Model to generate the Local Drainage Direction (LDD). The superficial flow is computed at any grid cell, Equation :eq:`qt`, and the total flow is computed using an aggregate result according to the LDD [KARSSENBERG2010]_; [TERINK2015]_.
 
 Total superficial discharge, Equation :eq:`qtot`, is the sum of flow components: surface runoff (SR), lateral flow (LF), and baseflow (BF) [ABDOLLAHI2017]_.
 
