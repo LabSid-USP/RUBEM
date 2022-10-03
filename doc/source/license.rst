@@ -28,12 +28,35 @@ Permission is granted to copy, distribute and/or modify this document under the 
 Citation
 --------
 
-Please consider citing the following **paper** when using Rainfall rUnoff Balance Enhanced Model (RUBEM):
+Please consider citing the following `paper <https://doi.org/10.3390/w14121958>`_ when using Rainfall rUnoff Balance Enhanced Model (RUBEM):
 
-.. important::
+.. code-block:: bibtex
 
-    There is an original paper under evaluation with the RUBEM model application and validation. As soon as the paper gets the publication we will update the citation reference.
+   @Article{w14121958,
+        AUTHOR = {Méllo Júnior, Arisvaldo Vieira and Olivos, Lina Maria Osorio and Billerbeck, Camila and Marcellini, Silvana Susko and Vichete, William Dantas and Pasetti, Daniel Manabe and da Silva, Ligia Monteiro and Soares, Gabriel Anísio dos Santos and Tercini, João Rafael Bergamaschi},
+        TITLE = {Rainfall Runoff Balance Enhanced Model Applied to Tropical Hydrology},
+        JOURNAL = {Water},
+        VOLUME = {14},
+        YEAR = {2022},
+        NUMBER = {12},
+        ARTICLE-NUMBER = {1958},
+        URL = {https://www.mdpi.com/2073-4441/14/12/1958},
+        ISSN = {2073-4441},
+        ABSTRACT = {The integrative and comprehensive analysis considering the spatial and temporal representation of the hydrological process, such as the distribution of rainfall, land cover and land use, is a challenge for the water resources management. In tropical areas, energy availability throughout the year defines the rainfall distribution and evapotranspiration rate according to vegetation heterogeneity. To quantify water balance in tropical areas including these heterogeneities in the soil-vegetation-atmosphere relationship, we developed a fully distributed hydrological model called the Rainfall Runoff Balance Enhanced Model (RUBEM). The model was developed under a physics-based process structure, using remote sensing data to represent soil-water balance patterns, such as evapotranspiration, interception, baseflow, lateral flow, recharge, and runoff. The calibration procedure was based on nine global parameters. RUBEM could represent the spatio-temporal heterogeneities (soil, land use and land cover (LULC), topography, vegetation, and climate) in three basins in a tropical area. The results showed good adherence between the processes governing the soil-vegetation-atmosphere relationship according to the humidity indicator and the runoff coefficient. Overall, RUBEM can be used to help improve the management and planning of integrated water resources under climate, land use, and land cover changes in tropical regions.},
+        DOI = {10.3390/w14121958}
+   }
 
-Please consider citing the **datasets** when using them:
 
-`Méllo, A. V., L. M. O. Olivos, C. Billerbeck, S. S. Marcellini, W. D. Vichete, D. M. Pasetti, L. M. d. Silva, G. A. d. S. Soares, J. R. B. Tercini (2021). Rainfall-Runoff Balance Enhanced Model Applied to Tropical Hydrology, HydroShare, http://www.hydroshare.org/resource/6f3670b8cd944e7ea72e03d1b9ca928f`
+Please consider citing the `datasets <https://doi.org/10.4211/hs.6f3670b8cd944e7ea72e03d1b9ca928f>`_ when using them:
+
+.. code-block:: bibtex
+
+   @Dataset{hs6f3670b,
+        DOI = {10.4211/hs.6f3670b8cd944e7ea72e03d1b9ca928f},
+        URL = {https://doi.org/10.4211/hs.6f3670b8cd944e7ea72e03d1b9ca928f},
+        PUBLISHER = {Consortium of Universities for the Advancement of Hydrologic Science,  Inc. ({CUAHSI})},
+        TITLE = {Rainfall-Runoff Balance Enhanced Model Applied to Tropical Hydrology},
+        AUTHOR = {Méllo Júnior, Arisvaldo Vieira and Olivos, Lina Maria Osorio and Billerbeck, Camila and Marcellini, Silvana Susko and Vichete, William Dantas and Pasetti, Daniel Manabe and da Silva, Ligia Monteiro and Soares, Gabriel Anísio dos Santos and Tercini, João Rafael Bergamaschi},
+        MONTH = {oct},
+        YEAR = {2021}
+   }
