@@ -1,5 +1,5 @@
-Sphinx==4.2.0
-sphinx-rtd-theme==1.0.0
-sphinxcontrib-email==0.3.5
-sphinxcontrib-youtube==1.0.1
-sphinx-autodoc-typehints==1.12.0
+Sphinx
+sphinx-rtd-theme
+sphinxcontrib-email
+sphinxcontrib-youtube
+sphinx-autodoc-typehints

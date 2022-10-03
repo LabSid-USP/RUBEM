@@ -105,7 +105,28 @@ set_type_checking_flag = True
 # Remove namespaces from class/method signatures
 add_module_names = False
 
-mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+# mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+
+mathjax3_config = "<script>\
+window.MathJax = {\
+  options: {\
+    ignoreHtmlClass: 'tex2jax_ignore',\
+    processHtmlClass: 'tex2jax_process'\
+  },\
+  tex: {\
+    autoload: {\
+      color: [],\
+      colorv2: ['color']\
+    },\
+    packages: {'[+]': ['noerrors']},\
+    tags: 'ams'\
+  },\
+  loader: {\
+    load: ['[tex]/noerrors']\
+  }\
+};\
+</script>\
+<script src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js\" id=\"MathJax-script\"></script>"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
