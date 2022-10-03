@@ -209,22 +209,52 @@ Initial Soil Conditions
 Initial Baseflow
 ''''''''''''''''
 
-Mandatory float value [mm] representing the baseflow at the beginning  of the simulation. It can be set by the rate of the flow rate in [L3T] and the grid cell dimension [L].
+Mandatory float value [mm] representing the baseflow (in the cell) at the beginning of the simulation. See :ref:`baseflow-overview-section` for more details.
+
+.. math::
+   :label: initialbaseflow
+   :nowrap:
+    
+    \[BF_{ini} = \frac{Q \cdot t}{A \cdot N_{cell}} \cdot 10^{-3}\]
+
+where:
+
+- :math:`BF_{ini}` - Initial baseflow (mm);
+- :math:`t` - Number of seconds in a month (86,400s);
+- :math:`Q` - Mean discharge in the gauge station (:raw-html:`m<sup>3</sup>/s`);
+- :math:`A`- Contribution area of the gauge station (:raw-html:`m<sup>2</sup>`);
+- :math:`N_{cell}` - Number of cells of the contribution area (calculated by the ratio of :math:`A` and the grid area (:raw-html:`m<sup>2</sup>`)).
 
 .. code-block:: dosini
    
    [INITIAL_SOIL_CONDITIONS]
-   bfw_ini = 0.1
+   bfw_ini = 10.0
+
+.. _baseflow-threshold-userguide-section:
 
 Baseflow Threshold
 ''''''''''''''''''
 
-Mandatory float value [mm] representing the minimum water store in the saturated zone for generating Baseflow. It can be set by the rate of the monthly mean flow in [L3T] (from stream gauge) and the grid cell dimension [L] at dry season.
+Mandatory float value [mm] representing the minimum water store in the saturated zone for generating Baseflow. See :ref:`baseflow-overview-section` for more details. It can be set using the minimum discharge at the gauge station by the relation: 
+
+.. math::
+   :label: initialbaseflow
+   :nowrap:
+    
+    \[BF_{thresh} = \frac{Q_{min} \cdot t}{A \cdot N_{cell}} \cdot 10^{-3}\]
+
+where:
+
+- :math:`BF_{thresh}` - Baseflow threshold(mm);
+- :math:`t` - Number of seconds in a month (86,400s);
+- :math:`Q_{min}` - Minimum discharge in the gauge station (:raw-html:`m<sup>3</sup>/s`);
+- :math:`A`- Contribution area of the gauge station (:raw-html:`m<sup>2</sup>`);
+- :math:`N_{cell}` - Number of cells of the contribution area (calculated by the ratio of :math:`A` and the grid area (:raw-html:`m<sup>2</sup>`)).
 
 .. code-block:: dosini
    
    [INITIAL_SOIL_CONDITIONS]
-   bfw_lim = 1.0
+   bfw_lim = 5.0
 
 :raw-html:`Initial Soil Moisture Content (θ<sub>INI</sub>)`
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -234,17 +264,23 @@ Mandatory float value :raw-html:`[θ (cm<sup>3</sup>/cm<sup>3</sup>)]` represent
 .. code-block:: dosini
    
    [INITIAL_SOIL_CONDITIONS]
-   T_ini = 1.0
+   T_ini = 0.5
 
 :raw-html:`Initial Saturated Zone Storage (S<sub>SAT</sub>)`
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-Mandatory Saturated zone Moisture Content value [mm] at the beginning of the simulation. To generate Baseflow at the initial step this value must be greater than the baseflow threshold.
+Mandatory Saturated Zone Moisture Content value [mm] at the beginning of the simulation. 
+
+.. warning:: 
+
+   To generate baseflow at the initial step this value must be much greater than the baseflow threshold (:math:`S_{sat} \gg BF_{thresh}`), see :ref:`baseflow-threshold-userguide-section`.
+
 
 .. code-block:: dosini
    
    [INITIAL_SOIL_CONDITIONS]
-   S_sat_ini = 1.0
+   S_sat_ini = 100.0
+
 
 Land Use Parameters
 -------------------
@@ -810,9 +846,9 @@ Configuration File Template
 
    [INITIAL_SOIL_CONDITIONS]
    T_ini = 1.0
-   bfw_ini = 0.1
-   bfw_lim = 1.0
-   S_sat_ini = 1.0
+   bfw_ini = 10.0
+   bfw_lim = 5.0
+   S_sat_ini = 100.0
 
    [CONSTANTS]
    fpar_max = 0.95
