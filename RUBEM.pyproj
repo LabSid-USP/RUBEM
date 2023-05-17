@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{dee732fc-1583-4bc5-9a0e-da9293924f68}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile />
+    <SearchPath />
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="doc\requirements.txt" />
+    <Content Include="doc\source\**" />
+    <Content Include="resources\**" />
+    <Content Include="version.txt" />
+    <Content Include="versionfile.txt" />
+    <Compile Include="rubem\**" />
+    <Compile Include="tests\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="doc\" />
+    <Folder Include="doc\source\" />
+    <Folder Include="doc\source\generated\" />
+    <Folder Include="doc\source\_static\" />
+    <Folder Include="doc\source\_static\screenshots\" />
+    <Folder Include="doc\source\_templates\" />
+    <Folder Include="resources\" />
+    <Folder Include="resources\icon\" />
+    <Folder Include="rubem\" />
+    <Folder Include="rubem\date\" />
+    <Folder Include="rubem\date\__pycache__\" />
+    <Folder Include="rubem\file\" />
+    <Folder Include="rubem\file\__pycache__\" />
+    <Folder Include="rubem\modules\" />
+    <Folder Include="rubem\modules\__pycache__\" />
+    <Folder Include="rubem\preprocessing\" />
+    <Folder Include="rubem\validation\" />
+    <Folder Include="rubem\validation\__pycache__\" />
+    <Folder Include="rubem\__pycache__\" />
+    <Folder Include="tests\" />
+    <Folder Include="tests\fixtures\" />
+    <Folder Include="tests\fixtures\base\" />
+    <Folder Include="tests\fixtures\base\maps\" />
+    <Folder Include="tests\fixtures\base\maps\clone\" />
+    <Folder Include="tests\fixtures\base\maps\dem\" />
+    <Folder Include="tests\fixtures\base\maps\etp\" />
+    <Folder Include="tests\fixtures\base\maps\kp\" />
+    <Folder Include="tests\fixtures\base\maps\ldcover\" />
+    <Folder Include="tests\fixtures\base\maps\ndvi\" />
+    <Folder Include="tests\fixtures\base\maps\rain\" />
+    <Folder Include="tests\fixtures\base\maps\samples\" />
+    <Folder Include="tests\fixtures\base\maps\soil\" />
+    <Folder Include="tests\fixtures\base\out\" />
+    <Folder Include="tests\fixtures\base\txt\" />
+    <Folder Include="tests\fixtures\base\txt\ldcover\" />
+    <Folder Include="tests\fixtures\base\txt\soil\" />
+    <Folder Include="tests\integration\" />
+    <Folder Include="tests\unit\" />
+    <Folder Include="tests\unit\core\" />
+    <Folder Include="tests\unit\core\__pycache__\" />
+    <Folder Include="tests\unit\date\" />
+    <Folder Include="tests\unit\date\__pycache__\" />
+    <Folder Include="tests\unit\file\" />
+    <Folder Include="tests\unit\file\__pycache__\" />
+    <Folder Include="tests\unit\modules\" />
+    <Folder Include="tests\unit\modules\__pycache__\" />
+    <Folder Include="tests\unit\preprocessing\" />
+    <Folder Include="tests\unit\preprocessing\__pycache__\" />
+    <Folder Include="tests\unit\validation\" />
+    <Folder Include="tests\unit\validation\__pycache__\" />
+    <Folder Include="tests\unit\__pycache__\" />
+    <Folder Include="tests\__pycache__\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>
