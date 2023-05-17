@@ -1,0 +1,61 @@
+name: Build Release
+on:
+    push:
+      branches: "!*"
+      tags: "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        activate-environment: rubem-ci
+        environment-file: env-ci.yml
+        python-version: 3.9
+        auto-activate-base: false
+
+    - name: Create Version File
+      run: |
+        Write-Output(("${{ github.ref_name }}" -replace 'v(.*)-.*', '$1') + '.0') > version.txt
+        create-version-file metadata.yml --outfile versionfile.txt
+    
+    - name: Create Package
+      run: pyinstaller rubem.spec --noconfirm
+
+    - name: Test Package
+      run: |
+        ./dist/rubem/rubem -h
+
+    - name: Zip files
+      run: |
+        Set-Location -Path .\dist\rubem
+        7z a -tzip -mx=9 -r "..\rubem-${{ github.ref_name }}-win-x86_64.zip" .\*
+
+    - name: Test Zip
+      run: |
+        7z t "dist/rubem-${{ github.ref_name }}-win-x86_64.zip"
+
+    - name: Compute Hash
+      run: |
+        $hash = Get-FileHash -Path dist/rubem-${{ github.ref_name }}-win-x86_64.zip -Algorithm SHA512
+        echo $hash.Hash $([System.IO.Path]::GetFileName($hash.Path)) > dist/rubem-${{ github.ref_name }}-win-x86_64.zip.sha512
+
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: ${{ github.ref_name }}
+        files: |
+          ./dist/rubem-${{ github.ref_name }}-win-x86_64.zip
+          ./dist/rubem-${{ github.ref_name }}-win-x86_64.zip.sha512
+        draft: false
+        prerelease: false
