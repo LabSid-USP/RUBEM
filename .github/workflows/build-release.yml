@@ -34,7 +34,8 @@ jobs:
 
     - name: Zip files
       run: |
-        7z a -tzip -mx=9 -r "dist\rubem-${{ github.ref_name }}-win-x86_64.zip" dist\rubem\*
+        Set-Location -Path .\dist\rubem
+        7z a -tzip -mx=9 -r "..\rubem-${{ github.ref_name }}-win-x86_64.zip" .\*
 
     - name: Test Zip
       run: |
