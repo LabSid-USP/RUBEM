@@ -40,8 +40,8 @@ LOG_FILE_SIZE_LIM = 5 * 1024 * 1024
 LOG_FILE_BACKUP_COUNT = 1
 LOG_MSG_FMT = "%(asctime)s %(name)s %(levelname)s:%(message)s"
 LOG_MSG_DTFMT = "%m/%d/%Y %H:%M:%S"
-LOG_LEVEL_DEFAULT_FILE = logging.DEBUG
-LOG_LEVEL_DEFAULT_TERM = logging.DEBUG
+LOG_LEVEL_DEFAULT_FILE = logging.INFO
+LOG_LEVEL_DEFAULT_TERM = logging.ERROR
 
 def main():
     """[summary]
