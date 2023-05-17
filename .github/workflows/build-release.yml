@@ -20,13 +20,9 @@ jobs:
         python-version: 3.9
         auto-activate-base: false
 
-    - name: Get the version
-      id: get_version
-      run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
-
     - name: Create Version File
       run: |
-        echo "${{ steps.get_version.outputs.VERSION }}".substring(1) + ".0" > version.txt
+        echo "${{ github.ref_name }}".substring(1) + ".0" > version.txt
         create-version-file metadata.yml --outfile versionfile.txt
     
     - name: Create Package
@@ -38,16 +34,16 @@ jobs:
 
     - name: Zip files
       run: |
-        7z a -tzip -mx=9 -r "dist\rubem-v${{ steps.get_version.outputs.VERSION }}-win-x86_64.zip" dist\rubem\*
+        7z a -tzip -mx=9 -r "dist\rubem-v${{ github.ref_name }}-win-x86_64.zip" dist\rubem\*
 
     - name: Test Zip
       run: |
-        7z t "dist/rubem-v${{ steps.get_version.outputs.VERSION }}-win-x86_64.zip"
+        7z t "dist/rubem-v${{ github.ref_name }}-win-x86_64.zip"
 
     - name: Compute Hash
       run: |
-        $hash = Get-FileHash -Path dist/rubem-v${{ steps.get_version.outputs.VERSION }}-win-x86_64.zip -Algorithm SHA512
-        echo $hash.Hash $([System.IO.Path]::GetFileName($hash.Path)) > dist/rubem-v${{ steps.get_version.outputs.VERSION }}-win-x86_64.zip.sha512
+        $hash = Get-FileHash -Path dist/rubem-v${{ github.ref_name }}-win-x86_64.zip -Algorithm SHA512
+        echo $hash.Hash $([System.IO.Path]::GetFileName($hash.Path)) > dist/rubem-v${{ github.ref_name }}-win-x86_64.zip.sha512
 
     - name: Create Release
       id: create_release
@@ -55,10 +51,10 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ steps.get_version.outputs.VERSION }}
-        name: v${{ steps.get_version.outputs.VERSION }}
+        tag_name: ${{ github.ref_name }}
+        name: v${{ github.ref_name }}
         files: |
-          ./dist/rubem-v${{ steps.get_version.outputs.VERSION }}-win-x86_64.zip
-          ./dist/rubem-v${{ steps.get_version.outputs.VERSION }}-win-x86_64.zip.sha512
+          ./dist/rubem-v${{ github.ref_name }}-win-x86_64.zip
+          ./dist/rubem-v${{ github.ref_name }}-win-x86_64.zip.sha512
         draft: false
         prerelease: false
