@@ -1,5 +1,6 @@
-import logging
 import os
+import glob
+import logging
 import argparse
 from datetime import datetime
 from configparser import ConfigParser
@@ -87,6 +88,17 @@ def filePathValidator(config: ConfigParser):
                         f"{section}:{option}:{path} is not a valid file"
                     )
 
+def rasterSeriesFileValidador(config: ConfigParser):
+    ndvi_path = config.get("DIRECTORIES", "ndvi") + config.get("FILENAME_PREFIXES", "ndvi_prefix")
+    landuse_path = config.get("DIRECTORIES", "landuse") + config.get("FILENAME_PREFIXES", "landuse_prefix")
+    precipitation_path = config.get("DIRECTORIES", "prec") + config.get("FILENAME_PREFIXES", "prec_prefix")
+    etp_path = config.get("DIRECTORIES", "etp") + config.get("FILENAME_PREFIXES", "etp_prefix")
+    kp_path = config.get("DIRECTORIES", "Kp") + config.get("FILENAME_PREFIXES", "kp_prefix")                    
+    
+    for path in [ndvi_path, landuse_path, precipitation_path, etp_path, kp_path]:
+        if any(glob.glob(path + '*')) is False:
+            logger.error("No raster files matching '%s*' were found."%(path))
+            raise ValidationException(f"No raster files matching '{path}*' were found.")
 
 def directoryPathValidator(config: ConfigParser):
     for option in config.options("DIRECTORIES"):
