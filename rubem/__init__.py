@@ -25,3 +25,11 @@ import logging
 from logging import NullHandler
 
 logging.getLogger(__name__).addHandler(NullHandler())
+
+__author__ = "LabSid PHA EPUSP"
+__email__ = "rubem.hydrological@labsid.eng.br"
+__copyright__ = "Copyright (C) 2020-2022 - LabSid/PHA/EPUSP"
+__license__ = "GPL"
+__date__ = "2022-03-23"
+__version__ = "0.1.3"
+__release__ = "0.1.3"
