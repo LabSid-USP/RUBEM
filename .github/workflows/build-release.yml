@@ -34,16 +34,16 @@ jobs:
 
     - name: Zip files
       run: |
-        7z a -tzip -mx=9 -r "dist\rubem-v${{ github.ref_name }}-win-x86_64.zip" dist\rubem\*
+        7z a -tzip -mx=9 -r "dist\rubem-${{ github.ref_name }}-win-x86_64.zip" dist\rubem\*
 
     - name: Test Zip
       run: |
-        7z t "dist/rubem-v${{ github.ref_name }}-win-x86_64.zip"
+        7z t "dist/rubem-${{ github.ref_name }}-win-x86_64.zip"
 
     - name: Compute Hash
       run: |
-        $hash = Get-FileHash -Path dist/rubem-v${{ github.ref_name }}-win-x86_64.zip -Algorithm SHA512
-        echo $hash.Hash $([System.IO.Path]::GetFileName($hash.Path)) > dist/rubem-v${{ github.ref_name }}-win-x86_64.zip.sha512
+        $hash = Get-FileHash -Path dist/rubem-${{ github.ref_name }}-win-x86_64.zip -Algorithm SHA512
+        echo $hash.Hash $([System.IO.Path]::GetFileName($hash.Path)) > dist/rubem-${{ github.ref_name }}-win-x86_64.zip.sha512
 
     - name: Create Release
       id: create_release
@@ -52,9 +52,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ github.ref_name }}
-        name: v${{ github.ref_name }}
+        name: ${{ github.ref_name }}
         files: |
-          ./dist/rubem-v${{ github.ref_name }}-win-x86_64.zip
-          ./dist/rubem-v${{ github.ref_name }}-win-x86_64.zip.sha512
+          ./dist/rubem-${{ github.ref_name }}-win-x86_64.zip
+          ./dist/rubem-${{ github.ref_name }}-win-x86_64.zip.sha512
         draft: false
         prerelease: false
