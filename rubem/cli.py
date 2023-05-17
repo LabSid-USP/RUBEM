@@ -20,15 +20,28 @@
 
 """RUBEM Command Line Interface (CLI)"""
 
+import os
 import logging
+import logging.handlers
 import argparse
+from datetime import datetime
 
-from __version__ import __release__
-from core import Model
-from validation._validators import filePathArgValidator
+from rubem import __release__
+from rubem.core import Model
+from rubem.validation._validators import filePathArgValidator
 
 logger = logging.getLogger(__name__)
+LOG_FILE_DIR = os.path.join(os.path.expanduser("~"), ".rubem")
+os.path.exists(LOG_FILE_DIR) or os.makedirs(LOG_FILE_DIR)
+LOG_FILENAME = f"rubem-{datetime.today().strftime('%d-%m-%Y')}.log"
 
+LOG_FILE_PATH = os.path.join(LOG_FILE_DIR, LOG_FILENAME)
+LOG_FILE_SIZE_LIM = 5 * 1024 * 1024
+LOG_FILE_BACKUP_COUNT = 1
+LOG_MSG_FMT = "%(asctime)s %(name)s %(levelname)s:%(message)s"
+LOG_MSG_DTFMT = "%m/%d/%Y %H:%M:%S"
+LOG_LEVEL_DEFAULT_FILE = logging.DEBUG
+LOG_LEVEL_DEFAULT_TERM = logging.DEBUG
 
 def main():
     """[summary]
@@ -40,10 +53,10 @@ def main():
         prog="rubem",
         description="Rainfall rUnoff Balance Enhanced Model (RUBEM)",
         epilog=(
-            f"RUBEM {__release__} Copyright (C) 2020-2022 - LabSid PHA EPUSP -"
-            "        This program comes with ABSOLUTELY NO WARRANTY.       "
-            " This is free software, and you are welcome to redistribute it  "
-            "      under certain conditions."
+            f"RUBEM {__release__} Copyright (C) 2020-2022 - LabSid/PHA/EPUSP -"
+            "This program comes with ABSOLUTELY NO WARRANTY."
+            "This is free software, and you are welcome to redistribute it "
+            "under certain conditions."
         ),
     )
     parser.add_argument(
@@ -52,9 +65,6 @@ def main():
         type=filePathArgValidator,
         help="path to configuration file",
         required=True,
-    )
-    parser.add_argument(
-        "-v", "--verbose", action="count", default=1, help="verbosity level"
     )
     parser.add_argument(
         "-V",
@@ -66,18 +76,35 @@ def main():
 
     args = parser.parse_args()
 
-    args.verbose = 30 - (10 * args.verbose) if args.verbose > 0 else 0
+    rotating_file_handler = logging.handlers.RotatingFileHandler(
+        filename=LOG_FILE_PATH,
+        encoding="utf-8",
+        maxBytes=LOG_FILE_SIZE_LIM,
+        backupCount=LOG_FILE_BACKUP_COUNT,
+        delay=20.0,
+    )
+
+    stream_handler = logging.StreamHandler()
+    rotating_file_handler.setLevel(LOG_LEVEL_DEFAULT_FILE)
+    stream_handler.setLevel(LOG_LEVEL_DEFAULT_TERM)
+
     logging.basicConfig(
-        level=args.verbose,
-        format="%(asctime)s %(name)s %(levelname)s:%(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        handlers=[logging.FileHandler("rubem.log"), logging.StreamHandler()],
+        format=LOG_MSG_FMT,
+        datefmt=LOG_MSG_DTFMT,
+        level=logging.DEBUG,
+        handlers=[rotating_file_handler, stream_handler],
     )
 
     try:
         model = Model.load(args.configfile)
-    except Exception as e:
-        raise SystemExit(1) from e
-    else:
         model.run()
-        logger.info("Done")
+    except Exception as e:
+        logger.critical("RUBEM unexpectedly quit ¯\_(ツ)_/¯")
+        logger.exception(e)
+        raise SystemExit(1)
+    except KeyboardInterrupt:
+        logger.critical("RUBEM was interrupted by the user (-_-;)")
+        raise SystemExit(2)
+    else:
+        logger.info("RUBEM successfully finished!")
+        raise SystemExit(0)
