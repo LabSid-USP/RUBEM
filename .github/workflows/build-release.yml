@@ -22,7 +22,7 @@ jobs:
 
     - name: Create Version File
       run: |
-        echo "${{ github.ref_name }}".substring(1) + ".0" > version.txt
+        Write-Output(("${{ github.ref_name }}" -replace 'v(.*)-.*', '$1') + '.0') > version.txt
         create-version-file metadata.yml --outfile versionfile.txt
     
     - name: Create Package
