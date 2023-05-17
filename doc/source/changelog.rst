@@ -5,6 +5,20 @@ This is the list of changes to RUBEM between each release. For full details, see
 
 For a list of known issues and their fixes, visit the `Github issues page <https://github.com/LabSid-USP/RUBEM/issues>`__.
 
+Version 0.2.2-beta.1
+---------------------
+
+**Date**: May 17, 2023
+
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Add Paraíba do Sul dataset (`#86 <https://github.com/LabSid-USP/RUBEM/pull/86>`__);
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Update 'Initial Soil Conditions' subsection of the 'Soil Parameters' section of the user guide (`#88 <https://github.com/LabSid-USP/RUBEM/pull/88>`__);
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Update citation information (`#90 <https://github.com/LabSid-USP/RUBEM/pull/90>`__);
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Add missing information about conditions in the mathematical formulation of the model (`#92 <https://github.com/LabSid-USP/RUBEM/pull/92>`__);
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Update Sphinx documentation settings and packages (`#82 <https://github.com/LabSid-USP/RUBEM/pull/94>`__);
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Incorporate RuntimeError exception handling and logging in file reading operations (`#98 <https://github.com/LabSid-USP/RUBEM/pull/98>`__);
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Implement GitHub Actions Workflow for Building and Releasing Application (`#99 <https://github.com/LabSid-USP/RUBEM/pull/99>`__);
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Update of Issue and Pull Request Templates (`#101 <https://github.com/LabSid-USP/RUBEM/pull/101>`__);
+
 Version 0.1.3-alpha
 -------------------
 
