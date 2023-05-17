@@ -17,7 +17,7 @@ jobs:
       with:
         activate-environment: rubem-ci
         environment-file: env-ci.yml
-        python-version: 3.10
+        python-version: 3.9
         auto-activate-base: false
 
     - name: Get the version
