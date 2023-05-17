@@ -19,7 +19,7 @@ class VersionTest(unittest.TestCase):
 
     def test_copyright_str(self):
         self.assertEqual(
-            "Copyright 2020-2023, LabSid PHA EPUSP", __copyright__
+            "Copyright (C) 2020-2023 - LabSid/PHA/EPUSP", __copyright__
         )
 
     def test_license_str(self):
