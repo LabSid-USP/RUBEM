@@ -359,7 +359,7 @@ class RUBEM(pcrfw.DynamicModel):
         """
         t = self.currentStep
         logger.info(f"Cycle {t} of {self.lastStep}")
-        print(f"## {t} of {self.lastStep}")
+        print(f"## Timestep {t} of {self.lastStep}")
 
         logger.debug("Reading NDVI map from '%s'...", self.ndvi_path)
         try:
