@@ -1,7 +1,7 @@
 # coding=utf-8
 # RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
-# Copyright (C) 2020-2022 LabSid PHA EPUSP
+# Copyright (C) 2020-2023 LabSid PHA EPUSP
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,14 +20,6 @@
 
 """RUBEM help setup"""
 
-__author__ = "LabSid PHA EPUSP"
-__email__ = "rubem.hydrological@labsid.eng.br"
-__copyright__ = "Copyright 2020-2022, LabSid PHA EPUSP"
-__license__ = "GPL"
-__date__ = "2022-03-23"
-__version__ = "0.1.3"
-__release__ = __version__ + "-alpha"
-
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -45,12 +37,15 @@ import sys
 
 # sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath("../.."))
+sys.path.insert(0, os.path.abspath("../../rubem"))
+
+from rubem import __version__, __release__
 
 # -- Project information -----------------------------------------------------
 
 project = "Rainfall rUnoff Balance Enhanced Model (RUBEM)"
 copyright = (
-    "2020-2022, Laboratório de Sistemas de Suporte a Decisões Aplicados à"
+    "2020-2023, Laboratório de Sistemas de Suporte a Decisões Aplicados à"
     " Engenharia Ambiental e de Recursos Hídricos (LabSid) PHA-EPUSP &"
     " contributors"
 )
