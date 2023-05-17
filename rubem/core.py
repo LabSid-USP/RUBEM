@@ -27,17 +27,10 @@ from configparser import ConfigParser
 
 from pcraster.framework import DynamicFramework
 
-try:
-    from _dynamic_model import RUBEM
-    from date._date_calc import totalSteps
-    from file._file_convertions import tss2csv
-    from validation import _validators
-except ImportError:
-    from ._dynamic_model import RUBEM
-    from .date._date_calc import totalSteps
-    from .file._file_convertions import tss2csv
-    from .validation import _validators
-
+from rubem._dynamic_model import RUBEM
+from rubem.date._date_calc import totalSteps
+from rubem.file._file_convertions import tss2csv
+from rubem.validation import _validators
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +51,8 @@ class Model:
         """
 
         if not isinstance(modelConfig, ConfigParser):
+            logger.error("The model constructor expected an argument type like"
+                         "ConfigParser but got %s", type(modelConfig))
             raise TypeError(
                 "The model constructor expected an argument type like"
                 f" ConfigParser, but got {type(modelConfig)}"
@@ -67,8 +62,11 @@ class Model:
         self.config = modelConfig
 
         startDate = self.config.get("SIM_TIME", "start")
+        logger.debug("Start date: %s", startDate)
         endDate = self.config.get("SIM_TIME", "end")
+        logger.debug("End date: %s", endDate)
         self.start, self.end, self.steps = totalSteps(startDate, endDate)
+        logger.debug("Total steps: %s", self.steps)
 
         self.__setup()
 
@@ -78,12 +76,14 @@ class Model:
         :param modelConfig: Configuration parser object
         :type modelConfig: ConfigParser
         """
-
+        
+        logger.info("Validating model configuration...")
         _validators.schemaValidator(modelConfig)
         _validators.dateValidator(modelConfig)
         _validators.directoryPathValidator(modelConfig)
         _validators.fileNamePrefixValidator(modelConfig)
         _validators.filePathValidator(modelConfig)
+        _validators.rasterSeriesFileValidador(modelConfig)        
         _validators.floatTypeValidator(modelConfig)
         _validators.booleanTypeValidator(modelConfig)
         _validators.value_range_validator(modelConfig)
@@ -91,14 +91,19 @@ class Model:
 
     def __setup(self) -> None:
         """Perform model initialization procedures"""
+        
+        logger.info("Determining which files to generate...")        
         # Store which variables have or have not been selected for export
         genFilesList = ["itp", "bfw", "srn", "eta", "lfw", "rec", "smc", "rnf"]
         genFilesDic = {}
         for file in genFilesList:
             genFilesDic[file] = self.config.getboolean("GENERATE_FILE", file)
+            logger.info("Generate %s rasters: %s", file, genFilesDic[file])
 
+        logger.info("Setting up model...")
         self.model = RUBEM(self.config)
 
+        logger.info("Setting up dynamic model framework...")
         self.dynamicModel = DynamicFramework(
             self.model, lastTimeStep=self.end, firstTimestep=self.start
         )
@@ -106,7 +111,7 @@ class Model:
     def run(self) -> None:
         """Run the model"""
         t1 = time.time()
-        logger.info("Started model run...")
+        logger.info("Started model run for %s cycles...", self.steps)
 
         if logger.isEnabledFor(logging.DEBUG):
             self.dynamicModel.setDebug(True)
@@ -117,13 +122,13 @@ class Model:
 
         try:
             self.dynamicModel.run()
+            logger.info("Simulation finished")
         except RuntimeError as e:
-            logger.info("Model run failed!")
-            raise SystemExit(1) from e
-        else:
+            logger.error("Simulation failed!", e)
+            raise
+        finally:
             execTime = time.time() - t1
             logger.info(f"Elapsed time: {execTime:.2f}s")
-            logger.info("Model run finished")
             self.__exportTablesAsCSV()
 
     @classmethod
@@ -140,9 +145,9 @@ class Model:
         elif isinstance(data, dict):
             return cls.__loadFromDict(data)
         else:
+            logger.error("Unsupported model configuration format: %s", type(data))
             raise Exception(
-                "Unsupported model configuration format", type(data)
-            )
+                "Unsupported model configuration format", type(data))
 
     @classmethod
     def __loadFromConfigFile(cls, filePath):
@@ -152,6 +157,7 @@ class Model:
             modelConfig.read(filePath)
             return cls(modelConfig)
         else:
+            logger.error("File not found: %s", filePath)
             raise FileNotFoundError(filePath)
 
     @classmethod
@@ -162,6 +168,7 @@ class Model:
             modelConfig.read_dict(dataDict)
             return cls(modelConfig)
         else:
+            logger.error("Empty model configuration dictionay")
             raise ValueError("Empty model configuration dictionay")
 
     def __exportTablesAsCSV(self) -> None:
@@ -177,4 +184,5 @@ class Model:
             # removes .tss files
             tss2csv(self.config.get("DIRECTORIES", "output"), cols)
         else:
+            logger.error("Export of time series files not enabled")
             raise RuntimeError("Generation of time series must be activated")
