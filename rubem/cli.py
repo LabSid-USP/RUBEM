@@ -1,25 +1,3 @@
-# coding=utf-8
-# RUBEM is a distributed hydrological model to calculate monthly
-# flows with changes in land use over time.
-# Copyright (C) 2020-2023 LabSid PHA EPUSP
-
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
-# Contact: hydrological@labsid.eng.br
-
-"""RUBEM Command Line Interface (CLI)"""
-
 import os
 import logging
 import logging.handlers
@@ -29,6 +7,7 @@ from datetime import datetime
 from rubem import __release__
 from rubem.core import Model
 from rubem.validation._validators import filePathArgValidator
+from rubem.configuration.model_configuration import ModelConfiguration
 
 logger = logging.getLogger(__name__)
 LOG_FILE_DIR = os.path.join(os.path.expanduser("~"), ".rubem")
@@ -42,6 +21,7 @@ LOG_MSG_FMT = "%(asctime)s %(name)s %(levelname)s:%(message)s"
 LOG_MSG_DTFMT = "%m/%d/%Y %H:%M:%S"
 LOG_LEVEL_DEFAULT_FILE = logging.INFO
 LOG_LEVEL_DEFAULT_TERM = logging.ERROR
+
 
 def main():
     """[summary]
@@ -96,15 +76,18 @@ def main():
     )
 
     try:
-        model = Model.load(args.configfile)
+        model_config = ModelConfiguration(args.configfile)
+        print(model_config)
+        model = Model.load(model_config)
         model.run()
+
     except Exception as e:
-        logger.critical("RUBEM unexpectedly quit ¯\_(ツ)_/¯")
+        logger.critical("RUBEM unexpectedly quit (-_-;)")
         logger.exception(e)
         raise SystemExit(1)
     except KeyboardInterrupt:
-        logger.critical("RUBEM was interrupted by the user (-_-;)")
+        logger.critical("RUBEM was interrupted by the user ¯\_(ツ)_/¯")
         raise SystemExit(2)
     else:
-        logger.info("RUBEM successfully finished!")
+        logger.info("RUBEM successfully finished! ヽ(•‿•)ノ")
         raise SystemExit(0)

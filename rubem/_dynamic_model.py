@@ -1,33 +1,10 @@
-# coding=utf-8
-# RUBEM is a distributed hydrological model to calculate monthly
-# flows with changes in land use over time.
-# Copyright (C) 2020-2023 LabSid PHA EPUSP
-
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
-# Contact: hydrological@labsid.eng.br
-
-"""RUBEM as a PCRaster Dynamic Model"""
-
 import os
-import glob
 import logging
-from configparser import ConfigParser
 
 import numpy as np
 import pcraster as pcr
 import pcraster.framework as pcrfw
+from rubem.configuration.output_format import OutputFileFormat
 
 from rubem.modules._evapotranspiration import *
 from rubem.modules._interception import *
@@ -35,76 +12,62 @@ from rubem.modules._soil import *
 from rubem.modules._surface_runoff import *
 from rubem.date._date_calc import *
 from rubem.file._file_generators import *
-
-logger = logging.getLogger(__name__)
+from rubem.configuration.model_configuration import ModelConfiguration
 
 
 class RUBEM(pcrfw.DynamicModel):
-    """Rainfall rUnoff Balance Enhanced Model.
-
-    Uses the PCRaster Dynamic Modelling Framework.
-    """
-
-    def __init__(self, config: ConfigParser):
-        """Contains the initialization of the model class."""
+    def __init__(self, config: ModelConfiguration):
         pcrfw.DynamicModel.__init__(self)
+        self.logger = logging.getLogger(__name__)
 
         self.config = config
 
-        logger.info("Reading clone file...")
+        self.logger.info("Reading clone file...")
         try:
-            pcr.setclone(self.config.get("RASTERS", "clone"))
+            pcr.setclone(self.config.raster_files.clone)
         except RuntimeError:
-            logger.error("Error reading clone file at '%s'"%(self.config.get("RASTERS", "clone")))
+            self.logger.error("Error reading clone file at '%s'", self.config.raster_files.clone)
             raise
 
         # TODO: Automatic calculation of cell area
-        logger.info("Obtaining grid cell area...")
-        self.A = self.config.getfloat("GRID", "grid") ** 2
+        self.logger.info("Obtaining grid cell area...")
+        self.A = self.config.grid.area
 
-        logger.info("Obtaining initial baseflow...")
-        self.EBini = pcrfw.scalar(
-            config.getfloat("INITIAL_SOIL_CONDITIONS", "bfw_ini"))
-        
-        logger.info("Obtaining baseflow limit...")
-        self.EBlim = pcrfw.scalar(
-            config.getfloat("INITIAL_SOIL_CONDITIONS", "bfw_lim"))
-        
-        logger.info("Obtaining initial moisture content of the saturated zone...")
+        self.logger.info("Obtaining initial baseflow...")
+        self.EBini = pcrfw.scalar(self.config.initial_soil_conditions.initial_baseflow)
+
+        self.logger.info("Obtaining baseflow limit...")
+        self.EBlim = pcrfw.scalar(self.config.initial_soil_conditions.baseflow_limit)
+
+        self.logger.info("Obtaining initial moisture content of the saturated zone...")
         self.Tusini = pcrfw.scalar(
-            config.getfloat("INITIAL_SOIL_CONDITIONS", "S_sat_ini"))
+            self.config.initial_soil_conditions.initial_saturated_zone_storage
+        )
 
-        logger.debug("Reading DEM reference file...")
+        self.logger.debug("Reading DEM reference file...")
         try:
-            self.ref = getRefInfo(self.config.get("RASTERS", "demtif"))
+            self.ref = getRefInfo(self.config.raster_files.demtif)
         except RuntimeError:
-            logger.error("Error reading Digital Elevation Model (DEM) file at '%s'"%(self.dem_file))
+            self.logger.error(
+                "Error reading Digital Elevation Model (DEM) file at '%s'",
+                self.config.raster_files.demtif,
+            )
             raise
 
-        self.ndvi_path = self.config.get("DIRECTORIES", "ndvi") + self.config.get("FILENAME_PREFIXES", "ndvi_prefix")
-        self.landuse_path = self.config.get("DIRECTORIES", "landuse") + self.config.get("FILENAME_PREFIXES", "landuse_prefix")
-        self.precipitation_path = self.config.get("DIRECTORIES", "prec") + self.config.get("FILENAME_PREFIXES", "prec_prefix")
-        self.etp_path = self.config.get("DIRECTORIES", "etp") + self.config.get("FILENAME_PREFIXES", "etp_prefix")
-        self.kp_path = self.config.get("DIRECTORIES", "Kp") + self.config.get("FILENAME_PREFIXES", "kp_prefix")
-        
         self.__getEnabledOutputVars()
 
     def __getEnabledOutputVars(self):
         # Store which variables have or have not been selected for export
-        availabeOutputVars = [
-            "itp",
-            "bfw",
-            "srn",
-            "eta",
-            "lfw",
-            "rec",
-            "smc",
-            "rnf",
-        ]
-        self.enabledOuputVars = []
-        for var in availabeOutputVars:
-            if self.config.getboolean("GENERATE_FILE", var):
-                self.enabledOuputVars.append(var)
+        self.enabledOuputVars = {
+            "itp": self.config.output_variables.itp,
+            "bfw": self.config.output_variables.bfw,
+            "srn": self.config.output_variables.srn,
+            "eta": self.config.output_variables.eta,
+            "lfw": self.config.output_variables.lfw,
+            "rec": self.config.output_variables.rec,
+            "smc": self.config.output_variables.smc,
+            "rnf": self.config.output_variables.rnf,
+        }
 
     def __stepUpdateOutputVars(self):
         self.outputVarsDict = {
@@ -119,97 +82,93 @@ class RUBEM(pcrfw.DynamicModel):
         }
 
     def __stepReport(self):
-
         self.__stepUpdateOutputVars()
 
-        for enabledOutpurVar in self.enabledOuputVars:
+        for outputVar, isOutputVarEnabled in self.enabledOuputVars.items():
+            if not isOutputVarEnabled:
+                continue
+
             # Export TIFF raster series
-            if self.config.getboolean(
-                "RASTER_FILE_FORMAT", "tiff_raster_series"
-            ):
+            if self.config.output_variables.file_format is OutputFileFormat.GeoTIFF:
                 reportTIFFSeries(
                     self,
                     self.ref,
-                    self.outputVarsDict.get(enabledOutpurVar),
-                    enabledOutpurVar,
-                    self.config.get("DIRECTORIES", "output"),
+                    self.outputVarsDict.get(outputVar),
+                    outputVar,
+                    self.config.output_directory.path,
                     self.currentStep,
                     dyn=True,
                 )
 
             # Export PCRaster map format raster series
-            if self.config.getboolean(
-                "RASTER_FILE_FORMAT", "map_raster_series"
-            ):
-                self.report(
-                    self.outputVarsDict.get(enabledOutpurVar), enabledOutpurVar
-                )
+            if self.config.output_variables.file_format is OutputFileFormat.PCRaster:
+                self.report(self.outputVarsDict.get(outputVar), outputVar)
 
             # Check if we have to export the time series of the selected
             # variable (fileName)
-            if self.config.getboolean("GENERATE_FILE", "tss"):
+            if self.config.output_variables.tss:
                 # Export tss according to variable (fileName) selected
                 # The same as self.TssFileXxx.sample(self.Xxx)
-                self.sampleTimeSeriesDict.get(enabledOutpurVar)(
-                    self.outputVarsDict.get(enabledOutpurVar)
-                )
+                self.sampleTimeSeriesDict.get(outputVar)(self.outputVarsDict.get(outputVar))
 
     def __setupTimeoutputTimeseries(self):
-        
         # read sample map location as nominal
         try:
-            sample_map = pcrfw.nominal(self.config.get("RASTERS", "samples")) 
+            sample_map = pcrfw.nominal(self.config.raster_files.sample_locations)
         except RuntimeError:
-            logger.error("Error reading sample map file at '%s'"%(self.config.get("RASTERS", "samples")))
+            self.logger.error(
+                "Error reading sample map file at '%s'"
+                % (self.config.raster_files.sample_locations)
+            )
             raise
-        
+
         # Initialize Tss report at sample locations or pits
         self.TssFileRun = pcrfw.TimeoutputTimeseries(
             "tss_rnf",
             self,
-            self.config.get("RASTERS", "samples"),
+            self.config.raster_files.sample_locations,
             noHeader=True,
         )
         self.TssFileInt = pcrfw.TimeoutputTimeseries(
             "tss_itp",
             self,
-            self.config.get("RASTERS", "samples"),
+            self.config.raster_files.sample_locations,
             noHeader=True,
         )
         self.TssFileBflow = pcrfw.TimeoutputTimeseries(
             "tss_bfw",
             self,
-            self.config.get("RASTERS", "samples"),
+            self.config.raster_files.sample_locations,
             noHeader=True,
         )
         self.TssFileSfRun = pcrfw.TimeoutputTimeseries(
             "tss_srn",
             self,
-            self.config.get("RASTERS", "samples"),
+            self.config.raster_files.sample_locations,
             noHeader=True,
         )
         self.TssFileEta = pcrfw.TimeoutputTimeseries(
             "tss_eta",
             self,
-            self.config.get("RASTERS", "samples"),
+            self.config.raster_files.sample_locations,
             noHeader=True,
         )
         self.TssFileLf = pcrfw.TimeoutputTimeseries(
             "tss_lfw",
             self,
-            self.config.get("RASTERS", "samples"),
+            self.config.raster_files.sample_locations,
             noHeader=True,
         )
         self.TssFileRec = pcrfw.TimeoutputTimeseries(
             "tss_rec",
             self,
-            self.config.get("RASTERS", "samples"),
+            self.config.raster_files.sample_locations,
             noHeader=True,
         )
         self.TssFileSsat = pcrfw.TimeoutputTimeseries(
             "tss_smc",
             self,
-            self.config.get("RASTERS", "samples"),
+            self.config.raster_files.sample_locations,
             noHeader=True,
         )
 
@@ -238,109 +197,134 @@ class RUBEM(pcrfw.DynamicModel):
         Contains operations to init the state of the model at time step 0.
         Operations included in this section are executed once.
         """
-        
-        logger.info("Setting up model initial parameters...")
-        logger.debug("Reading DEM file...")
+
+        self.logger.info("Setting up model initial parameters...")
+        self.logger.debug("Reading DEM file...")
         # Read DEM file
         try:
-            self.dem = pcrfw.readmap(self.config.get("RASTERS", "dem"))
+            self.dem = pcrfw.readmap(self.config.raster_files.dem)
         except RuntimeError:
-            logger.error("Error reading DEM file at '%s'"%(self.config.get("RASTERS", "dem")))
+            self.logger.error("Error reading DEM file at '%s'" % (self.config.raster_files.dem))
             raise
 
-        logger.info("Generating local drain direction (LDD) map based on DEM...")
+        self.logger.info("Generating local drain direction (LDD) map based on DEM...")
         self.ldd = pcrfw.lddcreate(self.dem, 1e31, 1e31, 1e31, 1e31)
 
-        logger.info("Creating slope map based on DEM...")
+        self.logger.info("Creating slope map based on DEM...")
         self.S = pcrfw.slope(self.dem)
 
-        logger.info("Setting up TSS output files...")
-        if self.config.getboolean("GENERATE_FILE", "tss"):
+        self.logger.info("Setting up TSS output files...")
+        if self.config.output_variables.tss:
             self.__setupTimeoutputTimeseries()
 
-        logger.info("Reading min. and max. NDVI rasters...")
+        self.logger.info("Reading min. and max. NDVI rasters...")
         try:
-            self.ndvi_min = pcrfw.scalar(
-                pcrfw.readmap(self.config.get("RASTERS", "ndvi_min")))
+            self.ndvi_min = pcrfw.scalar(pcrfw.readmap(self.config.raster_files.ndvi_min))
         except RuntimeError:
-            logger.error("Error reading NDVI min file at '%s'"%(self.config.get("RASTERS", "ndvi_min")))
-            raise
-            
-        try:            
-            self.ndvi_max = pcrfw.scalar(
-                pcrfw.readmap(self.config.get("RASTERS", "ndvi_max")))
-        except RuntimeError:
-            logger.error("Error reading NDVI max file at '%s'"%(self.config.get("RASTERS", "ndvi_max")))
+            self.logger.error(
+                "Error reading NDVI min file at '%s'" % (self.config.raster_files.ndvi_min)
+            )
             raise
 
-        logger.info("Computing min. and max. surface runoff (SR)")
+        try:
+            self.ndvi_max = pcrfw.scalar(pcrfw.readmap(self.config.raster_files.ndvi_max))
+        except RuntimeError:
+            self.logger.error(
+                "Error reading NDVI max file at '%s'" % (self.config.raster_files.ndvi_max)
+            )
+            raise
+
+        self.logger.info("Computing min. and max. surface runoff (SR)")
         self.sr_min = srCalc(self.ndvi_min)
         self.sr_max = srCalc(self.ndvi_max)
 
-        logger.info("Reading soil attributes...")
-        try:            
-            solo = pcrfw.readmap(self.config.get("RASTERS", "soil"))
+        self.logger.info("Reading soil attributes...")
+        try:
+            solo = pcrfw.readmap(self.config.raster_files.soil)
         except RuntimeError:
-            logger.error("Error reading soil file at '%s'"%(self.config.get("RASTERS", "soil")))
+            self.logger.error("Error reading soil file at '%s'" % (self.config.raster_files.soil))
             raise
-        
-        logger.info("Reading hydraulic conductivity coefficient...")
-        try:            
-            self.Kr = pcrfw.lookupscalar(self.config.get("TABLES", "K_sat"), solo)
+
+        self.logger.info("Reading hydraulic conductivity coefficient...")
+        try:
+            self.Kr = pcrfw.lookupscalar(self.config.lookuptable_files.k_sat, solo)
         except RuntimeError:
-            logger.error("Error reading K_sat file at '%s'"%(self.config.get("TABLES", "K_sat")))
+            self.logger.error(
+                "Error reading K_sat file at '%s'" % (self.config.lookuptable_files.k_sat)
+            )
             raise
-        
-        logger.info("Reading soil density...")
-        try:            
-            self.dg = pcrfw.lookupscalar(self.config.get("TABLES", "bulk_density"), solo)  
+
+        self.logger.info("Reading soil density...")
+        try:
+            self.dg = pcrfw.lookupscalar(self.config.lookuptable_files.bulk_density, solo)
         except RuntimeError:
-            logger.error("Error reading bulk_density file at '%s'"%(self.config.get("TABLES", "bulk_density")))
+            self.logger.error(
+                "Error reading bulk_density file at '%s'"
+                % (self.config.lookuptable_files.bulk_density)
+            )
             raise
-        
-        logger.info("Reading soil root zone depth...")
-        try:            
-            self.Zr = pcrfw.lookupscalar(self.config.get("TABLES", "rootzone_depth"), solo)  
+
+        self.logger.info("Reading soil root zone depth...")
+        try:
+            self.Zr = pcrfw.lookupscalar(self.config.lookuptable_files.rootzone_depth, solo)
         except RuntimeError:
-            logger.error("Error reading rootzone_depth file at '%s'"%(self.config.get("TABLES", "rootzone_depth")))
+            self.logger.error(
+                "Error reading rootzone_depth file at '%s'"
+                % (self.config.lookuptable_files.rootzone_depth)
+            )
             raise
-        
-        logger.info("Reading soil moisture for saturation of the first layer...")
-        try:            
-            self.TUsat = (pcrfw.lookupscalar(self.config.get("TABLES", "T_sat"), solo) * self.dg * self.Zr * 10)  
+
+        self.logger.info("Reading soil moisture for saturation of the first layer...")
+        try:
+            self.TUsat = (
+                pcrfw.lookupscalar(self.config.lookuptable_files.t_sat, solo)
+                * self.dg
+                * self.Zr
+                * 10
+            )
         except RuntimeError:
-            logger.error("Error reading T_sat file at '%s'"%(self.config.get("TABLES", "T_sat")))
+            self.logger.error(
+                "Error reading T_sat file at '%s'" % (self.config.lookuptable_files.t_sat)
+            )
             raise
-        
-        logger.info("Obtaining soil initial moisture content of the root zone...")
-        try:            
-            self.TUr_ini = (self.TUsat) * (self.config.getfloat("INITIAL_SOIL_CONDITIONS", "T_ini"))  
+
+        self.TUr_ini = (
+            self.TUsat * self.config.initial_soil_conditions.initial_soil_moisture_content
+        )
+
+        self.logger.info("Reading soil ground wilting point...")
+        try:
+            self.TUw = (
+                pcrfw.lookupscalar(self.config.lookuptable_files.t_wp, solo)
+                * self.dg
+                * self.Zr
+                * 10
+            )
         except RuntimeError:
-            logger.error("Error reading T_ini file at '%s'"%(self.config.get("INITIAL_SOIL_CONDITIONS", "T_ini")))
+            self.logger.error(
+                "Error reading T_wp file at '%s'" % (self.config.lookuptable_files.t_wp)
+            )
             raise
-        
-        logger.info("Reading soil ground wilting point...")
-        try:            
-            self.TUw = (pcrfw.lookupscalar(self.config.get("TABLES", "T_wp"), solo) * self.dg * self.Zr * 10)  
+
+        self.logger.info("Reading soil field capacity...")
+        try:
+            self.TUcc = (
+                pcrfw.lookupscalar(self.config.lookuptable_files.t_fcap, solo)
+                * self.dg
+                * self.Zr
+                * 10
+            )
         except RuntimeError:
-            logger.error("Error reading T_wp file at '%s'"%(self.config.get("TABLES", "T_wp")))
+            self.logger.error(
+                "Error reading T_fcap file at '%s'" % (self.config.lookuptable_files.t_fcap)
+            )
             raise
-        
-        logger.info("Reading soil field capacity...")
-        try:            
-            self.TUcc = (pcrfw.lookupscalar(self.config.get("TABLES", "T_fcap"), solo) * self.dg * self.Zr * 10)  
-        except RuntimeError:
-            logger.error("Error reading T_fcap file at '%s'"%(self.config.get("TABLES", "T_fcap")))
-            raise
-        
+
         self.EB_ini = self.EBini  # initial baseflow [mm]
         self.EB_lim = self.EBlim  # limit for baseflow condition [mm]
         self.TUs_ini = self.Tusini  # initial moisture content of the saturated layer [mm]
 
-        # steps
-        _, self.lastStep, _ = totalSteps(self.config.get("SIM_TIME", "start"), self.config.get("SIM_TIME", "end"))
-
-        logger.info("Establishing initial conditions...")
+        self.logger.info("Establishing initial conditions...")
         self.TUrprev = self.TUr_ini
         self.TUsprev = self.TUs_ini
         self.EBprev = self.EB_ini
@@ -358,130 +342,153 @@ class RUBEM(pcrfw.DynamicModel):
         The dynamic section is executed a specified number of timesteps.
         """
         t = self.currentStep
-        logger.info(f"Cycle {t} of {self.lastStep}")
-        print(f"## Timestep {t} of {self.lastStep}")
+        self.logger.info(f"Cycle {t} of {self.config.simulation_period.last_step}")
+        print(f"## Timestep {t} of {self.config.simulation_period.last_step}")
 
-        logger.debug("Reading NDVI map from '%s'...", self.ndvi_path)
+        self.logger.debug("Reading NDVI map from '%s'...", self.config.raster_series.ndvi)
         try:
-            ndvi = self.readmap(self.ndvi_path)
+            ndvi = self.readmap(self.config.raster_series.ndvi)
             self.ndvi_ant = ndvi
         except RuntimeError:
-            logger.warning("Error reading NDVI map from '%s'. Using previous timestep value...", self.ndvi_path)
+            self.logger.warning(
+                "Error reading NDVI map from '%s'. Using previous timestep value...",
+                self.config.raster_series.ndvi,
+            )
             ndvi = self.ndvi_ant
 
-        logger.debug("Reading landuse map from '%s'...", self.landuse_path)
+        self.logger.debug("Reading landuse map from '%s'...", self.config.raster_series.landuse)
         try:
-            self.landuse = self.readmap(self.landuse_path)
+            self.landuse = self.readmap(self.config.raster_series.landuse)
             self.landuse_ant = self.landuse
         except RuntimeError:
-            logger.warning("Error reading landuse map from '%s'. Using previous timestep value...", self.landuse_path)
+            self.logger.warning(
+                "Error reading landuse map from '%s'. Using previous timestep value...",
+                self.config.raster_series.landuse,
+            )
             self.landuse = self.landuse_ant
 
-        logger.debug("Reading precipitation map from '%s'...", self.precipitation_path)
+        self.logger.debug(
+            "Reading precipitation map from '%s'...", self.config.raster_series.precipitation
+        )
         try:
-            precipitation = pcr.scalar(self.readmap(self.precipitation_path))
+            precipitation = pcr.scalar(self.readmap(self.config.raster_series.precipitation))
         except RuntimeError:
-            logger.error("Error reading precipitation map from '%s'", self.precipitation_path)
+            self.logger.error(
+                "Error reading precipitation map from '%s'", self.config.raster_series.precipitation
+            )
             raise
 
-        logger.debug("Reading potential evapotranspiration map from '%s'...", self.etp_path)
+        self.logger.debug(
+            "Reading potential evapotranspiration map from '%s'...", self.config.raster_series.etp
+        )
         try:
-            ETp = pcr.scalar(self.readmap(self.etp_path))
+            ETp = pcr.scalar(self.readmap(self.config.raster_series.etp))
         except RuntimeError:
-            logger.error("Error reading potential evapotranspiration map from '%s'", self.etp_path)
+            self.logger.error(
+                "Error reading potential evapotranspiration map from '%s'",
+                self.config.raster_series.etp,
+            )
             raise
 
-        logger.debug("Reading Kp map from '%s'...", self.kp_path)
-        try:    
-            Kp = pcr.scalar(self.readmap(self.kp_path))
+        self.logger.debug("Reading Kp map from '%s'...", self.config.raster_series.kp)
+        try:
+            Kp = pcr.scalar(self.readmap(self.config.raster_series.kp))
         except RuntimeError:
-            logger.error("Error reading Kp map from '%s'", self.kp_path)
+            self.logger.error("Error reading Kp map from '%s'", self.config.raster_series.kp)
             raise
 
-        logger.debug("Reading rainydays file from '%s'...", self.config.get("TABLES", "rainydays"))
+        self.logger.debug(
+            "Reading rainydays file from '%s'...", self.config.lookuptable_files.rainy_days
+        )
         try:
             month = ((t - 1) % 12) + 1
-            rainyDays = pcrfw.lookupscalar(self.config.get("TABLES", "rainydays"), month)
+            rainyDays = pcrfw.lookupscalar(self.config.lookuptable_files.rainy_days, month)
         except RuntimeError:
-            logger.error("Error reading rainydays file at '%s'", self.config.get("TABLES", "rainydays"))
+            self.logger.error(
+                "Error reading rainydays file at '%s'", self.config.lookuptable_files.rainy_days
+            )
             raise
 
-        logger.debug("Reading landuse attributes: manning...")
+        self.logger.debug("Reading landuse attributes: manning...")
         try:
-            n_manning = pcrfw.lookupscalar(self.config.get("TABLES", "manning"), self.landuse)
+            n_manning = pcrfw.lookupscalar(self.config.lookuptable_files.manning, self.landuse)
         except RuntimeError:
-            logger.error("Error reading manning file at '%s'", self.config.get("TABLES", "manning"))
-            raise
-        
-        logger.debug("Reading landuse attributes: a_v...")        
-        try:
-            Av = pcrfw.lookupscalar(self.config.get("TABLES", "a_v"), self.landuse)
-        except RuntimeError:
-            logger.error("Error reading a_v file at '%s'", self.config.get("TABLES", "a_v"))
+            self.logger.error(
+                "Error reading manning file at '%s'", self.config.lookuptable_files.manning
+            )
             raise
 
-        logger.debug("Reading landuse attributes: a_o...")        
+        self.logger.debug("Reading landuse attributes: a_v...")
         try:
-            Ao = pcrfw.lookupscalar(self.config.get("TABLES", "a_o"), self.landuse)
+            Av = pcrfw.lookupscalar(self.config.lookuptable_files.a_v, self.landuse)
         except RuntimeError:
-            logger.error("Error reading a_o file at '%s'", self.config.get("TABLES", "a_o"))
+            self.logger.error("Error reading a_v file at '%s'", self.config.lookuptable_files.a_v)
             raise
 
-        logger.debug("Reading landuse attributes: a_s...")        
+        self.logger.debug("Reading landuse attributes: a_o...")
         try:
-            As = pcrfw.lookupscalar(self.config.get("TABLES", "a_s"), self.landuse)
+            Ao = pcrfw.lookupscalar(self.config.lookuptable_files.a_o, self.landuse)
         except RuntimeError:
-            logger.error("Error reading a_s file at '%s'", self.config.get("TABLES", "a_s"))
+            self.logger.error("Error reading a_o file at '%s'", self.config.lookuptable_files.a_o)
             raise
 
-        logger.debug("Reading landuse attributes: a_i...")            
+        self.logger.debug("Reading landuse attributes: a_s...")
         try:
-            Ai = pcrfw.lookupscalar(self.config.get("TABLES", "a_i"), self.landuse)
+            As = pcrfw.lookupscalar(self.config.lookuptable_files.a_s, self.landuse)
         except RuntimeError:
-            logger.error("Error reading a_i file at '%s'", self.config.get("TABLES", "a_i"))
+            self.logger.error("Error reading a_s file at '%s'", self.config.lookuptable_files.a_s)
             raise
 
-        logger.debug("Reading landuse attributes: K_c_min...")            
+        self.logger.debug("Reading landuse attributes: a_i...")
         try:
-            self.kc_min = pcrfw.lookupscalar(self.config.get("TABLES", "K_c_min"), self.landuse)
+            Ai = pcrfw.lookupscalar(self.config.lookuptable_files.a_i, self.landuse)
         except RuntimeError:
-            logger.error("Error reading K_c_min file at '%s'", self.config.get("TABLES", "K_c_min"))
+            self.logger.error("Error reading a_i file at '%s'", self.config.lookuptable_files.a_i)
             raise
 
-        logger.debug("Reading landuse attributes: K_c_max...")            
+        self.logger.debug("Reading landuse attributes: K_c_min...")
         try:
-            self.kc_max = pcrfw.lookupscalar(self.config.get("TABLES", "K_c_max"), self.landuse)
+            self.kc_min = pcrfw.lookupscalar(self.config.lookuptable_files.kc_min, self.landuse)
         except RuntimeError:
-            logger.error("Error reading K_c_max file at '%s'", self.config.get("TABLES", "K_c_max"))
+            self.logger.error(
+                "Error reading K_c_min file at '%s'", self.config.lookuptable_files.kc_min
+            )
             raise
 
-        logger.debug("Interception")
+        self.logger.debug("Reading landuse attributes: K_c_max...")
+        try:
+            self.kc_max = pcrfw.lookupscalar(self.config.lookuptable_files.kc_max, self.landuse)
+        except RuntimeError:
+            self.logger.error(
+                "Error reading K_c_max file at '%s'", self.config.lookuptable_files.kc_max
+            )
+            raise
+
+        self.logger.debug("Interception")
         SR = srCalc(ndvi)
         FPAR = fparCalc(
-            self.config.getfloat("CONSTANTS", "fpar_min"),
-            self.config.getfloat("CONSTANTS", "fpar_max"),
+            self.config.constants.fraction_photo_active_radiation_min,
+            self.config.constants.fraction_photo_active_radiation_max,
             SR,
             self.sr_min,
             self.sr_max,
         )
         LAI = laiCalc(
             FPAR,
-            self.config.getfloat("CONSTANTS", "fpar_max"),
-            self.config.getfloat("CONSTANTS", "lai_max"),
+            self.config.constants.fraction_photo_active_radiation_max,
+            self.config.constants.leaf_area_interception_max,
         )
         Id, Ir, Iv, self.Itp = interceptionCalc(
-            self.config.getfloat("CALIBRATION", "alpha"),
+            self.config.calibration_parameters.alpha,
             LAI,
             precipitation,
             rainyDays,
             Av,
         )
 
-        logger.debug("Evapotranspiration")
+        self.logger.debug("Evapotranspiration")
 
-        Kc_1 = kcCalc(
-            ndvi, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max
-        )
+        Kc_1 = kcCalc(ndvi, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
         # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
         kc_cond1 = pcrfw.scalar(ndvi < 1.1 * self.ndvi_min)
         kc_cond2 = pcrfw.scalar(ndvi > 1.1 * self.ndvi_min)
@@ -494,22 +501,17 @@ class RUBEM(pcrfw.DynamicModel):
         # Impervious area
         # ET impervious area = Interception of impervious area
         cond = pcr.scalar((precipitation != 0))
-        self.ET_ai = self.config.getfloat("CONSTANTS", "i_imp") * cond
+        self.ET_ai = self.config.constants.impervious_area_interception * cond
 
         # Open water
         self.ET_ao = etaoCalc(ETp, Kp, precipitation, Ao)
-        # self.report(ET_ao,self.config.get("DIRECTORIES", "output")+'ETao')
+        # self.report(ET_ao,self.config.output_directory.output+'ETao')
 
         # Bare soil
         self.ET_as = etasCalc(ETp, self.kc_min, Ks)
-        self.ETr = (
-            (Av * self.ET_av)
-            + (Ai * self.ET_ai)
-            + (Ao * self.ET_ao)
-            + (As * self.ET_as)
-        )
+        self.ETr = (Av * self.ET_av) + (Ai * self.ET_ai) + (Ao * self.ET_ao) + (As * self.ET_as)
 
-        logger.debug("Surface Runoff")
+        self.logger.debug("Surface Runoff")
 
         Pdm = precipitation / rainyDays
         Ch = chCalc(
@@ -517,7 +519,7 @@ class RUBEM(pcrfw.DynamicModel):
             self.dg,
             self.Zr,
             self.TUsat,
-            self.config.getfloat("CALIBRATION", "b"),
+            self.config.calibration_parameters.beta,
         )
         Cper = cperCalc(
             self.TUw,
@@ -525,13 +527,13 @@ class RUBEM(pcrfw.DynamicModel):
             self.Zr,
             self.S,
             n_manning,
-            self.config.getfloat("CALIBRATION", "w_1"),
-            self.config.getfloat("CALIBRATION", "w_2"),
-            self.config.getfloat("CALIBRATION", "w_3"),
+            self.config.calibration_parameters.w_1,
+            self.config.calibration_parameters.w_2,
+            self.config.calibration_parameters.w_3,
         )
         Aimp, Cimp = cimpCalc(Ao, Ai)
         Cwp = cwpCalc(Aimp, Cper, Cimp)
-        Csr = csrCalc(Cwp, Pdm, self.config.getfloat("CALIBRATION", "rcd"))
+        Csr = csrCalc(Cwp, Pdm, self.config.calibration_parameters.rcd)
 
         self.ES = sRunoffCalc(
             Csr,
@@ -544,36 +546,36 @@ class RUBEM(pcrfw.DynamicModel):
             self.TUsat,
         )
 
-        logger.debug("Lateral Flow")
+        self.logger.debug("Lateral Flow")
 
         self.LF = lfCalc(
-            self.config.getfloat("CALIBRATION", "f"),
+            self.config.calibration_parameters.f,
             self.Kr,
             self.TUr,
             self.TUsat,
         )
 
-        logger.debug("Recharge Flow")
+        self.logger.debug("Recharge Flow")
 
         self.REC = recCalc(
-            self.config.getfloat("CALIBRATION", "f"),
+            self.config.calibration_parameters.f,
             self.Kr,
             self.TUr,
             self.TUsat,
         )
 
-        logger.debug("Baseflow")
+        self.logger.debug("Baseflow")
 
         self.EB = baseflowCalc(
             self.EBprev,
-            self.config.getfloat("CALIBRATION", "alpha_gw"),
+            self.config.calibration_parameters.alpha_gw,
             self.REC,
             self.TUs,
             self.EB_lim,
         )
         self.EBprev = self.EB
 
-        logger.debug("Soil Balance")
+        self.logger.debug("Soil Balance")
         self.TUr = turCalc(
             self.TUrprev,
             precipitation,
@@ -590,9 +592,9 @@ class RUBEM(pcrfw.DynamicModel):
 
         self.TUsprev = self.TUs
 
-        logger.debug("Runoff")
+        self.logger.debug("Runoff")
 
-        days = daysOfMonth(self.config.get("SIM_TIME", "start"), t)
+        days = daysOfMonth(self.config.simulation_period.start_date, t)
         c = days * 24 * 3600
 
         self.Qtot = self.ES + self.LF + self.EB  # [mm]
@@ -601,14 +603,12 @@ class RUBEM(pcrfw.DynamicModel):
         self.Qt = pcrfw.accuflux(self.ldd, self.Qtotvol)
 
         self.runoff = (
-            self.config.getfloat("INITIAL_SOIL_CONDITIONS", "T_ini")
-            * self.Qprev
-            + (1 - self.config.getfloat("INITIAL_SOIL_CONDITIONS", "T_ini"))
-            * self.Qt
+            self.config.initial_soil_conditions.initial_soil_moisture_content * self.Qprev
+            + (1 - self.config.initial_soil_conditions.initial_soil_moisture_content) * self.Qt
         )
         self.Qprev = self.runoff
 
-        os.chdir(self.config.get("DIRECTORIES", "output"))
-        logger.debug("Exporting variables to files")
+        os.chdir(self.config.output_directory.path)
+        self.logger.debug("Exporting variables to files")
 
         self.__stepReport()

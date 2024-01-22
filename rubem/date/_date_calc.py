@@ -21,7 +21,7 @@
 """Common date functionality used by RUBEM."""
 
 from calendar import monthrange
-from datetime import datetime
+from datetime import datetime, date
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,21 +29,19 @@ logger = logging.getLogger(__name__)
 
 # Calculation of number of months (steps) based on the start
 # and end dates of simulation
-def totalSteps(startDate, endDate):
+def totalSteps(start: date, end: date):
     """Get the number of months between start and end dates.
 
-    :param startDate: Start date.
-    :startDate type: str
+    :param start: Start date.
+    :start type: date
 
-    :param startDate: End date.
-    :startDate type: str
+    :param end: End date.
+    :end type: date
 
     :return: First step, Last step and Number of months between start\
         and end dates
     :rtype: tuple(int, int ,int)
     """
-    start = datetime.strptime(startDate, "%d/%m/%Y")
-    end = datetime.strptime(endDate, "%d/%m/%Y")
     assert end > start, "End date must be greater than start date"
     nTimeSteps = (end.year - start.year) * 12 + (end.month - start.month) + 1
     lastTimeStep = nTimeSteps
@@ -52,12 +50,12 @@ def totalSteps(startDate, endDate):
     return (firstTimestep, lastTimeStep, nTimeSteps)
 
 
-def daysOfMonth(startDate, timestep):
+def daysOfMonth(source_date: date, timestep):
     """Get the number of days in the month from timestep (for flow\
         conversion from mm to m3/s).
 
-    :param startDate: Start date.
-    :startDate  type: str
+    :param source_date: Start date.
+    :source_date  type: date
 
     :param timestep: Timestep for evaluate actual month
     :timestep  type: int
@@ -65,9 +63,8 @@ def daysOfMonth(startDate, timestep):
     :returns: Days of month.
     :rtype: int
     """
-    sourcedate = datetime.strptime(startDate, "%d/%m/%Y")
-    month = sourcedate.month - 2 + timestep
-    year = sourcedate.year + month // 12
+    month = source_date.month - 2 + timestep
+    year = source_date.year + month // 12
     month = (month % 12) + 1
     days = monthrange(year, month)[1]
     return days
