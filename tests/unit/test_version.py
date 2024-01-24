@@ -19,17 +19,17 @@ class VersionTest(unittest.TestCase):
 
     def test_copyright_str(self):
         self.assertEqual(
-            "Copyright (C) 2020-2023 - LabSid/PHA/EPUSP", __copyright__
+            "Copyright (C) 2020-2024 - LabSid/PHA/EPUSP", __copyright__
         )
 
     def test_license_str(self):
         self.assertEqual("GPL", __license__)
 
     def test_date_str(self):
-        self.assertEqual("2023-05-17", __date__)
+        self.assertEqual("2023-01-24", __date__)
 
     def test_version_str(self):
-        self.assertEqual("0.2.2", __version__)
+        self.assertEqual( "0.2.3", __version__)
 
     def test_release_str(self):
-        self.assertEqual("0.2.2-beta.1", __release__)
+        self.assertEqual("0.2.3-beta.2", __release__)
