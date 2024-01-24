@@ -5,6 +5,13 @@ This is the list of changes to RUBEM between each release. For full details, see
 
 For a list of known issues and their fixes, visit the `Github issues page <https://github.com/LabSid-USP/RUBEM/issues>`__.
 
+Version 0.2.3-beta.2
+---------------------
+
+**Date**: Jan 24, 2024
+
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Fix error in the implementation of the Total Discharge equation (`#106 <https://github.com/LabSid-USP/RUBEM/pull/106>`__);
+
 Version 0.2.2-beta.1
 ---------------------
 

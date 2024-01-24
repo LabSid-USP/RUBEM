@@ -603,8 +603,8 @@ class RUBEM(pcrfw.DynamicModel):
         self.Qt = pcrfw.accuflux(self.ldd, self.Qtotvol)
 
         self.runoff = (
-            self.config.initial_soil_conditions.initial_soil_moisture_content * self.Qprev
-            + (1 - self.config.initial_soil_conditions.initial_soil_moisture_content) * self.Qt
+            self.config.calibration_parameters.x * self.Qprev
+            + (1 - self.config.calibration_parameters.x) * self.Qt
         )
         self.Qprev = self.runoff
 
