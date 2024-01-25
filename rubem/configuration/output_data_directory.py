@@ -16,7 +16,7 @@ class OutputDataDirectory:
         output_path: Union[str, bytes, os.PathLike],
     ) -> None:
         self.logger = logging.getLogger(__name__)
-        self.path = output_path
+        self.path = str(output_path)
 
         self.__validate_directories()
 

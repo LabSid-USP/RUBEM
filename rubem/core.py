@@ -51,7 +51,7 @@ class Model:
         finally:
             exec_time = time.time() - t0
             self.logger.info("Elapsed time: %.2fs", exec_time)
-            # self.__exportTablesAsCSV()
+            self.__exportTablesAsCSV()
 
     @classmethod
     def load(cls, data):
@@ -60,40 +60,18 @@ class Model:
         else:
             raise ValueError("Unsupported model configuration format", type(data))
 
-    # @classmethod
-    # def __loadFromConfigFile(cls, filePath):
-    #     """Load data from a INI file"""
-    #     if os.path.exists(filePath):
-    #         modelConfig = ConfigParser()
-    #         modelConfig.read(filePath)
-    #         return cls(modelConfig)
-    #     else:
-    #         logger.error("File not found: %s", filePath)
-    #         raise FileNotFoundError(filePath)
+    def __exportTablesAsCSV(self) -> None:
+        """Converts PCRaster TSS files to Comma-Separated Values (CSV) files
 
-    # @classmethod
-    # def __loadFromDict(cls, dataDict):
-    #     """Load data from a dictionary"""
-    #     if dataDict:
-    #         modelConfig = ConfigParser()
-    #         modelConfig.read_dict(dataDict)
-    #         return cls(modelConfig)
-    #     else:
-    #         logger.error("Empty model configuration dictionay")
-    #         raise ValueError("Empty model configuration dictionay")
-
-    # def __exportTablesAsCSV(self) -> None:
-    #     """Converts PCRaster TSS files to Comma-Separated Values (CSV) files
-
-    #     :raises RuntimeError: Export of time series files not enabled
-    #     """
-    #     # Check whether the generation of time series has been activated
-    #     if self.config.getboolean("GENERATE_FILE", "tss"):
-    #         logger.info("Exporting tables as CSV...")
-    #         cols = [str(n) for n in self.user_model.sample_vals[1:]]
-    #         # Convert generated time series to .csv format and
-    #         # removes .tss files
-    #         tss2csv(self.config.get("DIRECTORIES", "output"), cols)
-    #     else:
-    #         logger.error("Export of time series files not enabled")
-    #         raise RuntimeError("Generation of time series must be activated")
+        :raises RuntimeError: Export of time series files not enabled
+        """
+        # Check whether the generation of time series has been activated
+        if self.config.output_variables.tss:
+            self.logger.info("Exporting tables as CSV...")
+            cols = [str(n) for n in self.user_model.sample_vals[1:]]
+            # Convert generated time series to .csv format and
+            # removes .tss files
+            tss2csv(self.config.output_directory.path, cols)
+        else:
+            self.logger.error("Export of time series files not enabled")
+            raise RuntimeError("Generation of time series must be activated")
