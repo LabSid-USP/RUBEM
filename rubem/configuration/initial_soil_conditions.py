@@ -1,5 +1,6 @@
 import logging
-import sys
+
+from rubem.configuration.data_ranges_settings import DataRangesSettings
 
 
 class InitialSoilConditions:
@@ -24,20 +25,23 @@ class InitialSoilConditions:
         initial_saturated_zone_storage: float,
     ) -> None:
         self.logger = logging.getLogger(__name__)
+        self.__ranges = DataRangesSettings()
 
         self.__validate(
             "Initial Soil Moisture Content (T_ini)",
             initial_soil_moisture_content,
-            0.0,
-            sys.float_info.max,
+            self.__ranges.variables["initial_soil_moisture_content"],
         )
-        self.__validate("Initial Baseflow (bfw_ini)", initial_baseflow, 0.0, sys.float_info.max)
-        self.__validate("Baseflow Threshold (bfw_lim)", baseflow_limit, 0.0, sys.float_info.max)
+        self.__validate(
+            "Initial Baseflow (bfw_ini)", initial_baseflow, self.__ranges.variables["baseflow"]
+        )
+        self.__validate(
+            "Baseflow Threshold (bfw_lim)", baseflow_limit, self.__ranges.variables["baseflow"]
+        )
         self.__validate(
             "Initial Saturated Zone Storage (S_sat_ini)",
             initial_saturated_zone_storage,
-            0.0,
-            sys.float_info.max,
+            self.__ranges.variables["initial_saturated_zone_storage"],
         )
 
         self.initial_soil_moisture_content = initial_soil_moisture_content
@@ -45,7 +49,9 @@ class InitialSoilConditions:
         self.baseflow_limit = baseflow_limit
         self.initial_saturated_zone_storage = initial_saturated_zone_storage
 
-    def __validate(self, parameter_name, parameter_value, min_value, max_value):
+    def __validate(self, parameter_name, parameter_value, valid_range):
+        min_value = valid_range["min"]
+        max_value = valid_range["max"]
         if not min_value <= parameter_value <= max_value:
             raise ValueError(
                 f"Parameter value out of range: {parameter_name}={parameter_value} [{min_value}, {max_value}]."

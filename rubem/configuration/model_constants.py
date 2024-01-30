@@ -1,5 +1,7 @@
 import logging
 
+from rubem.configuration.data_ranges_settings import DataRangesSettings
+
 
 class ModelConstants:
     """
@@ -7,10 +9,13 @@ class ModelConstants:
 
     :param fraction_photo_active_radiation_max: Maximum fraction of photosynthetically active radiation (FPAR) [-].
     :type fraction_photo_active_radiation_max: float
+
     :param fraction_photo_active_radiation_min: Minimum fraction of photosynthetically active radiation (FPAR) [-].
     :type fraction_photo_active_radiation_min: float
+
     :param leaf_area_interception_max: Maximum leaf area index (LAI) [-].
     :type leaf_area_interception_max: float
+
     :param impervious_area_interception: Impervious area interception [mm].
     :type impervious_area_interception: float
 
@@ -25,17 +30,17 @@ class ModelConstants:
         impervious_area_interception: float,
     ) -> None:
         self.logger = logging.getLogger(__name__)
+        self.__ranges = DataRangesSettings()
+
         self.__validate(
             "Max. Frac. Photosynthetically Active Radiation (fpar_max)",
             fraction_photo_active_radiation_max,
-            0.0,
-            1.0,
+            self.__ranges.variables["fraction_photo_active_radiation"],
         )
         self.__validate(
             "Min. Frac. Photosynthetically Active Radiation (fpar_min)",
             fraction_photo_active_radiation_min,
-            0.0,
-            1.0,
+            self.__ranges.variables["fraction_photo_active_radiation"],
         )
 
         if fraction_photo_active_radiation_max < fraction_photo_active_radiation_min:
@@ -48,12 +53,15 @@ class ModelConstants:
                 f"Max. FPAR={fraction_photo_active_radiation_max} must be greater than the Min. FPAR={fraction_photo_active_radiation_min}."
             )
 
-        self.__validate("Max. Leaf Area Index (lai_max)", leaf_area_interception_max, 1.0, 12.0)
+        self.__validate(
+            "Max. Leaf Area Index (lai_max)",
+            leaf_area_interception_max,
+            self.__ranges.variables["leaf_area_interception_max"],
+        )
         self.__validate(
             "Impervious Area Interception (i_imp)",
             impervious_area_interception,
-            1.0,
-            3.0,
+            self.__ranges.variables["impervious_area_interception"],
         )
 
         self.fraction_photo_active_radiation_max = fraction_photo_active_radiation_max
@@ -61,7 +69,9 @@ class ModelConstants:
         self.leaf_area_interception_max = leaf_area_interception_max
         self.impervious_area_interception = impervious_area_interception
 
-    def __validate(self, parameter_name, parameter_value, min_value, max_value):
+    def __validate(self, parameter_name, parameter_value, valid_range):
+        min_value = valid_range["min"]
+        max_value = valid_range["max"]
         if not min_value <= parameter_value <= max_value:
             raise ValueError(
                 f"Parameter value out of range: {parameter_name}={parameter_value} [{min_value}, {max_value}]."
