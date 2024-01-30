@@ -26,9 +26,11 @@ class ModelConfiguration:
     required for running the model. It supports loading configuration from either a dictionary,
     an INI file, or a JSON file.
 
-    :param config_input: The configuration input. It can be a
-    dictionary containing the configuration settings, a file path to an INI or JSON file,
-    or a file-like object.
+    :param config_input: The configuration input. It can be a dictionary containing the configuration
+        settings, a file path to an INI or JSON file, or a file-like object.
+
+    :param validate_input: Whether to validate the input. Defaults to `True`.
+    :type validate_input: bool, optional
 
     :raises FileNotFoundError: If the specified config file is not found.
     :raises ValueError: If the config file type is not supported.
@@ -38,7 +40,9 @@ class ModelConfiguration:
     :raises ValueError: If a setting value is invalid.
     """
 
-    def __init__(self, config_input):
+    def __init__(
+        self, config_input: Union[dict, str, bytes, os.PathLike], validate_input: bool = True
+    ):
         self.logger = logging.getLogger(__name__)
 
         try:
@@ -63,45 +67,6 @@ class ModelConfiguration:
             self.simulation_period = SimulationPeriod(
                 datetime.strptime(self.__get_setting("SIM_TIME", "start"), "%d/%m/%Y").date(),
                 datetime.strptime(self.__get_setting("SIM_TIME", "end"), "%d/%m/%Y").date(),
-            )
-            self.raster_series = InputRasterSeries(
-                etp=self.__get_setting("DIRECTORIES", "etp"),
-                etp_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "etp_prefix"),
-                precipitation=self.__get_setting("DIRECTORIES", "prec"),
-                precipitation_filename_prefix=self.__get_setting(
-                    "FILENAME_PREFIXES", "prec_prefix"
-                ),
-                ndvi=self.__get_setting("DIRECTORIES", "ndvi"),
-                ndvi_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "ndvi_prefix"),
-                kp=self.__get_setting("DIRECTORIES", "kp"),
-                kp_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "kp_prefix"),
-                landuse=self.__get_setting("DIRECTORIES", "landuse"),
-                landuse_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "landuse_prefix"),
-            )
-            self.raster_files = InputRasterFiles(
-                dem=self.__get_setting("RASTERS", "dem"),
-                demtif=self.__get_setting("RASTERS", "demtif"),
-                clone=self.__get_setting("RASTERS", "clone"),
-                ndvi_max=self.__get_setting("RASTERS", "ndvi_max"),
-                ndvi_min=self.__get_setting("RASTERS", "ndvi_min"),
-                soil=self.__get_setting("RASTERS", "soil"),
-                sample_locations=self.__get_setting("RASTERS", "samples"),
-            )
-            self.lookuptable_files = InputTableFiles(
-                rainy_days=self.__get_setting("TABLES", "rainydays"),
-                a_i=self.__get_setting("TABLES", "a_i"),
-                a_o=self.__get_setting("TABLES", "a_o"),
-                a_s=self.__get_setting("TABLES", "a_s"),
-                a_v=self.__get_setting("TABLES", "a_v"),
-                manning=self.__get_setting("TABLES", "manning"),
-                bulk_density=self.__get_setting("TABLES", "bulk_density"),
-                k_sat=self.__get_setting("TABLES", "k_sat"),
-                t_fcap=self.__get_setting("TABLES", "t_fcap"),
-                t_sat=self.__get_setting("TABLES", "t_sat"),
-                t_wp=self.__get_setting("TABLES", "t_wp"),
-                rootzone_depth=self.__get_setting("TABLES", "rootzone_depth"),
-                kc_min=self.__get_setting("TABLES", "k_c_min"),
-                kc_max=self.__get_setting("TABLES", "k_c_max"),
             )
             self.grid = RasterGrid(float(self.__get_setting("GRID", "grid")))
             self.calibration_parameters = CalibrationParameters(
@@ -149,6 +114,48 @@ class ModelConfiguration:
                 output_format=OutputFileFormat.PCRaster
                 if bool(self.__get_setting("RASTER_FILE_FORMAT", "map_raster_series"))
                 else OutputFileFormat.GeoTIFF,
+            )
+            self.raster_series = InputRasterSeries(
+                etp=self.__get_setting("DIRECTORIES", "etp"),
+                etp_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "etp_prefix"),
+                precipitation=self.__get_setting("DIRECTORIES", "prec"),
+                precipitation_filename_prefix=self.__get_setting(
+                    "FILENAME_PREFIXES", "prec_prefix"
+                ),
+                ndvi=self.__get_setting("DIRECTORIES", "ndvi"),
+                ndvi_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "ndvi_prefix"),
+                kp=self.__get_setting("DIRECTORIES", "kp"),
+                kp_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "kp_prefix"),
+                landuse=self.__get_setting("DIRECTORIES", "landuse"),
+                landuse_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "landuse_prefix"),
+                validate_input=validate_input,
+            )
+            self.raster_files = InputRasterFiles(
+                dem=self.__get_setting("RASTERS", "dem"),
+                demtif=self.__get_setting("RASTERS", "demtif"),
+                clone=self.__get_setting("RASTERS", "clone"),
+                ndvi_max=self.__get_setting("RASTERS", "ndvi_max"),
+                ndvi_min=self.__get_setting("RASTERS", "ndvi_min"),
+                soil=self.__get_setting("RASTERS", "soil"),
+                sample_locations=self.__get_setting("RASTERS", "samples"),
+                validate_input=validate_input,
+            )
+            self.lookuptable_files = InputTableFiles(
+                rainy_days=self.__get_setting("TABLES", "rainydays"),
+                a_i=self.__get_setting("TABLES", "a_i"),
+                a_o=self.__get_setting("TABLES", "a_o"),
+                a_s=self.__get_setting("TABLES", "a_s"),
+                a_v=self.__get_setting("TABLES", "a_v"),
+                manning=self.__get_setting("TABLES", "manning"),
+                bulk_density=self.__get_setting("TABLES", "bulk_density"),
+                k_sat=self.__get_setting("TABLES", "k_sat"),
+                t_fcap=self.__get_setting("TABLES", "t_fcap"),
+                t_sat=self.__get_setting("TABLES", "t_sat"),
+                t_wp=self.__get_setting("TABLES", "t_wp"),
+                rootzone_depth=self.__get_setting("TABLES", "rootzone_depth"),
+                kc_min=self.__get_setting("TABLES", "k_c_min"),
+                kc_max=self.__get_setting("TABLES", "k_c_max"),
+                validate_input=validate_input,
             )
         except Exception as e:
             self.logger.error("Failed to load configuration: %s", e)
