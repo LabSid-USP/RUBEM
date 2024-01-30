@@ -5,6 +5,8 @@ import argparse
 from datetime import datetime
 
 from rubem import __release__
+from rubem.configuration.app_settings import AppSettings
+from rubem.configuration.data_ranges_settings import DataRangesSettings
 from rubem.core import Model
 from rubem.validation._validators import filePathArgValidator
 from rubem.configuration.model_configuration import ModelConfiguration
@@ -24,10 +26,17 @@ LOG_LEVEL_DEFAULT_TERM = logging.ERROR
 
 
 def main():
-    """[summary]
+    """Main function of the RUBEM CLI.
 
-    :raises SystemExit: [description]
+    This function is called when the user runs the RUBEM command.
+
+    :raises SystemExit(0): If the program finishes successfully.
+    :raises SystemExit(1): If the program exits with an error.
+    :raises SystemExit(2): If the program is interrupted by the user.
     """
+    app_settings = AppSettings()
+    _ = DataRangesSettings(app_settings.get_setting("value_ranges"))
+
     # Configure CLI
     parser = argparse.ArgumentParser(
         prog="rubem",
@@ -53,6 +62,13 @@ def main():
         version=f"RUBEM v{__release__}",
         help="show version and exit",
     )
+    parser.add_argument(
+        "-s",
+        "--skip-inputs-validation",
+        action="store_false",
+        help="disable input files validation before running the model",
+        required=False,
+    )
 
     args = parser.parse_args()
 
@@ -74,13 +90,10 @@ def main():
         level=logging.DEBUG,
         handlers=[rotating_file_handler, stream_handler],
     )
-
     try:
-        model_config = ModelConfiguration(args.configfile)
-        print(model_config)
+        model_config = ModelConfiguration(args.configfile, args.skip_inputs_validation)
         model = Model.load(model_config)
         model.run()
-
     except Exception as e:
         logger.critical("RUBEM unexpectedly quit (-_-;)")
         logger.exception(e)
