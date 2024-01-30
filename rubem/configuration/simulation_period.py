@@ -10,6 +10,7 @@ class SimulationPeriod:
 
     :param start: The start date of the simulation period.
     :type start: date
+
     :param end: The end date of the simulation period.
     :type end: date
 

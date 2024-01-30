@@ -7,16 +7,35 @@ class OutputVariables:
     """
     Represents the output variables configuration.
 
-    :param itp: Enable or disable Total Interception (ITP).
-    :param bfw: Enable or disable Baseflow (BFW).
-    :param srn: Enable or disable Surface Runoff (SRN).
-    :param eta: Enable or disable Actual Evapotranspiration (ETA).
-    :param lfw: Enable or disable Lateral Flow (LFW).
-    :param rec: Enable or disable Recharge (REC).
-    :param smc: Enable or disable Soil Moisture Content (SMC).
-    :param rnf: Enable or disable Total Runoff (RNF).
-    :param tss: Enable or disable Create time output time series (TSS).
-    :param output_format: The output file format.
+    :param itp: Enable or disable Total Interception (ITP). Defaults to `False`.
+    :type itp: bool, optional
+
+    :param bfw: Enable or disable Baseflow (BFW). Defaults to `False`.
+    :type bfw: bool, optional
+
+    :param srn: Enable or disable Surface Runoff (SRN). Defaults to `False`.
+    :type srn: bool, optional
+
+    :param eta: Enable or disable Actual Evapotranspiration (ETA). Defaults to `False`.
+    :type eta: bool, optional
+
+    :param lfw: Enable or disable Lateral Flow (LFW). Defaults to `False`.
+    :type lfw: bool, optional
+
+    :param rec: Enable or disable Recharge (REC). Defaults to `False`.
+    :type rec: bool, optional
+
+    :param smc: Enable or disable Soil Moisture Content (SMC). Defaults to `False`.
+    :type smc: bool, optional
+
+    :param rnf: Enable or disable Total Runoff (RNF). Defaults to `False`.
+    :type rnf: bool, optional
+
+    :param tss: Enable or disable Create time output time series (TSS). Defaults to `False`.
+    :type tss: bool, optional
+
+    :param output_format: The output file format. Defaults to `OutputFileFormat.PCRaster`.
+    :type output_format: OutputFileFormat, optional
     """
 
     def __init__(
