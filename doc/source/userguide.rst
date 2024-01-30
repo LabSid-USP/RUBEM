@@ -880,9 +880,9 @@ When running RUBEM without any arguments, you will see the following message on 
 
 .. code-block:: console
 
-   $ python rubem.py
-   usage: RUBEM [-h] --configfile CONFIGFILE [--version] [--verbose]
-   RUBEM: error: the following arguments are required: --configfile
+   $ python rubem
+   usage: rubem [-h] -c CONFIGFILE [-V] [-s]
+   rubem: error: the following arguments are required: -c/--configfile
 
 Command Line Options
 ````````````````````
@@ -891,59 +891,57 @@ Use ``-h`` or ``--help`` to get a brief description of RUBEM and each argument.
 
 .. code-block:: console
 
-   $ python rubem.py --help
-   usage: RUBEM [-h] --configfile CONFIGFILE [--version] [--verbose]
+   $ python rubem -h
+   usage: rubem [-h] -c CONFIGFILE [-V] [-s]
 
    Rainfall rUnoff Balance Enhanced Model (RUBEM)
 
    optional arguments:
    -h, --help            show this help message and exit
-   --configfile CONFIGFILE
+   -c CONFIGFILE, --configfile CONFIGFILE
                            path to configuration file
-   --version, -V         show program's version number and exit
-   --verbose, -v         set the verbosity level
+   -V, --version         show version and exit
+   -s, --skip-inputs-validation
+                           disable input files validation before running the model
 
-   Developed by LabSid-PHA-EPUSP 
+   RUBEM 0.2.3-beta.2 Copyright (C) 2020-2024 - LabSid/PHA/EPUSP -This program comes with ABSOLUTELY NO WARRANTY.This is free software, and you are welcome to redistribute it under   
+   certain conditions. 
 
 Use ``-V`` or ``--version`` to get the version of the RUBEM.
 
 .. code-block:: console
 
-   $ python rubem.py --version
-   RUBEM v0.1.3
+   $ python rubem --version
+   RUBEM v0.2.3-beta.2
 
 Use ``-c`` or ``--configfile`` to set the path of the RUBEM configuration file.
 
 .. code-block:: console
 
-   $ python rubem.py --configfile project-config.ini
-   RUBEM::Started
-   RUBEM::Reading configuration file... OK
-   RUBEM::Running dynamic model...
-   RUBEM::Reading input files... OK
-   .Time: 1
-         Interception... OK
-         Evapotranspiration... OK
-         Surface Runoff... OK
-         Lateral Flow... OK
-         Recharge Flow... OK
-         Baseflow... OK
-         Soil Balance... OK
-         Runoff... OK
-   Exporting variables to files... OK
-   Ending cycle 1 of 2
-   .Time: 2
-         Interception... OK
-         Evapotranspiration... OK
-         Surface Runoff... OK
-         Lateral Flow... OK
-         Recharge Flow... OK
-         Baseflow... OK
-         Soil Balance... OK
-         Runoff... OK
-   Exporting variables to files... OK
-   Ending cycle 2 of 2
-   RUBEM::Dynamic model runtime: 3.28 seconds
-   RUBEM::Converting *.tss files to *.csv... OK
-   RUBEM::Finished     
+   $ python rubem --configfile project-config.ini
+   .## Timestep 1 of 24
+   .## Timestep 2 of 24
+   .## Timestep 3 of 24
+   .## Timestep 4 of 24
+   .## Timestep 5 of 24
+   .## Timestep 6 of 24
+   .## Timestep 7 of 24
+   .## Timestep 8 of 24
+   .## Timestep 9 of 24
+   .## Timestep 10 of 24
+   .## Timestep 11 of 24
+   .## Timestep 12 of 24
+   .## Timestep 13 of 24
+   .## Timestep 14 of 24
+   .## Timestep 15 of 24
+   .## Timestep 16 of 24
+   .## Timestep 17 of 24
+   .## Timestep 18 of 24
+   .## Timestep 19 of 24
+   .## Timestep 20 of 24
+   .## Timestep 21 of 24
+   .## Timestep 22 of 24
+   .## Timestep 23 of 24
+   .## Timestep 24 of 24
+
 

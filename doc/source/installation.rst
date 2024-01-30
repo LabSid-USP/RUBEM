@@ -16,4 +16,4 @@ In the appropriate Conda environment run the following command within the root d
 
 .. code-block:: console
 
-   python rubem.py -h
+   python rubem -h
