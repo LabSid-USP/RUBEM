@@ -10,3 +10,4 @@ class RasterDataRule(Enum):
     ALLOW_ALL_ONES = 2
     FORBID_ALL_ZEROES = 3
     FORBID_ALL_ONES = 4
+    FORBID_NO_DATA = 5
