@@ -13,32 +13,51 @@ class InputTableFiles:
 
     :param rainy_days: Path to the rainy days lookup table file.
     :type rainy_days: Union[str, bytes, os.PathLike]
+
     :param a_i: Path to the impervious area fraction lookup table file.
     :type a_i: Union[str, bytes, os.PathLike]
+
     :param a_o: Path to the open water area fraction lookup table file.
     :type a_o: Union[str, bytes, os.PathLike]
+
     :param a_s: Path to the bare soil area fraction lookup table file.
     :type a_s: Union[str, bytes, os.PathLike]
+
     :param a_v: Path to the vegetated area fraction lookup table file.
     :type a_v: Union[str, bytes, os.PathLike]
+
     :param manning: Path to the Manning's roughness coefficient lookup table file.
     :type manning: Union[str, bytes, os.PathLike]
+
     :param bulk_density: Path to the bulk density lookup table file.
     :type bulk_density: Union[str, bytes, os.PathLike]
+
     :param k_sat: Path to the saturated hydraulic conductivity lookup table file.
     :type k_sat: Union[str, bytes, os.PathLike]
+
     :param t_fcap: Path to the field capacity lookup table file.
     :type t_fcap: Union[str, bytes, os.PathLike]
+
     :param t_sat: Path to the saturated content lookup table file.
     :type t_sat: Union[str, bytes, os.PathLike]
+
     :param t_wp: Path to the wilting point lookup table file.
     :type t_wp: Union[str, bytes, os.PathLike]
+
     :param rootzone_depth: Path to the rootzone depth lookup table file.
     :type rootzone_depth: Union[str, bytes, os.PathLike]
+
     :param kc_min: Path to the minimum crop coefficient lookup table file.
     :type kc_min: Union[str, bytes, os.PathLike]
+
     :param kc_max: Path to the maximum crop coefficient lookup table file.
     :type kc_max: Union[str, bytes, os.PathLike]
+
+    :param validate_input: If True, validates the input lookup table files. Defaults to `True`.
+    :type validate_input: bool, optional
+
+    :raises FileNotFoundError: If any of the input lookup table files does not exist.
+    :raises ValueError: If any of the input lookup table files is empty.
     """
 
     def __init__(
@@ -57,8 +76,10 @@ class InputTableFiles:
         rootzone_depth: Union[str, bytes, os.PathLike],
         kc_min: Union[str, bytes, os.PathLike],
         kc_max: Union[str, bytes, os.PathLike],
+        validate_input: bool = True,
     ) -> None:
         self.logger = logging.getLogger(__name__)
+
         self.rainy_days = rainy_days
         self.a_i = a_i
         self.a_o = a_o
@@ -74,7 +95,10 @@ class InputTableFiles:
         self.kc_min = kc_min
         self.kc_max = kc_max
 
-        self.__validate_files()
+        if validate_input:
+            self.__validate_files()
+        else:
+            self.logger.warning("Input lookup table files validation is disabled.")
 
     def __validate_files(self) -> None:
         files = [
