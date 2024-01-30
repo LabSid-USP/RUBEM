@@ -9,6 +9,16 @@ from rubem.file._file_convertions import tss2csv
 
 
 class Model:
+    """Initialize the ``DynamicFrameworkWrapper`` class
+
+    Wrapper for the ``DynamicFramework`` that runs the ``DynamicModelConcept`` of the Rainfall rUnoff Balance Enhanced Model.
+
+    :param model_configuration: The configuration object for the model.
+    :type model_configuration: ModelConfiguration
+
+    :raises ValueError: If the model configuration is empty.
+    """
+
     def __init__(self, model_configuration: ModelConfiguration) -> None:
         self.logger = logging.getLogger(__name__)
 
@@ -19,11 +29,11 @@ class Model:
         self.config = model_configuration
 
         self.logger.info("Setting up model...")
-        self.user_model = RUBEM(self.config)
+        self.dynamic_model_concept = RUBEM(self.config)
 
         self.logger.info("Setting up dynamic model framework...")
         self.dynamic_model = DynamicFramework(
-            userModel=self.user_model,
+            userModel=self.dynamic_model_concept,
             firstTimestep=self.config.simulation_period.first_step,
             lastTimeStep=self.config.simulation_period.last_step,
         )
@@ -36,7 +46,9 @@ class Model:
             self.dynamic_model.setQuiet(True)
 
     def run(self) -> None:
-        """Run the model"""
+        """
+        Wrapper of the ``DynamicFramework.run()`` that runs the ``DynamicModelConcept``.
+        """
         t0 = time.time()
         self.logger.info(
             "Started model run for %s cycles...", self.config.simulation_period.total_steps
@@ -55,22 +67,31 @@ class Model:
 
     @classmethod
     def load(cls, data):
+        """
+        Load the model configuration.
+
+        :param data: The model configuration data.
+        :type data: Any
+
+        :return: The loaded Model object.
+        :rtype: rubem.configuration.model_configuration.ModelConfiguration
+
+        :raises ValueError: If the model configuration format is unsupported.
+        """
         if isinstance(data, ModelConfiguration):
             return cls(data)
         else:
             raise ValueError("Unsupported model configuration format", type(data))
 
     def __exportTablesAsCSV(self) -> None:
-        """Converts PCRaster TSS files to Comma-Separated Values (CSV) files
-
-        :raises RuntimeError: Export of time series files not enabled
         """
-        # Check whether the generation of time series has been activated
+        Converts PCRaster TSS files to Comma-Separated Values (CSV) files.
+
+        :raises RuntimeError: If the export of time series files is not enabled.
+        """
         if self.config.output_variables.tss:
             self.logger.info("Exporting tables as CSV...")
-            cols = [str(n) for n in self.user_model.sample_vals[1:]]
-            # Convert generated time series to .csv format and
-            # removes .tss files
+            cols = [str(n) for n in self.dynamic_model_concept.sample_vals[1:]]
             tss2csv(self.config.output_directory.path, cols)
         else:
             self.logger.error("Export of time series files not enabled")
