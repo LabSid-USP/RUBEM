@@ -1,8 +1,31 @@
 channels:
-  - conda-forge
-  - defaults
+- conda-forge
+- defaults
 dependencies:
-  - python=3.10  
-  - gdal
-  - pandas
-  - pcraster
+- python=3.9.*
+- gdal
+- pandas
+- pcraster
+- pip
+- py
+- pyfakefs
+- pytest
+- pytest-cov
+- pytest-forked
+- pytest-mock
+- pytest-xdist
+- python-dateutil
+- tzdata
+- pip:
+  - sphinx
+  - sphinx-autodoc-typehints
+  - sphinx-rtd-theme
+  - sphinxcontrib-applehelp
+  - sphinxcontrib-devhelp
+  - sphinxcontrib-email
+  - sphinxcontrib-htmlhelp
+  - sphinxcontrib-jquery
+  - sphinxcontrib-jsmath
+  - sphinxcontrib-qthelp
+  - sphinxcontrib-serializinghtml
+  - sphinxcontrib-youtube
