@@ -111,9 +111,11 @@ class ModelConfiguration:
                 smc=bool(self.__get_setting("GENERATE_FILE", "smc")),
                 rnf=bool(self.__get_setting("GENERATE_FILE", "rnf")),
                 tss=bool(self.__get_setting("GENERATE_FILE", "tss")),
-                output_format=OutputFileFormat.PCRaster
-                if bool(self.__get_setting("RASTER_FILE_FORMAT", "map_raster_series"))
-                else OutputFileFormat.GeoTIFF,
+                output_format=(
+                    OutputFileFormat.PCRaster
+                    if bool(self.__get_setting("RASTER_FILE_FORMAT", "map_raster_series"))
+                    else OutputFileFormat.GeoTIFF
+                ),
             )
             self.raster_series = InputRasterSeries(
                 etp=self.__get_setting("DIRECTORIES", "etp"),
