@@ -21,7 +21,7 @@
 """Common date functionality used by RUBEM."""
 
 from calendar import monthrange
-from datetime import datetime, date
+from datetime import date
 import logging
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 # Calculation of number of months (steps) based on the start
 # and end dates of simulation
-def totalSteps(start: date, end: date):
+def totalSteps(start: date, end: date) -> tuple[int, int, int]:
     """Get the number of months between start and end dates.
 
     :param start: Start date.
