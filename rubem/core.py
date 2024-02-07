@@ -21,7 +21,7 @@ class Model:
 
     def __init__(self, model_configuration: ModelConfiguration) -> None:
         self.logger = logging.getLogger(__name__)
-
+        print("Setting up dynamic framework...")
         if not model_configuration:
             self.logger.error("Empty model configuration")
             raise ValueError("Empty model configuration")
@@ -49,6 +49,7 @@ class Model:
         """
         Wrapper of the ``DynamicFramework.run()`` that runs the ``DynamicModelConcept``.
         """
+        print("Running simulation...")
         t0 = time.time()
         self.logger.info(
             "Started model run for %s cycles...", self.config.simulation_period.total_steps

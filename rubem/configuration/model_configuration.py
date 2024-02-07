@@ -44,7 +44,7 @@ class ModelConfiguration:
         self, config_input: Union[dict, str, bytes, os.PathLike], validate_input: bool = True
     ):
         self.logger = logging.getLogger(__name__)
-
+        print(f"Loading configuration{' and validating inputs' if validate_input else ''}...")
         try:
             if isinstance(config_input, dict):
                 self.logger.debug("Reading configuration from dictionary")
