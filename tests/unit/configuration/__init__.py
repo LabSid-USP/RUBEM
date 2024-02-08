@@ -3,7 +3,7 @@ from rubem.configuration.data_ranges_settings import DataRangesSettings
 ranges = DataRangesSettings(
     {
         "rasters": {
-            "dem": {"min": 100.0, "max": 10000.0},
+            "dem": {"min": -100.0, "max": 10000.0},
             "clone": {"min": 0.0, "max": 1.0},
             "ndvi": {"min": -1.0, "max": 1.0},
             "soil": {"min": 0.0, "max": "Infinity"},
