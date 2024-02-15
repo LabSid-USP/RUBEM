@@ -112,9 +112,9 @@ class ModelConfiguration:
                 rnf=bool(self.__get_setting("GENERATE_FILE", "rnf")),
                 tss=bool(self.__get_setting("GENERATE_FILE", "tss")),
                 output_format=(
-                    OutputFileFormat.PCRaster
+                    OutputFileFormat.PCRASTER
                     if bool(self.__get_setting("RASTER_FILE_FORMAT", "map_raster_series"))
-                    else OutputFileFormat.GeoTIFF
+                    else OutputFileFormat.GEOTIFF
                 ),
             )
             self.raster_series = InputRasterSeries(

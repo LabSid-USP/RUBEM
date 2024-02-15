@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 
 
 class OutputFileFormat(Enum):
@@ -6,5 +6,5 @@ class OutputFileFormat(Enum):
     Enum class representing the output file format options.
     """
 
-    PCRaster = 1
-    GeoTIFF = 2
+    PCRASTER = auto()
+    GEOTIFF = auto()

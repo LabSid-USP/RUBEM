@@ -34,7 +34,7 @@ class OutputVariables:
     :param tss: Enable or disable Create time output time series (TSS). Defaults to `False`.
     :type tss: bool, optional
 
-    :param output_format: The output file format. Defaults to `OutputFileFormat.PCRaster`.
+    :param output_format: The output file format. Defaults to ``OutputFileFormat.PCRASTER``.
     :type output_format: OutputFileFormat, optional
     """
 
@@ -49,7 +49,7 @@ class OutputVariables:
         smc: bool = False,
         rnf: bool = False,
         tss: bool = False,
-        output_format: OutputFileFormat = OutputFileFormat.PCRaster,
+        output_format: OutputFileFormat = OutputFileFormat.PCRASTER,
     ) -> None:
         self.logger = logging.getLogger(__name__)
         self.itp = itp
