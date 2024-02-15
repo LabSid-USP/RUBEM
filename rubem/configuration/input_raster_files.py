@@ -2,8 +2,10 @@ import logging
 import os
 from typing import Union
 
-from rubem.configuration.pcraster_map import PCRasterMap
+from rubem.configuration.raster_map import RasterMap
 from rubem.configuration.data_ranges_settings import DataRangesSettings
+from rubem.validation.raster_data import RasterMapValidator
+from rubem.validation.raster_data_rules import RasterDataRules
 
 
 class InputRasterFiles:
@@ -67,17 +69,46 @@ class InputRasterFiles:
 
     def __validate_files(self) -> None:
         files = [
-            (self.dem, self.__ranges.rasters["dem"]),
-            (self.demtif, self.__ranges.rasters["dem"]),
-            (self.clone, self.__ranges.rasters["clone"]),
-            (self.ndvi_max, self.__ranges.rasters["ndvi"]),
-            (self.ndvi_min, self.__ranges.rasters["ndvi"]),
-            (self.soil, self.__ranges.rasters["soil"]),
-            (self.sample_locations, self.__ranges.rasters["sample_locations"]),
+            (
+                self.dem,
+                self.__ranges.rasters["dem"],
+                RasterDataRules.FORBID_NO_DATA
+                | RasterDataRules.FORBID_ALL_ZEROES
+                | RasterDataRules.FORBID_ALL_ONES,
+            ),
+            (
+                self.demtif,
+                self.__ranges.rasters["dem"],
+                RasterDataRules.FORBID_NO_DATA
+                | RasterDataRules.FORBID_ALL_ZEROES
+                | RasterDataRules.FORBID_ALL_ONES,
+            ),
+            (self.clone, self.__ranges.rasters["clone"], RasterDataRules.FORBID_ALL_ZEROES),
+            (self.ndvi_max, self.__ranges.rasters["ndvi"], RasterDataRules.FORBID_NO_DATA),
+            (self.ndvi_min, self.__ranges.rasters["ndvi"], RasterDataRules.FORBID_NO_DATA),
+            (
+                self.soil,
+                self.__ranges.rasters["soil"],
+                RasterDataRules.FORBID_NO_DATA | RasterDataRules.FORBID_ALL_ZEROES,
+            ),
+            (
+                self.sample_locations,
+                self.__ranges.rasters["sample_locations"],
+                RasterDataRules.FORBID_ALL_ZEROES | RasterDataRules.FORBID_ALL_ONES,
+            ),
         ]
 
-        for file, valid_range in files:
-            _ = PCRasterMap(file, valid_range)
+        for file, valid_range, rules in files:
+            raster = RasterMap(file, valid_range, rules)
+            self.logger.debug(str(raster).replace("\n", ", "))
+
+            validator = RasterMapValidator()
+            if not validator.validate(raster):
+                self.logger.error(
+                    "Raster file '%s' contains invalid data. This may lead to unexpected results.",
+                    file,
+                )
+                raise ValueError(f"Raster file '{file}' contains invalid data.")
 
     def __str__(self) -> str:
         return (

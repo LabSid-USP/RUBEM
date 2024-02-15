@@ -1,6 +1,6 @@
 import pytest
 
-from rubem.configuration.pcraster_map import PCRasterMap
+from rubem.configuration.raster_map import RasterMap
 
 
 class TestPCRasterMap:
