@@ -120,7 +120,6 @@ class ModelConfiguration:
                     else OutputFileFormat.GeoTIFF
                 ),
             )
-            print(self.output_variables)
             self.raster_series = InputRasterSeries(
                 etp=self.__get_setting("DIRECTORIES", "etp"),
                 etp_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "etp_prefix"),
