@@ -182,4 +182,4 @@ class Model:
             # removes .tss files
             tss2csv(self.config.get("DIRECTORIES", "output"), cols)
         else:
-            logger.error("Generation of time series was not enabled to export time series files.")
+            logger.warning("Generation of time series was not enabled to export time series files.")
