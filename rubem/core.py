@@ -51,8 +51,10 @@ class Model:
         """
 
         if not isinstance(modelConfig, ConfigParser):
-            logger.error("The model constructor expected an argument type like"
-                         "ConfigParser but got %s", type(modelConfig))
+            logger.error(
+                "The model constructor expected an argument type like" "ConfigParser but got %s",
+                type(modelConfig),
+            )
             raise TypeError(
                 "The model constructor expected an argument type like"
                 f" ConfigParser, but got {type(modelConfig)}"
@@ -76,14 +78,14 @@ class Model:
         :param modelConfig: Configuration parser object
         :type modelConfig: ConfigParser
         """
-        
+
         logger.info("Validating model configuration...")
         _validators.schemaValidator(modelConfig)
         _validators.dateValidator(modelConfig)
         _validators.directoryPathValidator(modelConfig)
         _validators.fileNamePrefixValidator(modelConfig)
         _validators.filePathValidator(modelConfig)
-        _validators.rasterSeriesFileValidador(modelConfig)        
+        _validators.rasterSeriesFileValidador(modelConfig)
         _validators.floatTypeValidator(modelConfig)
         _validators.booleanTypeValidator(modelConfig)
         _validators.value_range_validator(modelConfig)
@@ -91,8 +93,8 @@ class Model:
 
     def __setup(self) -> None:
         """Perform model initialization procedures"""
-        
-        logger.info("Determining which files to generate...")        
+
+        logger.info("Determining which files to generate...")
         # Store which variables have or have not been selected for export
         genFilesList = ["itp", "bfw", "srn", "eta", "lfw", "rec", "smc", "rnf"]
         genFilesDic = {}
@@ -146,8 +148,7 @@ class Model:
             return cls.__loadFromDict(data)
         else:
             logger.error("Unsupported model configuration format: %s", type(data))
-            raise Exception(
-                "Unsupported model configuration format", type(data))
+            raise Exception("Unsupported model configuration format", type(data))
 
     @classmethod
     def __loadFromConfigFile(cls, filePath):
@@ -172,10 +173,7 @@ class Model:
             raise ValueError("Empty model configuration dictionay")
 
     def __exportTablesAsCSV(self) -> None:
-        """Converts PCRaster TSS files to Comma-Separated Values (CSV) files
-
-        :raises RuntimeError: Export of time series files not enabled
-        """
+        """Converts PCRaster TSS files to Comma-Separated Values (CSV) files"""
         # Check whether the generation of time series has been activated
         if self.config.getboolean("GENERATE_FILE", "tss"):
             logger.info("Exporting tables as CSV...")
@@ -184,5 +182,4 @@ class Model:
             # removes .tss files
             tss2csv(self.config.get("DIRECTORIES", "output"), cols)
         else:
-            logger.error("Export of time series files not enabled")
-            raise RuntimeError("Generation of time series must be activated")
+            logger.warning("Generation of time series was not enabled to export time series files.")
