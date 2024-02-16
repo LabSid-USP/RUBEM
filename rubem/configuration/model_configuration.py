@@ -1,3 +1,4 @@
+import ast
 import configparser
 from datetime import datetime
 import json
@@ -102,21 +103,24 @@ class ModelConfiguration:
             )
             self.output_directory = OutputDataDirectory(self.__get_setting("DIRECTORIES", "output"))
             self.output_variables = OutputVariables(
-                itp=bool(self.__get_setting("GENERATE_FILE", "itp")),
-                bfw=bool(self.__get_setting("GENERATE_FILE", "bfw")),
-                srn=bool(self.__get_setting("GENERATE_FILE", "srn")),
-                eta=bool(self.__get_setting("GENERATE_FILE", "eta")),
-                lfw=bool(self.__get_setting("GENERATE_FILE", "lfw")),
-                rec=bool(self.__get_setting("GENERATE_FILE", "rec")),
-                smc=bool(self.__get_setting("GENERATE_FILE", "smc")),
-                rnf=bool(self.__get_setting("GENERATE_FILE", "rnf")),
-                tss=bool(self.__get_setting("GENERATE_FILE", "tss")),
+                itp=ast.literal_eval(self.__get_setting("GENERATE_FILE", "itp")),
+                bfw=ast.literal_eval(self.__get_setting("GENERATE_FILE", "bfw")),
+                srn=ast.literal_eval(self.__get_setting("GENERATE_FILE", "srn")),
+                eta=ast.literal_eval(self.__get_setting("GENERATE_FILE", "eta")),
+                lfw=ast.literal_eval(self.__get_setting("GENERATE_FILE", "lfw")),
+                rec=ast.literal_eval(self.__get_setting("GENERATE_FILE", "rec")),
+                smc=ast.literal_eval(self.__get_setting("GENERATE_FILE", "smc")),
+                rnf=ast.literal_eval(self.__get_setting("GENERATE_FILE", "rnf")),
+                tss=ast.literal_eval(self.__get_setting("GENERATE_FILE", "tss")),
                 output_format=(
                     OutputFileFormat.PCRaster
-                    if bool(self.__get_setting("RASTER_FILE_FORMAT", "map_raster_series"))
+                    if ast.literal_eval(
+                        self.__get_setting("RASTER_FILE_FORMAT", "map_raster_series")
+                    )
                     else OutputFileFormat.GeoTIFF
                 ),
             )
+            print(self.output_variables)
             self.raster_series = InputRasterSeries(
                 etp=self.__get_setting("DIRECTORIES", "etp"),
                 etp_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "etp_prefix"),
