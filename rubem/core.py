@@ -91,5 +91,6 @@ class Model:
             cols = [str(n) for n in self.dynamic_model_concept.sample_vals[1:]]
             tss2csv(self.config.output_directory.path, cols)
         else:
-            logger.warning("Generation of time series was not enabled to export time series files.")
-
+            self.logger.warning(
+                "Generation of time series was not enabled to export time series files."
+            )
