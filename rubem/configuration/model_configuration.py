@@ -1,4 +1,3 @@
-import ast
 import configparser
 from datetime import datetime
 import json
@@ -103,20 +102,18 @@ class ModelConfiguration:
             )
             self.output_directory = OutputDataDirectory(self.__get_setting("DIRECTORIES", "output"))
             self.output_variables = OutputVariables(
-                itp=ast.literal_eval(self.__get_setting("GENERATE_FILE", "itp")),
-                bfw=ast.literal_eval(self.__get_setting("GENERATE_FILE", "bfw")),
-                srn=ast.literal_eval(self.__get_setting("GENERATE_FILE", "srn")),
-                eta=ast.literal_eval(self.__get_setting("GENERATE_FILE", "eta")),
-                lfw=ast.literal_eval(self.__get_setting("GENERATE_FILE", "lfw")),
-                rec=ast.literal_eval(self.__get_setting("GENERATE_FILE", "rec")),
-                smc=ast.literal_eval(self.__get_setting("GENERATE_FILE", "smc")),
-                rnf=ast.literal_eval(self.__get_setting("GENERATE_FILE", "rnf")),
-                tss=ast.literal_eval(self.__get_setting("GENERATE_FILE", "tss")),
+                itp=str_to_bool(self.__get_setting("GENERATE_FILE", "itp")),
+                bfw=str_to_bool(self.__get_setting("GENERATE_FILE", "bfw")),
+                srn=str_to_bool(self.__get_setting("GENERATE_FILE", "srn")),
+                eta=str_to_bool(self.__get_setting("GENERATE_FILE", "eta")),
+                lfw=str_to_bool(self.__get_setting("GENERATE_FILE", "lfw")),
+                rec=str_to_bool(self.__get_setting("GENERATE_FILE", "rec")),
+                smc=str_to_bool(self.__get_setting("GENERATE_FILE", "smc")),
+                rnf=str_to_bool(self.__get_setting("GENERATE_FILE", "rnf")),
+                tss=str_to_bool(self.__get_setting("GENERATE_FILE", "tss")),
                 output_format=(
                     OutputFileFormat.PCRaster
-                    if ast.literal_eval(
-                        self.__get_setting("RASTER_FILE_FORMAT", "map_raster_series")
-                    )
+                    if str_to_bool(self.__get_setting("RASTER_FILE_FORMAT", "map_raster_series"))
                     else OutputFileFormat.GeoTIFF
                 ),
             )
@@ -207,3 +204,22 @@ class ModelConfiguration:
             f"Output directory: {self.output_directory}\n"
             f"Output Raster Series:\n{textwrap.indent(str(self.output_variables), tab)}"
         )
+
+
+def str_to_bool(value: str) -> bool:
+    """
+    Converts a string value to a boolean.
+
+    :param value: The string value to be converted.
+    :type value: str
+
+    :return: The boolean representation of the string value.
+    :rtype: bool
+    """
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, str):
+        return value.lower() in ("yes", "true", "t", "1")
+
+    raise ValueError(f"Invalid value for boolean conversion: {type(value)}")
