@@ -685,7 +685,7 @@ Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simu
   - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
 
 Accumulated Total Runoff raster series
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in raster format for all simulation period for each pixel of :ref:`stations map <Stations (samples) raster>`.
 
@@ -971,7 +971,7 @@ Resulting maps of Soil Moisture Content (SMC) [mm] in table format for all simul
      - Float <\*>    
 
 Accumulated Total Runoff table
-^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^	
 
 Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
 
