@@ -684,10 +684,10 @@ Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simu
   - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
   - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
 
-Total Runoff raster series
+Accumulated Total Runoff raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in raster format for all simulation period for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in raster format for all simulation period for each pixel of :ref:`stations map <Stations (samples) raster>`.
 
 - Filetype: PCRaster map format (:file:`rnf00000.001`- :file:`rnf99999.999` raster map series).
 - Unit: :raw-html:`m<sup>3</sup>s<sup>-1</sup>`
@@ -970,10 +970,10 @@ Resulting maps of Soil Moisture Content (SMC) [mm] in table format for all simul
      - `...`
      - Float <\*>    
 
-Total Runoff table
+Accumulated Total Runoff table
 ^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: :raw-html:`m<sup>3</sup>s<sup>-1</sup>`
