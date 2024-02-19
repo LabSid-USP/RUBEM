@@ -207,8 +207,18 @@ class RUBEM(pcrfw.DynamicModel):
             self.logger.error("Error reading DEM file at '%s'" % (self.config.raster_files.dem))
             raise
 
-        self.logger.info("Generating local drain direction (LDD) map based on DEM...")
-        self.ldd = pcrfw.lddcreate(self.dem, 1e31, 1e31, 1e31, 1e31)
+        if self.config.raster_files.ldd:
+            self.logger.info("Reading Local Drain Direction (LDD) file...")
+            try:
+                self.ldd = pcr.ldd(pcr.readmap(self.config.raster_files.ldd))
+            except RuntimeError:
+                self.logger.error("Error reading LDD file at '%s'" % (self.config.raster_files.ldd))
+                raise
+        else:
+            self.logger.info(
+                "Local Drain Direction (LDD) raster map not specified, generating one based on DEM..."
+            )
+            self.ldd = pcrfw.lddcreate(self.dem, 1e31, 1e31, 1e31, 1e31)
 
         self.logger.info("Creating slope map based on DEM...")
         self.S = pcrfw.slope(self.dem)
