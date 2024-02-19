@@ -85,15 +85,12 @@ class Model:
             raise ValueError("Unsupported model configuration format", type(data))
 
     def __exportTablesAsCSV(self) -> None:
-        """
-        Converts PCRaster TSS files to Comma-Separated Values (CSV) files.
-
-        :raises RuntimeError: If the export of time series files is not enabled.
-        """
+        """Converts PCRaster TSS files to Comma-Separated Values (CSV) files."""
         if self.config.output_variables.tss:
             self.logger.info("Exporting tables as CSV...")
             cols = [str(n) for n in self.dynamic_model_concept.sample_vals[1:]]
             tss2csv(self.config.output_directory.path, cols)
         else:
-            self.logger.error("Export of time series files not enabled")
-            raise RuntimeError("Generation of time series must be activated")
+            self.logger.warning(
+                "Generation of time series was not enabled to export time series files."
+            )
