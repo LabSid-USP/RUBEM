@@ -493,7 +493,7 @@ In a proper Conda environment, run the following command:
 
 .. code-block:: console
     
-    $ python rubem.py --configfile Iguazu.ini
+    $ python rubem -c Iguazu.ini
 
 If all the project's configuration file is specified correctly, the user should be faced with the following:
 
