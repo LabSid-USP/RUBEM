@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Union
+from typing import Optional, Union
 
 from rubem.configuration.pcraster_map import PCRasterMap
 from rubem.configuration.data_ranges_settings import DataRangesSettings
@@ -31,6 +31,9 @@ class InputRasterFiles:
     :param sample_locations: Path to the stations locations (samples) file.
     :type sample_locations: Union[str, bytes, os.PathLike]
 
+    :param ldd: Path to the Local Drain Direction (LDD) raster file.
+    :type ldd: Union[str, bytes, os.PathLike], optional
+
     :param validate_input: If True, validates the input raster files. Defaults to `True`.
     :type validate_input: bool, optional
 
@@ -47,6 +50,7 @@ class InputRasterFiles:
         ndvi_min: Union[str, bytes, os.PathLike],
         soil: Union[str, bytes, os.PathLike],
         sample_locations: Union[str, bytes, os.PathLike],
+        ldd: Optional[Union[str, bytes, os.PathLike]] = None,
         validate_input: bool = True,
     ) -> None:
         self.logger = logging.getLogger(__name__)
@@ -59,6 +63,7 @@ class InputRasterFiles:
         self.ndvi_min = ndvi_min
         self.soil = soil
         self.sample_locations = sample_locations
+        self.ldd = ldd if ldd else None
 
         if validate_input:
             self.__validate_files()
@@ -84,6 +89,7 @@ class InputRasterFiles:
             f"DEM (PCRaster Map): {self.dem}\n"
             f"DEM (GeoTIFF Map): {self.demtif}\n"
             f"Mask of Catchment (Clone): {self.clone}\n"
+            f"Local Drain Direction (LDD): {self.ldd if self.ldd else 'Not specified.'}\n"
             f"NDVI Max.: {self.ndvi_max}\n"
             f"NDVI Min.: {self.ndvi_min}\n"
             f"Soil: {self.soil}\n"
