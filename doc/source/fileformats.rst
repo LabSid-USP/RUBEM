@@ -31,7 +31,7 @@ Digital Elevation Map (DEM) raster
 This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRASTER library.
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
-- Unit: Scalar
+- Unit: `Meters Above Sea Level (MASL) <https://wiki.gis.com/wiki/index.php/Meters_above_sea_level>`_
 - Valid Range: :math:`[-100.0, 10000.0]`
 - Restrictions: 
 
@@ -42,15 +42,15 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Digital Elevation Map (DEM) raster (TIFF)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - Filetype: TIFF :file:`*.tif` raster file.
-- Unit: Scalar
+- Unit: `Meters Above Sea Level (MASL) <https://wiki.gis.com/wiki/index.php/Meters_above_sea_level>`_
 - Valid Range: :math:`[-100.0, 10000.0]`
 - Restrictions: 
 
@@ -61,9 +61,9 @@ Digital Elevation Map (DEM) raster (TIFF)
 
 - Dimensions:
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 
 Potential Evapotranspiration (:raw-html:`ET<sub>P</sub>`) raster series
@@ -81,9 +81,9 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 .. note::
 
@@ -109,9 +109,9 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 .. note::
 
@@ -137,9 +137,9 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 .. note::
 
@@ -167,9 +167,9 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 .. note::
 
@@ -197,9 +197,9 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 .. note::
 
@@ -225,9 +225,9 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Stations (samples) raster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -244,9 +244,9 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Maximum NDVI raster
 ^^^^^^^^^^^^^^^^^^^^
@@ -263,9 +263,9 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Minimum NDVI raster
 ^^^^^^^^^^^^^^^^^^^^
@@ -282,9 +282,9 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Monthly Rainy Days table
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -619,111 +619,111 @@ Output File Formats
 Total Interception raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Total Interception (ITP) [mm]  in raster format for all simulation period for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Total Interception (ITP) [mm]  in raster format for all simulation period for each pixel of :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: PCRaster map format (:file:`itp00000.001`- :file:`itp99999.999` raster map series).
 - Unit: mm
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Baseflow raster series
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of  Baseflow (BFW) [mm]  in raster format for all simulation period or for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of  Baseflow (BFW) [mm]  in raster format for all simulation period or for each pixel of :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: PCRaster map format (:file:`bfw00000.001`- :file:`bfw99999.999` raster map series).
 - Unit: mm
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Surface Runoff raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of  Surface runoff (SRN) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of  Surface runoff (SRN) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: PCRaster map format (:file:`srn00000.001`- :file:`srn99999.999` raster map series).
 - Unit: mm
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Actual Evapotranspiration raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Actual Evapotranspiration (ETA) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Actual Evapotranspiration (ETA) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: PCRaster map format (:file:`eta00000.001`- :file:`eta99999.999` raster map series).
 - Unit: mm
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Lateral Flow raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Lateral Flow (LFW) [mm] in raster format for all simulation period for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Lateral Flow (LFW) [mm] in raster format for all simulation period for each pixel of :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: PCRaster map format (:file:`lfw00000.001`- :file:`lfw99999.999` raster map series).
 - Unit: mm
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Recharge raster series
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Recharge (REC) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Recharge (REC) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: PCRaster map format (:file:`rec00000.001`- :file:`rec99999.999` raster map series).
 - Unit: mm
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Soil Moisture Content raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: PCRaster map format (:file:`smc00000.001`- :file:`smc99999.999` raster map series).
 - Unit: mm
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Total Runoff raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in raster format for all simulation period for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in raster format for all simulation period for each pixel of :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: PCRaster map format (:file:`rnf00000.001`- :file:`rnf99999.999` raster map series).
 - Unit: :raw-html:`m<sup>3</sup>s<sup>-1</sup>`
 - Dimensions: 
 
-  - Rows = :ref:`clone rows <Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<Mask of Catchment (Clone) raster>`.
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 Total Interception table
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting values of Total Interception (ITP) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
+Resulting values of Total Interception (ITP) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: mm
@@ -762,7 +762,7 @@ Resulting values of Total Interception (ITP) [mm] in table format for all simula
 Baseflow table
 ^^^^^^^^^^^^^^^
 
-Resulting maps of  Baseflow (BFW) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of  Baseflow (BFW) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: mm
@@ -801,7 +801,7 @@ Resulting maps of  Baseflow (BFW) [mm] in table format for all simulation period
 Surface Runoff table
 ^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of  Surface runoff (SRN) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of  Surface runoff (SRN) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: mm
@@ -840,7 +840,7 @@ Resulting maps of  Surface runoff (SRN) [mm] in table format for all simulation 
 Actual Evapotranspiration table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Actual Evapotranspiration (ETA) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Actual Evapotranspiration (ETA) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: mm
@@ -879,7 +879,7 @@ Resulting maps of Actual Evapotranspiration (ETA) [mm] in table format for all s
 Lateral Flow table
 ^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Lateral Flow (LFW) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Lateral Flow (LFW) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: mm
@@ -918,7 +918,7 @@ Resulting maps of Lateral Flow (LFW) [mm] in table format for all simulation per
 Recharge table
 ^^^^^^^^^^^^^^^
 
-Resulting maps of Recharge (REC) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Recharge (REC) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: mm
@@ -957,7 +957,7 @@ Resulting maps of Recharge (REC) [mm] in table format for all simulation period 
 Soil Moisture Content table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Soil Moisture Content (SMC) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Soil Moisture Content (SMC) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: mm
@@ -996,7 +996,7 @@ Resulting maps of Soil Moisture Content (SMC) [mm] in table format for all simul
 Total Runoff table
 ^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: :raw-html:`m<sup>3</sup>s<sup>-1</sup>`
