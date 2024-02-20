@@ -14,10 +14,12 @@ Mask of Catchment (Clone) raster
 This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRASTER library.
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
-- Unit: boolean
-- Restriction: 
+- Unit: Boolean
+- Valid Range: :math:`[0.0, 1.0]`
+- Restrictions: 
 
-  - ``PCRASTER_VALUESCALE`` = ``VS_boolean``
+  - ``PCRASTER_VALUESCALE`` = ``VS_BOOLEAN``;
+  - Raster pixels cannot consist entirely of ``0.0`` values.
 
 - Dimensions:
 
@@ -30,10 +32,13 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit: Scalar
+- Valid Range: :math:`[-100.0, 10000.0]`
 - Restrictions: 
 
   - ``PCRASTER_VALUESCALE`` = ``VS_SCALAR``;
-  - The file cannot contain a missing value for each pixel that is ``True`` (has a boolean 1 value) on the mask map.
+  - None of the pixels in the raster must contain ``NO_DATA`` value;
+  - Raster pixels cannot consist entirely of ``1.0`` values;
+  - Raster pixels cannot consist entirely of ``0.0`` values.
 
 - Dimensions: 
 
@@ -46,7 +51,13 @@ Digital Elevation Map (DEM) raster (TIFF)
 
 - Filetype: TIFF :file:`*.tif` raster file.
 - Unit: Scalar
-- Restriction: 
+- Valid Range: :math:`[-100.0, 10000.0]`
+- Restrictions: 
+
+  - ``PCRASTER_VALUESCALE`` = ``VS_SCALAR``;
+  - None of the pixels in the raster must contain ``NO_DATA`` value;
+  - Raster pixels cannot consist entirely of ``1.0`` values;
+  - Raster pixels cannot consist entirely of ``0.0`` values.
 
 - Dimensions:
 
@@ -62,9 +73,10 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 
 - Filetype: PCRaster map format (:file:`etp00000.001`- :file:`etp99999.999` raster map series).
 - Unit: mm/month
-- Restriction: 
+- Valid Range: :math:`[0.0, \infty]`
+- Restrictions: 
 
-  - The file cannot contain a missing value for each pixel that is ``True`` (has a boolean 1 value) on the mask map;
+  - None of the pixels in the raster must contain ``NO_DATA`` value;
   - Each month of the historical series corresponds to a :raw-html:`ET<sub>P</sub>` file.
 
 - Dimensions: 
@@ -89,9 +101,10 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 
 - Filetype: PCRaster map format (:file:`raf00000.001`- :file:`raf99999.999` raster map series). 
 - Unit: mm/month
-- Restriction: 
+- Valid Range: :math:`[0.0, \infty]`
+- Restrictions: 
 
-  - The file cannot contain a missing value for each pixel that is ``True`` (has a boolean 1 value) on the mask map;
+  - None of the pixels in the raster must contain ``NO_DATA`` value;
   - Each month of the historical series corresponds to a rainfall file.
 
 - Dimensions: 
@@ -116,9 +129,10 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 
 - Filetype: PCRaster map format (:file:`ndvi0000.001`- :file:`ndvi9999.999` raster map series).
 - Unit: Dimensionless
-- Restriction: 
+- Valid Range: :math:`[-1.0, 1.0]`
+- Restrictions: 
 
-  - The file cannot contain a missing value for each pixel that is ``True`` (has a boolean 1 value) on the mask map;
+  - None of the pixels in the raster must contain ``NO_DATA`` value;
   - Each month of the historical series corresponds to a NDVI file.
 
 - Dimensions: 
@@ -145,9 +159,10 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 
 - Filetype: PCRaster map format (:file:`kpc00000.001`- :file:`kpc99999.999` raster map series).
 - Unit: Dimensionless
-- Restriction: 
+- Valid Range: :math:`[0.0, 1.0]`
+- Restrictions: 
 
-  - The file cannot contain a missing value for each pixel that is ``True`` (has a boolean 1 value) on the mask map;
+  - None of the pixels in the raster must contain ``NO_DATA`` value;
   - Each month of the historical series corresponds to a :raw-html:`K<sub>P</sub>` file.
 
 - Dimensions: 
@@ -172,11 +187,13 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 
 - Filetype: PCRaster map format (:file:`luc00000.001`- :file:`luc99999.999` raster map series).
 - Unit: Nominal
+- Valid Range: :math:`[0.0, \infty]`
 - Restrictions: 
 
   - ``PCRASTER_VALUESCALE`` = ``VS_NOMINAL``;
-  - The file cannot contain a missing value for each pixel that is ``True`` (has a boolean 1 value) on the mask map;
-  - A cover file is required for each timestep of the historical series.
+  - None of the pixels in the raster must contain ``NO_DATA`` value;
+  - Raster pixels cannot consist entirely of ``0.0`` values;
+  - A LULC raster file is required for each timestep of the historical series.
 
 - Dimensions: 
 
@@ -199,10 +216,12 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit: Nominal
+- Valid Range: :math:`[0.0, \infty]`
 - Restrictions: 
 
   - ``PCRASTER_VALUESCALE`` = ``VS_NOMINAL``;
-  - The file cannot contain a missing value for each pixel that is ``True`` (has a boolean 1 value) on the mask map.
+  - None of the pixels in the raster must contain ``NO_DATA`` value;
+  - Raster pixels cannot consist entirely of ``0.0`` values.
 
 - Dimensions: 
 
@@ -217,9 +236,11 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit: Nominal
-- Restriction: 
+- Valid Range: :math:`[0.0, \infty]`
+- Restrictions: 
 
-  - ``PCRASTER_VALUESCALE`` = ``VS_NOMINAL``
+  - ``PCRASTER_VALUESCALE`` = ``VS_NOMINAL``;
+  - Raster pixels cannot consist entirely of ``0.0`` values.
 
 - Dimensions: 
 
@@ -234,10 +255,11 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit: Dimensionless
+- Valid Range: :math:`[-1.0, 1.0]`
 - Restrictions: 
 
   - ``PCRASTER_VALUESCALE`` = ``VS_SCALAR``;
-  - The file cannot contain a missing value for each pixel that is ``True`` (has a boolean 1 value) on the mask map.
+  - None of the pixels in the raster must contain ``NO_DATA`` value.
 
 - Dimensions: 
 
@@ -252,10 +274,11 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit:Dimensionless
+- Valid Range: :math:`[-1.0, 1.0]`
 - Restrictions: 
 
   - ``PCRASTER_VALUESCALE`` = ``VS_SCALAR``;
-  - The file cannot contain a missing value for each pixel that is ``True`` (has a boolean 1 value) on the mask map.
+  - None of the pixels in the raster must contain ``NO_DATA`` value.
 
 - Dimensions: 
 
@@ -266,9 +289,9 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 Monthly Rainy Days table
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: rainy days/month
-- Restriction: 
+- Restrictions: 
 
   - 12 values, one for each month (mean value historic series)
 
@@ -289,9 +312,9 @@ Monthly Rainy Days table
 Impervious Area Fraction (:raw-html:`a<sub>i</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: Dimensionless
-- Restriction: 
+- Restrictions: 
 
   - :math:`a_i + a_o + a_s + a_v = 1`
 
@@ -312,9 +335,9 @@ Impervious Area Fraction (:raw-html:`a<sub>i</sub>`) table
 Open Water Area Fraction (:raw-html:`a<sub>o</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: Dimensionless
-- Restriction: 
+- Restrictions: 
 
   - :math:`a_i + a_o + a_s + a_v = 1`
 
@@ -335,9 +358,9 @@ Open Water Area Fraction (:raw-html:`a<sub>o</sub>`) table
 Bare Soil Area Fraction (:raw-html:`a<sub>s</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: Dimensionless
-- Restriction: 
+- Restrictions: 
 
   - :math:`a_i + a_o + a_s + a_v = 1`
 
@@ -358,9 +381,9 @@ Bare Soil Area Fraction (:raw-html:`a<sub>s</sub>`) table
 Vegetated Area Fraction (:raw-html:`a<sub>v</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: Dimensionless
-- Restriction: 
+- Restrictions: 
 
   - :math:`a_i + a_o + a_s + a_v = 1`
 
@@ -381,9 +404,9 @@ Vegetated Area Fraction (:raw-html:`a<sub>v</sub>`) table
 Manning's Roughness Coefficient table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: Dimensionless
-- Restriction: 
+- Restrictions: 
     
   - One value for each soil class.
 
@@ -404,9 +427,9 @@ Manning's Roughness Coefficient table
 Bulk Density table
 ^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: :raw-html:`g/cm<sup>3</sup>`
-- Restriction: 
+- Restrictions: 
 
   - One value for each soil class.
 
@@ -427,9 +450,9 @@ Bulk Density table
 Saturated Hydraulic Conductivity (:raw-html:`K<sub>SAT</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: mm/month
-- Restriction: 
+- Restrictions: 
 
   - One value for each soil class.
 
@@ -450,9 +473,9 @@ Saturated Hydraulic Conductivity (:raw-html:`K<sub>SAT</sub>`) table
 Field Capacity (:raw-html:`θ<sub>FC</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: :raw-html:`θ (cm<sup>3</sup>/cm<sup>3</sup>)`
-- Restriction: 
+- Restrictions: 
 
   - One value for each soil class.
 
@@ -473,9 +496,9 @@ Field Capacity (:raw-html:`θ<sub>FC</sub>`) table
 Saturated Content (:raw-html:`θ<sub>SAT</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: :raw-html:`θ (cm<sup>3</sup>/cm<sup>3</sup>)`
-- Restriction: 
+- Restrictions: 
 
   - One value for each soil class.
 
@@ -496,9 +519,9 @@ Saturated Content (:raw-html:`θ<sub>SAT</sub>`) table
 Wilting Point (:raw-html:`θ<sub>WP</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: :raw-html:`θ (cm<sup>3</sup>/cm<sup>3</sup>)`
-- Restriction: 
+- Restrictions: 
     
   - One value for each soil class..
 
@@ -519,10 +542,10 @@ Wilting Point (:raw-html:`θ<sub>WP</sub>`) table
 Depth Rootzone table
 ^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: cm
 
-- Restriction: 
+- Restrictions: 
  
   - One value for each soil class..
 
@@ -543,10 +566,10 @@ Depth Rootzone table
 Minimum Crop Coefficient (:raw-html:`K<sub>C<sub>MIN</sub></sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: Dimensionless
 
-- Restriction: 
+- Restrictions: 
 
   - :math:`K_{C_{MAX}} > K_{C_{MIN}}`
 
@@ -568,10 +591,10 @@ Minimum Crop Coefficient (:raw-html:`K<sub>C<sub>MIN</sub></sub>`) table
 Maximum Crop Coefficient (:raw-html:`K<sub>C<sub>MAX</sub></sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Filetype: Text :file:`*txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
 - Unit: Dimensionless
 
-- Restriction: 
+- Restrictions: 
 
   - :math:`K_{C_{MAX}} > K_{C_{MIN}}`
 
