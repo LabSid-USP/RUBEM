@@ -14,24 +14,26 @@ class AllOnesValidatorHandler(BaseValidatorHandler):
     to the base validator handler.
 
     :param raster: The raster object to be validated.
-    :type raster:
+    :type raster: RasterMap
 
     :return: ``True`` if the raster data is valid, ``False`` otherwise.
     """
 
-    def handle(self, raster):
+    def handle(self, raster, errors):
         if not raster.rules:
             self.logger.info("`FORBID_ALL_ONES` validator skipped because no rules were set.")
-            return super().handle(raster)
+            return super().handle(raster, errors)
 
         if not RasterDataRules.FORBID_ALL_ONES in raster.rules:
             self.logger.debug("`FORBID_ALL_ONES` validator skipped because the rule was not set.")
-            return super().handle(raster)
+            return super().handle(raster, errors)
 
-        band_array = raster.bands[0].data_array
-        all_ones_condition = np.allclose(band_array, 1, atol=1e-8)
+        for band in raster.bands:
+            band_array = band.data_array
+            all_ones_condition = np.allclose(band_array, 1, atol=1e-8)
 
-        if all_ones_condition:
-            return False
+            if all_ones_condition:
+                errors.append(RasterDataRules.FORBID_ALL_ONES)
+                return False
 
-        return super().handle(raster)
+        return super().handle(raster, errors)

@@ -11,7 +11,7 @@ class Handler(ABC):
         pass
 
     @abstractmethod
-    def handle(self, request):
+    def handle(self, request, errors):
         """Handle the request."""
         pass
 
@@ -28,8 +28,8 @@ class BaseValidatorHandler(Handler):
         self.__next = handler
         return handler
 
-    def handle(self, request):
+    def handle(self, request, errors):
         """Handle the request by passing it to the next handler in the chain."""
         if self.__next:
-            return self.__next.handle(request)
+            return self.__next.handle(request, errors)
         return True  # Fallback validator: always return True

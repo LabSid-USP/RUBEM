@@ -14,25 +14,27 @@ class NoDataValidatorHandler(BaseValidatorHandler):
     have the ``NO_DATA`` value and returns ``False`` if they do.
 
     :param raster: The raster object to be validated.
-    :type raster:
+    :type raster: RasterMap
 
     :return: ``True`` if the raster data is valid, ``False`` otherwise.
     """
 
-    def handle(self, raster):
+    def handle(self, raster, errors):
         if not raster.rules:
             self.logger.info("`FORBID_NO_DATA` validator skipped because no rules were set.")
-            return super().handle(raster)
+            return super().handle(raster, errors)
 
         if not RasterDataRules.FORBID_NO_DATA in raster.rules:
             self.logger.debug("`FORBID_NO_DATA` validator skipped because the rule was not set.")
-            return super().handle(raster)
+            return super().handle(raster, errors)
 
-        no_data_value = raster.bands[0].no_data_value
-        band_array = raster.bands[0].data_array
-        no_data_condition = np.any(band_array == no_data_value)
+        for band in raster.bands:
+            no_data_value = band.no_data_value
+            band_array = band.data_array
+            no_data_condition = np.any(band_array == no_data_value)
 
-        if no_data_condition:
-            return False
+            if no_data_condition:
+                errors.append(RasterDataRules.FORBID_NO_DATA)
+                return False
 
-        return super().handle(raster)
+        return super().handle(raster, errors)

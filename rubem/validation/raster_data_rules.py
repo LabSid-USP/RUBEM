@@ -20,3 +20,11 @@ class RasterDataRules(Flag):
     """
     None of the raster pixels must contain ``NO_DATA`` values.
     """
+
+    FORBID_OUT_OF_RANGE = auto()
+    """
+    Raster pixels must be within the specified valid range.
+    """
+
+    def __str__(self):
+        return self.name.upper()

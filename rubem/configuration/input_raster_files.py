@@ -4,7 +4,7 @@ from typing import Union
 
 from rubem.configuration.raster_map import RasterMap
 from rubem.configuration.data_ranges_settings import DataRangesSettings
-from rubem.validation.raster_data import RasterMapValidator
+from rubem.validation.raster_map_validator import RasterMapValidator
 from rubem.validation.raster_data_rules import RasterDataRules
 
 
@@ -103,12 +103,16 @@ class InputRasterFiles:
             self.logger.debug(str(raster).replace("\n", ", "))
 
             validator = RasterMapValidator()
-            if not validator.validate(raster):
-                self.logger.error(
-                    "Raster file '%s' contains invalid data. This may lead to unexpected results.",
+            valid, errors = validator.validate(raster)
+            if not valid:
+                self.logger.warning(
+                    "Raster file '%s' violated %s. This may lead to unexpected results.",
                     file,
+                    errors,
                 )
-                raise ValueError(f"Raster file '{file}' contains invalid data.")
+                print(
+                    f"Raster file '{file}' violated {[str(error) for error in errors]} data rule(s)."
+                )
 
     def __str__(self) -> str:
         return (

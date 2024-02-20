@@ -34,4 +34,5 @@ class RasterMapValidator:
         no_data.set_next(all_zeroes)
         all_zeroes.set_next(all_ones)
 
-        return value_range.handle(raster)
+        errors = []
+        return value_range.handle(raster, errors), errors
