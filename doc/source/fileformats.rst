@@ -66,6 +66,8 @@ Digital Elevation Map (DEM) raster (TIFF)
   - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 
+.. _potential-evapotranspiration-raster-series:
+
 Potential Evapotranspiration (:raw-html:`ET<sub>P</sub>`) raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -93,6 +95,8 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
     
     The format of each individual forcing file should have eight characters before the dot, and 3 characters after the dot. The name of each map starts with a prefix, and ends with the number of the time step. All characters in between are filled with zeroes. `Related PCRaster documentation <https://pcraster.geo.uu.nl/pcraster/4.3.1/documentation/python_modelling_framework/PCRasterPythonFramework.html#pcraster.framework.frameworkBase.generateNameT>`__.
 
+
+.. _rainfall-raster-series:
 
 Rainfall (:raw-html:`P<sub>M</sub>`) raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -150,6 +154,8 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
     The format of each individual forcing file should have eight characters before the dot, and 3 characters after the dot.The name of each map starts with a prefix, and ends with the number of the time step. All characters in between are filled with zeroes. `Related PCRaster documentation <https://pcraster.geo.uu.nl/pcraster/4.3.1/documentation/python_modelling_framework/PCRasterPythonFramework.html#pcraster.framework.frameworkBase.generateNameT>`__.
 
 
+.. _class-a-pan-coefficient-raster-series:
+
 Class A Pan Coefficient (:raw-html:`K<sub>P</sub>`) raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -193,6 +199,7 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
   - ``PCRASTER_VALUESCALE`` = ``VS_NOMINAL``;
   - None of the pixels in the raster must contain ``NO_DATA`` value;
   - Raster pixels cannot consist entirely of ``0.0`` values;
+  - LULC map values must adhere strictly to values specified within the land use parameters tables (:ref:`Manning's Roughness Coefficient <fileformats:Manning's Roughness Coefficient table>`, :ref:`Impervious Area Fraction <impervious-area-fraction-table>`, :ref:`Open Water Area Fraction <open-water-area-fraction-table>`, :ref:`Bare Soil Area Fraction <bare-soil-area-fraction-table>`, :ref:`Vegetated Area Fraction <vegetated-area-fraction-table>`, :ref:`Max. Crop Coefficient <maximum-crop-coefficient-table>` and :ref:`Min. Crop Coefficient <minimum-crop-coefficient-table>`), without exceptions;
   - A LULC raster file is required for each timestep of the historical series.
 
 - Dimensions: 
@@ -221,6 +228,7 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 
   - ``PCRASTER_VALUESCALE`` = ``VS_NOMINAL``;
   - None of the pixels in the raster must contain ``NO_DATA`` value;
+  - Soil map values must adhere strictly to values specified within the soil parameters tables (:ref:`Bulk Density <fileformats:Bulk Density table>`, :ref:`Saturated Hydraulic Conductivity <saturated-hydraulic-conductivity-table>`, :ref:`Field Capacity <field-capacity-table>`, :ref:`Wilting Point <wilting-point-table>`, :ref:`Saturated Content <saturated-content-table>` and :ref:`Depth Rootzone <fileformats:Depth Rootzone table>`), without exceptions;
   - Raster pixels cannot consist entirely of ``0.0`` values.
 
 - Dimensions: 
@@ -309,6 +317,8 @@ Monthly Rainy Days table
    * - Int <1-12>
      - Int <1-31>
 
+.. _impervious-area-fraction-table:
+
 Impervious Area Fraction (:raw-html:`a<sub>i</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -331,6 +341,8 @@ Impervious Area Fraction (:raw-html:`a<sub>i</sub>`) table
 
    * - Int <1-\*>
      - Float <\*>
+
+.. _open-water-area-fraction-table:
 
 Open Water Area Fraction (:raw-html:`a<sub>o</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -355,6 +367,8 @@ Open Water Area Fraction (:raw-html:`a<sub>o</sub>`) table
    * - Int <1-\*>
      - Float <\*>
 
+.. _bare-soil-area-fraction-table:
+
 Bare Soil Area Fraction (:raw-html:`a<sub>s</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -377,6 +391,8 @@ Bare Soil Area Fraction (:raw-html:`a<sub>s</sub>`) table
 
    * - Int <1-\*>
      - Float <\*>
+
+.. _vegetated-area-fraction-table:
 
 Vegetated Area Fraction (:raw-html:`a<sub>v</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -447,6 +463,8 @@ Bulk Density table
    * - Int <1-\*>
      - Float <\*>
 
+.. _saturated-hydraulic-conductivity-table:
+
 Saturated Hydraulic Conductivity (:raw-html:`K<sub>SAT</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -469,6 +487,8 @@ Saturated Hydraulic Conductivity (:raw-html:`K<sub>SAT</sub>`) table
 
    * - Int <1-\*>
      - Float <\*>
+
+.. _field-capacity-table:
 
 Field Capacity (:raw-html:`θ<sub>FC</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -493,6 +513,8 @@ Field Capacity (:raw-html:`θ<sub>FC</sub>`) table
    * - Int <1-\*>
      - Float <\*>
 
+.. _saturated-content-table:
+
 Saturated Content (:raw-html:`θ<sub>SAT</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -515,6 +537,8 @@ Saturated Content (:raw-html:`θ<sub>SAT</sub>`) table
 
    * - Int <1-\*>
      - Float <\*>
+
+.. _wilting-point-table:
 
 Wilting Point (:raw-html:`θ<sub>WP</sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -563,6 +587,8 @@ Depth Rootzone table
    * - Int <1-\*>
      - Float <\*>
 
+.. _minimum-crop-coefficient-table:
+
 Minimum Crop Coefficient (:raw-html:`K<sub>C<sub>MIN</sub></sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -587,6 +613,7 @@ Minimum Crop Coefficient (:raw-html:`K<sub>C<sub>MIN</sub></sub>`) table
    * - Int <1-\*>
      - Float <\*>
 
+.. _maximum-crop-coefficient-table:
 
 Maximum Crop Coefficient (:raw-html:`K<sub>C<sub>MAX</sub></sub>`) table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
