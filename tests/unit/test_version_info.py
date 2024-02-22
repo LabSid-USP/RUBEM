@@ -11,7 +11,7 @@ from rubem import (
 )
 
 
-class VersionTest:
+class TestVersionInfo:
 
     @pytest.mark.unit
     def test_author_str(self):
