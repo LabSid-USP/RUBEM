@@ -17,16 +17,6 @@ Model General Settings
 Project Directories
 ```````````````````
 
-Data Input Directory
-''''''''''''''''''''
-
-Mandatory path to dataset folder. Must be a valid path to an existing directory;
-
-.. code-block:: dosini
-   
-   [DIRECTORIES]
-   input = /Dataset/UIGCRB/
-
 Data Output Directory
 ''''''''''''''''''''''
 
