@@ -1,0 +1,32 @@
+name: Unit tests
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: self-hosted
+    strategy:
+      max-parallel: 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: env-dev.yml
+          init-shell: bash
+          cache-environment: true
+          post-cleanup: "all"
+      - name: Test with pytest
+        run: pytest -x -l -ra --junitxml="TestResults-Rubem.xml"
+
+      - name: Upload pytest test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results-rubem
+          path: "TestResults-Rubem.xml"
+          retention-days: 1
+        if: ${{ always() }}
