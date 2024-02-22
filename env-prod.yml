@@ -1,8 +1,9 @@
+name: rubem-prod
 channels:
-  - conda-forge
-  - defaults
+- conda-forge
+- defaults
 dependencies:
-  - python=3.9  
-  - gdal=3.*
-  - pandas=1.*
-  - pcraster=4.*
+- python=3.9
+- gdal=3.*
+- pandas=1.*
+- pcraster=4.*

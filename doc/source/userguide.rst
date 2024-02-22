@@ -9,23 +9,13 @@ Inputs
 
 To run RUBEM, several sets of input data are required. Check the :doc:`specification </fileformats>` and :doc:`preprocessing </preprocessing>` of the model's input files.
 
-These input files are listed in a model configuration file that points to the locations of these input files and parameter sets that govern the simulation. Check a model configuration :ref:`template file <Configuration File Template>`.
+These input files are listed in a model configuration file that points to the locations of these input files and parameter sets that govern the simulation. Check a model configuration :ref:`template file <userguide:Configuration File Template>`.
 
 Model General Settings
 ----------------------
 
 Project Directories
 ```````````````````
-
-Data Input Directory
-''''''''''''''''''''
-
-Mandatory path to dataset folder. Must be a valid path to an existing directory;
-
-.. code-block:: dosini
-   
-   [DIRECTORIES]
-   input = /Dataset/UIGCRB/
 
 Data Output Directory
 ''''''''''''''''''''''
@@ -40,9 +30,9 @@ Mandatory path to the output folder. Must be a valid path to an existing **empty
 Digital Elevation Map (DEM)
 ```````````````````````````
 
-Mandatory path to Digital Elevation Map (DEM) file [masl] in:
+Mandatory path to Digital Elevation Map (DEM) file `[masl] <https://wiki.gis.com/wiki/index.php/Meters_above_sea_level>`_ in:
    
- * **PCRaster map format** :file:`*.map`: this map contains topographic ground elevation in meters. Must be a valid file path to a PCRaster map format :file:`*.map` file;
+ * **PCRaster map format** :file:`*.map`: this map contains topographic ground elevation in meters. Must be a valid file path to a PCRaster map format :file:`*.map` file. :ref:`See more. <fileformats:Digital Elevation Map (DEM) raster>`
 
  .. code-block:: dosini
     
@@ -51,7 +41,7 @@ Mandatory path to Digital Elevation Map (DEM) file [masl] in:
 
 -------
 
- * **TIF format** :file:`*.tif`: this map contains topographic ground elevation in meters. Must be a valid file path to a TIF :file:`*.tif` raster file.
+ * **TIF format** :file:`*.tif`: this map contains topographic ground elevation in meters. Must be a valid file path to a TIF :file:`*.tif` raster file. :ref:`See more. <fileformats:Digital Elevation Map (DEM) raster (TIFF)>`
 
  .. code-block:: dosini
    
@@ -61,7 +51,7 @@ Mandatory path to Digital Elevation Map (DEM) file [masl] in:
 Mask of Catchment (Clone)
 ``````````````````````````
 
-Mandatory path to Mask of Catchment (Clone) file in PCRaster map format :file:`*.map`. This map defines the basin area to simulate in the model. Must be a valid file path to a PCRaster boolean map format  file;
+Mandatory path to Mask of Catchment (Clone) file in PCRaster map format :file:`*.map`. This map defines the basin area to simulate in the model. Must be a valid file path to a PCRaster boolean map format file. :ref:`See more. <fileformats:Mask of Catchment (Clone) raster>`
 
 .. code-block:: dosini
    
@@ -75,7 +65,7 @@ Gauge Station Location Map
 Export Results to Station Locations Map
 '''''''''''''''''''''''''''''''''''''''
 
-Optional, if enabled, export time series data of selected output variables (comma-separated values :file:`*.csv` files) for each valid pixel in stations maps. A station location map file must be defined;
+Optional, if enabled, export time series data of selected output variables (comma-separated values :file:`*.csv` files) for each valid pixel in stations maps. :ref:`A station location map file must be defined. <userguide:Stations Locations (Samples)>`
 
 .. code-block:: dosini
    
@@ -85,7 +75,7 @@ Optional, if enabled, export time series data of selected output variables (comm
 Stations Locations (Samples)
 ''''''''''''''''''''''''''''
 
-Mandatory if ``Export Results to Station Locations`` is enabled. Path to Stations file in PCRaster map format :file:`*.map` and nominal format. This file is a nominal map with unique Ids for cells identified as being a location where time-series output is required. Non-station cells have a value of ``-9999``. Must be a valid path to an existing PCRaster map format :file:`*.map` file.
+Mandatory if ``Export Results to Station Locations`` is enabled. Path to Stations file in PCRaster map format :file:`*.map` and nominal format. This file is a nominal map with unique Ids for cells identified as being a location where time-series output is required. Non-station cells have a value of ``-9999``. Must be a valid path to an existing PCRaster map format :file:`*.map` file. :ref:`See more. <fileformats:Stations (samples) raster>`
 
 .. code-block:: dosini
    
@@ -108,7 +98,7 @@ Simulation Period
 Start Date
 ''''''''''
 
-Mandatory date of the first time step of the simulation scenario (month and year of the start period of simulation scenario);
+Mandatory date of the first time step of the simulation scenario (day, month and year of the start period of simulation scenario). Start date must be before the end date.
 
 .. code-block:: dosini
    
@@ -118,7 +108,7 @@ Mandatory date of the first time step of the simulation scenario (month and year
 End Date
 ''''''''
 
-Mandatory date of the last time step of the simulation scenario (month and year of the last period of simulation scenario).
+Mandatory date of the last time step of the simulation scenario (day, month and year of the last period of simulation scenario). End date must be after the start date.
 
 .. code-block:: dosini
    
@@ -127,7 +117,7 @@ Mandatory date of the last time step of the simulation scenario (month and year 
 
 .. note::
    
-   Both dates must be valid and fall within between the time period of the dataset input time scale. The ``end`` date must be greater than the ``start`` date.
+   Both dates must be valid and fall within between the time period of the dataset input time range. The ``end`` date must be greater than the ``start`` date.
 
 
 Soil Parameters
@@ -136,7 +126,7 @@ Soil Parameters
 Soil Map
 ````````
 
-Mandatory path to Soil map in PCRaster map format :file:`*.map` and nominal format. It represents the soil classes of the study area. The number of classes is defined by the user and is related to hydraulic properties. Must be a valid path to an existing PCRaster map format :file:`*.map` file.
+Mandatory path to Soil map in PCRaster map format :file:`*.map` and nominal format. It represents the soil classes of the study area. The number of classes is defined by the user and is related to hydraulic properties. Must be a valid path to an existing PCRaster map format :file:`*.map` file. :ref:`See more. <fileformats:Soil raster>`
 
 .. code-block:: dosini
    
@@ -146,7 +136,7 @@ Mandatory path to Soil map in PCRaster map format :file:`*.map` and nominal form
 Bulk Density
 ````````````
 
-Mandatory path to a tabular file with values :raw-html:`[g/cm<sup>3</sup>]` of Bulk density for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
+Mandatory path to a tabular file with values :raw-html:`[g/cm<sup>3</sup>]` of Bulk density for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <fileformats:Bulk Density table>`
 
 .. code-block:: dosini
    
@@ -156,8 +146,7 @@ Mandatory path to a tabular file with values :raw-html:`[g/cm<sup>3</sup>]` of B
 :raw-html:`Saturated Hydraulic Conductivity (K<sub>SAT</sub>)`
 ````````````````````````````````````````````````````````````````````````````````
 
-Mandatory path to a tabular file with values [mm/month] of saturated hydraulic conductivity for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
-
+Mandatory path to a tabular file with values [mm/month] of saturated hydraulic conductivity for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <saturated-hydraulic-conductivity-table>`
 .. code-block:: dosini
    
    [TABLES]
@@ -166,7 +155,7 @@ Mandatory path to a tabular file with values [mm/month] of saturated hydraulic c
 :raw-html:`Field Capacity (θ<sub>FC</sub>)`
 `````````````````````````````````````````````````````````````
 
-Mandatory path to a tabular file with values :raw-html:`[θ (cm<sup>3</sup>/cm<sup>3</sup>)]` of field capacity water content (θ) for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
+Mandatory path to a tabular file with values :raw-html:`[θ (cm<sup>3</sup>/cm<sup>3</sup>)]` of field capacity water content (θ) for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <field-capacity-table>`
 
 .. code-block:: dosini
    
@@ -176,7 +165,7 @@ Mandatory path to a tabular file with values :raw-html:`[θ (cm<sup>3</sup>/cm<s
 :raw-html:`Wilting Point (θ<sub>WP</sub>)`
 ```````````````````````````````````````````````````````````
 
-Mandatory path to a tabular file with values :raw-html:`[θ (cm<sup>3</sup>/cm<sup>3</sup>)]` of Wilting Point for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
+Mandatory path to a tabular file with values :raw-html:`[θ (cm<sup>3</sup>/cm<sup>3</sup>)]` of Wilting Point for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <wilting-point-table>`
 
 .. code-block:: dosini
    
@@ -186,7 +175,7 @@ Mandatory path to a tabular file with values :raw-html:`[θ (cm<sup>3</sup>/cm<s
 :raw-html:`Saturated Content (θ<sub>SAT</sub>)`
 ````````````````````````````````````````````````````````````````
 
-Mandatory path to a tabular file with values :raw-html:`[θ (cm<sup>3</sup>/cm<sup>3</sup>)]` of saturated content for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
+Mandatory path to a tabular file with values :raw-html:`[θ (cm<sup>3</sup>/cm<sup>3</sup>)]` of saturated content for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <saturated-content-table>`
 
 .. code-block:: dosini
    
@@ -196,7 +185,7 @@ Mandatory path to a tabular file with values :raw-html:`[θ (cm<sup>3</sup>/cm<s
 Depth Rootzone
 ````````````````
 
-Mandatory path to a tabular file with values [cm] of depth rootzone for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
+Mandatory path to a tabular file with values [cm] of depth rootzone for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <fileformats:Depth Rootzone table>`
 
 .. code-block:: dosini
    
@@ -209,7 +198,7 @@ Initial Soil Conditions
 Initial Baseflow
 ''''''''''''''''
 
-Mandatory float value [mm] representing the baseflow (in the cell) at the beginning of the simulation. See :ref:`baseflow-overview-section` for more details.
+Mandatory float value [mm] representing the baseflow (in the cell) at the beginning of the simulation. See :ref:`overview:Baseflow` for more details.
 
 .. math::
    :label: initialbaseflow
@@ -238,7 +227,7 @@ Baseflow Threshold
 Mandatory float value [mm] representing the minimum water store in the saturated zone for generating Baseflow. See :ref:`baseflow-overview-section` for more details. It can be set using the minimum discharge at the gauge station by the relation: 
 
 .. math::
-   :label: initialbaseflow
+   :label: baseflowthreshold
    :nowrap:
     
     \[BF_{thresh} = \frac{Q_{min} \cdot t}{A \cdot N_{cell}} \cdot 10^{-3}\]
@@ -294,7 +283,7 @@ Land Use Map-series
    
    A map-series in PCRaster always starts with the :file:`*.001` extension, corresponding with the start date of your model simulation period. According to `PCRaster documentation <https://pcraster.geo.uu.nl/pcraster/4.3.1/documentation/python_modelling_framework/PCRasterPythonFramework.html#pcraster.framework.frameworkBase.generateNameT>`_ the name of each of the files in the series should have eight characters before the dot, and 3 characters after the dot. The name of each map starts with a prefix, and ends with the number of the time step. All characters in between are filled with zeroes.
 
-Mandatory path to a directory containing the land use map-series. The directory containing these files must contain the maps that representing the mean monthly LUC, where each map represents the variable's value at a particular time step. If some \*.00\* file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series.
+Mandatory path to a directory containing the land use map-series. The directory containing these files must contain the maps that representing the mean monthly LUC, where each map represents the variable's value at a particular time step. If some file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series. :ref:`See more. <fileformats:Land Use raster series>`
 
 .. code-block:: dosini
    
@@ -304,16 +293,124 @@ Mandatory path to a directory containing the land use map-series. The directory 
    [FILENAME_PREFIXES]
    landuse_prefix = ldu
 
+Normalized Difference Vegetation Index (NDVI)
+`````````````````````````````````````````````
+
+NDVI Map-series
+''''''''''''''''
+
+.. note::
+
+   The map-series consists of a spatial map for each time-step in the model. This means if the model has 100 monthly time-steps, 100 maps of NDVI are mandatory.
+   
+   A map-series in PCRaster always starts with the :file:`*.001` extension, corresponding with the start date of your model simulation period. According to `PCRaster documentation <https://pcraster.geo.uu.nl/pcraster/4.3.1/documentation/python_modelling_framework/PCRasterPythonFramework.html#pcraster.framework.frameworkBase.generateNameT>`_ the name of each of the files in the series should have eight characters before the dot, and 3 characters after the dot. The name of each map starts with a prefix, and ends with the number of the time step. All characters in between are filled with zeroes.
+
+Mandatory path to a directory containing the monthly Normalized Difference Vegetation Index (NDVI) map-series format. The directory containing these files must contain the maps representing the mean monthly NDVI, where each map represents the variable's value at a particular time step. If some file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series. :ref:`See more. <fileformats:Normalized Difference Vegetation Index (NDVI) raster series>`
+
+.. code-block:: dosini
+   
+   [FILES]
+   ndvi = /Dataset/UIRB/input/maps/ndvi/
+
+   [FILENAME_PREFIXES]
+   ndvi_prefix = ndvi
+
+Maximum NDVI Map
+'''''''''''''''''
+
+Mandatory path to maximum NDVI file in PCRaster map format :file:`*.map`. This file is a scalar pcraster map with values for each cell, representing the maximum value of NDVI in the historic series available for the cell. Must be a valid path to an existing PCRaster map format :file:`*.map` file. :ref:`See more. <fileformats:Maximum NDVI raster>`
+
+.. code-block:: dosini
+   
+   [RASTERS]
+   ndvi_max = /Dataset/UIGCRB/input/maps/ndvi/ndvi_max.map
+
+Minimum NDVI Map
+''''''''''''''''
+
+Mandatory path to minimum NDVI file in PCRaster map format :file:`*.map`. This file is a scalar pcraster map with values for each cell, representing the minimum value of NDVI in the historic series available for the cell. Must be a valid path to an existing PCRaster map format :file:`*.map` file. :ref:`See more. <fileformats:Minimum NDVI raster>`
+
+.. code-block:: dosini
+   
+   [RASTERS]
+   ndvi_min = /Dataset/UIGCRB/input/maps/ndvi/ndvi_min.map
 
 Manning's Roughness Coefficient
 ````````````````````````````````
 
-Mandatory path to a tabular file with values of Manning's roughness coefficient values for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
+Mandatory path to a tabular file with values of Manning's roughness coefficient values for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <fileformats:Manning's Roughness Coefficient table>`
 
 .. code-block:: dosini
    
    [TABLES]
    manning = /Dataset/UIGCRB/input/txt/landuse/manning.txt
+
+Area Fractions
+``````````````
+
+Impervious Area Fraction (ai)
+''''''''''''''''''''''''''''''
+
+Mandatory path to file with values of fraction of impervious surface area values for each land-use class. This file is a text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv` with values, representing the fraction of impervious surface area for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <impervious-area-fraction-table>`
+
+.. code-block:: dosini
+   
+   [TABLES]
+   a_i = /Dataset/UIGCRB/input/txt/landuse/a_i.txt
+
+Open Water Area Fraction (ao)
+'''''''''''''''''''''''''''''' 
+
+Mandatory path to file with values of fraction of open-water area values for each land-use class. This file is a text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv` with values, representing the fraction of open-water area for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <open-water-area-fraction-table>`
+
+.. code-block:: dosini
+   
+   [TABLES]
+   a_o = /Dataset/UIGCRB/input/txt/landuse/a_o.txt
+
+Bare Soil Area Fraction (as)
+'''''''''''''''''''''''''''''
+
+Mandatory path to file with values of fraction of bare soil area values for each land-use class. This file is a text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv` with values, representing the fraction of bare soil area for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <bare-soil-area-fraction-table>`
+
+.. code-block:: dosini
+   
+   [TABLES]
+   a_s = /Dataset/UIGCRB/input/txt/landuse/a_s.txt
+
+Vegetated Area Fraction (av) 
+''''''''''''''''''''''''''''
+
+Mandatory path to file with values of fraction of vegetated area values for each land-use class. This file is a text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv` with values, representing the fraction of vegetated area for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <vegetated-area-fraction-table>`
+
+.. code-block:: dosini
+   
+   [TABLES]
+   a_v = /Dataset/UIGCRB/input/txt/landuse/a_v.txt
+
+
+Crop Coefficient (K\ :sub:`C`\)
+```````````````````````````````
+
+:raw-html:`Maximum K<sub>C</sub>`
+''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Mandatory path to a tabular file with values of maximum crop coefficient for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <maximum-crop-coefficient-table>`
+
+.. code-block:: dosini
+   
+   [TABLES]
+   K_c_max = /Dataset/UIGCRB/input/txt/landuse/kcmax.txt
+
+:raw-html:`Minimum K<sub>C</sub>`
+''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Mandatory path to a tabular file with values of minimum crop coefficient for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <minimum-crop-coefficient-table>`
+
+.. code-block:: dosini
+   
+   [TABLES]
+   K_c_min = /Dataset/UIGCRB/input/txt/landuse/kcmin.txt
 
 :raw-html:`Maximum Leaf Area Index (LAI<sub>MAX</sub>)`
 ````````````````````````````````````````````````````````````````````````
@@ -338,117 +435,6 @@ Mandatory float value [mm] that represents the rainfall interception in impervio
    
    [CONSTANTS]
    i_imp = 2.5
-
-Normalized Difference Vegetation Index (NDVI)
-`````````````````````````````````````````````
-
-NDVI Map-series
-''''''''''''''''
-
-.. note::
-
-   The map-series consists of a spatial map for each time-step in the model. This means if the model has 100 monthly time-steps, 100 maps of NDVI are mandatory.
-   
-   A map-series in PCRaster always starts with the :file:`*.001` extension, corresponding with the start date of your model simulation period. According to `PCRaster documentation <https://pcraster.geo.uu.nl/pcraster/4.3.1/documentation/python_modelling_framework/PCRasterPythonFramework.html#pcraster.framework.frameworkBase.generateNameT>`_ the name of each of the files in the series should have eight characters before the dot, and 3 characters after the dot. The name of each map starts with a prefix, and ends with the number of the time step. All characters in between are filled with zeroes.
-
-Mandatory path to a directory containing the land use map-series. The directory containing these files must contain the maps that representing the mean monthly LUC, where each map represents the variable's value at a particular time step. If some \*.00\* file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series.
-
-Mandatory path to a directory containing the monthly Normalized Difference Vegetation Index (NDVI) map-series format. The directory containing these files must contain the maps representing the mean monthly NDVI, where each map represents the variable's value at a particular time step. If some \*.00\* file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series.
-
-.. code-block:: dosini
-   
-   [FILES]
-   ndvi = /Dataset/UIRB/input/maps/ndvi/
-
-   [FILENAME_PREFIXES]
-   ndvi_prefix = ndvi
-
-Maximum NDVI Map
-'''''''''''''''''
-
-Mandatory path to maximum NDVI file in PCRaster map format :file:`*.map`. This file is a scalar pcraster map with values for each cell, representing the maximum value of NDVI in the historic series available for the cell. Must be a valid path to an existing PCRaster map format :file:`*.map` file.
-
-.. code-block:: dosini
-   
-   [RASTERS]
-   ndvi_max = /Dataset/UIGCRB/input/maps/ndvi/ndvi_max.map
-
-Minimum NDVI Map
-''''''''''''''''
-
-Mandatory path to minimum NDVI file in PCRaster map format :file:`*.map`. This file is a scalar pcraster map with values for each cell, representing the minimum value of NDVI in the historic series available for the cell. Must be a valid path to an existing PCRaster map format :file:`*.map` file.
-
-.. code-block:: dosini
-   
-   [RASTERS]
-   ndvi_min = /Dataset/UIGCRB/input/maps/ndvi/ndvi_min.map
-
-Area Fractions
-``````````````
-
-Impervious Area Fraction (ai)
-''''''''''''''''''''''''''''''
-
-Mandatory path to file with values of fraction of impervious surface area values for each land-use class. This file is a text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv` with values, representing the fraction of impervious surface area for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
-
-.. code-block:: dosini
-   
-   [TABLES]
-   a_i = /Dataset/UIGCRB/input/txt/landuse/a_i.txt
-
-Open Water Area Fraction (ao)
-'''''''''''''''''''''''''''''' 
-
-Mandatory path to file with values of fraction of open-water area values for each land-use class. This file is a text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv` with values, representing the fraction of open-water area for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
-
-.. code-block:: dosini
-   
-   [TABLES]
-   a_o = /Dataset/UIGCRB/input/txt/landuse/a_o.txt
-
-Bare Soil Area Fraction (as)
-'''''''''''''''''''''''''''''
-
-Mandatory path to file with values of fraction of bare soil area values for each land-use class. This file is a text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv` with values, representing the fraction of bare soil area for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
-
-.. code-block:: dosini
-   
-   [TABLES]
-   a_s = /Dataset/UIGCRB/input/txt/landuse/a_s.txt
-
-Vegetated Area Fraction (av) 
-''''''''''''''''''''''''''''
-
-Mandatory path to file with values of fraction of vegetated area values for each land-use class. This file is a text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv` with values, representing the fraction of vegetated area for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
-
-.. code-block:: dosini
-   
-   [TABLES]
-   a_v = /Dataset/UIGCRB/input/txt/landuse/a_v.txt
-
-
-Crop Coefficient (K\ :sub:`C`\)
-```````````````````````````````
-
-:raw-html:`Maximum K<sub>C</sub>`
-''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Mandatory path to a tabular file with values of maximum crop coefficient for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
-
-.. code-block:: dosini
-   
-   [TABLES]
-   K_c_max = /Dataset/UIGCRB/input/txt/landuse/kcmax.txt
-
-:raw-html:`Minimum K<sub>C</sub>`
-''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-Mandatory path to a tabular file with values of minimum crop coefficient for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
-
-.. code-block:: dosini
-   
-   [TABLES]
-   K_c_min = /Dataset/UIGCRB/input/txt/landuse/kcmin.txt
 
 Fraction Photosynthetically Active Radiation (FPAR)
 ```````````````````````````````````````````````````
@@ -491,7 +477,7 @@ Climate Data Series
 :raw-html:`Monthly Rainfall (P<sub>M</sub>)`
 ````````````````````````````````````````````
 
-Mandatory path to a directory containing the Monthly Rainfall map-series format [mm/month]. The directory containing these files must contain the maps representing the variable's value at a particular time step the mean monthly :raw-html:`P<sub>M</sub>`, where each map represents the variable's value at a particular time step. If some \*.00\* file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series.
+Mandatory path to a directory containing the Monthly Rainfall map-series format [mm/month]. The directory containing these files must contain the maps representing the variable's value at a particular time step the mean monthly :raw-html:`P<sub>M</sub>`, where each map represents the variable's value at a particular time step. If some file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series. :ref:`See more. <rainfall-raster-series>`
 
 .. code-block:: dosini
 
@@ -504,7 +490,7 @@ Mandatory path to a directory containing the Monthly Rainfall map-series format 
 :raw-html:`Monthly Potential Evapotranspiration (ET<sub>P</sub>)`
 ``````````````````````````````````````````````````````````````````
 
-Mandatory path to a directory containing the Monthly Potential Evapotranspiration map-series format [mm/month]. The directory containing these files must contain the maps representing the mean monthly :raw-html:`ET<sub>P</sub>`, where each map represents the variable's value at a particular time step. If some \*.00\* file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series.
+Mandatory path to a directory containing the Monthly Potential Evapotranspiration map-series format [mm/month]. The directory containing these files must contain the maps representing the mean monthly :raw-html:`ET<sub>P</sub>`, where each map represents the variable's value at a particular time step. If some file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series. :ref:`See more. <potential-evapotranspiration-raster-series>`
 
 .. code-block:: dosini
    
@@ -517,7 +503,7 @@ Mandatory path to a directory containing the Monthly Potential Evapotranspiratio
 :raw-html:`Class A Pan Coefficient (K<sub>P</sub>)`
 ````````````````````````````````````````````````````
 
-Mandatory path to a directory containing the Class A Pan Coefficient map-series format[mm/month]. The directory containing these files must contain the maps representing the mean monthly :raw-html:`K<sub>P</sub>`, where each map represents the variable's value at a particular time step. If some \*.00\* file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series.
+Mandatory path to a directory containing the Class A Pan Coefficient map-series format[mm/month]. The directory containing these files must contain the maps representing the mean monthly :raw-html:`K<sub>P</sub>`, where each map represents the variable's value at a particular time step. If some file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series. :ref:`See more. <class-a-pan-coefficient-raster-series>`
 
 .. code-block:: dosini
    
@@ -530,7 +516,7 @@ Mandatory path to a directory containing the Class A Pan Coefficient map-series 
 Monthly Rainy Days
 ```````````````````
 
-Mandatory path to a tabular file [days/month] with values representing the mean value of rainy days for each month of the simulation period. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`.
+Mandatory path to a tabular file [days/month] with values representing the mean value of rainy days for each month of the simulation period. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <fileformats:Monthly Rainy Days table>`
 
 .. code-block:: dosini
    
@@ -701,7 +687,7 @@ Model Output Parameters
 Total Interception
 ``````````````````
 
-Optional boolean value. If enabled, this option allows the generation of Total Interception (ITP) [mm] result maps in raster format for each of the time steps included in the simulation period.
+Optional boolean value. If enabled, this option allows the generation of Total Interception (ITP) [mm] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Total Interception raster series>`
 
 .. code-block:: dosini
    
@@ -711,7 +697,7 @@ Optional boolean value. If enabled, this option allows the generation of Total I
 Baseflow
 ````````
 
-Optional boolean value. If enabled, this option allows the generation of  Baseflow (BFW) [mm] result maps in raster format for each of the time steps included in the simulation period.
+Optional boolean value. If enabled, this option allows the generation of  Baseflow (BFW) [mm] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Baseflow raster series>`
 
 .. code-block:: dosini
    
@@ -721,7 +707,7 @@ Optional boolean value. If enabled, this option allows the generation of  Basefl
 Surface Runoff
 ``````````````
 
-Optional boolean value. If enabled, this option allows the generation of  Surface runoff (SRN) [mm] result maps in raster format for each of the time steps included in the simulation period.
+Optional boolean value. If enabled, this option allows the generation of  Surface runoff (SRN) [mm] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Surface Runoff raster series>`
 
 .. code-block:: dosini
    
@@ -731,7 +717,7 @@ Optional boolean value. If enabled, this option allows the generation of  Surfac
 Actual Evapotranspiration
 ``````````````````````````
 
-Optional boolean value. If enabled, this option allows the generation of Actual Evapotranspiration (ETA) [mm] result maps in raster format for each of the time steps included in the simulation period.
+Optional boolean value. If enabled, this option allows the generation of Actual Evapotranspiration (ETA) [mm] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Actual Evapotranspiration raster series>`
 
 
 .. code-block:: dosini
@@ -742,7 +728,7 @@ Optional boolean value. If enabled, this option allows the generation of Actual 
 Lateral Flow
 ````````````
 
-Optional boolean value. If enabled, this option allows to generate  the resulting maps of Lateral Flow (LFW) [mm] result maps in raster format for each of the time steps included in the simulation period.
+Optional boolean value. If enabled, this option allows to generate  the resulting maps of Lateral Flow (LFW) [mm] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Lateral Flow raster series>`
 
 .. code-block:: dosini
    
@@ -752,7 +738,7 @@ Optional boolean value. If enabled, this option allows to generate  the resultin
 Recharge
 `````````
 
-Optional boolean value. If enabled, this option allows the generation of Recharge (REC) [mm] result maps in raster format for each of the time steps included in the simulation period.
+Optional boolean value. If enabled, this option allows the generation of Recharge (REC) [mm] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Recharge raster series>`
 
 .. code-block:: dosini
    
@@ -762,17 +748,17 @@ Optional boolean value. If enabled, this option allows the generation of Recharg
 Soil Moisture Content
 ``````````````````````
 
-Optional boolean value. If enabled, this option allows the generation of Soil Moisture Content (SMC) [mm] result maps in raster format for each of the time steps included in the simulation period.
+Optional boolean value. If enabled, this option allows the generation of Soil Moisture Content (SMC) [mm] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Soil Moisture Content raster series>`
 
 .. code-block:: dosini
    
    [GENERATE_FILE]
    smc = True
 
-Total Runoff
-````````````
+Accumulated Total Runoff
+````````````````````````
   
-Optional boolean value. If enabled, this option allows the generation of Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] result maps in raster format for each of the time steps included in the simulation period.
+Optional boolean value. If enabled, this option allows the generation of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Accumulated Total Runoff raster series>`
 
 .. code-block:: dosini
    

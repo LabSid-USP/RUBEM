@@ -18,12 +18,11 @@ Create a new project in the downloaded dataset directory named :file:`Iguazu.ini
 Initial Settings
 ````````````````
 
-Open the created :file:`Iguazu.ini` file and enter the following fields into the file select the dataset directory as ``input`` directory and a preference folder directory as ``output`` directory:
+Open the created :file:`Iguazu.ini` file and enter the following fields into the file to specify a directory to store the model output files. The output directory is the directory where the model will store the results:
 
 .. code-block:: dosini
    
    [DIRECTORIES]
-   input = /Iguazu/
    output = /Iguazu/output/
 
 Enable ``Export results to station locations (tss)`` option to export of results at the locations of the gauging stations as CSV files. Then define the file containing the map of the stations locations ``samples``:
@@ -61,7 +60,6 @@ In the part ``Grid`` set 500.000 m as size value and in the part Simulation Peri
     end = 01/12/2009
 
     [DIRECTORIES]
-    input = /Iguazu/
     output = /Iguazu/output/
 
     [GENERATE_FILE]
@@ -104,7 +102,6 @@ Set the following values for ``Initial Soil Conditions`` fields:
     end = 01/12/2009
 
     [DIRECTORIES]
-    input = /Iguazu/
     output = /Iguazu/output/
 
     [GENERATE_FILE]
@@ -164,7 +161,6 @@ Use the default values for ``FPAR``, ``LAI`` and ``Impervious Area Interception`
     end = 01/12/2009
 
     [DIRECTORIES]
-    input = /Iguazu/
     output = /Iguazu/output/
     ndvi = /Iguazu/input/maps/ndvi/
     landuse = /Iguazu/input/maps/landuse/
@@ -228,7 +224,6 @@ In the ``Climate`` section define the appropriate map-series from :file:`/input/
     end = 01/12/2009
 
     [DIRECTORIES]
-    input = /Iguazu/
     output = /Iguazu/output/
     ndvi = /Iguazu/input/maps/ndvi/
     landuse = /Iguazu/input/maps/landuse/
@@ -321,7 +316,6 @@ Values in this tab correspond to calibrated parameters in the basin. For the dat
     end = 01/12/2009
 
     [DIRECTORIES]
-    input = /Iguazu/
     output = /Iguazu/output/
     ndvi = /Iguazu/input/maps/ndvi/
     landuse = /Iguazu/input/maps/landuse/
@@ -394,7 +388,7 @@ Model Execution Settings
 
 Within this section it's necessary to specify for each variable if you want this to be reported as model output ``True`` or ``False``. The ``Generate Files`` Section contais a list with all the variables that can be reported as model output.
 
-In the example below  it can be seen that ``Recharge``, ``Total Runoff`` and ``Total Interception`` are checked to be reported. If ``Export Results to stations locations (tss)``  was defined as ``True``, time-series for the selected variables will be generated.
+In the example below  it can be seen that ``Recharge``, ``Accumulated Total Runoff`` and ``Total Interception`` are checked to be reported. If ``Export Results to stations locations (tss)``  was defined as ``True``, time-series for the selected variables will be generated.
 
 The default format the generated raster files is PCRaster map format ``map_raster_series = True``.
 
@@ -410,7 +404,6 @@ The complete project configuration file should look like this:
     end = 01/12/2009
 
     [DIRECTORIES]
-    input = /Iguazu/
     output = /Iguazu/output/
     ndvi = /Iguazu/input/maps/ndvi/
     landuse = /Iguazu/input/maps/landuse/

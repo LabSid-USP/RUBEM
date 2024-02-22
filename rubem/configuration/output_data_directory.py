@@ -20,13 +20,19 @@ class OutputDataDirectory:
 
         self.__validate_directories()
 
-    def __validate_directories(self) -> None:
-        try:
-            if not os.path.isdir(self.path):
+        if not os.path.exists(self.path):
+            self.logger.warning("Output directory does not exist: %s", self.path)
+            try:
+                self.logger.info("Creating output directory: %s", self.path)
                 os.makedirs(self.path)
-        except Exception as e:
-            self.logger.error("Failed to create output directory: %s", e)
-            raise
+            except Exception as e:
+                self.logger.error("Failed to create output directory: %s", e)
+                raise
+
+    def __validate_directories(self) -> None:
+        if os.path.isfile(self.path):
+            self.logger.error("Output path is not a directory: %s", self.path)
+            raise NotADirectoryError(f"{self.path} is not a directory")
 
         if os.listdir(self.path):
             self.logger.warning("There is data in the output directory: %s", self.path)
