@@ -17,16 +17,6 @@ Model General Settings
 Project Directories
 ```````````````````
 
-Data Input Directory
-''''''''''''''''''''
-
-Mandatory path to dataset folder. Must be a valid path to an existing directory;
-
-.. code-block:: dosini
-   
-   [DIRECTORIES]
-   input = /Dataset/UIGCRB/
-
 Data Output Directory
 ''''''''''''''''''''''
 
@@ -765,10 +755,10 @@ Optional boolean value. If enabled, this option allows the generation of Soil Mo
    [GENERATE_FILE]
    smc = True
 
-Total Runoff
-````````````
+Accumulated Total Runoff
+````````````````````````
   
-Optional boolean value. If enabled, this option allows the generation of Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Total Runoff raster series>`
+Optional boolean value. If enabled, this option allows the generation of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Accumulated Total Runoff raster series>`
 
 .. code-block:: dosini
    

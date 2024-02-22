@@ -28,7 +28,7 @@ class OutputVariables:
     :param smc: Enable or disable Soil Moisture Content (SMC). Defaults to `False`.
     :type smc: bool, optional
 
-    :param rnf: Enable or disable Total Runoff (RNF). Defaults to `False`.
+    :param rnf: Enable or disable Accumulated Total Runoff (RNF). Defaults to `False`.
     :type rnf: bool, optional
 
     :param tss: Enable or disable Create time output time series (TSS). Defaults to `False`.
@@ -84,7 +84,7 @@ class OutputVariables:
             f"Lateral Flow (LFW): {'Enabled' if self.lfw else 'Disabled'}\n"
             f"Recharge (REC): {'Enabled' if self.rec else 'Disabled'}\n"
             f"Soil Moisture Content (SMC): {'Enabled' if self.smc else 'Disabled'}\n"
-            f"Total Runoff (RNF): {'Enabled' if self.rnf else 'Disabled'}\n"
+            f"Accumulated Total Runoff (RNF): {'Enabled' if self.rnf else 'Disabled'}\n"
             f"Create time output time series (TSS): {'Enabled' if self.tss else 'Disabled'}\n"
             f"Output format: {self.file_format}"
         )
