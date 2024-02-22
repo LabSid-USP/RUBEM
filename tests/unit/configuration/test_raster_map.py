@@ -57,7 +57,7 @@ class TestRasterMap:
         valid_range = {"min": 0.0, "max": 255.0}
         rules = RasterDataRules.FORBID_ALL_ZEROES
         mocker.patch("os.path.isfile", return_value=True)
-        mocker.patch("os.path.getsize", return_value=0),
+        mocker.patch("os.path.getsize", return_value=0)
         with pytest.raises(ValueError):
             RasterMap(file_path, valid_range, rules)
 
