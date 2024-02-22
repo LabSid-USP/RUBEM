@@ -394,7 +394,7 @@ Model Execution Settings
 
 Within this section it's necessary to specify for each variable if you want this to be reported as model output ``True`` or ``False``. The ``Generate Files`` Section contais a list with all the variables that can be reported as model output.
 
-In the example below  it can be seen that ``Recharge``, ``Total Runoff`` and ``Total Interception`` are checked to be reported. If ``Export Results to stations locations (tss)``  was defined as ``True``, time-series for the selected variables will be generated.
+In the example below  it can be seen that ``Recharge``, ``Accumulated Total Runoff`` and ``Total Interception`` are checked to be reported. If ``Export Results to stations locations (tss)``  was defined as ``True``, time-series for the selected variables will be generated.
 
 The default format the generated raster files is PCRaster map format ``map_raster_series = True``.
 

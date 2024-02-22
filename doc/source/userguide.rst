@@ -769,10 +769,10 @@ Optional boolean value. If enabled, this option allows the generation of Soil Mo
    [GENERATE_FILE]
    smc = True
 
-Total Runoff
-````````````
+Accumulated Total Runoff
+````````````````````````
   
-Optional boolean value. If enabled, this option allows the generation of Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] result maps in raster format for each of the time steps included in the simulation period.
+Optional boolean value. If enabled, this option allows the generation of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] result maps in raster format for each of the time steps included in the simulation period.
 
 .. code-block:: dosini
    
