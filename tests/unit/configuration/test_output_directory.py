@@ -42,6 +42,9 @@ class TestOutputDataDirectory:
             mock_error.assert_called()
 
     @pytest.mark.unit
-    def test_string_representation(self):
+    def test_string_representation(self, mocker):
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.path.isfile", return_value=False)
+        mocker.patch("os.listdir", return_value=[])
         directory = OutputDataDirectory("test_path")
         assert str(directory) == "test_path"
