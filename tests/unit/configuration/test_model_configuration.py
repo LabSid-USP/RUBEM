@@ -268,12 +268,11 @@ class TestModelConfiguration:
         band_mock = MagicMock(spec=RasterBand)
         band_mock.no_data_value = -9999
         band_mock.data_array = np.ones((3, 3))
-        with mocker.patch("osgeo.gdal.OpenEx"), mocker.patch(
-            "osgeo.gdal.GetDataTypeName"
-        ), mocker.patch("os.path.getsize", return_value=100), mocker.patch(
-            "rubem.configuration.raster_map.RasterBand", return_value=band_mock
-        ):
-            _ = ModelConfiguration(self.valid_config_input)
+        mocker.patch("osgeo.gdal.OpenEx")
+        mocker.patch("osgeo.gdal.GetDataTypeName")
+        mocker.patch("os.path.getsize", return_value=100)
+        mocker.patch("rubem.configuration.raster_map.RasterBand", return_value=band_mock)
+        _ = ModelConfiguration(self.valid_config_input)
 
     @pytest.mark.unit
     def test_init_with_empty_dictionary(self):
@@ -299,12 +298,11 @@ class TestModelConfiguration:
             "/test_path/config.ini",
             contents=self.valid_config_ini_content,
         )
-        with mocker.patch("osgeo.gdal.OpenEx"), mocker.patch(
-            "osgeo.gdal.GetDataTypeName"
-        ), mocker.patch("os.path.getsize", return_value=100), mocker.patch(
-            "rubem.configuration.raster_map.RasterBand", return_value=band_mock
-        ):
-            _ = ModelConfiguration("/test_path/config.ini")
+        mocker.patch("osgeo.gdal.OpenEx")
+        mocker.patch("osgeo.gdal.GetDataTypeName")
+        mocker.patch("os.path.getsize", return_value=100)
+        mocker.patch("rubem.configuration.raster_map.RasterBand", return_value=band_mock)
+        _ = ModelConfiguration("/test_path/config.ini")
 
     @pytest.mark.unit
     def test_init_with_not_existent_ini_file(self):
@@ -341,12 +339,11 @@ class TestModelConfiguration:
             "/test_path/config.json",
             contents=self.valid_config_json_content,
         )
-        with mocker.patch("osgeo.gdal.OpenEx"), mocker.patch(
-            "osgeo.gdal.GetDataTypeName"
-        ), mocker.patch("os.path.getsize", return_value=100), mocker.patch(
-            "rubem.configuration.raster_map.RasterBand", return_value=band_mock
-        ):
-            _ = ModelConfiguration("/test_path/config.json")
+        mocker.patch("osgeo.gdal.OpenEx")
+        mocker.patch("osgeo.gdal.GetDataTypeName")
+        mocker.patch("os.path.getsize", return_value=100)
+        mocker.patch("rubem.configuration.raster_map.RasterBand", return_value=band_mock)
+        _ = ModelConfiguration("/test_path/config.json")
 
     @pytest.mark.unit
     def test_init_with_not_existent_json_file(self):

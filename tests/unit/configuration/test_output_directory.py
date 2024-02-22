@@ -1,4 +1,3 @@
-import re
 import pytest
 
 from rubem.configuration.output_data_directory import OutputDataDirectory
