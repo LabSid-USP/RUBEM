@@ -89,7 +89,7 @@ class RUBEM(pcrfw.DynamicModel):
                 continue
 
             # Export TIFF raster series
-            if self.config.output_variables.file_format is OutputFileFormat.GeoTIFF:
+            if self.config.output_variables.file_format is OutputFileFormat.GEOTIFF:
                 reportTIFFSeries(
                     self,
                     self.ref,
@@ -101,7 +101,7 @@ class RUBEM(pcrfw.DynamicModel):
                 )
 
             # Export PCRaster map format raster series
-            if self.config.output_variables.file_format is OutputFileFormat.PCRaster:
+            if self.config.output_variables.file_format is OutputFileFormat.PCRASTER:
                 self.report(self.outputVarsDict.get(outputVar), outputVar)
 
             # Check if we have to export the time series of the selected

@@ -11,10 +11,32 @@ class TestOutputVariables:
     @pytest.mark.parametrize(
         "itp, bfw, srn, eta, lfw, rec, smc, rnf, tss, output_format",
         [
-            (True, True, True, True, True, True, True, True, True, OutputFileFormat.PCRaster),
-            (True, True, True, True, True, True, True, True, True, OutputFileFormat.GeoTIFF),
-            (False, False, False, False, False, False, False, False, False, OutputFileFormat.PCRaster),
-            (False, False, False, False, False, False, False, False, False, OutputFileFormat.GeoTIFF),
+            (True, True, True, True, True, True, True, True, True, OutputFileFormat.PCRASTER),
+            (True, True, True, True, True, True, True, True, True, OutputFileFormat.GEOTIFF),
+            (
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                OutputFileFormat.PCRASTER,
+            ),
+            (
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                OutputFileFormat.GEOTIFF,
+            ),
         ],
     )
     def test_output_variables_constructor(

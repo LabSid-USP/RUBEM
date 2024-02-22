@@ -3,8 +3,10 @@ import os
 from typing import Union
 import re
 
-from rubem.configuration.pcraster_map import PCRasterMap
+from rubem.configuration.raster_map import RasterMap
 from rubem.configuration.data_ranges_settings import DataRangesSettings
+from rubem.validation.raster_map_validator import RasterMapValidator
+from rubem.validation.raster_data_rules import RasterDataRules
 
 RASTER_SERIES_FILENAME_MAX_CHARS = 8
 RASTER_SERIES_FILENAME_EXTENSION_NUM_DIGITS = 3
@@ -95,23 +97,40 @@ class InputRasterSeries:
 
     def __validate_directories(self) -> None:
         directories = [
-            (self.__etp_dir_path, self.__etp_filename_prefix, self.__ranges.rasters["etp"]),
+            (
+                self.__etp_dir_path,
+                self.__etp_filename_prefix,
+                self.__ranges.rasters["etp"],
+                RasterDataRules.FORBID_NO_DATA,
+            ),
             (
                 self.__precipitation_dir_path,
                 self.__precipitation_filename_prefix,
                 self.__ranges.rasters["precipitation"],
+                RasterDataRules.FORBID_NO_DATA,
             ),
-            (self.__ndvi_dir_path, self.__ndvi_filename_prefix, self.__ranges.rasters["ndvi"]),
-            (self.__kp_dir_path, self.__kp_filename_prefix, self.__ranges.rasters["kp"]),
+            (
+                self.__ndvi_dir_path,
+                self.__ndvi_filename_prefix,
+                self.__ranges.rasters["ndvi"],
+                RasterDataRules.FORBID_NO_DATA,
+            ),
+            (
+                self.__kp_dir_path,
+                self.__kp_filename_prefix,
+                self.__ranges.rasters["kp"],
+                RasterDataRules.FORBID_NO_DATA,
+            ),
             (
                 self.__landuse_dir_path,
                 self.__landuse_filename_prefix,
                 self.__ranges.rasters["landuse"],
+                RasterDataRules.FORBID_NO_DATA | RasterDataRules.FORBID_ALL_ZEROES,
             ),
         ]
 
         total_num_files = []
-        for directory, prefix, valid_range in directories:
+        for directory, prefix, valid_range, rules in directories:
             if not os.path.isdir(directory):
                 raise NotADirectoryError(f"Invalid input data directory: {directory}")
 
@@ -120,7 +139,7 @@ class InputRasterSeries:
 
             self.__validate_raster_series_filenames_prefixes(prefix)
             total_num_files.append(
-                self.__validate_files_with_prefix(directory, prefix, valid_range)
+                self.__validate_files_with_prefix(directory, prefix, valid_range, rules)
             )
 
         common_total_num_files = set(total_num_files)
@@ -130,7 +149,7 @@ class InputRasterSeries:
                 "This may lead to unexpected results."
             )
 
-    def __validate_files_with_prefix(self, directory, prefix, valid_range) -> int:
+    def __validate_files_with_prefix(self, directory, prefix, valid_range, rules) -> int:
         num_digits = RASTER_SERIES_FILENAME_MAX_CHARS - len(prefix)
         regex_pattern = rf"^{prefix}[0-9]{{{num_digits}}}\.[0-9]{{{RASTER_SERIES_FILENAME_EXTENSION_NUM_DIGITS}}}$"
         compiled_pattern = re.compile(regex_pattern, re.IGNORECASE)
@@ -139,7 +158,7 @@ class InputRasterSeries:
         with os.scandir(directory) as it:
             for entry in it:
                 if entry.is_file() and compiled_pattern.match(entry.name):
-                    self.__validate_raster_file(entry.path, valid_range)
+                    self.__validate_raster_file(entry.path, valid_range, rules)
                     counter += 1
 
         if counter == 0:
@@ -159,8 +178,19 @@ class InputRasterSeries:
 
         return counter
 
-    def __validate_raster_file(self, file, valid_range) -> None:
-        _ = PCRasterMap(file, valid_range)
+    def __validate_raster_file(self, file, valid_range, rules) -> None:
+        raster = RasterMap(file, valid_range, rules)
+        self.logger.debug(str(raster).replace("\n", ", "))
+
+        validator = RasterMapValidator()
+        valid, errors = validator.validate(raster)
+        if not valid:
+            self.logger.warning(
+                "Raster file '%s' violated %s. This may lead to unexpected results.",
+                file,
+                errors,
+            )
+            print(f"Raster file '{file}' violated {[str(error) for error in errors]} data rule(s).")
 
     def __validate_raster_series_filenames_prefixes(self, prefix):
         num_digits = RASTER_SERIES_FILENAME_MAX_CHARS - len(prefix)
