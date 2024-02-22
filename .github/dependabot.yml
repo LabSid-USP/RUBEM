@@ -1,0 +1,17 @@
+version: 2
+updates:
+- package-ecosystem: "github-actions"
+  directory: "/"
+  schedule:
+    interval: "daily"
+    day: monday
+    time: "08:00"
+    timezone: America/Sao_Paulo
+  reviewers:
+  - "soaressgabriel"
+  labels:
+  - "dependencies"
+  - "github_actions"
+  commit-message:
+    prefix: "[actions] "
+  open-pull-requests-limit: 100
