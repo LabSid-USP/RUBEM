@@ -103,6 +103,15 @@ class InputRasterFiles:
             ),
         ]
 
+        if self.ldd:
+            files.append(
+                (
+                    self.ldd,
+                    self.__ranges.rasters["ldd"],
+                    RasterDataRules.FORBID_NO_DATA | RasterDataRules.FORBID_ALL_ONES,
+                )
+            )
+
         for file, valid_range, rules in files:
             raster = RasterMap(file, valid_range, rules)
             self.logger.debug(str(raster).replace("\n", ", "))
