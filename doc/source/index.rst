@@ -10,6 +10,10 @@ Welcome to Rainfall rUnoff Balance Enhanced Model (RUBEM)'s documentation!
    :target: https://rubem.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
 
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.10562516.svg
+   :target: https://doi.org/10.5281/zenodo.10562516
+   :alt: Zendo DOI
+
 RUBEM stands for "Rainfall rUnoff Balance Enhanced Model". It is a distributed hydrological model to calculate the hydrological mass balance. The physical process of the mass balance in the soil layer is described to calculate the recharge, interception, evapotranspiration, and runoff.  
 
 Development and maintenance of the current official version of the RUBEM is led by the `Laboratório de Sistemas de Suporte a Decisões em Engenharia Ambiental e Recursos Hídricos (LabSid) <http://labsid.eng.br/Contato.aspx>`_ in the `Departamento de Engenharia Hidráulica e Ambiental <http://www.pha.poli.usp.br/>`_ at the `Escola Politécnica da Universidade de São Paulo <http://www.poli.usp.br/>`_. The RUBEM distributed hydrological model is an open source development project, which means that contributions are welcome, including to the plugin documentation.
