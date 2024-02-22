@@ -7,6 +7,7 @@ class TestOutputDataDirectory:
 
     @pytest.mark.unit
     def test_create_directory_when_not_exists_then_create_it(self, mocker):
+        mocker.patch("os.listdir", return_value=[])
         mock_exists = mocker.patch("os.path.exists", return_value=False)
         mock_isdir = mocker.patch("os.path.isfile", return_value=False)
         mock_makedirs = mocker.patch("os.makedirs")
@@ -31,6 +32,7 @@ class TestOutputDataDirectory:
 
     @pytest.mark.unit
     def test_error_creating_directory(self, mocker):
+        mocker.patch("os.listdir", return_value=[])
         mocker.patch("os.path.isfile", return_value=False)
         mock_makedirs = mocker.patch("os.makedirs", side_effect=Exception("error"))
         mock_error = mocker.patch("logging.Logger.error")
