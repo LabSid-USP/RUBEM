@@ -596,7 +596,7 @@ Output File Formats
 Total Interception raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Total Interception (ITP) [mm]  in raster format for all simulation period for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Total Interception (ITP) [mm]  in raster format for all simulation period for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`itp00000.001`- :file:`itp99999.999` raster map series).
 - Unit: mm
@@ -609,7 +609,7 @@ Resulting maps of Total Interception (ITP) [mm]  in raster format for all simula
 Baseflow raster series
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of  Baseflow (BFW) [mm]  in raster format for all simulation period or for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of  Baseflow (BFW) [mm]  in raster format for all simulation period or for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`bfw00000.001`- :file:`bfw99999.999` raster map series).
 - Unit: mm
@@ -622,7 +622,7 @@ Resulting maps of  Baseflow (BFW) [mm]  in raster format for all simulation peri
 Surface Runoff raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of  Surface runoff (SRN) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of  Surface runoff (SRN) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`srn00000.001`- :file:`srn99999.999` raster map series).
 - Unit: mm
@@ -635,7 +635,7 @@ Resulting maps of  Surface runoff (SRN) [mm] in raster format for all simulation
 Actual Evapotranspiration raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Actual Evapotranspiration (ETA) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Actual Evapotranspiration (ETA) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`eta00000.001`- :file:`eta99999.999` raster map series).
 - Unit: mm
@@ -648,7 +648,7 @@ Resulting maps of Actual Evapotranspiration (ETA) [mm] in raster format for all 
 Lateral Flow raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Lateral Flow (LFW) [mm] in raster format for all simulation period for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Lateral Flow (LFW) [mm] in raster format for all simulation period for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`..
 
 - Filetype: PCRaster map format (:file:`lfw00000.001`- :file:`lfw99999.999` raster map series).
 - Unit: mm
@@ -661,7 +661,7 @@ Resulting maps of Lateral Flow (LFW) [mm] in raster format for all simulation pe
 Recharge raster series
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Recharge (REC) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Recharge (REC) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`rec00000.001`- :file:`rec99999.999` raster map series).
 - Unit: mm
@@ -674,7 +674,7 @@ Resulting maps of Recharge (REC) [mm] in raster format for all simulation period
 Soil Moisture Content raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simulation period or for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`smc00000.001`- :file:`smc99999.999` raster map series).
 - Unit: mm
@@ -687,7 +687,7 @@ Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simu
 Accumulated Total Runoff raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in raster format for all simulation period for each pixel of :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in raster format for all simulation period for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`rnf00000.001`- :file:`rnf99999.999` raster map series).
 - Unit: :raw-html:`m<sup>3</sup>s<sup>-1</sup>`
