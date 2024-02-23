@@ -28,7 +28,10 @@ class OutputVariables:
     :param smc: Enable or disable Soil Moisture Content (SMC). Defaults to `False`.
     :type smc: bool, optional
 
-    :param rnf: Enable or disable Accumulated Total Runoff (RNF). Defaults to `False`.
+    :param rnf: Enable or disable Total Runoff (RNF). Defaults to `False`.
+    :type rnf: bool, optional
+
+    :param rnf: Enable or disable Accumulated Total Runoff (ARN). Defaults to `False`.
     :type rnf: bool, optional
 
     :param tss: Enable or disable Create time output time series (TSS). Defaults to `False`.
@@ -48,6 +51,7 @@ class OutputVariables:
         rec: bool = False,
         smc: bool = False,
         rnf: bool = False,
+        arn: bool = False,
         tss: bool = False,
         output_format: OutputFileFormat = OutputFileFormat.PCRASTER,
     ) -> None:
@@ -60,6 +64,7 @@ class OutputVariables:
         self.rec = rec
         self.smc = smc
         self.rnf = rnf
+        self.arn = arn
         self.tss = tss
         self.file_format = output_format
 
@@ -72,6 +77,7 @@ class OutputVariables:
             and not self.rec
             and not self.smc
             and not self.rnf
+            and not self.arn
         ):
             self.logger.warning("No output variables selected.")
 
@@ -84,6 +90,7 @@ class OutputVariables:
             f"Lateral Flow (LFW): {'Enabled' if self.lfw else 'Disabled'}\n"
             f"Recharge (REC): {'Enabled' if self.rec else 'Disabled'}\n"
             f"Soil Moisture Content (SMC): {'Enabled' if self.smc else 'Disabled'}\n"
+            f"Total Runoff (RNF): {'Enabled' if self.rnf else 'Disabled'}\n"
             f"Accumulated Total Runoff (RNF): {'Enabled' if self.rnf else 'Disabled'}\n"
             f"Create time output time series (TSS): {'Enabled' if self.tss else 'Disabled'}\n"
             f"Output format: {self.file_format}"

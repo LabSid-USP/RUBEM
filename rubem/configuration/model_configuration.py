@@ -110,6 +110,7 @@ class ModelConfiguration:
                 rec=str_to_bool(self.__get_setting("GENERATE_FILE", "rec")),
                 smc=str_to_bool(self.__get_setting("GENERATE_FILE", "smc")),
                 rnf=str_to_bool(self.__get_setting("GENERATE_FILE", "rnf")),
+                arn=str_to_bool(self.__get_setting("GENERATE_FILE", "arn")),
                 tss=str_to_bool(self.__get_setting("GENERATE_FILE", "tss")),
                 output_format=(
                     OutputFileFormat.PCRASTER
