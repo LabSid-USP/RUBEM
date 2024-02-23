@@ -28,7 +28,6 @@ class TestModelConfiguration:
         },
         "RASTERS": {
             "dem": "test_path/test_file.map",
-            "demtif": "test_path/test_file.tif",
             "clone": "test_path/test_file.map",
             "ndvi_max": "test_path/test_file.map",
             "ndvi_min": "test_path/test_file.map",
@@ -103,7 +102,6 @@ class TestModelConfiguration:
         landuse_prefix = cob
         [RASTERS]
         dem = /test_path/test_file.map
-        demtif = /test_path/test_file.tif
         clone = /test_path/test_file.map
         ndvi_max = /test_path/test_file.map
         ndvi_min = /test_path/test_file.map
@@ -184,7 +182,6 @@ class TestModelConfiguration:
         },
         "RASTERS": {
             "dem": "test_path/test_file.map",
-            "demtif": "test_path/test_file.tif",
             "clone": "test_path/test_file.map",
             "ndvi_max": "test_path/test_file.map",
             "ndvi_min": "test_path/test_file.map",

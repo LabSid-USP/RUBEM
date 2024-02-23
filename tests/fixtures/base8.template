@@ -1,6 +1,5 @@
 [RASTERS]
 dem = {PARENT_DIR}/fixtures/base/maps/dem/dem.map
-demtif = {PARENT_DIR}/fixtures/base/maps/dem/dem.tif
 clone = {PARENT_DIR}/fixtures/base/maps/clone/clone.map
 ndvi_max = {PARENT_DIR}/fixtures/base/maps/ndvi/ndvi_max.map
 ndvi_min = {PARENT_DIR}/fixtures/base/maps/ndvi/ndvi_min.map

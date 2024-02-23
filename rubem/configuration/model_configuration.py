@@ -135,7 +135,6 @@ class ModelConfiguration:
             )
             self.raster_files = InputRasterFiles(
                 dem=self.__get_setting("RASTERS", "dem"),
-                demtif=self.__get_setting("RASTERS", "demtif"),
                 clone=self.__get_setting("RASTERS", "clone"),
                 ndvi_max=self.__get_setting("RASTERS", "ndvi_max"),
                 ndvi_min=self.__get_setting("RASTERS", "ndvi_min"),

@@ -67,7 +67,6 @@ In the part ``Grid`` set 500.000 m as size value and in the part Simulation Peri
 
     [RASTERS]
     dem = /Iguazu/input/maps/dem/dem.map
-    demtif = /Iguazu/input/maps/dem/dem.tif
     clone = /Iguazu/input/maps/clone/clone.map
     samples = /Iguazu/maps/stations/samples.map  
 
@@ -109,7 +108,6 @@ Set the following values for ``Initial Soil Conditions`` fields:
 
     [RASTERS]
     dem = /Iguazu/input/maps/dem/dem.map
-    demtif = /Iguazu/input/maps/dem/dem.tif
     clone = /Iguazu/input/maps/clone/clone.map
     samples = /Iguazu/maps/stations/samples.map 
     soil =  /Iguazu/input/maps/soil/soil.map
@@ -174,7 +172,6 @@ Use the default values for ``FPAR``, ``LAI`` and ``Impervious Area Interception`
 
     [RASTERS]
     dem = /Iguazu/input/maps/dem/dem.map
-    demtif = /Iguazu/input/maps/dem/dem.tif
     clone = /Iguazu/input/maps/clone/clone.map
     samples = /Iguazu/maps/stations/samples.map 
     soil =  /Iguazu/input/maps/soil/soil.map
@@ -243,7 +240,6 @@ In the ``Climate`` section define the appropriate map-series from :file:`/input/
 
     [RASTERS]
     dem = /Iguazu/input/maps/dem/dem.map
-    demtif = /Iguazu/input/maps/dem/dem.tif
     clone = /Iguazu/input/maps/clone/clone.map
     samples = /Iguazu/maps/stations/samples.map 
     soil =  /Iguazu/input/maps/soil/soil.map
@@ -335,7 +331,6 @@ Values in this tab correspond to calibrated parameters in the basin. For the dat
 
     [RASTERS]
     dem = /Iguazu/input/maps/dem/dem.map
-    demtif = /Iguazu/input/maps/dem/dem.tif
     clone = /Iguazu/input/maps/clone/clone.map
     samples = /Iguazu/maps/stations/samples.map 
     soil =  /Iguazu/input/maps/soil/soil.map
@@ -420,7 +415,6 @@ The complete project configuration file should look like this:
 
     [RASTERS]
     dem = /Iguazu/input/maps/dem/dem.map
-    demtif = /Iguazu/input/maps/dem/dem.tif
     clone = /Iguazu/input/maps/clone/clone.map
     samples = /Iguazu/maps/stations/samples.map 
     soil =  /Iguazu/input/maps/soil/soil.map
