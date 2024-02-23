@@ -1,6 +1,7 @@
 import time
 import logging
 
+import humanize
 from pcraster.framework import DynamicFramework
 
 from rubem._dynamic_model import RUBEM
@@ -21,7 +22,6 @@ class Model:
 
     def __init__(self, model_configuration: ModelConfiguration) -> None:
         self.logger = logging.getLogger(__name__)
-        print("Setting up dynamic framework...")
         if not model_configuration:
             self.logger.error("Empty model configuration")
             raise ValueError("Empty model configuration")
@@ -49,7 +49,7 @@ class Model:
         """
         Wrapper of the ``DynamicFramework.run()`` that runs the ``DynamicModelConcept``.
         """
-        print("Running simulation...")
+        print("Simulation started...")
         t0 = time.time()
         self.logger.info(
             "Started model run for %s cycles...", self.config.simulation_period.total_steps
@@ -58,12 +58,15 @@ class Model:
         try:
             self.dynamic_model.run()
             self.logger.info("Simulation finished!")
+            print("Simulation finished successfully!")
         except RuntimeError as e:
             self.logger.error("Simulation failed with error: %s", e)
+            print("Simulation finished with error! See log for details.")
             raise
         finally:
             exec_time = time.time() - t0
             self.logger.info("Elapsed time: %.2fs", exec_time)
+            print(f"Elapsed time: {humanize.precisedelta(exec_time, minimum_unit='seconds')}")
             self.__exportTablesAsCSV()
 
     @classmethod

@@ -29,13 +29,13 @@ class OutputDataDirectory:
                 self.logger.error("Failed to create output directory: %s", e)
                 raise
 
+        if os.listdir(self.path):
+            self.logger.warning("There is data in the output directory: %s", self.path)
+
     def __validate_directories(self) -> None:
         if os.path.isfile(self.path):
             self.logger.error("Output path is not a directory: %s", self.path)
             raise NotADirectoryError(f"{self.path} is not a directory")
-
-        if os.listdir(self.path):
-            self.logger.warning("There is data in the output directory: %s", self.path)
 
     def __str__(self) -> str:
         return f"{self.path}"

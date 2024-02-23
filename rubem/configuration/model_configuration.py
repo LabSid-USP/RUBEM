@@ -140,6 +140,7 @@ class ModelConfiguration:
                 ndvi_max=self.__get_setting("RASTERS", "ndvi_max"),
                 ndvi_min=self.__get_setting("RASTERS", "ndvi_min"),
                 soil=self.__get_setting("RASTERS", "soil"),
+                ldd=self.__get_setting("RASTERS", "ldd", optional=True),
                 sample_locations=self.__get_setting("RASTERS", "samples"),
                 validate_input=validate_input,
             )
@@ -183,12 +184,16 @@ class ModelConfiguration:
             self.logger.error("Error parsing JSON file: %s", e)
             raise
 
-    def __get_setting(self, section, setting):
+    def __get_setting(self, section, setting, optional=False):
         try:
             return self.config[section][setting]
         except KeyError as e:
-            self.logger.error("Missing setting: %s in section: %s", setting, section)
-            raise ValueError(f"Missing setting: {setting} in section: {section}") from e
+            if not optional:
+                self.logger.error("Missing setting: %s in section: %s", setting, section)
+                raise ValueError(f"Missing setting: {setting} in section: {section}") from e
+
+            self.logger.warning("Optional setting not found: %s in section: %s", setting, section)
+            return ""
 
     def __str__(self):
         # Workaround for "Escape sequence (backslash) not allowed in expression portion of f-string prior to Python 3.12"

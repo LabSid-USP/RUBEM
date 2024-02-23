@@ -59,6 +59,22 @@ Mandatory path to Mask of Catchment (Clone) file in PCRaster map format :file:`*
    clone = /Dataset/UIGCRB/input/maps/clone/clone.map
 
 
+Local Drain Direction (LDD)
+```````````````````````````
+
+Optional path to Local Drain Direction (LDD) file in PCRaster map format :file:`*.map`. This map contains the local flow direction of each cell in the catchment. Must be a valid file path to a PCRaster map format :file:`*.map` file. :ref:`See more. <fileformats:Local Drain Direction (LDD) raster>`
+
+.. note:: 
+
+  If not specified in the simulation configuration, it will be automatically generated using ``lddcreate`` from `PCRaster <https://pcraster.geo.uu.nl/pcraster/latest/documentation/pcraster_manual/sphinx/op_lddcreate.html>`_.
+
+  In some circumstances, it may happen that PCRaster generates different LDDs each time the model runs (difference in value in a few pixels), so the stipulated demand zones may present different values between runs. In this case, it is recommended to use the same LDD for all runs.
+
+.. code-block:: dosini
+   
+   [RASTERS]
+   ldd = /Dataset/UIGCRB/input/maps/ldd/ldd.map
+
 Gauge Station Location Map
 ``````````````````````````
 

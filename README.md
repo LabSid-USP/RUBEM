@@ -1,4 +1,5 @@
 <!-- PROJECT SHIELDS -->
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10562516.svg)](https://doi.org/10.5281/zenodo.10562516)
 [![Documentation Status][readthedocs-shield]][readthedocs-url]
 [![Contributors][contributors-shield]][contributors-url]
 [![GitHub Commit Activity][commit-activity-shield]][commit-activity-url]
