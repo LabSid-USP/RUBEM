@@ -4,6 +4,8 @@ import logging.handlers
 import argparse
 from datetime import datetime
 
+import humanize
+
 from rubem import __release__
 from rubem.configuration.app_settings import AppSettings
 from rubem.configuration.data_ranges_settings import DataRangesSettings
@@ -35,6 +37,15 @@ def main():
     :raises SystemExit(2): If the program is interrupted by the user.
     """
     app_settings = AppSettings()
+
+    try:
+        i18n_settings = app_settings.get_setting("i18n")
+        language = i18n_settings.get("language") if i18n_settings else None
+        if language and language != "en_US":
+            humanize.i18n.activate(language)
+    except Exception as e:
+        logger.error("Failed to set language: %s, using 'en_US' as default language", e)
+
     _ = DataRangesSettings(app_settings.get_setting("value_ranges"))
 
     # Configure CLI
