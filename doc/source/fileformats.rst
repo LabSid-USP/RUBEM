@@ -11,7 +11,7 @@ Input File Formats
 Mask of Catchment (Clone) raster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRASTER library.
+This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRaster.
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit: Boolean
@@ -28,7 +28,7 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 Digital Elevation Map (DEM) raster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRASTER library.
+This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRaster.
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit: `Meters Above Sea Level (MASL) <https://wiki.gis.com/wiki/index.php/Meters_above_sea_level>`_
@@ -66,12 +66,32 @@ Digital Elevation Map (DEM) raster (TIFF)
   - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
 
+Local Drain Direction (LDD) raster
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This file is the result of pre-processing the :ref:`fileformats:Digital Elevation Map (DEM) raster` raster file with `PCRaster <https://pcraster.geo.uu.nl/pcraster/latest/documentation/pcraster_manual/sphinx/op_lddcreate.html>`_. `See more. <https://pcraster.geo.uu.nl/pcraster/4.4.1/documentation/pcraster_manual/sphinx/op_lddcreate.html#operation>`_
+
+- Filetype: PCRaster map format :file:`*.map` raster file.
+- Unit: Dimensionless
+- Valid Range: :math:`[1, 9]`
+- Restrictions: 
+
+  - ``PCRASTER_VALUESCALE`` = ``VS_LDD``;
+  - None of the pixels in the raster must contain ``NO_DATA`` value;
+  - Raster pixels cannot consist entirely of ``1.0`` values.
+
+- Dimensions: 
+
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
+
 .. _potential-evapotranspiration-raster-series:
 
 Potential Evapotranspiration (:raw-html:`ET<sub>P</sub>`) raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRASTER library.
+These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRaster.
 
 - Filetype: PCRaster map format (:file:`etp00000.001`- :file:`etp99999.999` raster map series).
 - Unit: mm/month
@@ -101,7 +121,7 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 Rainfall (:raw-html:`P<sub>M</sub>`) raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRASTER library.
+These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRaster.
 
 - Filetype: PCRaster map format (:file:`raf00000.001`- :file:`raf99999.999` raster map series). 
 - Unit: mm/month
@@ -129,7 +149,7 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 Normalized Difference Vegetation Index (NDVI) raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRASTER library.
+These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRaster.
 
 - Filetype: PCRaster map format (:file:`ndvi0000.001`- :file:`ndvi9999.999` raster map series).
 - Unit: Dimensionless
@@ -159,7 +179,7 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 Class A Pan Coefficient (:raw-html:`K<sub>P</sub>`) raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRASTER library. 
+These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRaster. 
 
 :raw-html:`K<sub>P</sub>` is interpolated by kriging of weather stations.
 
@@ -189,7 +209,7 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 Land Use raster series
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRASTER library.
+These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRaster.
 
 - Filetype: PCRaster map format (:file:`luc00000.001`- :file:`luc99999.999` raster map series).
 - Unit: Nominal
@@ -219,7 +239,7 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
 Soil raster
 ^^^^^^^^^^^^
 
-This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRASTER library.
+This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRaster.
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit: Nominal
@@ -240,7 +260,7 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 Stations (samples) raster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRASTER library.
+This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRaster.
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit: Nominal
@@ -259,7 +279,7 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 Maximum NDVI raster
 ^^^^^^^^^^^^^^^^^^^^
 
-This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRASTER library.
+This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRaster.
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit: Dimensionless
@@ -278,7 +298,7 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
 Minimum NDVI raster
 ^^^^^^^^^^^^^^^^^^^^
 
-This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRASTER library.
+This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster file through PCRaster.
 
 - Filetype: PCRaster map format :file:`*.map` raster file.
 - Unit:Dimensionless
@@ -646,7 +666,7 @@ Output File Formats
 Total Interception raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Total Interception (ITP) [mm]  in raster format for all simulation period for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
+Resulting maps of Total Interception (ITP) [mm]  in raster format for all simulation period for each pixel of :ref:`clone map <fileformats:Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`itp00000.001`- :file:`itp99999.999` raster map series).
 - Unit: mm
@@ -659,7 +679,7 @@ Resulting maps of Total Interception (ITP) [mm]  in raster format for all simula
 Baseflow raster series
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of  Baseflow (BFW) [mm]  in raster format for all simulation period or for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
+Resulting maps of  Baseflow (BFW) [mm]  in raster format for all simulation period or for each pixel of :ref:`clone map <fileformats:Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`bfw00000.001`- :file:`bfw99999.999` raster map series).
 - Unit: mm
@@ -673,7 +693,7 @@ Surface Runoff raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
-Resulting maps of  Surface runoff (SRN) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
+Resulting maps of  Surface runoff (SRN) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <fileformats:Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`srn00000.001`- :file:`srn99999.999` raster map series).
 - Unit: mm
@@ -686,7 +706,7 @@ Resulting maps of  Surface runoff (SRN) [mm] in raster format for all simulation
 Actual Evapotranspiration raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Actual Evapotranspiration (ETA) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
+Resulting maps of Actual Evapotranspiration (ETA) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <fileformats:Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`eta00000.001`- :file:`eta99999.999` raster map series).
 - Unit: mm
@@ -699,7 +719,7 @@ Resulting maps of Actual Evapotranspiration (ETA) [mm] in raster format for all 
 Lateral Flow raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Lateral Flow (LFW) [mm] in raster format for all simulation period for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`..
+Resulting maps of Lateral Flow (LFW) [mm] in raster format for all simulation period for each pixel of :ref:`clone map <fileformats:Mask of Catchment (Clone) raster>`..
 
 - Filetype: PCRaster map format (:file:`lfw00000.001`- :file:`lfw99999.999` raster map series).
 - Unit: mm
@@ -712,7 +732,7 @@ Resulting maps of Lateral Flow (LFW) [mm] in raster format for all simulation pe
 Recharge raster series
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Recharge (REC) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
+Resulting maps of Recharge (REC) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <fileformats:Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`rec00000.001`- :file:`rec99999.999` raster map series).
 - Unit: mm
@@ -725,7 +745,7 @@ Resulting maps of Recharge (REC) [mm] in raster format for all simulation period
 Soil Moisture Content raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
+Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simulation period or for each pixel of :ref:`clone map <fileformats:Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`smc00000.001`- :file:`smc99999.999` raster map series).
 - Unit: mm
@@ -738,7 +758,7 @@ Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simu
 Accumulated Total Runoff raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in raster format for all simulation period for each pixel of :ref:`clone map <Mask of Catchment (Clone) raster>`.
+Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in raster format for all simulation period for each pixel of :ref:`clone map <fileformats:Mask of Catchment (Clone) raster>`.
 
 - Filetype: PCRaster map format (:file:`rnf00000.001`- :file:`rnf99999.999` raster map series).
 - Unit: :raw-html:`m<sup>3</sup>s<sup>-1</sup>`
@@ -1024,7 +1044,7 @@ Resulting maps of Soil Moisture Content (SMC) [mm] in table format for all simul
 Accumulated Total Runoff table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^	
 
-Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in table format for all simulation period for each sampling station present in :ref:`stations map <Stations (samples) raster>`.
+Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: :raw-html:`m<sup>3</sup>s<sup>-1</sup>`
