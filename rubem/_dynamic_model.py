@@ -106,7 +106,7 @@ class RUBEM(pcrfw.DynamicModel):
 
             # Check if we have to export the time series of the selected
             # variable (fileName)
-            if self.config.output_variables.tss:
+            if self.config.raster_files.sample_locations and self.config.output_variables.tss:
                 # Export tss according to variable (fileName) selected
                 # The same as self.TssFileXxx.sample(self.Xxx)
                 self.sampleTimeSeriesDict.get(outputVar)(self.outputVarsDict.get(outputVar))
@@ -223,8 +223,8 @@ class RUBEM(pcrfw.DynamicModel):
         self.logger.info("Creating slope map based on DEM...")
         self.S = pcrfw.slope(self.dem)
 
-        self.logger.info("Setting up TSS output files...")
-        if self.config.output_variables.tss:
+        if self.config.raster_files.sample_locations and self.config.output_variables.tss:
+            self.logger.info("Setting up TSS output files...")
             self.__setupTimeoutputTimeseries()
 
         self.logger.info("Reading min. and max. NDVI rasters...")

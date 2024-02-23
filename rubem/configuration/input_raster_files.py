@@ -30,13 +30,13 @@ class InputRasterFiles:
     :param soil: Path to the soil file.
     :type soil: Union[str, bytes, os.PathLike]
 
-    :param sample_locations: Path to the stations locations (samples) file.
-    :type sample_locations: Union[str, bytes, os.PathLike]
+    :param sample_locations: Path to the stations locations (samples) file. Specifies a nominal map with unique IDs for which sampling point(s) the time series(s) are required. Defaults to ``None``.
+    :type sample_locations: Union[str, bytes, os.PathLike], optional
 
-    :param ldd: Path to the Local Drain Direction (LDD) raster file.
+    :param ldd: Path to the Local Drain Direction (LDD) raster file. Defaults to ``None``.
     :type ldd: Union[str, bytes, os.PathLike], optional
 
-    :param validate_input: If True, validates the input raster files. Defaults to `True`.
+    :param validate_input: If ``True``, validates the input raster files. Defaults to ``True``.
     :type validate_input: bool, optional
 
     :raises FileNotFoundError: If any of the input raster files does not exist.
@@ -51,12 +51,14 @@ class InputRasterFiles:
         ndvi_max: Union[str, bytes, os.PathLike],
         ndvi_min: Union[str, bytes, os.PathLike],
         soil: Union[str, bytes, os.PathLike],
-        sample_locations: Union[str, bytes, os.PathLike],
+        sample_locations: Optional[Union[str, bytes, os.PathLike]] = None,
         ldd: Optional[Union[str, bytes, os.PathLike]] = None,
         validate_input: bool = True,
     ) -> None:
         self.logger = logging.getLogger(__name__)
         self.__ranges = DataRangesSettings()
+
+        self.problems = []
 
         self.dem = dem
         self.demtif = demtif
@@ -64,7 +66,7 @@ class InputRasterFiles:
         self.ndvi_max = ndvi_max
         self.ndvi_min = ndvi_min
         self.soil = soil
-        self.sample_locations = sample_locations
+        self.sample_locations = sample_locations if sample_locations else None
         self.ldd = ldd if ldd else None
 
         if validate_input:
@@ -96,12 +98,16 @@ class InputRasterFiles:
                 self.__ranges.rasters["soil"],
                 RasterDataRules.FORBID_NO_DATA | RasterDataRules.FORBID_ALL_ZEROES,
             ),
-            (
-                self.sample_locations,
-                self.__ranges.rasters["sample_locations"],
-                RasterDataRules.FORBID_ALL_ZEROES | RasterDataRules.FORBID_ALL_ONES,
-            ),
         ]
+
+        if self.sample_locations:
+            files.append(
+                (
+                    self.sample_locations,
+                    self.__ranges.rasters["sample_locations"],
+                    RasterDataRules.FORBID_ALL_ZEROES | RasterDataRules.FORBID_ALL_ONES,
+                )
+            )
 
         if self.ldd:
             files.append(
@@ -119,13 +125,14 @@ class InputRasterFiles:
             validator = RasterMapValidator()
             valid, errors = validator.validate(raster)
             if not valid:
-                self.logger.warning(
-                    "Raster file '%s' violated %s. This may lead to unexpected results.",
-                    file,
-                    errors,
-                )
-                print(
-                    f"Raster file '{file}' violated {[str(error) for error in errors]} data rule(s)."
+                self.problems.append(
+                    {
+                        "description": "Raster file data validation failed.",
+                        "reason": f"Data rules violation(s): {[str(error) for error in errors]}.",
+                        "implication": "This may lead to unexpected results.",
+                        "file": file,
+                        "blocking": False,
+                    }
                 )
 
     def __str__(self) -> str:
@@ -137,5 +144,5 @@ class InputRasterFiles:
             f"NDVI Max.: {self.ndvi_max}\n"
             f"NDVI Min.: {self.ndvi_min}\n"
             f"Soil: {self.soil}\n"
-            f"Stations Locations (Samples): {self.sample_locations}"
+            f"Stations Locations (Samples): {self.sample_locations if self.sample_locations else 'Not specified.'}"
         )
