@@ -71,6 +71,8 @@ class InputRasterSeries:
         self.logger = logging.getLogger(__name__)
         self.__ranges = DataRangesSettings()
 
+        self.problems = []
+
         self.__etp_dir_path = etp
         self.__etp_filename_prefix = etp_filename_prefix
         self.__precipitation_dir_path = precipitation
@@ -185,12 +187,17 @@ class InputRasterSeries:
         validator = RasterMapValidator()
         valid, errors = validator.validate(raster)
         if not valid:
-            self.logger.warning(
-                "Raster file '%s' violated %s. This may lead to unexpected results.",
-                file,
-                errors,
+            self.problems.append(
+                self.problems.append(
+                    {
+                        "description": "Raster file data validation failed.",
+                        "reason": f"Data rules violation(s): {[str(error) for error in errors]}",
+                        "implication": "This may lead to unexpected results.",
+                        "file": file,
+                        "blocking": False,
+                    }
+                )
             )
-            print(f"Raster file '{file}' violated {[str(error) for error in errors]} data rule(s).")
 
     def __validate_raster_series_filenames_prefixes(self, prefix):
         num_digits = RASTER_SERIES_FILENAME_MAX_CHARS - len(prefix)

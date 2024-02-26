@@ -285,6 +285,19 @@ class TestModelConfiguration:
         _ = ModelConfiguration(input_dict)
 
     @pytest.mark.unit
+    def test_init_with_dictionary_optional_samples(self, mocker):
+        band_mock = MagicMock(spec=RasterBand)
+        band_mock.no_data_value = -9999
+        band_mock.data_array = np.ones((3, 3))
+        mocker.patch("osgeo.gdal.OpenEx")
+        mocker.patch("osgeo.gdal.GetDataTypeName")
+        mocker.patch("os.path.getsize", return_value=100)
+        mocker.patch("rubem.configuration.raster_map.RasterBand", return_value=band_mock)
+        input_dict = self.valid_config_input.copy()
+        input_dict["RASTERS"]["samples"] = None
+        _ = ModelConfiguration(input_dict)
+
+    @pytest.mark.unit
     def test_init_with_empty_dictionary(self):
         with pytest.raises(Exception):
             _ = ModelConfiguration({})

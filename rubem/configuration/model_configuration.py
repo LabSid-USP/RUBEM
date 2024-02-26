@@ -6,6 +6,7 @@ import os
 import textwrap
 from typing import Union
 
+
 from rubem.configuration.calibration_parameters import CalibrationParameters
 from rubem.configuration.initial_soil_conditions import InitialSoilConditions
 from rubem.configuration.input_raster_files import InputRasterFiles
@@ -45,6 +46,8 @@ class ModelConfiguration:
         self, config_input: Union[dict, str, bytes, os.PathLike], validate_input: bool = True
     ):
         self.logger = logging.getLogger(__name__)
+        self.problems = []
+
         print(f"Loading configuration{' and validating inputs' if validate_input else ''}...")
         try:
             if isinstance(config_input, dict):
@@ -140,7 +143,7 @@ class ModelConfiguration:
                 ndvi_min=self.__get_setting("RASTERS", "ndvi_min"),
                 soil=self.__get_setting("RASTERS", "soil"),
                 ldd=self.__get_setting("RASTERS", "ldd", optional=True),
-                sample_locations=self.__get_setting("RASTERS", "samples"),
+                sample_locations=self.__get_setting("RASTERS", "samples", optional=True),
                 validate_input=validate_input,
             )
             self.lookuptable_files = InputTableFiles(
@@ -164,6 +167,61 @@ class ModelConfiguration:
         except Exception as e:
             self.logger.error("Failed to load configuration: %s", e)
             raise
+
+        self.problems.extend(self.raster_series.problems)
+        self.problems.extend(self.raster_files.problems)
+        self.__check_inconsistencies()
+
+    def __check_inconsistencies(self):
+        if not self.output_variables.any_enabled():
+            self.problems.append(
+                {
+                    "description": "Simulation will not produce any output.",
+                    "reason": "No Output Variables were selected.",
+                    "blocking": False,
+                }
+            )
+
+        if self.raster_files.sample_locations and not self.output_variables.tss:
+            self.problems.append(
+                {
+                    "description": "Simulation will not produce any Time Series tables.",
+                    "reason": "Sample Locations raster was provided but Time Series generation was not enabled.",
+                    "blocking": False,
+                }
+            )
+
+        if self.output_variables.tss and not self.raster_files.sample_locations:
+            self.problems.append(
+                {
+                    "description": "Simulation will not produce any Time Series tables.",
+                    "reason": "Time Series generation was enabled but no Sample Locations raster was provided.",
+                    "blocking": False,
+                }
+            )
+
+        if (
+            self.raster_files.sample_locations
+            and self.output_variables.tss
+            and not self.output_variables.any_enabled()
+        ):
+            self.problems.append(
+                {
+                    "description": "Simulation will not produce any output.",
+                    "reason": "Sample Locations raster and Time Series generation were enabled but no Output Variables were selected.",
+                    "blocking": False,
+                }
+            )
+
+        if self.problems:
+            print("Configuration problems found:")
+            i = 1
+            for problem in self.problems:
+                message = f"{problem.get('description')}: {problem.get('reason')} {problem.get('implication', '')} {problem.get('file', '')}"
+                self.logger.warning("Configuration problem: %s", message)
+                print(f"{i}) {message}")
+                i += 1
+            print()
 
     def __read_ini(self, file_path: Union[str, bytes, os.PathLike]):
         self.logger.debug("Reading INI file: %s", file_path)

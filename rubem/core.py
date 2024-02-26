@@ -89,11 +89,11 @@ class Model:
 
     def __exportTablesAsCSV(self) -> None:
         """Converts PCRaster TSS files to Comma-Separated Values (CSV) files."""
-        if self.config.output_variables.tss:
+        if self.config.raster_files.sample_locations and self.config.output_variables.tss:
             self.logger.info("Exporting tables as CSV...")
             cols = [str(n) for n in self.dynamic_model_concept.sample_vals[1:]]
             tss2csv(self.config.output_directory.path, cols)
         else:
             self.logger.warning(
-                "Generation of time series was not enabled to export time series files."
+                "Generation of time series was not configured to export time series files."
             )
