@@ -214,10 +214,12 @@ class ModelConfiguration:
 
         if self.problems:
             print("Configuration problems found:")
-            for i, problem in enumerate(self.problems, start=1):
+            i = 1
+            for problem in self.problems:
                 message = f"{problem.get('description')}: {problem.get('reason')} {problem.get('implication', '')} {problem.get('file', '')}"
                 self.logger.warning("Configuration problem: %s", message)
                 print(f"{i}) {message}")
+                i += 1
             print()
 
     def __read_ini(self, file_path: Union[str, bytes, os.PathLike]):
