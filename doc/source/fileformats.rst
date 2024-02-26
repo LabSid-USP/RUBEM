@@ -755,12 +755,26 @@ Resulting maps of Soil Moisture Content (SMC) [mm] in raster format for all simu
   - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
   - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
+Total Runoff raster series
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Resulting maps of Total Runoff [mm] in raster format for all simulation period for each pixel of :ref:`clone map <fileformats:Mask of Catchment (Clone) raster>`.
+
+- Filetype: PCRaster map format (:file:`rnf00000.001`- :file:`rnf99999.999` raster map series).
+- Unit: :raw-html:`m<sup>3</sup>s<sup>-1</sup>`
+- Dimensions: 
+
+  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
+  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
+  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
+
+
 Accumulated Total Runoff raster series
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in raster format for all simulation period for each pixel of :ref:`clone map <fileformats:Mask of Catchment (Clone) raster>`.
 
-- Filetype: PCRaster map format (:file:`rnf00000.001`- :file:`rnf99999.999` raster map series).
+- Filetype: PCRaster map format (:file:`arn00000.001`- :file:`arn99999.999` raster map series).
 - Unit: :raw-html:`m<sup>3</sup>s<sup>-1</sup>`
 - Dimensions: 
 
@@ -1041,10 +1055,49 @@ Resulting maps of Soil Moisture Content (SMC) [mm] in table format for all simul
      - `...`
      - Float <\*>    
 
+Total Runoff table
+^^^^^^^^^^^^^^^^^^
+
+Resulting maps of Total Runoff (RNF) [mm] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
+
+- Filetype: Comma-Separated Values (CSV) :file:`*.csv`
+- Unit: mm
+- Dimensions: 
+
+  - Rows = number of time steps;
+  - Columns = number of sampling stations from the station map.
+
+.. list-table:: Basic file structure:
+   :header-rows: 1
+
+   * - Time Step
+     - Station #1 
+     - Station #2
+     - `...`
+     - Station #N          
+
+   * - 1 
+     - Float <\*>
+     - Float <\*>
+     - `...`
+     - Float <\*>
+
+   * - `...`
+     - `...`
+     - `...`
+     - `...`
+     - `...`
+
+   * - N
+     - Float <\*>
+     - Float <\*>
+     - `...`
+     - Float <\*>    
+
 Accumulated Total Runoff table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^	
 
-Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
+Resulting maps of Accumulated Total Runoff (ARN) [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] in table format for all simulation period for each sampling station present in :ref:`stations map <fileformats:Stations (samples) raster>`.
 
 - Filetype: Comma-Separated Values (CSV) :file:`*.csv`
 - Unit: :raw-html:`m<sup>3</sup>s<sup>-1</sup>`

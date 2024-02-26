@@ -475,7 +475,8 @@ The complete project configuration file should look like this:
     lfw = False
     rec = True
     smc = False
-    rnf = True
+    rnf = False
+    arn = True
     tss = True    
 
     [RASTER_FILE_FORMAT]
