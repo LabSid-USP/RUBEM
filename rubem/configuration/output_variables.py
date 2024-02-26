@@ -91,7 +91,7 @@ class OutputVariables:
             f"Recharge (REC): {'Enabled' if self.rec else 'Disabled'}\n"
             f"Soil Moisture Content (SMC): {'Enabled' if self.smc else 'Disabled'}\n"
             f"Total Runoff (RNF): {'Enabled' if self.rnf else 'Disabled'}\n"
-            f"Accumulated Total Runoff (RNF): {'Enabled' if self.rnf else 'Disabled'}\n"
+            f"Accumulated Total Runoff (ARN): {'Enabled' if self.rnf else 'Disabled'}\n"
             f"Create time output time series (TSS): {'Enabled' if self.tss else 'Disabled'}\n"
             f"Output format: {self.file_format}"
         )
