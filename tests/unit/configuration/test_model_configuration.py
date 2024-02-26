@@ -80,6 +80,7 @@ class TestModelConfiguration:
             "rec": True,
             "smc": True,
             "rnf": True,
+            "arn": True,
             "tss": True,
         },
         "RASTER_FILE_FORMAT": {"map_raster_series": True, "tiff_raster_series": True},
@@ -156,6 +157,7 @@ class TestModelConfiguration:
         rec = True
         smc = True
         rnf = True
+        arn = True
         tss = True
         [RASTER_FILE_FORMAT]
         map_raster_series = True
@@ -243,6 +245,7 @@ class TestModelConfiguration:
             "rec": true,
             "smc": true,
             "rnf": true,
+            "arn": true,
             "tss": true
         },
         "RASTER_FILE_FORMAT": {
