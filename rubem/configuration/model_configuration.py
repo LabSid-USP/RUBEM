@@ -169,9 +169,9 @@ class ModelConfiguration:
 
         self.problems.extend(self.raster_series.problems)
         self.problems.extend(self.raster_files.problems)
-        self.__check_incositencies()
+        self.__check_inconsistencies()
 
-    def __check_incositencies(self):
+    def __check_inconsistencies(self):
         if not self.output_variables.any_enabled():
             self.problems.append(
                 {
