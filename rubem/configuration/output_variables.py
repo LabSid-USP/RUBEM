@@ -68,18 +68,47 @@ class OutputVariables:
         self.tss = tss
         self.file_format = output_format
 
-        if (
-            not self.itp
-            and not self.bfw
-            and not self.srn
-            and not self.eta
-            and not self.lfw
-            and not self.rec
-            and not self.smc
-            and not self.rnf
-            and not self.arn
-        ):
-            self.logger.warning("No output variables selected.")
+    def any_enabled(self) -> bool:
+        """
+        Returns ``True`` if any output variable is enabled, otherwise ``False``.
+
+        :return: ``True`` if any output variable is enabled, otherwise ``False``.
+        :rtype: bool
+        """
+        return any(
+            [
+                self.itp,
+                self.bfw,
+                self.srn,
+                self.eta,
+                self.lfw,
+                self.rec,
+                self.smc,
+                self.rnf,
+                self.arn,
+            ]
+        )
+
+    def all_enabled(self) -> bool:
+        """
+        Returns ``True`` if all output variables are enabled, otherwise ``False``.
+
+        :return: ``True`` if all output variables are enabled, otherwise ``False``.
+        :rtype: bool
+        """
+        return all(
+            [
+                self.itp,
+                self.bfw,
+                self.srn,
+                self.eta,
+                self.lfw,
+                self.rec,
+                self.smc,
+                self.rnf,
+                self.arn,
+            ]
+        )
 
     def __str__(self) -> str:
         return (
@@ -95,3 +124,4 @@ class OutputVariables:
             f"Create time output time series (TSS): {'Enabled' if self.tss else 'Disabled'}\n"
             f"Output format: {self.file_format}"
         )
+

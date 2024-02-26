@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Callable, Optional, Union
 
 import numpy as np
 import pcraster as pcr
@@ -32,27 +33,6 @@ class RUBEM(pcrfw.DynamicModel):
         # TODO: Automatic calculation of cell area
         self.logger.info("Obtaining grid cell area...")
         self.A = self.config.grid.area
-
-        self.logger.info("Obtaining initial baseflow...")
-        self.EBini = pcrfw.scalar(self.config.initial_soil_conditions.initial_baseflow)
-
-        self.logger.info("Obtaining baseflow limit...")
-        self.EBlim = pcrfw.scalar(self.config.initial_soil_conditions.baseflow_limit)
-
-        self.logger.info("Obtaining initial moisture content of the saturated zone...")
-        self.Tusini = pcrfw.scalar(
-            self.config.initial_soil_conditions.initial_saturated_zone_storage
-        )
-
-        self.logger.debug("Reading DEM reference file...")
-        try:
-            self.ref = getRefInfo(self.config.raster_files.demtif)
-        except RuntimeError:
-            self.logger.error(
-                "Error reading Digital Elevation Model (DEM) file at '%s'",
-                self.config.raster_files.demtif,
-            )
-            raise
 
         self.__getEnabledOutputVars()
 
@@ -92,23 +72,22 @@ class RUBEM(pcrfw.DynamicModel):
 
             # Export TIFF raster series
             if self.config.output_variables.file_format is OutputFileFormat.GEOTIFF:
-                reportTIFFSeries(
-                    self,
-                    self.ref,
-                    self.outputVarsDict.get(outputVar),
-                    outputVar,
-                    self.config.output_directory.path,
-                    self.currentStep,
-                    dyn=True,
+                report(
+                    variable=self.outputVarsDict.get(outputVar),
+                    name=outputVar,
+                    timestep=self.currentStep,
+                    outpath=self.config.output_directory.path,
+                    format=OutputFileFormat.GEOTIFF,
+                    base_raster_info=self.config.output_raster_base,
                 )
 
             # Export PCRaster map format raster series
             if self.config.output_variables.file_format is OutputFileFormat.PCRASTER:
-                self.report(self.outputVarsDict.get(outputVar), outputVar)
+                self.report(variable=self.outputVarsDict.get(outputVar), name=outputVar)
 
             # Check if we have to export the time series of the selected
             # variable (fileName)
-            if self.config.output_variables.tss:
+            if self.config.raster_files.sample_locations and self.config.output_variables.tss:
                 # Export tss according to variable (fileName) selected
                 # The same as self.TssFileXxx.sample(self.Xxx)
                 self.sampleTimeSeriesDict.get(outputVar)(self.outputVarsDict.get(outputVar))
@@ -208,21 +187,16 @@ class RUBEM(pcrfw.DynamicModel):
         """
 
         self.logger.info("Setting up model initial parameters...")
+
         self.logger.debug("Reading DEM file...")
-        # Read DEM file
-        try:
-            self.dem = pcrfw.readmap(self.config.raster_files.dem)
-        except RuntimeError:
-            self.logger.error("Error reading DEM file at '%s'" % (self.config.raster_files.dem))
-            raise
+        self.dem = self.__readmap_wrapper(self.config.raster_files.dem)
 
         if self.config.raster_files.ldd:
             self.logger.info("Reading Local Drain Direction (LDD) file...")
-            try:
-                self.ldd = pcr.ldd(pcr.readmap(self.config.raster_files.ldd))
-            except RuntimeError:
-                self.logger.error("Error reading LDD file at '%s'" % (self.config.raster_files.ldd))
-                raise
+            self.ldd = self.__readmap_wrapper(
+                file_path=self.config.raster_files.ldd,
+                conversion_func=pcr.ldd,
+            )
         else:
             self.logger.info(
                 "Local Drain Direction (LDD) raster map not specified, generating one based on DEM..."
@@ -232,118 +206,75 @@ class RUBEM(pcrfw.DynamicModel):
         self.logger.info("Creating slope map based on DEM...")
         self.S = pcrfw.slope(self.dem)
 
-        self.logger.info("Setting up TSS output files...")
-        if self.config.output_variables.tss:
+        if self.config.raster_files.sample_locations and self.config.output_variables.tss:
+            self.logger.info("Setting up TSS output files...")
             self.__setupTimeoutputTimeseries()
 
         self.logger.info("Reading min. and max. NDVI rasters...")
-        try:
-            self.ndvi_min = pcrfw.scalar(pcrfw.readmap(self.config.raster_files.ndvi_min))
-        except RuntimeError:
-            self.logger.error(
-                "Error reading NDVI min file at '%s'" % (self.config.raster_files.ndvi_min)
-            )
-            raise
-
-        try:
-            self.ndvi_max = pcrfw.scalar(pcrfw.readmap(self.config.raster_files.ndvi_max))
-        except RuntimeError:
-            self.logger.error(
-                "Error reading NDVI max file at '%s'" % (self.config.raster_files.ndvi_max)
-            )
-            raise
+        self.ndvi_max = self.__readmap_wrapper(self.config.raster_files.ndvi_max)
+        self.ndvi_min = self.__readmap_wrapper(self.config.raster_files.ndvi_min)
 
         self.logger.info("Computing min. and max. surface runoff (SR)")
         self.sr_min = srCalc(self.ndvi_min)
         self.sr_max = srCalc(self.ndvi_max)
 
         self.logger.info("Reading soil attributes...")
-        try:
-            solo = pcrfw.readmap(self.config.raster_files.soil)
-        except RuntimeError:
-            self.logger.error("Error reading soil file at '%s'" % (self.config.raster_files.soil))
-            raise
+        soil = self.__readmap_wrapper(self.config.raster_files.soil)
 
         self.logger.info("Reading hydraulic conductivity coefficient...")
-        try:
-            self.Kr = pcrfw.lookupscalar(self.config.lookuptable_files.k_sat, solo)
-        except RuntimeError:
-            self.logger.error(
-                "Error reading K_sat file at '%s'" % (self.config.lookuptable_files.k_sat)
-            )
-            raise
+        self.Kr = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.k_sat,
+            lookup_value=soil,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.info("Reading soil density...")
-        try:
-            self.dg = pcrfw.lookupscalar(self.config.lookuptable_files.bulk_density, solo)
-        except RuntimeError:
-            self.logger.error(
-                "Error reading bulk_density file at '%s'"
-                % (self.config.lookuptable_files.bulk_density)
-            )
-            raise
+        self.dg = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.bulk_density,
+            lookup_value=soil,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.info("Reading soil root zone depth...")
-        try:
-            self.Zr = pcrfw.lookupscalar(self.config.lookuptable_files.rootzone_depth, solo)
-        except RuntimeError:
-            self.logger.error(
-                "Error reading rootzone_depth file at '%s'"
-                % (self.config.lookuptable_files.rootzone_depth)
-            )
-            raise
+        self.Zr = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.rootzone_depth,
+            lookup_value=soil,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.info("Reading soil moisture for saturation of the first layer...")
-        try:
-            self.TUsat = (
-                pcrfw.lookupscalar(self.config.lookuptable_files.t_sat, solo)
-                * self.dg
-                * self.Zr
-                * 10
-            )
-        except RuntimeError:
-            self.logger.error(
-                "Error reading T_sat file at '%s'" % (self.config.lookuptable_files.t_sat)
-            )
-            raise
-
+        tusat_partial = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.t_sat,
+            lookup_value=soil,
+            lookup_func=pcrfw.lookupscalar,
+        )
+        self.TUsat = tusat_partial * self.dg * self.Zr * 10
         self.TUr_ini = (
             self.TUsat * self.config.initial_soil_conditions.initial_soil_moisture_content
         )
 
         self.logger.info("Reading soil ground wilting point...")
-        try:
-            self.TUw = (
-                pcrfw.lookupscalar(self.config.lookuptable_files.t_wp, solo)
-                * self.dg
-                * self.Zr
-                * 10
-            )
-        except RuntimeError:
-            self.logger.error(
-                "Error reading T_wp file at '%s'" % (self.config.lookuptable_files.t_wp)
-            )
-            raise
+        tuw_partial = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.t_wp,
+            lookup_value=soil,
+            lookup_func=pcrfw.lookupscalar,
+        )
+        self.TUw = tuw_partial * self.dg * self.Zr * 10
 
         self.logger.info("Reading soil field capacity...")
-        try:
-            self.TUcc = (
-                pcrfw.lookupscalar(self.config.lookuptable_files.t_fcap, solo)
-                * self.dg
-                * self.Zr
-                * 10
-            )
-        except RuntimeError:
-            self.logger.error(
-                "Error reading T_fcap file at '%s'" % (self.config.lookuptable_files.t_fcap)
-            )
-            raise
-
-        self.EB_ini = self.EBini  # initial baseflow [mm]
-        self.EB_lim = self.EBlim  # limit for baseflow condition [mm]
-        self.TUs_ini = self.Tusini  # initial moisture content of the saturated layer [mm]
+        tuw_partial = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.t_fcap,
+            lookup_value=soil,
+            lookup_func=pcrfw.lookupscalar,
+        )
+        self.TUcc = tuw_partial * self.dg * self.Zr * 10
 
         self.logger.info("Establishing initial conditions...")
+        self.EB_ini = pcrfw.scalar(self.config.initial_soil_conditions.initial_baseflow)
+        self.EB_lim = pcrfw.scalar(self.config.initial_soil_conditions.baseflow_limit)
+        self.TUs_ini = pcrfw.scalar(
+            self.config.initial_soil_conditions.initial_saturated_zone_storage
+        )
         self.TUrprev = self.TUr_ini
         self.TUsprev = self.TUs_ini
         self.EBprev = self.EB_ini
@@ -351,7 +282,7 @@ class RUBEM(pcrfw.DynamicModel):
         self.TUs = self.TUs_ini
         self.EB = self.EB_ini
         self.Qini = pcrfw.scalar(0)
-        self.Qprev = self.Qini
+        self.Qprev = pcrfw.scalar(0)
 
     def dynamic(self):
         """Contains the implementation of the dynamic section of the model.
@@ -366,122 +297,119 @@ class RUBEM(pcrfw.DynamicModel):
 
         self.logger.debug("Reading NDVI map from '%s'...", self.config.raster_series.ndvi)
         try:
-            ndvi = self.readmap(self.config.raster_series.ndvi)
+            ndvi = self.__readmap_series_wrapper(
+                files_partial_path=self.config.raster_series.ndvi,
+                dynamic_readmap_func=self.readmap,
+                supress_errors=True,
+            )
             self.ndvi_ant = ndvi
         except RuntimeError:
             self.logger.warning(
-                "Error reading NDVI map from '%s'. Using previous timestep value...",
+                "There was an problem reading NDVI map from '%s' on timestep %d. Using previous successful timestep raster...",
                 self.config.raster_series.ndvi,
+                t,
             )
             ndvi = self.ndvi_ant
 
         self.logger.debug("Reading landuse map from '%s'...", self.config.raster_series.landuse)
         try:
-            self.landuse = self.readmap(self.config.raster_series.landuse)
+            self.landuse = self.__readmap_series_wrapper(
+                files_partial_path=self.config.raster_series.landuse,
+                dynamic_readmap_func=self.readmap,
+                supress_errors=True,
+            )
             self.landuse_ant = self.landuse
         except RuntimeError:
             self.logger.warning(
-                "Error reading landuse map from '%s'. Using previous timestep value...",
+                "There was an problem reading LULC map from '%s' on timestep %d. Using previous successful timestep raster...",
                 self.config.raster_series.landuse,
+                t,
             )
             self.landuse = self.landuse_ant
 
         self.logger.debug(
             "Reading precipitation map from '%s'...", self.config.raster_series.precipitation
         )
-        try:
-            precipitation = pcr.scalar(self.readmap(self.config.raster_series.precipitation))
-        except RuntimeError:
-            self.logger.error(
-                "Error reading precipitation map from '%s'", self.config.raster_series.precipitation
-            )
-            raise
+        precipitation = self.__readmap_series_wrapper(
+            files_partial_path=self.config.raster_series.precipitation,
+            dynamic_readmap_func=self.readmap,
+            conversion_func=pcr.scalar,
+        )
 
         self.logger.debug(
             "Reading potential evapotranspiration map from '%s'...", self.config.raster_series.etp
         )
-        try:
-            ETp = pcr.scalar(self.readmap(self.config.raster_series.etp))
-        except RuntimeError:
-            self.logger.error(
-                "Error reading potential evapotranspiration map from '%s'",
-                self.config.raster_series.etp,
-            )
-            raise
+        ETp = self.__readmap_series_wrapper(
+            files_partial_path=self.config.raster_series.etp,
+            dynamic_readmap_func=self.readmap,
+            conversion_func=pcr.scalar,
+        )
 
         self.logger.debug("Reading Kp map from '%s'...", self.config.raster_series.kp)
-        try:
-            Kp = pcr.scalar(self.readmap(self.config.raster_series.kp))
-        except RuntimeError:
-            self.logger.error("Error reading Kp map from '%s'", self.config.raster_series.kp)
-            raise
+        Kp = self.__readmap_series_wrapper(
+            files_partial_path=self.config.raster_series.kp,
+            dynamic_readmap_func=self.readmap,
+            conversion_func=pcr.scalar,
+        )
 
         self.logger.debug(
             "Reading rainydays file from '%s'...", self.config.lookuptable_files.rainy_days
         )
-        try:
-            month = ((t - 1) % 12) + 1
-            rainyDays = pcrfw.lookupscalar(self.config.lookuptable_files.rainy_days, month)
-        except RuntimeError:
-            self.logger.error(
-                "Error reading rainydays file at '%s'", self.config.lookuptable_files.rainy_days
-            )
-            raise
+        month = ((t - 1) % 12) + 1
+        rainyDays = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.rainy_days,
+            lookup_value=month,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.debug("Reading landuse attributes: manning...")
-        try:
-            n_manning = pcrfw.lookupscalar(self.config.lookuptable_files.manning, self.landuse)
-        except RuntimeError:
-            self.logger.error(
-                "Error reading manning file at '%s'", self.config.lookuptable_files.manning
-            )
-            raise
+        n_manning = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.manning,
+            lookup_value=self.landuse,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.debug("Reading landuse attributes: a_v...")
-        try:
-            Av = pcrfw.lookupscalar(self.config.lookuptable_files.a_v, self.landuse)
-        except RuntimeError:
-            self.logger.error("Error reading a_v file at '%s'", self.config.lookuptable_files.a_v)
-            raise
+        Av = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.a_v,
+            lookup_value=self.landuse,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.debug("Reading landuse attributes: a_o...")
-        try:
-            Ao = pcrfw.lookupscalar(self.config.lookuptable_files.a_o, self.landuse)
-        except RuntimeError:
-            self.logger.error("Error reading a_o file at '%s'", self.config.lookuptable_files.a_o)
-            raise
+        Ao = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.a_o,
+            lookup_value=self.landuse,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.debug("Reading landuse attributes: a_s...")
-        try:
-            As = pcrfw.lookupscalar(self.config.lookuptable_files.a_s, self.landuse)
-        except RuntimeError:
-            self.logger.error("Error reading a_s file at '%s'", self.config.lookuptable_files.a_s)
-            raise
+        As = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.a_s,
+            lookup_value=self.landuse,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.debug("Reading landuse attributes: a_i...")
-        try:
-            Ai = pcrfw.lookupscalar(self.config.lookuptable_files.a_i, self.landuse)
-        except RuntimeError:
-            self.logger.error("Error reading a_i file at '%s'", self.config.lookuptable_files.a_i)
-            raise
+        Ai = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.a_i,
+            lookup_value=self.landuse,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.debug("Reading landuse attributes: K_c_min...")
-        try:
-            self.kc_min = pcrfw.lookupscalar(self.config.lookuptable_files.kc_min, self.landuse)
-        except RuntimeError:
-            self.logger.error(
-                "Error reading K_c_min file at '%s'", self.config.lookuptable_files.kc_min
-            )
-            raise
+        self.kc_min = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.kc_min,
+            lookup_value=self.landuse,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.debug("Reading landuse attributes: K_c_max...")
-        try:
-            self.kc_max = pcrfw.lookupscalar(self.config.lookuptable_files.kc_max, self.landuse)
-        except RuntimeError:
-            self.logger.error(
-                "Error reading K_c_max file at '%s'", self.config.lookuptable_files.kc_max
-            )
-            raise
+        self.kc_max = self.__lookup_wrapper(
+            file_path=self.config.lookuptable_files.kc_max,
+            lookup_value=self.landuse,
+            lookup_func=pcrfw.lookupscalar,
+        )
 
         self.logger.debug("Interception")
         SR = srCalc(ndvi)
@@ -631,3 +559,106 @@ class RUBEM(pcrfw.DynamicModel):
         self.logger.debug("Exporting variables to files")
 
         self.__stepReport()
+
+    def __readmap_series_wrapper(
+        self,
+        files_partial_path: Union[str, bytes, os.PathLike],
+        dynamic_readmap_func: Callable,
+        conversion_func: Optional[Callable] = None,
+        supress_errors: bool = False,
+    ) -> pcr._pcraster.Field:
+        """Read a map from a raster series for a given step from a specified location.
+
+        :param dynamic_readmap_func: Function to read the map file.
+        :type dynamic_readmap_func: Callable
+
+        :param files_partial_path: The path where the data map is located and prefix combined.
+        :type files_partial_path: Union[str, bytes, os.PathLike]
+
+        :param conversion_func: Function to convert the read map to the desired data type. Default is ``None``.
+        :type conversion_func: Optional[Callable]
+
+        :param supress_errors: If ``True``, suppresses errors and returns ``None``. Default is ``False``.
+        :type supress_errors: Optional[bool]
+
+        :return: The data map read from the file.
+        :rtype: pcr._pcraster.Field
+
+        :raises RuntimeError: The data map for the step was not found in the specified path.
+        """
+
+        try:
+            if conversion_func:
+                self.logger.debug("Reading and converting map from '%s'...", files_partial_path)
+                return conversion_func(dynamic_readmap_func(files_partial_path))
+
+            self.logger.debug("Reading map from '%s'...", files_partial_path)
+            return dynamic_readmap_func(files_partial_path)
+        except RuntimeError:
+            if not supress_errors:
+                self.logger.error("Error reading map from '%s'", files_partial_path)
+            raise
+
+    def __readmap_wrapper(
+        self,
+        file_path: Union[str, bytes, os.PathLike],
+        readmap_func: Callable = pcrfw.readmap,
+        conversion_func: Optional[Callable] = None,
+    ) -> pcr._pcraster.Field:
+        """Read a data map for a given data type from a specified location.
+
+        :param file_path: The path where the data map is located.
+        :type file_path: Union[str, bytes, os.PathLike]
+
+        :param readmap_func: Function to read the map file. Default is ``pcrfw.readmap``.
+        :type readmap_func: Callable
+
+        :param conversion_func: Function to convert the read map to the desired data type. Default is ``None``.
+        :type conversion_func: Optional[Callable]
+
+        :return: The data map read from the file.
+        :rtype: pcr._pcraster.Field
+
+        :raises RuntimeError: The specified data map was not loaded correctly.
+        """
+
+        try:
+            if conversion_func:
+                self.logger.debug("Reading and converting map from '%s'...", file_path)
+                return conversion_func(readmap_func(file_path))
+
+            self.logger.debug("Reading map from '%s'...", file_path)
+            return readmap_func(file_path)
+        except RuntimeError:
+            self.logger.error("Error reading map from '%s'", file_path)
+            raise
+
+    def __lookup_wrapper(
+        self,
+        file_path: Union[str, bytes, os.PathLike],
+        lookup_value,
+        lookup_func: Callable,
+    ) -> pcr._pcraster.Field:
+        """Read a data from a lookup table for a given data type.
+
+        :param file_path: The file path where the data is located.
+        :type file_path: Union[str, bytes, os.PathLike]
+
+        :param lookup_value: The value to lookup in the table.
+        :type lookup_value: Variable
+
+        :param lookup_func: Function to read the lookup file.
+        :type lookup_func: Callable
+
+        :return: The data read from the table.
+        :rtype: pcr._pcraster.Field
+
+        :raises RuntimeError: The specified data was not loaded correctly.
+        """
+
+        try:
+            self.logger.debug("Reading lookup table from '%s'...", file_path)
+            return lookup_func(file_path, lookup_value)
+        except RuntimeError:
+            self.logger.error("Error reading lookup table from '%s'", file_path)
+            raise

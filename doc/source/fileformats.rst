@@ -46,25 +46,6 @@ This file is the result of pre-processing the corresponding TIFF/GeoTIFF raster 
   - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
   - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
 
-Digital Elevation Map (DEM) raster (TIFF)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-- Filetype: TIFF :file:`*.tif` raster file.
-- Unit: `Meters Above Sea Level (MASL) <https://wiki.gis.com/wiki/index.php/Meters_above_sea_level>`_
-- Valid Range: :math:`[-100.0, 10000.0]`
-- Restrictions: 
-
-  - ``PCRASTER_VALUESCALE`` = ``VS_SCALAR``;
-  - None of the pixels in the raster must contain ``NO_DATA`` value;
-  - Raster pixels cannot consist entirely of ``1.0`` values;
-  - Raster pixels cannot consist entirely of ``0.0`` values.
-
-- Dimensions:
-
-  - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
-  - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
-  - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
-
 
 Local Drain Direction (LDD) raster
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

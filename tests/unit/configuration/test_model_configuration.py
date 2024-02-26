@@ -28,7 +28,6 @@ class TestModelConfiguration:
         },
         "RASTERS": {
             "dem": "test_path/test_file.map",
-            "demtif": "test_path/test_file.tif",
             "clone": "test_path/test_file.map",
             "ndvi_max": "test_path/test_file.map",
             "ndvi_min": "test_path/test_file.map",
@@ -104,7 +103,6 @@ class TestModelConfiguration:
         landuse_prefix = cob
         [RASTERS]
         dem = /test_path/test_file.map
-        demtif = /test_path/test_file.tif
         clone = /test_path/test_file.map
         ndvi_max = /test_path/test_file.map
         ndvi_min = /test_path/test_file.map
@@ -186,7 +184,6 @@ class TestModelConfiguration:
         },
         "RASTERS": {
             "dem": "test_path/test_file.map",
-            "demtif": "test_path/test_file.tif",
             "clone": "test_path/test_file.map",
             "ndvi_max": "test_path/test_file.map",
             "ndvi_min": "test_path/test_file.map",
@@ -288,6 +285,19 @@ class TestModelConfiguration:
         mocker.patch("rubem.configuration.raster_map.RasterBand", return_value=band_mock)
         input_dict = self.valid_config_input.copy()
         input_dict["RASTERS"]["ldd"] = "test_path/test_file.map"
+        _ = ModelConfiguration(input_dict)
+
+    @pytest.mark.unit
+    def test_init_with_dictionary_optional_samples(self, mocker):
+        band_mock = MagicMock(spec=RasterBand)
+        band_mock.no_data_value = -9999
+        band_mock.data_array = np.ones((3, 3))
+        mocker.patch("osgeo.gdal.OpenEx")
+        mocker.patch("osgeo.gdal.GetDataTypeName")
+        mocker.patch("os.path.getsize", return_value=100)
+        mocker.patch("rubem.configuration.raster_map.RasterBand", return_value=band_mock)
+        input_dict = self.valid_config_input.copy()
+        input_dict["RASTERS"]["samples"] = None
         _ = ModelConfiguration(input_dict)
 
     @pytest.mark.unit

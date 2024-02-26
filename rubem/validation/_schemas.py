@@ -40,7 +40,6 @@ required_config_schema = {
     },
     "RASTERS": {
         "dem": "None",
-        "demtif": "None",
         "clone": "None",
         "ndvi_max": "None",
         "ndvi_min": "None",
@@ -124,7 +123,6 @@ parameters_titles = {
     },
     "RASTERS": {
         "dem": "None",
-        "demtif": "None",
         "clone": "None",
         "ndvi_max": "None",
         "ndvi_min": "None",

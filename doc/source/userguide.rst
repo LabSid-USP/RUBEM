@@ -30,23 +30,12 @@ Mandatory path to the output folder. Must be a valid path to an existing **empty
 Digital Elevation Map (DEM)
 ```````````````````````````
 
-Mandatory path to Digital Elevation Map (DEM) file `[masl] <https://wiki.gis.com/wiki/index.php/Meters_above_sea_level>`_ in:
-   
- * **PCRaster map format** :file:`*.map`: this map contains topographic ground elevation in meters. Must be a valid file path to a PCRaster map format :file:`*.map` file. :ref:`See more. <fileformats:Digital Elevation Map (DEM) raster>`
+Mandatory path to Digital Elevation Map (DEM) file `[masl] <https://wiki.gis.com/wiki/index.php/Meters_above_sea_level>`_ in PCRaster map format :file:`*.map`: this map contains topographic ground elevation in meters. Must be a valid file path to a PCRaster map format :file:`*.map` file. :ref:`See more. <fileformats:Digital Elevation Map (DEM) raster>`
 
  .. code-block:: dosini
     
     [RASTERS]
     dem = /Dataset/UIGCRB/input/maps/dem/dem.map
-
--------
-
- * **TIF format** :file:`*.tif`: this map contains topographic ground elevation in meters. Must be a valid file path to a TIF :file:`*.tif` raster file. :ref:`See more. <fileformats:Digital Elevation Map (DEM) raster (TIFF)>`
-
- .. code-block:: dosini
-   
-    [RASTERS]
-    demtif = /Dataset/UIGCRB/input/maps/dem/dem.tif
 
 Mask of Catchment (Clone)
 ``````````````````````````
@@ -819,7 +808,6 @@ Configuration File Template
 
    [RASTERS]
    dem = /Dataset/UIRB/input/maps/dem/dem.map
-   demtif = /Dataset/UIRB/input/maps/dem/dem.tif
    clone = /Dataset/UIRB/input/maps/clone/clone.map
    ndvi_max = /Dataset/UIRB/input/maps/ndvi/ndvi_max.map
    ndvi_min = /Dataset/UIRB/input/maps/ndvi/ndvi_min.map
