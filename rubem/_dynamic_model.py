@@ -213,8 +213,8 @@ class RUBEM(pcrfw.DynamicModel):
             self.__setupTimeoutputTimeseries()
 
         self.logger.info("Reading min. and max. NDVI rasters...")
-        self.ndvi_max = self.__readmap_wrapper(self.config.raster_files.ndvi_max)
-        self.ndvi_min = self.__readmap_wrapper(self.config.raster_files.ndvi_min)
+        self.ndvi_max = self.__readmap_wrapper(self.config.raster_files.ndvi_max, conversion_func=pcrfw.scalar)
+        self.ndvi_min = self.__readmap_wrapper(self.config.raster_files.ndvi_min, conversion_func=pcrfw.scalar)
 
         self.logger.info("Computing min. and max. surface runoff (SR)")
         self.sr_min = srCalc(self.ndvi_min)
