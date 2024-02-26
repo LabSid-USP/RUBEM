@@ -1,109 +1,93 @@
-# coding=utf-8
-# RUBEM is a distributed hydrological model to calculate monthly
-# flows with changes in land use over time.
-# Copyright (C) 2020-2024 LabSid PHA EPUSP
-
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
-# Contact: rubem.hydrological@labsid.eng.br
-
-"""Common file generation functionality used by RUBEM"""
-
 import logging
+import os
+from typing import Optional, Union
 
-from osgeo.gdal import AllRegister, GDT_Float32, OpenEx, UseExceptions
+from osgeo import gdal
+import pcraster as pcr
 from pcraster.framework import pcr2numpy
+
+from rubem.configuration.output_format import OutputFileFormat
+from rubem.configuration.output_raster_base import OutputRasterBase
 
 logger = logging.getLogger(__name__)
 
 
-UseExceptions()
+gdal.UseExceptions()
+gdal.AllRegister()
 
 
-def getRefInfo(sourceTif):
-    """Return size, resolution and corner coordinates from a\
-        Raster file (DEM in RUBEM).
-
-    :param sourceTif: Path to DEM file to get information
-    :sourceTif type: str
-
-    :returns: Array with information
-    :rtype: array
-    """
-    AllRegister()
-    ds = OpenEx(sourceTif)
-    cols = ds.RasterXSize
-    rows = ds.RasterYSize
-    trans = ds.GetGeoTransform()
-    driver = ds.GetDriver()
-    Ref = [cols, rows, trans, driver]
-
-    return Ref
-
-
-def reportTIFFSeries(
-    self, tifRef, pcrObj, fileName, outpath, currentStep, dyn=False
+def report(
+    variable: pcr._pcraster.Field,
+    name: str,
+    outpath: Union[str, bytes, os.PathLike],
+    base_raster_info: OutputRasterBase,
+    timestep: Optional[int] = None,
+    format: OutputFileFormat = OutputFileFormat.GEOTIFF,
+    no_data_value: float = -9999,
 ):
-    """Create a .tif raster from a PCRaster object.
+    """Storing map data to disk using GDAL
 
-    :param tifRef: array with dem raster information
-    :tifRef  type: array
+    :param variable: Variable containing the PCRaster map data
+    :type variable: pcr._pcraster.Field
 
-    :param pcrObj: PCRaster object to export.
-    :pcrObj  type: Either Boolean, Nominal, Ordinal, Scalar, Directional or Ldd
+    :param timestep: Current timestep. If set the filename will contain the timestep (dynamic mode). Default is ``None``.
+    :type timestep: int, optional
 
-    :param fileName: Base name of the output file.
-    :fileName  type: str
+    :param outpath: Path to store the output
+    :type outpath: Union[str, bytes, os.PathLike]
 
-    :param outpath: Path of the output directory.
-    :outpath  type: str
+    :param name: Name used as filename. Use a filename with less than eight characters and without extension. File extension will be added automatically.
+    :type name: str
 
-    :param currentStep: Current model simulation step.
-    :outpath  type: int
+    :param format: Output file format. Default is ``OutputFileFormat.GEOTIFF``.
+    :type format: OutputFileFormat, optional
 
-    :param dyn: If dynamic mode is True, otherwise defaults to False.
-    :dyn  type: int
+    :param base_raster_info: Base raster information
+    :type base_raster_info: OutputRasterBase
 
-    :returns: File in .tif format
-    :rtype: .tif
+    :param no_data_value: No data value. Default is ``-9999``.
+    :type no_data_value: float, optional
     """
-
-    # convert to np array
-    npFile = pcr2numpy(pcrObj, -999)
-
-    # generate file name
-    if not dyn:
-        out_tif = str(outpath + "/" + fileName + ".tif")
-    if dyn:
-        digits = 10 - len(fileName)
-        out_tif = str(
-            outpath + "/" + fileName + str(currentStep).zfill(digits) + ".tif"
+    if format == OutputFileFormat.GEOTIFF:
+        __report(
+            variable=variable,
+            timestep=timestep,
+            outpath=outpath,
+            name=name,
+            driver_short_name="GTiff",
+            extension="tif",
+            base_raster_info=base_raster_info,
+            no_data_value=no_data_value,
         )
 
-    # initialize export
-    cols = tifRef[0]
-    rows = tifRef[1]
-    trans = tifRef[2]
-    driver = tifRef[3]
 
-    # create the output image
-    outDs = driver.Create(
-        out_tif, cols, rows, 1, GDT_Float32, options=["COMPRESS=LZW"]
-    )
-    outBand = outDs.GetRasterBand(1)
-    outBand.SetNoDataValue(-9999)
-    outBand.WriteArray(npFile)
-    outDs.SetGeoTransform(trans)
-    ds = None
-    outDs = None
+def __report(
+    variable: pcr._pcraster.Field,
+    outpath: Union[str, bytes, os.PathLike],
+    name: str,
+    driver_short_name: str,
+    extension: str,
+    base_raster_info: OutputRasterBase,
+    timestep: Optional[int] = None,
+    no_data_value: float = -9999,
+):
+    if timestep:
+        out_tif = os.path.join(
+            str(outpath),
+            f"{name}{str(timestep).zfill(10 - len(name))}.{extension}",
+        )
+    else:
+        out_tif = os.path.join(str(outpath), f"{name}.{extension}")
+
+    with gdal.GetDriverByName(driver_short_name).Create(
+        out_tif,
+        base_raster_info.cols,
+        base_raster_info.rows,
+        bands=1,
+        eType=gdal.GDT_Float32,
+        options=["COMPRESS=LZW"],
+    ) as dataset:
+        band = dataset.GetRasterBand(1)
+        band.SetNoDataValue(no_data_value)
+        band.WriteArray(pcr2numpy(variable, no_data_value))
+        dataset.SetGeoTransform(base_raster_info.transformation)

@@ -14,6 +14,7 @@ from rubem.configuration.input_table_files import InputTableFiles
 from rubem.configuration.model_constants import ModelConstants
 from rubem.configuration.output_data_directory import OutputDataDirectory
 from rubem.configuration.output_format import OutputFileFormat
+from rubem.configuration.output_raster_base import OutputRasterBase
 from rubem.configuration.output_variables import OutputVariables
 from rubem.configuration.raster_grid_area import RasterGrid
 from rubem.configuration.simulation_period import SimulationPeriod
@@ -134,7 +135,6 @@ class ModelConfiguration:
             )
             self.raster_files = InputRasterFiles(
                 dem=self.__get_setting("RASTERS", "dem"),
-                demtif=self.__get_setting("RASTERS", "demtif"),
                 clone=self.__get_setting("RASTERS", "clone"),
                 ndvi_max=self.__get_setting("RASTERS", "ndvi_max"),
                 ndvi_min=self.__get_setting("RASTERS", "ndvi_min"),
@@ -160,6 +160,7 @@ class ModelConfiguration:
                 kc_max=self.__get_setting("TABLES", "k_c_max"),
                 validate_input=validate_input,
             )
+            self.output_raster_base = OutputRasterBase(base_raster_path=self.raster_files.dem)
         except Exception as e:
             self.logger.error("Failed to load configuration: %s", e)
             raise

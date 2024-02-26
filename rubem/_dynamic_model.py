@@ -34,16 +34,6 @@ class RUBEM(pcrfw.DynamicModel):
         self.logger.info("Obtaining grid cell area...")
         self.A = self.config.grid.area
 
-        self.logger.debug("Reading DEM reference file...")
-        try:
-            self.ref = getRefInfo(self.config.raster_files.demtif)
-        except RuntimeError:
-            self.logger.error(
-                "Error reading Digital Elevation Model (DEM) file at '%s'",
-                self.config.raster_files.demtif,
-            )
-            raise
-
         self.__getEnabledOutputVars()
 
     def __getEnabledOutputVars(self):
@@ -80,19 +70,18 @@ class RUBEM(pcrfw.DynamicModel):
 
             # Export TIFF raster series
             if self.config.output_variables.file_format is OutputFileFormat.GEOTIFF:
-                reportTIFFSeries(
-                    self,
-                    self.ref,
-                    self.outputVarsDict.get(outputVar),
-                    outputVar,
-                    self.config.output_directory.path,
-                    self.currentStep,
-                    dyn=True,
+                report(
+                    variable=self.outputVarsDict.get(outputVar),
+                    name=outputVar,
+                    timestep=self.currentStep,
+                    outpath=self.config.output_directory.path,
+                    format=OutputFileFormat.GEOTIFF,
+                    base_raster_info=self.config.output_raster_base,
                 )
 
             # Export PCRaster map format raster series
             if self.config.output_variables.file_format is OutputFileFormat.PCRASTER:
-                self.report(self.outputVarsDict.get(outputVar), outputVar)
+                self.report(variable=self.outputVarsDict.get(outputVar), name=outputVar)
 
             # Check if we have to export the time series of the selected
             # variable (fileName)
