@@ -760,15 +760,26 @@ Optional boolean value. If enabled, this option allows the generation of Soil Mo
    [GENERATE_FILE]
    smc = True
 
-Accumulated Total Runoff
-````````````````````````
+Total Runoff
+````````````
   
-Optional boolean value. If enabled, this option allows the generation of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Accumulated Total Runoff raster series>`
+Optional boolean value. If enabled, this option allows the generation of Total Runoff (RNF) [mm] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Accumulated Total Runoff raster series>`
 
 .. code-block:: dosini
    
    [GENERATE_FILE]
    rnf = True
+
+
+Accumulated Total Runoff
+````````````````````````
+  
+Optional boolean value. If enabled, this option allows the generation of Accumulated Total Runoff (ARN) [:raw-html:`m<sup>3</sup>s<sup>-1</sup>`] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Accumulated Total Runoff raster series>`
+
+.. code-block:: dosini
+   
+   [GENERATE_FILE]
+   arn = True
 
 Configuration File Template
 ---------------------------
@@ -855,6 +866,7 @@ Configuration File Template
    rec = True
    smc = True
    rnf = True
+   arn = True
    tss = True
 
    [RASTER_FILE_FORMAT]

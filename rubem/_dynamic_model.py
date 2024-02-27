@@ -47,6 +47,7 @@ class RUBEM(pcrfw.DynamicModel):
             "rec": self.config.output_variables.rec,
             "smc": self.config.output_variables.smc,
             "rnf": self.config.output_variables.rnf,
+            "arn": self.config.output_variables.arn,
         }
 
     def __stepUpdateOutputVars(self):
@@ -58,7 +59,8 @@ class RUBEM(pcrfw.DynamicModel):
             "lfw": self.LF,
             "rec": self.REC,
             "smc": self.TUr,
-            "rnf": self.runoff,
+            "rnf": self.Qtot,
+            "arn": self.runoff,
         }
 
     def __stepReport(self):
@@ -104,6 +106,12 @@ class RUBEM(pcrfw.DynamicModel):
         # Initialize Tss report at sample locations or pits
         self.TssFileRun = pcrfw.TimeoutputTimeseries(
             "tss_rnf",
+            self,
+            self.config.raster_files.sample_locations,
+            noHeader=True,
+        )
+        self.TssFileAccRun = pcrfw.TimeoutputTimeseries(
+            "tss_arn",
             self,
             self.config.raster_files.sample_locations,
             noHeader=True,
@@ -160,6 +168,7 @@ class RUBEM(pcrfw.DynamicModel):
             "rec": self.TssFileRec.sample,
             "smc": self.TssFileSsat.sample,
             "rnf": self.TssFileRun.sample,
+            "arn": self.TssFileAccRun.sample,
         }
         # Information for output, get sample location numbers - integer,
         # from 1 to n
