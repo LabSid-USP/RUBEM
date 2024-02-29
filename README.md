@@ -99,7 +99,7 @@ This is an example of how to list things you need to use the software and how to
 python rubem -h
 ```
 
-_For more examples, please refer to the [Documentation](https://rubem.readthedocs.io/en/latest)_.
+_For more examples, please refer to the [user guide](https://rubem.readthedocs.io/en/latest/userguide.html) and [tutorials](https://rubem.readthedocs.io/en/latest/tutorials.html)._
 
 <!-- ROADMAP -->
 ## Roadmap
@@ -124,6 +124,7 @@ Distributed under the GPLv3 License. See [`LICENSE.md`](https://github.com/LabSi
 > In any of our communication channels please abide by the [Code of Conduct](https://github.com/LabSid-USP/.github/blob/main/CODE_OF_CONDUCT.md#code-of-conduct). In summary, being friendly and patient, considerate, respectful, and careful in your choice of words.
 
 - Contact us at: [rubem.hydrological@labsid.eng.br](mailto:rubem.hydrological@labsid.eng.br)
+- FAQ: [https://rubem.readthedocs.io/en/latest/faq.html](https://rubem.readthedocs.io/en/latest/faq.html)
 - Support Form: [https://forms.gle/JmxWKoXh4C29V2rD8](https://forms.gle/JmxWKoXh4C29V2rD8)
 - Project Link: [https://github.com/LabSid-USP/RUBEM](https://github.com/LabSid-USP/RUBEMHydrological)
 
