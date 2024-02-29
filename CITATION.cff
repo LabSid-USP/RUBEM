@@ -1,0 +1,125 @@
+cff-version: 1.2.0
+title: Rainfall rUnoff Balance Enhanced Model (RUBEM)
+message: >-
+  If you use this software, please cite it using the metadata from this file.
+type: software
+authors:
+- given-names: Arisvaldo
+  name-suffix: Jr
+  family-names: 'Vieira Méllo'
+  email: arisvaldo@usp.br
+  orcid: 'https://orcid.org/0000-0001-7110-3128'
+  affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+- given-names: Lina Maria
+  family-names: Osorio Olivos
+  email: lmosorioo@alumni.usp.br
+  affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+  orcid: 'https://orcid.org/0000-0001-7180-6544'
+- given-names: Camila
+  family-names: Billerbeck
+  email: camila.billerbeck@alumni.usp.br
+  affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+  orcid: 'https://orcid.org/0000-0001-5727-2128'
+- given-names: Silvana
+  family-names: Susko Marcellini
+  email: silvana@labsid.eng.br
+  affiliation: >-
+    Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia Ambiental e de Recursos Hídricos (LabSid), Escola Politécnica, Universidade de São Paulo, São Paulo, Brasil
+  orcid: 'https://orcid.org/0000-0002-3940-8287'
+- given-names: William
+  family-names: Dantas Vichete
+  email: williamvichete@alumni.usp.br
+  affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+  orcid: 'https://orcid.org/0000-0003-1225-1037'
+- given-names: Daniel
+  family-names: Manabe Pasetti
+  email: daniel.pasetti@alumni.usp.br
+  affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+- given-names: Lígia
+  family-names: Monteiro da Silva
+  email: ligia@labsid.eng.br
+  affiliation: >-
+    Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia Ambiental e de Recursos Hídricos (LabSid), Escola Politécnica, Universidade de São Paulo, São Paulo, Brasil
+  orcid: 'https://orcid.org/0000-0002-3033-2140'
+- given-names: Gabriel Anísio
+  family-names: Santos Soares
+  name-particle: dos
+  orcid: 'https://orcid.org/0000-0002-3231-0455'
+  email: gabriel@labsid.eng.br
+  affiliation: >-
+    Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia Ambiental e de Recursos Hídricos (LabSid), Escola Politécnica, Universidade de São Paulo, São Paulo, Brasil #magic___^_^___line
+- given-names: João Rafael
+  family-names: Bergamaschi Tercini
+  email: tercini@alumni.usp.br
+  affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+  orcid: 'https://orcid.org/0000-0002-6070-1090'
+identifiers:
+- type: doi
+  value: 10.5281/zenodo.10562516
+repository-code: 'https://github.com/LabSid-USP/rubem'
+abstract: >-
+  The Rainfall rUnoff Balance Enhanced Model (RUBEM) is a hydrological model for transforming precipitation into surface and subsurface runoff. The model is based on equations that represent the physical processes of the hydrological cycle, with spatial distribution defined by pixel, in distinct vegetated and non-vegetated covers, and has the flexibility to study a wide range of applications, including impacts of changes in climate and land use, has flexible spatial resolution, the inputs are raster-type matrix files obtained from remote sensing data and operates with a reduced number of parameters arranged in a configuration file that facilitates its modification throughout the area.
+keywords:
+- hydrological modelling
+- distributed model
+- land use and land cover
+- water balance
+- remote sensing
+- PCRaster
+license: GPL-3.0
+preferred-citation:
+  authors:
+  - given-names: Arisvaldo
+    name-suffix: Jr
+    family-names: 'Vieira Méllo'
+    email: arisvaldo@usp.br
+    orcid: 'https://orcid.org/0000-0001-7110-3128'
+    affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+  - given-names: Lina Maria
+    family-names: Osorio Olivos
+    email: lmosorioo@alumni.usp.br
+    affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+    orcid: 'https://orcid.org/0000-0001-7180-6544'
+  - given-names: Camila
+    family-names: Billerbeck
+    email: camila.billerbeck@alumni.usp.br
+    affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+    orcid: 'https://orcid.org/0000-0001-5727-2128'
+  - given-names: Silvana
+    family-names: Susko Marcellini
+    email: silvana@labsid.eng.br
+    affiliation: >-
+      Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia Ambiental e de Recursos Hídricos (LabSid), Escola Politécnica, Universidade de São Paulo, São Paulo, Brasil
+    orcid: 'https://orcid.org/0000-0002-3940-8287'
+  - given-names: William
+    family-names: Dantas Vichete
+    email: williamvichete@alumni.usp.br
+    affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+    orcid: 'https://orcid.org/0000-0003-1225-1037'
+  - given-names: Daniel
+    family-names: Manabe Pasetti
+    email: daniel.pasetti@alumni.usp.br
+    affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+  - given-names: Lígia
+    family-names: Monteiro da Silva
+    email: ligia@labsid.eng.br
+    affiliation: >-
+      Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia Ambiental e de Recursos Hídricos (LabSid), Escola Politécnica, Universidade de São Paulo, São Paulo, Brasil
+    orcid: 'https://orcid.org/0000-0002-3033-2140'
+  - given-names: Gabriel Anísio
+    family-names: Santos Soares
+    name-particle: dos
+    orcid: 'https://orcid.org/0000-0002-3231-0455'
+    email: gabriel@labsid.eng.br
+    affiliation: >-
+      Laboratório de Sistemas de Suporte a Decisões Aplicados à Engenharia Ambiental e de Recursos Hídricos (LabSid), Escola Politécnica, Universidade de São Paulo, São Paulo, Brasil #magic___^_^___line
+  - given-names: João Rafael
+    family-names: Bergamaschi Tercini
+    email: tercini@alumni.usp.br
+    affiliation: 'Universidade de São Paulo, São Paulo, Brasil'
+    orcid: 'https://orcid.org/0000-0002-6070-1090'
+  title: Rainfall Runoff Balance Enhanced Model Applied to Tropical Hydrology
+  type: article
+  identifiers:
+  - type: doi
+    value: 10.3390/w14121958
