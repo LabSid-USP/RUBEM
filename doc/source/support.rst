@@ -1,7 +1,7 @@
 Support
 =======
 
-In any of our communication channels please abide by the :doc:`RUBEM Code of Conduct </code-of-conduct>`. In summary, being friendly and patient, considerate, respectful, and careful in your choice of words.
+In any of our communication channels please abide by the :doc:`Code of Conduct </code-of-conduct>`. In summary, being friendly and patient, considerate, respectful, and careful in your choice of words.
 
 Usage Questions
 ---------------

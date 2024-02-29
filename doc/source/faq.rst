@@ -96,7 +96,7 @@ If you still have questions, fill out the `support form <https://forms.gle/JmxWK
 
 .. note::
     
-    In any of our communication channels please abide by the :doc:`RUBEM Code of Conduct </code-of-conduct>`. In summary, being friendly and patient, considerate, respectful, and careful in your choice of words.
+    In any of our communication channels please abide by the :doc:`Code of Conduct </code-of-conduct>`. In summary, being friendly and patient, considerate, respectful, and careful in your choice of words.
 
 I think I've found a bug! What should I do?
 ```````````````````````````````````````````
