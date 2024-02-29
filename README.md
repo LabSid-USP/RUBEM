@@ -34,34 +34,6 @@
 </p>
 
 
-
-<!-- TABLE OF CONTENTS -->
-<details open="open">
-  <summary><h2 style="display: inline-block">Table of Contents</h2></summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-      <ul>
-        <li><a href="#main-features">Main features</a></li>
-      </ul>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgements">Acknowledgements</a></li>
-  </ol>
-</details>
-
-
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
@@ -92,19 +64,19 @@ This is an example of how to list things you need to use the software and how to
    conda env create -n rubem --file env-prod.yml
    ```
 
- - Activate the new environment
+- Activate the new environment
 
-    Windows
+  - Windows
 
-     ```powershell
-     conda activate rubem
-     ```
-    
-    Linux, macOS
-   
-     ```sh
-     source activate rubem
-     ```
+    ```powershell
+    conda activate rubem
+    ```
+  
+  - Linux, macOS
+  
+    ```sh
+    source activate rubem
+    ```
 
 ### Installation
 
@@ -115,17 +87,17 @@ This is an example of how to list things you need to use the software and how to
 <!-- USAGE EXAMPLES -->
 ## Usage
 
- - Typical usage example
- 
-    ```sh
-      python rubem --configfile config.ini
-    ```
+- Typical usage example
 
- - Help usage example
+ ```sh
+   python rubem --configfile config.ini
+ ```
 
-   ```sh
-   python rubem -h
-   ```   
+- Help usage example
+
+```sh
+python rubem -h
+```
 
 _For more examples, please refer to the [Documentation](https://rubem.readthedocs.io/en/latest)_.
 
