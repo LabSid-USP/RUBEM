@@ -87,14 +87,14 @@ def main():
         model = Model.load(model_config)
         model.run()
     except Exception as e:
-        logger.critical("RUBEM unexpectedly quit (-_-;)")
+        logger.critical("RUBEM unexpectedly quit.")
         logger.exception(e)
         raise SystemExit(1)
     except KeyboardInterrupt:
-        logger.critical("RUBEM was interrupted by the user ¯\_(ツ)_/¯")
+        logger.critical("RUBEM was interrupted by the user.")
         raise SystemExit(2)
     else:
-        logger.info("RUBEM successfully finished! ヽ(•‿•)ノ")
+        logger.info("RUBEM successfully finished!")
         raise SystemExit(0)
 
 
