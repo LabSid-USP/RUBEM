@@ -1,8 +1,10 @@
-import os
-import logging
-import logging.handlers
 import argparse
 from datetime import datetime
+import logging
+import logging.config
+import logging.handlers
+import os
+from typing import Optional
 
 import humanize
 
@@ -14,17 +16,13 @@ from rubem.validation._validators import filePathArgValidator
 from rubem.configuration.model_configuration import ModelConfiguration
 
 logger = logging.getLogger(__name__)
-LOG_FILE_DIR = os.path.join(os.path.expanduser("~"), ".rubem")
-os.path.exists(LOG_FILE_DIR) or os.makedirs(LOG_FILE_DIR)
-LOG_FILENAME = f"rubem-{datetime.today().strftime('%d-%m-%Y')}.log"
 
-LOG_FILE_PATH = os.path.join(LOG_FILE_DIR, LOG_FILENAME)
-LOG_FILE_SIZE_LIM = 5 * 1024 * 1024
-LOG_FILE_BACKUP_COUNT = 1
-LOG_MSG_FMT = "%(asctime)s %(name)s %(levelname)s:%(message)s"
-LOG_MSG_DTFMT = "%m/%d/%Y %H:%M:%S"
-LOG_LEVEL_DEFAULT_FILE = logging.INFO
-LOG_LEVEL_DEFAULT_TERM = logging.ERROR
+# Serilog Like {Level:u3}
+logging.addLevelName(logging.DEBUG, "DBG")
+logging.addLevelName(logging.INFO, "INF")
+logging.addLevelName(logging.WARNING, "WRN")
+logging.addLevelName(logging.ERROR, "ERR")
+logging.addLevelName(logging.FATAL, "FTL")
 
 
 def main():
@@ -37,6 +35,7 @@ def main():
     :raises SystemExit(2): If the program is interrupted by the user.
     """
     app_settings = AppSettings()
+    setup_logging(app_settings.get_setting("logging"))
 
     try:
         i18n_settings = app_settings.get_setting("i18n")
@@ -83,35 +82,51 @@ def main():
 
     args = parser.parse_args()
 
-    rotating_file_handler = logging.handlers.RotatingFileHandler(
-        filename=LOG_FILE_PATH,
-        encoding="utf-8",
-        maxBytes=LOG_FILE_SIZE_LIM,
-        backupCount=LOG_FILE_BACKUP_COUNT,
-        delay=20.0,
-    )
-
-    stream_handler = logging.StreamHandler()
-    rotating_file_handler.setLevel(LOG_LEVEL_DEFAULT_FILE)
-    stream_handler.setLevel(LOG_LEVEL_DEFAULT_TERM)
-
-    logging.basicConfig(
-        format=LOG_MSG_FMT,
-        datefmt=LOG_MSG_DTFMT,
-        level=logging.DEBUG,
-        handlers=[rotating_file_handler, stream_handler],
-    )
     try:
         model_config = ModelConfiguration(args.configfile, args.skip_inputs_validation)
         model = Model.load(model_config)
         model.run()
     except Exception as e:
-        logger.critical("RUBEM unexpectedly quit (-_-;)")
+        logger.critical("RUBEM unexpectedly quit.")
         logger.exception(e)
         raise SystemExit(1)
     except KeyboardInterrupt:
-        logger.critical("RUBEM was interrupted by the user ¯\_(ツ)_/¯")
+        logger.critical("RUBEM was interrupted by the user.")
         raise SystemExit(2)
     else:
-        logger.info("RUBEM successfully finished! ヽ(•‿•)ノ")
+        logger.info("RUBEM successfully finished!")
         raise SystemExit(0)
+
+
+def setup_logging(custom_logging_config: Optional[dict] = None):
+    log_format = "%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s: %(message)s"
+    console_handler_config = {
+        "class": "logging.StreamHandler",
+        "formatter": "basic_formatter",
+        "level": logging.WARNING,
+    }
+    rotating_file_handler_config = {
+        "class": "logging.handlers.RotatingFileHandler",
+        "formatter": "basic_formatter",
+        "filename": os.path.join(
+            os.path.expanduser("~"), ".rubem", f"rubem-{datetime.today().strftime('%d%m%Y')}.log"
+        ),
+        "maxBytes": 5242880,
+        "backupCount": 3,
+        "level": logging.INFO,
+    }
+    basic_formatter_config = {"format": log_format, "datefmt": "%Y-%m-%dT%H:%M:%S%z"}
+    default_logging_config = {
+        "version": 1,
+        "formatters": {"basic_formatter": basic_formatter_config},
+        "handlers": {"console": console_handler_config, "file": rotating_file_handler_config},
+        "root": {"handlers": ["console", "file"], "level": logging.DEBUG},
+    }
+
+    if custom_logging_config:
+        try:
+            logging.config.dictConfig(custom_logging_config)
+        except Exception:
+            logging.config.dictConfig(default_logging_config)
+    else:
+        logging.config.dictConfig(default_logging_config)
