@@ -14,10 +14,10 @@ class TestLateralFlowSoilModule:
     @pytest.mark.unit
     def test_lfCalc(self):
         f = pcr.scalar(1.0)
-        Kr = pcr.scalar(1.0)
-        TUr = pcr.scalar(1.0)
-        TUsat = pcr.scalar(1.0)
-        field = Soil.get_lateral_flow(f, Kr, TUr, TUsat)
+        kr = pcr.scalar(1.0)
+        tur = pcr.scalar(1.0)
+        tusat = pcr.scalar(1.0)
+        field = Soil.get_lateral_flow(f, kr, tur, tusat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         assert result == pytest.approx(expected)
@@ -25,11 +25,11 @@ class TestLateralFlowSoilModule:
     @pytest.mark.unit
     def test_lfCalc_TUsat_eq_0(self):
         f = pcr.scalar(1.0)
-        Kr = pcr.scalar(1.0)
-        TUr = pcr.scalar(1.0)
-        TUsat = pcr.scalar(0.0)
+        kr = pcr.scalar(1.0)
+        tur = pcr.scalar(1.0)
+        tusat = pcr.scalar(0.0)
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            Soil.get_lateral_flow(f, Kr, TUr, TUsat)
+            Soil.get_lateral_flow(f, kr, tur, tusat)
 
     @pytest.mark.unit
     def test_lfCalc_None_values(self):
@@ -46,10 +46,10 @@ class TestRechargeSoilModule:
     @pytest.mark.unit
     def test_recCalc(self):
         f = pcr.scalar(0.50)
-        Kr = pcr.scalar(1.0)
-        TUr = pcr.scalar(1.0)
-        TUsat = pcr.scalar(1.0)
-        field = Soil.get_recharge(f, Kr, TUr, TUsat)
+        kr = pcr.scalar(1.0)
+        tur = pcr.scalar(1.0)
+        tusat = pcr.scalar(1.0)
+        field = Soil.get_recharge(f, kr, tur, tusat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.5
         assert result == pytest.approx(expected)
@@ -57,11 +57,11 @@ class TestRechargeSoilModule:
     @pytest.mark.unit
     def test_recCalc_TUsat_eq_0(self):
         f = pcr.scalar(1.0)
-        Kr = pcr.scalar(1.0)
-        TUr = pcr.scalar(1.0)
-        TUsat = pcr.scalar(0.0)
+        kr = pcr.scalar(1.0)
+        tur = pcr.scalar(1.0)
+        tusat = pcr.scalar(0.0)
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            Soil.get_recharge(f, Kr, TUr, TUsat)
+            Soil.get_recharge(f, kr, tur, tusat)
 
     @pytest.mark.unit
     def test_recCalc_None_values(self):
@@ -77,36 +77,36 @@ class TestBaseFlowSoilModule:
 
     @pytest.mark.unit
     def test_baseflowCalc_cond_true(self):
-        EB_prev = pcr.scalar(1.0)
-        alfaS = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        TUs = pcr.scalar(2.0)
-        EB_lim = pcr.scalar(1.0)
-        field = Soil.get_baseflow(EB_prev, alfaS, REC, TUs, EB_lim)
+        eb_prev = pcr.scalar(1.0)
+        alpha = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        tus = pcr.scalar(2.0)
+        eb_lim = pcr.scalar(1.0)
+        field = Soil.get_baseflow(eb_prev, alpha, rec, tus, eb_lim)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         assert result == pytest.approx(expected)
 
     @pytest.mark.unit
     def test_baseflowCalc_cond_false_TUs_eq_EBlim(self):
-        EB_prev = pcr.scalar(1.0)
-        alfaS = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        TUs = pcr.scalar(1.0)
-        EB_lim = pcr.scalar(1.0)
-        field = Soil.get_baseflow(EB_prev, alfaS, REC, TUs, EB_lim)
+        eb_prev = pcr.scalar(1.0)
+        alpha = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        tus = pcr.scalar(1.0)
+        eb_lim = pcr.scalar(1.0)
+        field = Soil.get_baseflow(eb_prev, alpha, rec, tus, eb_lim)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         assert result == pytest.approx(expected)
 
     @pytest.mark.unit
     def test_baseflowCalc_cond_false_TUs_lt_EBlim(self):
-        EB_prev = pcr.scalar(1.0)
-        alfaS = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        TUs = pcr.scalar(1.0)
-        EB_lim = pcr.scalar(2.0)
-        field = Soil.get_baseflow(EB_prev, alfaS, REC, TUs, EB_lim)
+        eb_prev = pcr.scalar(1.0)
+        alpha = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        tus = pcr.scalar(1.0)
+        eb_lim = pcr.scalar(2.0)
+        field = Soil.get_baseflow(eb_prev, alpha, rec, tus, eb_lim)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         assert result == pytest.approx(expected)
@@ -125,17 +125,17 @@ class TestSoilBalanceSoilModule:
 
     @pytest.mark.unit
     def test_turCalc_condw1_true_cond_true_cond3_true(self):
-        TUrprev = pcr.scalar(5.0)
-        P = pcr.scalar(5.0)
-        Itp = pcr.scalar(1.0)
-        ES = pcr.scalar(1.0)
-        LF = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        ETr = pcr.scalar(1.0)
-        Ao = pcr.scalar(1.1)
-        Tsat = pcr.scalar(5.5)
+        tur_prev = pcr.scalar(5.0)
+        prec = pcr.scalar(5.0)
+        itp = pcr.scalar(1.0)
+        es = pcr.scalar(1.0)
+        lf = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        etr = pcr.scalar(1.0)
+        ao = pcr.scalar(1.1)
+        tsat = pcr.scalar(5.5)
         field = Soil.get_actual_soil_moist_cont_non_sat_zone(
-            TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat
+            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 5.0
@@ -143,17 +143,17 @@ class TestSoilBalanceSoilModule:
 
     @pytest.mark.unit
     def test_turCalc_condw1_true_cond_true_cond3_false(self):
-        TUrprev = pcr.scalar(5.0)
-        P = pcr.scalar(5.0)
-        Itp = pcr.scalar(1.0)
-        ES = pcr.scalar(1.0)
-        LF = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        ETr = pcr.scalar(1.0)
-        Ao = pcr.scalar(1.1)
-        Tsat = pcr.scalar(4.5)
+        tur_prev = pcr.scalar(5.0)
+        prec = pcr.scalar(5.0)
+        itp = pcr.scalar(1.0)
+        es = pcr.scalar(1.0)
+        lf = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        etr = pcr.scalar(1.0)
+        ao = pcr.scalar(1.1)
+        tsat = pcr.scalar(4.5)
         field = Soil.get_actual_soil_moist_cont_non_sat_zone(
-            TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat
+            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 4.5
@@ -161,17 +161,17 @@ class TestSoilBalanceSoilModule:
 
     @pytest.mark.unit
     def test_turCalc_condw1_true_cond_false_cond3_true(self):
-        TUrprev = pcr.scalar(1.0)
-        P = pcr.scalar(2.0)
-        Itp = pcr.scalar(1.0)
-        ES = pcr.scalar(1.0)
-        LF = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        ETr = pcr.scalar(1.0)
-        Ao = pcr.scalar(1.1)
-        Tsat = pcr.scalar(5.5)
+        tur_prev = pcr.scalar(1.0)
+        prec = pcr.scalar(2.0)
+        itp = pcr.scalar(1.0)
+        es = pcr.scalar(1.0)
+        lf = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        etr = pcr.scalar(1.0)
+        ao = pcr.scalar(1.1)
+        tsat = pcr.scalar(5.5)
         field = Soil.get_actual_soil_moist_cont_non_sat_zone(
-            TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat
+            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
@@ -179,17 +179,17 @@ class TestSoilBalanceSoilModule:
 
     @pytest.mark.unit
     def test_turCalc_condw1_true_cond_false_cond3_false(self):
-        TUrprev = pcr.scalar(1.0)
-        P = pcr.scalar(2.0)
-        Itp = pcr.scalar(1.0)
-        ES = pcr.scalar(1.0)
-        LF = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        ETr = pcr.scalar(1.0)
-        Ao = pcr.scalar(1.1)
-        Tsat = pcr.scalar(0.0)
+        tur_prev = pcr.scalar(1.0)
+        prec = pcr.scalar(2.0)
+        itp = pcr.scalar(1.0)
+        es = pcr.scalar(1.0)
+        lf = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        etr = pcr.scalar(1.0)
+        ao = pcr.scalar(1.1)
+        tsat = pcr.scalar(0.0)
         field = Soil.get_actual_soil_moist_cont_non_sat_zone(
-            TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat
+            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
@@ -197,17 +197,17 @@ class TestSoilBalanceSoilModule:
 
     @pytest.mark.unit
     def test_turCalc_condw1_false_cond_true_cond3_true(self):
-        TUrprev = pcr.scalar(5.0)
-        P = pcr.scalar(5.0)
-        Itp = pcr.scalar(1.0)
-        ES = pcr.scalar(1.0)
-        LF = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        ETr = pcr.scalar(1.0)
-        Ao = pcr.scalar(1.0)
-        Tsat = pcr.scalar(5.5)
+        tur_prev = pcr.scalar(5.0)
+        prec = pcr.scalar(5.0)
+        itp = pcr.scalar(1.0)
+        es = pcr.scalar(1.0)
+        lf = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        etr = pcr.scalar(1.0)
+        ao = pcr.scalar(1.0)
+        tsat = pcr.scalar(5.5)
         field = Soil.get_actual_soil_moist_cont_non_sat_zone(
-            TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat
+            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 5.5
@@ -215,17 +215,17 @@ class TestSoilBalanceSoilModule:
 
     @pytest.mark.unit
     def test_turCalc_condw1_false_cond_true_cond3_false(self):
-        TUrprev = pcr.scalar(5.0)
-        P = pcr.scalar(5.0)
-        Itp = pcr.scalar(1.0)
-        ES = pcr.scalar(1.0)
-        LF = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        ETr = pcr.scalar(1.0)
-        Ao = pcr.scalar(1.0)
-        Tsat = pcr.scalar(4.5)
+        tur_prev = pcr.scalar(5.0)
+        prec = pcr.scalar(5.0)
+        itp = pcr.scalar(1.0)
+        es = pcr.scalar(1.0)
+        lf = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        etr = pcr.scalar(1.0)
+        ao = pcr.scalar(1.0)
+        tsat = pcr.scalar(4.5)
         field = Soil.get_actual_soil_moist_cont_non_sat_zone(
-            TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat
+            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 4.5
@@ -233,17 +233,17 @@ class TestSoilBalanceSoilModule:
 
     @pytest.mark.unit
     def test_turCalc_condw1_false_cond_false_cond3_true(self):
-        TUrprev = pcr.scalar(1.0)
-        P = pcr.scalar(2.0)
-        Itp = pcr.scalar(1.0)
-        ES = pcr.scalar(1.0)
-        LF = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        ETr = pcr.scalar(1.0)
-        Ao = pcr.scalar(1.0)
-        Tsat = pcr.scalar(5.5)
+        tur_prev = pcr.scalar(1.0)
+        prec = pcr.scalar(2.0)
+        itp = pcr.scalar(1.0)
+        es = pcr.scalar(1.0)
+        lf = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        etr = pcr.scalar(1.0)
+        ao = pcr.scalar(1.0)
+        tsat = pcr.scalar(5.5)
         field = Soil.get_actual_soil_moist_cont_non_sat_zone(
-            TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat
+            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 5.5
@@ -251,17 +251,17 @@ class TestSoilBalanceSoilModule:
 
     @pytest.mark.unit
     def test_turCalc_condw1_false_cond_false_cond3_false(self):
-        TUrprev = pcr.scalar(1.0)
-        P = pcr.scalar(2.0)
-        Itp = pcr.scalar(1.0)
-        ES = pcr.scalar(1.0)
-        LF = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        ETr = pcr.scalar(1.0)
-        Ao = pcr.scalar(1.0)
-        Tsat = pcr.scalar(0.0)
+        tur_prev = pcr.scalar(1.0)
+        prec = pcr.scalar(2.0)
+        itp = pcr.scalar(1.0)
+        es = pcr.scalar(1.0)
+        lf = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        etr = pcr.scalar(1.0)
+        ao = pcr.scalar(1.0)
+        tsat = pcr.scalar(0.0)
         field = Soil.get_actual_soil_moist_cont_non_sat_zone(
-            TUrprev, P, Itp, ES, LF, REC, ETr, Ao, Tsat
+            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
@@ -269,10 +269,10 @@ class TestSoilBalanceSoilModule:
 
     @pytest.mark.unit
     def test_tusCalc(self):
-        TUsprev = pcr.scalar(1.0)
-        REC = pcr.scalar(1.0)
-        EB = pcr.scalar(1.0)
-        field = Soil.get_actual_water_cont_sat_zone(TUsprev, REC, EB)
+        tus_prev = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        eb = pcr.scalar(1.0)
+        field = Soil.get_actual_water_cont_sat_zone(tus_prev, rec, eb)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         assert result == pytest.approx(expected)
