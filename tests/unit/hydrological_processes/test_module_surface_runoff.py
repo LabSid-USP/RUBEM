@@ -3,10 +3,10 @@ import pytest
 import pcraster as pcr
 from pcraster.framework import generalfunctions
 
-from rubem.modules import _surface_runoff
+from rubem.hydrological_processes import SurfaceRunoff
 
 
-class SurfaceRunoffModuleTest:
+class TestSurfaceRunoffModule:
 
     @pytest.fixture(autouse=True)
     def setup(self):
@@ -19,7 +19,8 @@ class SurfaceRunoffModuleTest:
         Zr = pcr.scalar(1.0)
         Tsat = pcr.scalar(1.0)
         b = pcr.scalar(1.0)
-        result = _surface_runoff.chCalc(TUr, dg, Zr, Tsat, b)
+        field = SurfaceRunoff.get_coef_soil_moist_conditions(TUr, dg, Zr, Tsat, b)
+        result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.1
         assert result == pytest.approx(expected)
 
@@ -31,7 +32,7 @@ class SurfaceRunoffModuleTest:
         Tsat = pcr.scalar(1.0)
         b = pcr.scalar(1.0)
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            _surface_runoff.chCalc(TUr, dg, Zr, Tsat, b)
+            SurfaceRunoff.get_coef_soil_moist_conditions(TUr, dg, Zr, Tsat, b)
 
     @pytest.mark.unit
     def test_chCalc_Zr_eq_0(self):
@@ -41,7 +42,7 @@ class SurfaceRunoffModuleTest:
         Tsat = pcr.scalar(1.0)
         b = pcr.scalar(1.0)
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            _surface_runoff.chCalc(TUr, dg, Zr, Tsat, b)
+            SurfaceRunoff.get_coef_soil_moist_conditions(TUr, dg, Zr, Tsat, b)
 
     @pytest.mark.unit
     def test_chCalc_Tsat_eq_0(self):
@@ -51,12 +52,12 @@ class SurfaceRunoffModuleTest:
         Tsat = pcr.scalar(0.0)
         b = pcr.scalar(1.0)
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            _surface_runoff.chCalc(TUr, dg, Zr, Tsat, b)
+            SurfaceRunoff.get_coef_soil_moist_conditions(TUr, dg, Zr, Tsat, b)
 
     @pytest.mark.unit
     def test_chCalc_None_values(self):
         with pytest.raises(TypeError):
-            _surface_runoff.chCalc(None, None, None, None, None)
+            SurfaceRunoff.get_coef_soil_moist_conditions(None, None, None, None, None)
 
     @pytest.mark.unit
     def test_cperCalc(self):
@@ -68,7 +69,7 @@ class SurfaceRunoffModuleTest:
         w1 = 0.333
         w2 = 0.333
         w3 = 0.334
-        field = _surface_runoff.cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3)
+        field = SurfaceRunoff.get_runoff_coef_permeable_areas(TUw, dg, Zr, S, manning, w1, w2, w3)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.074023636
         assert result == pytest.approx(expected)
@@ -84,7 +85,7 @@ class SurfaceRunoffModuleTest:
         w2 = 0.333
         w3 = 0.334
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            _surface_runoff.cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3)
+            SurfaceRunoff.get_runoff_coef_permeable_areas(TUw, dg, Zr, S, manning, w1, w2, w3)
 
     @pytest.mark.unit
     def test_cperCalc_Zr_eq_0(self):
@@ -97,7 +98,7 @@ class SurfaceRunoffModuleTest:
         w2 = 0.333
         w3 = 0.334
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            _surface_runoff.cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3)
+            SurfaceRunoff.get_runoff_coef_permeable_areas(TUw, dg, Zr, S, manning, w1, w2, w3)
 
     @pytest.mark.unit
     def test_cperCalc_manning_eq_0(self):
@@ -110,7 +111,7 @@ class SurfaceRunoffModuleTest:
         w2 = 0.333
         w3 = 0.334
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            _surface_runoff.cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3)
+            SurfaceRunoff.get_runoff_coef_permeable_areas(TUw, dg, Zr, S, manning, w1, w2, w3)
 
     @pytest.mark.unit
     def test_cperCalc_S_eq_minus_10(self):
@@ -123,65 +124,79 @@ class SurfaceRunoffModuleTest:
         w2 = 0.333
         w3 = 0.334
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            _surface_runoff.cperCalc(TUw, dg, Zr, S, manning, w1, w2, w3)
+            SurfaceRunoff.get_runoff_coef_permeable_areas(TUw, dg, Zr, S, manning, w1, w2, w3)
 
     @pytest.mark.unit
     def test_cperCalc_None_values(self):
         with pytest.raises(TypeError):
-            _surface_runoff.cperCalc(None, None, None, None, None, None, None, None)
+            SurfaceRunoff.get_runoff_coef_permeable_areas(
+                None, None, None, None, None, None, None, None
+            )
+
+    @pytest.mark.unit
+    def test_aimpCalc(self):
+        ao = pcr.scalar(0.555)
+        ai = pcr.scalar(0.255)
+        field = SurfaceRunoff.get_impervious_surface_percent_per_grid_cell(ao, ai)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 0.8100000023841858
+        assert result == pytest.approx(expected)
 
     @pytest.mark.unit
     def test_cimpCalc(self):
-        ao = pcr.scalar(0.555)
-        ai = pcr.scalar(0.255)
-        field = _surface_runoff.cimpCalc(ao, ai)
-        result = [
-            generalfunctions.getCellValue(field[0], 0, 0),
-            generalfunctions.getCellValue(field[1], 0, 0),
-        ]
-        expected = [0.8100000023841858, 0.6287978291511536]
+        cimp = pcr.scalar(1.0)
+        field = SurfaceRunoff.get_runoff_coef_impervious_area(cimp)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 0.9920859932899475
         assert result == pytest.approx(expected)
+
+    @pytest.mark.unit
+    def test_aimpCalc_None_values(self):
+        with pytest.raises(TypeError):
+            SurfaceRunoff.get_impervious_surface_percent_per_grid_cell(None, None)
 
     @pytest.mark.unit
     def test_cimpCalc_None_values(self):
         with pytest.raises(TypeError):
-            _surface_runoff.cimpCalc(None, None)
+            SurfaceRunoff.get_runoff_coef_impervious_area(None)
 
     @pytest.mark.unit
     def test_cwpCalc(self):
-        Aimp = pcr.scalar(1.0)
-        Cper = pcr.scalar(1.0)
-        Cimp = pcr.scalar(1.0)
-        result = _surface_runoff.cwpCalc(Aimp, Cper, Cimp)
+        aimp = pcr.scalar(1.0)
+        cper = pcr.scalar(1.0)
+        cimp = pcr.scalar(1.0)
+        field = SurfaceRunoff.get_weighted_pot_runoff_coef(aimp, cper, cimp)
+        result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         assert result == pytest.approx(expected)
 
     @pytest.mark.unit
     def test_cwpCalc_None_values(self):
         with pytest.raises(TypeError):
-            _surface_runoff.cwpCalc(None, None, None)
+            SurfaceRunoff.get_weighted_pot_runoff_coef(None, None, None)
 
     @pytest.mark.unit
     def test_csrCalc(self):
-        Cwp = pcr.scalar(1.0)
-        P_24 = pcr.scalar(1.0)
-        RCD = pcr.scalar(1.0)
-        result = _surface_runoff.csrCalc(Cwp, P_24, RCD)
+        cwp = pcr.scalar(1.0)
+        p_24 = pcr.scalar(1.0)
+        rcd = pcr.scalar(1.0)
+        field = SurfaceRunoff.get_actual_runoff_coef(cwp, p_24, rcd)
+        result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         assert result == pytest.approx(expected)
 
     @pytest.mark.unit
     def test_csrCalc_Cwp_P_24_RCD_eq_0(self):
-        Cwp = pcr.scalar(0.0)
-        P_24 = pcr.scalar(0.0)
-        RCD = pcr.scalar(0.0)
+        cwp = pcr.scalar(0.0)
+        p_24 = pcr.scalar(0.0)
+        rcd = pcr.scalar(0.0)
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            _surface_runoff.csrCalc(Cwp, P_24, RCD)
+            SurfaceRunoff.get_actual_runoff_coef(cwp, p_24, rcd)
 
     @pytest.mark.unit
     def test_csrCalc_None_values(self):
         with pytest.raises(TypeError):
-            _surface_runoff.csrCalc(None, None, None)
+            SurfaceRunoff.get_actual_runoff_coef(None, None, None)
 
     @pytest.mark.unit
     def test_sRunoffCalc_cond1_true_cond2_true_cond3_true(self):
@@ -193,7 +208,7 @@ class SurfaceRunoffModuleTest:
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
         Itp = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
+        field = SurfaceRunoff.get_surface_runoff(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         assert result == pytest.approx(expected)
@@ -208,7 +223,7 @@ class SurfaceRunoffModuleTest:
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
         Itp = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
+        field = SurfaceRunoff.get_surface_runoff(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 2.0
         assert result == pytest.approx(expected)
@@ -223,7 +238,7 @@ class SurfaceRunoffModuleTest:
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
         Itp = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
+        field = SurfaceRunoff.get_surface_runoff(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         assert result == pytest.approx(expected)
@@ -238,7 +253,7 @@ class SurfaceRunoffModuleTest:
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
         Itp = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
+        field = SurfaceRunoff.get_surface_runoff(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         assert result == pytest.approx(expected)
@@ -253,7 +268,7 @@ class SurfaceRunoffModuleTest:
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
         Itp = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
+        field = SurfaceRunoff.get_surface_runoff(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         assert result == pytest.approx(expected)
@@ -268,7 +283,7 @@ class SurfaceRunoffModuleTest:
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
         Itp = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
+        field = SurfaceRunoff.get_surface_runoff(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 1.0
         assert result == pytest.approx(expected)
@@ -283,7 +298,7 @@ class SurfaceRunoffModuleTest:
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
         Itp = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
+        field = SurfaceRunoff.get_surface_runoff(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         assert result == pytest.approx(expected)
@@ -298,7 +313,7 @@ class SurfaceRunoffModuleTest:
         Csr = pcr.scalar(1.0)
         Ch = pcr.scalar(1.0)
         Itp = pcr.scalar(1.0)
-        field = _surface_runoff.sRunoffCalc(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
+        field = SurfaceRunoff.get_surface_runoff(Csr, Ch, prec, Itp, Ao, ETao, TUr, Tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         assert result == pytest.approx(expected)
@@ -306,4 +321,4 @@ class SurfaceRunoffModuleTest:
     @pytest.mark.unit
     def test_sRunoffCalc_None_values(self):
         with pytest.raises(TypeError):
-            _surface_runoff.sRunoffCalc(None, None, None, None, None, None, None, None)
+            SurfaceRunoff.get_surface_runoff(None, None, None, None, None, None, None, None)
