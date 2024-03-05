@@ -22,7 +22,7 @@ def report(
     outpath: Union[str, bytes, os.PathLike],
     base_raster_info: OutputRasterBase,
     timestep: Optional[int] = None,
-    format: OutputFileFormat = OutputFileFormat.GEOTIFF,
+    file_format: OutputFileFormat = OutputFileFormat.GEOTIFF,
     no_data_value: float = -9999,
 ):
     """Storing map data to disk using GDAL
@@ -39,8 +39,8 @@ def report(
     :param name: Name used as filename. Use a filename with less than eight characters and without extension. File extension will be added automatically.
     :type name: str
 
-    :param format: Output file format. Default is ``OutputFileFormat.GEOTIFF``.
-    :type format: OutputFileFormat, optional
+    :param file_format: Output file format. Default is ``OutputFileFormat.GEOTIFF``.
+    :type file_format: OutputFileFormat, optional
 
     :param base_raster_info: Base raster information
     :type base_raster_info: OutputRasterBase
@@ -48,7 +48,7 @@ def report(
     :param no_data_value: No data value. Default is ``-9999``.
     :type no_data_value: float, optional
     """
-    if format == OutputFileFormat.GEOTIFF:
+    if file_format == OutputFileFormat.GEOTIFF:
         __report(
             variable=variable,
             timestep=timestep,

@@ -5,12 +5,12 @@ from typing import Callable, Optional, Union
 import numpy as np
 import pcraster as pcr
 import pcraster.framework as pcrfw
-from rubem.configuration.output_format import OutputFileFormat
 
-from rubem.hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
-from rubem.date._date_calc import *
-from rubem.file._file_generators import *
 from rubem.configuration.model_configuration import ModelConfiguration
+from rubem.configuration.output_format import OutputFileFormat
+from rubem.date._date_calc import daysOfMonth
+from rubem.file._file_generators import report
+from rubem.hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
 
 
 class RUBEM(pcrfw.DynamicModel):
@@ -74,7 +74,7 @@ class RUBEM(pcrfw.DynamicModel):
                     name=outputVar,
                     timestep=self.currentStep,
                     outpath=self.config.output_directory.path,
-                    format=OutputFileFormat.GEOTIFF,
+                    file_format=OutputFileFormat.GEOTIFF,
                     base_raster_info=self.config.output_raster_base,
                 )
 
