@@ -211,7 +211,7 @@ class RUBEM(pcrfw.DynamicModel):
         self.ndvi_max = self.__readmap_wrapper(self.config.raster_files.ndvi_max)
         self.ndvi_min = self.__readmap_wrapper(self.config.raster_files.ndvi_min)
 
-        self.logger.info("Computing min. and max. surface runoff (SR)")
+        self.logger.info("Computing min. and max. Reflectances Simple Ratio (SR)")
         self.sr_min = Interception.get_reflectances_simple_ration(self.ndvi_min)
         self.sr_max = Interception.get_reflectances_simple_ration(self.ndvi_max)
 
