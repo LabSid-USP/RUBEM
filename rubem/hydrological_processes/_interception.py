@@ -117,12 +117,7 @@ class Interception:
         precipitation: pcr._pcraster.Field,
         rainy_days: pcr._pcraster.Field,
         vegeted_area_fraction: pcr._pcraster.Field,
-    ) -> tuple[
-        pcr._pcraster.Field,
-        pcr._pcraster.Field,
-        pcr._pcraster.Field,
-        pcr._pcraster.Field,
-    ]:
+    ) -> pcr._pcraster.Field:
         """Return Interception [mm].
 
         :param alfa: Interception Parameter [-]
