@@ -27,9 +27,6 @@ class RUBEM(pcrfw.DynamicModel):
             self.logger.error("Error reading clone file at '%s'", self.config.raster_files.clone)
             raise
 
-        self.logger.info("Obtaining grid cell area...")
-        self.A = self.config.grid.area
-
         self.__getEnabledOutputVars()
 
     def __getEnabledOutputVars(self):
@@ -548,7 +545,7 @@ class RUBEM(pcrfw.DynamicModel):
         c = days * 24 * 3600
 
         self.Qtot = self.ES + self.LF + self.EB  # [mm]
-        self.Qtotvol = self.Qtot * self.A * 0.001 / c  # [m3/s]
+        self.Qtotvol = self.Qtot * self.config.grid.area * 0.001 / c  # [m3/s]
 
         self.Qt = pcrfw.accuflux(self.ldd, self.Qtotvol)
 
