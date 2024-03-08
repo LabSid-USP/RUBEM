@@ -15,6 +15,18 @@ from rubem.hydrological_processes import Evapotranspiration, Interception, Soil,
 
 
 class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
+    """Rainfall-Runoff Balance Enhanced Model.
+
+    This class contains the implementation of the Rainfall-Runoff Balance Enhanced Model (RUBEM).
+    RUBEM is a hydrological model for transforming precipitation into surface and subsurface runoff.
+    The model is based on equations that represent the physical processes of the hydrological cycle,
+    with spatial distribution defined by pixel, in distinct vegetated and non-vegetated covers, and
+    has the flexibility to study a wide range of applications, including impacts of changes in
+    climate and land use, has flexible spatial resolution, the inputs are raster-type matrix
+    files obtained from remote sensing data and operates with a reduced number of parameters.
+
+    """
+
     def __init__(self, config: ModelConfiguration):
         pcrfw.DynamicModel.__init__(self)
         self.logger = logging.getLogger(__name__)
