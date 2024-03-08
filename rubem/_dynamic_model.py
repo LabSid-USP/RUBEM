@@ -174,8 +174,16 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         The dynamic section is executed a specified number of timesteps.
         """
         current_timestep = self.currentStep
-        self.logger.info(f"Cycle {current_timestep} of {self.config.simulation_period.last_step}")
-        print(f"## Timestep {current_timestep} of {self.config.simulation_period.last_step}")
+        current_date = self.config.simulation_period.start_date + relativedelta(
+            months=current_timestep - 1
+        )
+        self.logger.info(
+            "Cycle %s of %s (%s)",
+            current_timestep,
+            self.config.simulation_period.last_step,
+            current_date.strftime("%d/%m/%Y"),
+        )
+        print("## Timestep %s of %s" % (current_timestep, self.config.simulation_period.last_step))
 
         self.logger.debug("Reading NDVI map from '%s'...", self.config.raster_series.ndvi)
         try:
@@ -237,10 +245,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.logger.debug(
             "Reading rainydays file from '%s'...", self.config.lookuptable_files.rainy_days
         )
-        month = ((current_timestep - 1) % 12) + 1
         current_rainy_days = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.rainy_days,
-            lookup_value=month,
+            lookup_value=current_date.month,
             lookup_func=pcrfw.lookupscalar,
         )
 
@@ -468,10 +475,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         self.logger.debug("Runoff")
 
-        base_date = self.config.simulation_period.start_date + relativedelta(
-            months=current_timestep - 1
-        )
-        conversion_den = monthrange(base_date.year, base_date.month)[1] * 24 * 3600
+        conversion_den = monthrange(current_date.year, current_date.month)[1] * 24 * 3600
 
         self.current_cell_total_discharge = (
             self.current_surface_runoff + self.current_lateral_flow + self.current_baseflow
