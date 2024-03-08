@@ -5,15 +5,12 @@ from typing import Callable, Optional, Union
 import numpy as np
 import pcraster as pcr
 import pcraster.framework as pcrfw
-from rubem.configuration.output_format import OutputFileFormat
 
-from rubem.modules._evapotranspiration import *
-from rubem.modules._interception import *
-from rubem.modules._soil import *
-from rubem.modules._surface_runoff import *
-from rubem.date._date_calc import *
-from rubem.file._file_generators import *
 from rubem.configuration.model_configuration import ModelConfiguration
+from rubem.configuration.output_format import OutputFileFormat
+from rubem.date._date_calc import daysOfMonth
+from rubem.file._file_generators import report
+from rubem.hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
 
 
 class RUBEM(pcrfw.DynamicModel):
@@ -77,7 +74,7 @@ class RUBEM(pcrfw.DynamicModel):
                     name=outputVar,
                     timestep=self.currentStep,
                     outpath=self.config.output_directory.path,
-                    format=OutputFileFormat.GEOTIFF,
+                    file_format=OutputFileFormat.GEOTIFF,
                     base_raster_info=self.config.output_raster_base,
                 )
 
@@ -214,9 +211,9 @@ class RUBEM(pcrfw.DynamicModel):
         self.ndvi_max = self.__readmap_wrapper(self.config.raster_files.ndvi_max)
         self.ndvi_min = self.__readmap_wrapper(self.config.raster_files.ndvi_min)
 
-        self.logger.info("Computing min. and max. surface runoff (SR)")
-        self.sr_min = srCalc(self.ndvi_min)
-        self.sr_max = srCalc(self.ndvi_max)
+        self.logger.info("Computing min. and max. Reflectances Simple Ratio (SR)")
+        self.sr_min = Interception.get_reflectances_simple_ration(self.ndvi_min)
+        self.sr_max = Interception.get_reflectances_simple_ration(self.ndvi_max)
 
         self.logger.info("Reading soil attributes...")
         soil = self.__readmap_wrapper(self.config.raster_files.soil)
@@ -412,20 +409,20 @@ class RUBEM(pcrfw.DynamicModel):
         )
 
         self.logger.debug("Interception")
-        SR = srCalc(ndvi)
-        FPAR = fparCalc(
+        SR = Interception.get_reflectances_simple_ration(ndvi)
+        FPAR = Interception.get_fpar(
             self.config.constants.fraction_photo_active_radiation_min,
             self.config.constants.fraction_photo_active_radiation_max,
             SR,
             self.sr_min,
             self.sr_max,
         )
-        LAI = laiCalc(
+        LAI = Interception.get_leaf_area_index(
             FPAR,
             self.config.constants.fraction_photo_active_radiation_max,
             self.config.constants.leaf_area_interception_max,
         )
-        Id, Ir, Iv, self.Itp = interceptionCalc(
+        self.Itp = Interception.get_interception(
             self.config.calibration_parameters.alpha,
             LAI,
             precipitation,
@@ -435,15 +432,19 @@ class RUBEM(pcrfw.DynamicModel):
 
         self.logger.debug("Evapotranspiration")
 
-        Kc_1 = kcCalc(ndvi, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max)
+        Kc_1 = Interception.get_crop_coef(
+            ndvi, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max
+        )
         # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
         kc_cond1 = pcrfw.scalar(ndvi < 1.1 * self.ndvi_min)
         kc_cond2 = pcrfw.scalar(ndvi > 1.1 * self.ndvi_min)
         Kc = pcr.scalar((kc_cond2 * Kc_1) + (kc_cond1 * self.kc_min))
-        Ks = pcr.scalar(ksCalc(self.TUr, self.TUw, self.TUcc))
+        Ks = pcr.scalar(
+            Evapotranspiration.get_water_stress_coef_et_vegeted_area(self.TUr, self.TUw, self.TUcc)
+        )
 
         # Vegetated area
-        self.ET_av = etavCalc(ETp, Kc, Ks)
+        self.ET_av = Evapotranspiration.get_et_vegetated_area(ETp, Kc, Ks)
 
         # Impervious area
         # ET impervious area = Interception of impervious area
@@ -451,24 +452,26 @@ class RUBEM(pcrfw.DynamicModel):
         self.ET_ai = self.config.constants.impervious_area_interception * cond
 
         # Open water
-        self.ET_ao = etaoCalc(ETp, Kp, precipitation, Ao)
+        self.ET_ao = Evapotranspiration.get_actual_et_open_water_area(ETp, Kp, precipitation, Ao)
         # self.report(ET_ao,self.config.output_directory.output+'ETao')
 
         # Bare soil
-        self.ET_as = etasCalc(ETp, self.kc_min, Ks)
+        self.ET_as = Evapotranspiration.get_water_stress_coef_et_bare_soil_area(
+            ETp, self.kc_min, Ks
+        )
         self.ETr = (Av * self.ET_av) + (Ai * self.ET_ai) + (Ao * self.ET_ao) + (As * self.ET_as)
 
         self.logger.debug("Surface Runoff")
 
         Pdm = precipitation / rainyDays
-        Ch = chCalc(
+        Ch = SurfaceRunoff.get_coef_soil_moist_conditions(
             self.TUr,
             self.dg,
             self.Zr,
             self.TUsat,
             self.config.calibration_parameters.beta,
         )
-        Cper = cperCalc(
+        Cper = SurfaceRunoff.get_runoff_coef_permeable_areas(
             self.TUw,
             self.dg,
             self.Zr,
@@ -478,11 +481,12 @@ class RUBEM(pcrfw.DynamicModel):
             self.config.calibration_parameters.w_2,
             self.config.calibration_parameters.w_3,
         )
-        Aimp, Cimp = cimpCalc(Ao, Ai)
-        Cwp = cwpCalc(Aimp, Cper, Cimp)
-        Csr = csrCalc(Cwp, Pdm, self.config.calibration_parameters.rcd)
+        Aimp = SurfaceRunoff.get_impervious_surface_percent_per_grid_cell(Ao, Ai)
+        Cimp = SurfaceRunoff.get_runoff_coef_impervious_area(Aimp)
+        Cwp = SurfaceRunoff.get_weighted_pot_runoff_coef(Aimp, Cper, Cimp)
+        Csr = SurfaceRunoff.get_actual_runoff_coef(Cwp, Pdm, self.config.calibration_parameters.rcd)
 
-        self.ES = sRunoffCalc(
+        self.ES = SurfaceRunoff.get_surface_runoff(
             Csr,
             Ch,
             precipitation,
@@ -495,7 +499,7 @@ class RUBEM(pcrfw.DynamicModel):
 
         self.logger.debug("Lateral Flow")
 
-        self.LF = lfCalc(
+        self.LF = Soil.get_lateral_flow(
             self.config.calibration_parameters.f,
             self.Kr,
             self.TUr,
@@ -504,7 +508,7 @@ class RUBEM(pcrfw.DynamicModel):
 
         self.logger.debug("Recharge Flow")
 
-        self.REC = recCalc(
+        self.REC = Soil.get_recharge(
             self.config.calibration_parameters.f,
             self.Kr,
             self.TUr,
@@ -513,7 +517,7 @@ class RUBEM(pcrfw.DynamicModel):
 
         self.logger.debug("Baseflow")
 
-        self.EB = baseflowCalc(
+        self.EB = Soil.get_baseflow(
             self.EBprev,
             self.config.calibration_parameters.alpha_gw,
             self.REC,
@@ -523,7 +527,7 @@ class RUBEM(pcrfw.DynamicModel):
         self.EBprev = self.EB
 
         self.logger.debug("Soil Balance")
-        self.TUr = turCalc(
+        self.TUr = Soil.get_actual_soil_moist_cont_non_sat_zone(
             self.TUrprev,
             precipitation,
             self.Itp,
@@ -534,7 +538,7 @@ class RUBEM(pcrfw.DynamicModel):
             Ao,
             self.TUsat,
         )
-        self.TUs = tusCalc(self.TUsprev, self.REC, self.EB)
+        self.TUs = Soil.get_actual_water_cont_sat_zone(self.TUsprev, self.REC, self.EB)
         self.TUrprev = self.TUr
 
         self.TUsprev = self.TUs
