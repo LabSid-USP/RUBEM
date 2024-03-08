@@ -27,7 +27,6 @@ class RUBEM(pcrfw.DynamicModel):
             self.logger.error("Error reading clone file at '%s'", self.config.raster_files.clone)
             raise
 
-        # TODO: Automatic calculation of cell area
         self.logger.info("Obtaining grid cell area...")
         self.A = self.config.grid.area
 
