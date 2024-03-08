@@ -49,6 +49,34 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         }
 
         self.sample_time_series_dict = {}
+        self.sample_vals = None
+        self.dem = None
+        self.ldd = None
+        self.slope = None
+        self.ndvi_max = None
+        self.ndvi_min = None
+        self.previous_ndvi = None
+        self.previous_landuse = None
+        self.min_reflectances_simple_ratio = None
+        self.max_reflectances_simple_ratio = None
+        self.initial_baseflow = None
+        self.baseflow_threshold = None
+        self.previous_baseflow = None
+        self.current_baseflow = None
+        self.initial_soil_sat_zone_storage = None
+        self.previous_soil_sat_zone_storage = None
+        self.current_soil_sat_zone_storage = None
+        self.previous_soil_moist_content = None
+        self.current_soil_moist_content = None
+        self.initial_cell_total_flow = None
+        self.previous_cell_total_flow = None
+        self.soil_hydraulic_conductivity_coef = None
+        self.soil_bulk_density = None
+        self.soil_rootzone_depth = None
+        self.soil_moist_content_sat_point = None
+        self.initial_soil_moist_content = None
+        self.soil_moistute_content_wilting_point = None
+        self.soil_moisture_content_field_capacity = None
 
     def initial(self):
         """Contains the initialization of variables used in the model.
@@ -183,7 +211,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.config.simulation_period.last_step,
             current_date.strftime("%d/%m/%Y"),
         )
-        print("## Timestep %s of %s" % (current_timestep, self.config.simulation_period.last_step))
+        print(f"## Timestep {current_timestep} of {self.config.simulation_period.last_step}")
 
         self.logger.debug("Reading NDVI map from '%s'...", self.config.raster_series.ndvi)
         try:
@@ -203,19 +231,19 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         self.logger.debug("Reading landuse map from '%s'...", self.config.raster_series.landuse)
         try:
-            self.current_landuse = self.__readmap_series_wrapper(
+            current_landuse = self.__readmap_series_wrapper(
                 files_partial_path=self.config.raster_series.landuse,
                 dynamic_readmap_func=self.readmap,
                 supress_errors=True,
             )
-            self.previous_landuse = self.current_landuse
+            self.previous_landuse = current_landuse
         except RuntimeError:
             self.logger.warning(
                 "There was an problem reading LULC map from '%s' on timestep %d. Using previous successful timestep raster...",
                 self.config.raster_series.landuse,
                 current_timestep,
             )
-            self.current_landuse = self.previous_landuse
+            current_landuse = self.previous_landuse
 
         self.logger.debug(
             "Reading precipitation map from '%s'...", self.config.raster_series.precipitation
@@ -254,49 +282,49 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.logger.debug("Reading landuse attributes: manning...")
         current_n_manning = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.manning,
-            lookup_value=self.current_landuse,
+            lookup_value=current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: a_v...")
         vegeted_area_fraction = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.a_v,
-            lookup_value=self.current_landuse,
+            lookup_value=current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: a_o...")
         open_water_area_fraction = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.a_o,
-            lookup_value=self.current_landuse,
+            lookup_value=current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: a_s...")
         bare_soil_area_fraction = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.a_s,
-            lookup_value=self.current_landuse,
+            lookup_value=current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: a_i...")
         impervious_area_fraction = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.a_i,
-            lookup_value=self.current_landuse,
+            lookup_value=current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: K_c_min...")
-        self.min_crop_coef = self.__lookup_wrapper(
+        min_crop_coef = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.kc_min,
-            lookup_value=self.current_landuse,
+            lookup_value=current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: K_c_max...")
-        self.max_crop_coef = self.__lookup_wrapper(
+        max_crop_coef = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.kc_max,
-            lookup_value=self.current_landuse,
+            lookup_value=current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
@@ -327,18 +355,16 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.logger.debug("Evapotranspiration")
 
         partial_crop_coef = Interception.get_crop_coef(
-            current_ndvi, self.ndvi_min, self.ndvi_max, self.min_crop_coef, self.max_crop_coef
+            current_ndvi, self.ndvi_min, self.ndvi_max, min_crop_coef, max_crop_coef
         )
         # If NDVI < 1.1 * NDVI_min, kc = kc_min
         crop_coef_lt_min_ndvi = pcrfw.scalar(current_ndvi < 1.1 * self.ndvi_min)
         crop_coef_gt_min_ndvi = pcrfw.scalar(current_ndvi > 1.1 * self.ndvi_min)
         current_crop_coef = pcr.scalar(
-            (crop_coef_gt_min_ndvi * partial_crop_coef)
-            + (crop_coef_lt_min_ndvi * self.min_crop_coef)
+            (crop_coef_gt_min_ndvi * partial_crop_coef) + (crop_coef_lt_min_ndvi * min_crop_coef)
         )
 
-        # TODO: Rename variable
-        Ks = pcr.scalar(
+        water_stress_coef = pcr.scalar(
             Evapotranspiration.get_water_stress_coef_et_vegeted_area(
                 self.current_soil_moist_content,
                 self.soil_moistute_content_wilting_point,
@@ -347,19 +373,18 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         )
 
         # Vegetated area
-        self.real_et_vegeted_area = Evapotranspiration.get_et_vegetated_area(
-            current_potential_evapotranspiration, current_crop_coef, Ks
+        real_et_vegeted_area = Evapotranspiration.get_et_vegetated_area(
+            current_potential_evapotranspiration, current_crop_coef, water_stress_coef
         )
 
         # Impervious area
         # ET impervious area = Interception of impervious area
-        self.real_et_impervious_area = (
-            self.config.constants.impervious_area_interception
-            * pcr.scalar(current_precipitation != 0)
+        real_et_impervious_area = self.config.constants.impervious_area_interception * pcr.scalar(
+            current_precipitation != 0
         )
 
         # Open water
-        self.real_et_open_water_area = Evapotranspiration.get_actual_et_open_water_area(
+        real_et_open_water_area = Evapotranspiration.get_actual_et_open_water_area(
             current_potential_evapotranspiration,
             current_class_a_pan_coef,
             current_precipitation,
@@ -367,14 +392,14 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         )
 
         # Bare soil
-        self.real_et_bare_soil_area = Evapotranspiration.get_water_stress_coef_et_bare_soil_area(
-            current_potential_evapotranspiration, self.min_crop_coef, Ks
+        real_et_bare_soil_area = Evapotranspiration.get_water_stress_coef_et_bare_soil_area(
+            current_potential_evapotranspiration, min_crop_coef, water_stress_coef
         )
-        self.total_real_et = (
-            (vegeted_area_fraction * self.real_et_vegeted_area)
-            + (impervious_area_fraction * self.real_et_impervious_area)
-            + (open_water_area_fraction * self.real_et_open_water_area)
-            + (bare_soil_area_fraction * self.real_et_bare_soil_area)
+        self.current_total_real_evapotranspiration = (
+            (vegeted_area_fraction * real_et_vegeted_area)
+            + (impervious_area_fraction * real_et_impervious_area)
+            + (open_water_area_fraction * real_et_open_water_area)
+            + (bare_soil_area_fraction * real_et_bare_soil_area)
         )
 
         self.logger.debug("Surface Runoff")
@@ -421,7 +446,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             current_precipitation,
             self.current_interception,
             open_water_area_fraction,
-            self.real_et_open_water_area,
+            real_et_open_water_area,
             self.current_soil_moist_content,
             self.soil_moist_content_sat_point,
         )
@@ -463,7 +488,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.current_surface_runoff,
             self.current_lateral_flow,
             self.current_recharge,
-            self.total_real_et,
+            self.current_total_real_evapotranspiration,
             open_water_area_fraction,
             self.soil_moist_content_sat_point,
         )
@@ -480,12 +505,12 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.current_cell_total_discharge = (
             self.current_surface_runoff + self.current_lateral_flow + self.current_baseflow
         )  # [mm]
-        self.current_cell_total_discharge_vol = (
+        current_cell_total_discharge_vol = (
             self.current_cell_total_discharge * self.config.grid.area * 0.001 / conversion_den
         )  # [m3/s]
 
         self.accumulated_cell_total_discharge = pcrfw.accuflux(
-            self.ldd, self.current_cell_total_discharge_vol
+            self.ldd, current_cell_total_discharge_vol
         )
 
         self.current_runoff = (
@@ -504,7 +529,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             "itp": self.current_interception,
             "bfw": self.current_baseflow,
             "srn": self.current_surface_runoff,
-            "eta": self.total_real_et,
+            "eta": self.current_total_real_evapotranspiration,
             "lfw": self.current_lateral_flow,
             "rec": self.current_recharge,
             "smc": self.current_soil_moist_content,
