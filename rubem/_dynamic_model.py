@@ -1,14 +1,15 @@
+from calendar import monthrange
 import os
 import logging
 from typing import Callable, Optional, Union
 
+from dateutil.relativedelta import relativedelta
 import numpy as np
 import pcraster as pcr
 import pcraster.framework as pcrfw
 
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.configuration.output_format import OutputFileFormat
-from rubem.date._date_calc import daysOfMonth
 from rubem.file._file_generators import report
 from rubem.hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
 
@@ -398,11 +399,11 @@ class RUBEM(pcrfw.DynamicModel):
 
         self.logger.debug("Runoff")
 
-        days = daysOfMonth(self.config.simulation_period.start_date, t)
-        c = days * 24 * 3600
+        base_date = self.config.simulation_period.start_date + relativedelta(months=t - 1)
+        conversion_den = monthrange(base_date.year, base_date.month)[1] * 24 * 3600
 
         self.Qtot = self.ES + self.LF + self.EB  # [mm]
-        self.Qtotvol = self.Qtot * self.config.grid.area * 0.001 / c  # [m3/s]
+        self.Qtotvol = self.Qtot * self.config.grid.area * 0.001 / conversion_den  # [m3/s]
 
         self.Qt = pcrfw.accuflux(self.ldd, self.Qtotvol)
 
