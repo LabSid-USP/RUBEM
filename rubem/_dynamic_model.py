@@ -40,7 +40,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.logger.error("Error reading clone file at '%s'", self.config.raster_files.clone)
             raise
 
-        self.__getEnabledOutputVars()
+        self.__get_enabled_output_vars()
 
     def initial(self):
         """Contains the initialization of variables used in the model.
@@ -67,39 +67,43 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.ldd = pcrfw.lddcreate(self.dem, 1e31, 1e31, 1e31, 1e31)
 
         self.logger.info("Creating slope map based on DEM...")
-        self.S = pcrfw.slope(self.dem)
+        self.slope = pcrfw.slope(self.dem)
 
         if self.config.raster_files.sample_locations and self.config.output_variables.tss:
             self.logger.info("Setting up TSS output files...")
-            self.__setupTimeoutputTimeseries()
+            self.__setup_timeoutput_timeseries()
 
         self.logger.info("Reading min. and max. NDVI rasters...")
         self.ndvi_max = self.__readmap_wrapper(self.config.raster_files.ndvi_max)
         self.ndvi_min = self.__readmap_wrapper(self.config.raster_files.ndvi_min)
 
         self.logger.info("Computing min. and max. Reflectances Simple Ratio (SR)")
-        self.sr_min = Interception.get_reflectances_simple_ration(self.ndvi_min)
-        self.sr_max = Interception.get_reflectances_simple_ration(self.ndvi_max)
+        self.min_reflectances_simple_ratio = Interception.get_reflectances_simple_ration(
+            self.ndvi_min
+        )
+        self.max_reflectances_simple_ratio = Interception.get_reflectances_simple_ration(
+            self.ndvi_max
+        )
 
         self.logger.info("Reading soil attributes...")
         soil = self.__readmap_wrapper(self.config.raster_files.soil)
 
         self.logger.info("Reading hydraulic conductivity coefficient...")
-        self.Kr = self.__lookup_wrapper(
+        self.soil_hydraulic_conductivity_coef = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.k_sat,
             lookup_value=soil,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.info("Reading soil density...")
-        self.dg = self.__lookup_wrapper(
+        self.soil_bulk_density = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.bulk_density,
             lookup_value=soil,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.info("Reading soil root zone depth...")
-        self.Zr = self.__lookup_wrapper(
+        self.soil_rootzone_depth = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.rootzone_depth,
             lookup_value=soil,
             lookup_func=pcrfw.lookupscalar,
@@ -111,9 +115,12 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             lookup_value=soil,
             lookup_func=pcrfw.lookupscalar,
         )
-        self.TUsat = tusat_partial * self.dg * self.Zr * 10
-        self.TUr_ini = (
-            self.TUsat * self.config.initial_soil_conditions.initial_soil_moisture_content
+        self.soil_moist_content_sat_point = (
+            tusat_partial * self.soil_bulk_density * self.soil_rootzone_depth * 10
+        )
+        self.initial_soil_moist_content = (
+            self.soil_moist_content_sat_point
+            * self.config.initial_soil_conditions.initial_soil_moisture_content
         )
 
         self.logger.info("Reading soil ground wilting point...")
@@ -122,7 +129,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             lookup_value=soil,
             lookup_func=pcrfw.lookupscalar,
         )
-        self.TUw = tuw_partial * self.dg * self.Zr * 10
+        self.soil_moistute_content_wilting_point = (
+            tuw_partial * self.soil_bulk_density * self.soil_rootzone_depth * 10
+        )
 
         self.logger.info("Reading soil field capacity...")
         tuw_partial = self.__lookup_wrapper(
@@ -130,22 +139,24 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             lookup_value=soil,
             lookup_func=pcrfw.lookupscalar,
         )
-        self.TUcc = tuw_partial * self.dg * self.Zr * 10
+        self.soil_moisture_content_field_capacity = (
+            tuw_partial * self.soil_bulk_density * self.soil_rootzone_depth * 10
+        )
 
         self.logger.info("Establishing initial conditions...")
-        self.EB_ini = pcrfw.scalar(self.config.initial_soil_conditions.initial_baseflow)
-        self.EB_lim = pcrfw.scalar(self.config.initial_soil_conditions.baseflow_limit)
-        self.TUs_ini = pcrfw.scalar(
+        self.initial_baseflow = pcrfw.scalar(self.config.initial_soil_conditions.initial_baseflow)
+        self.baseflow_threshold = pcrfw.scalar(self.config.initial_soil_conditions.baseflow_limit)
+        self.initial_soil_sat_zone_storage = pcrfw.scalar(
             self.config.initial_soil_conditions.initial_saturated_zone_storage
         )
-        self.TUrprev = self.TUr_ini
-        self.TUsprev = self.TUs_ini
-        self.EBprev = self.EB_ini
-        self.TUr = self.TUr_ini
-        self.TUs = self.TUs_ini
-        self.EB = self.EB_ini
-        self.Qini = pcrfw.scalar(0)
-        self.Qprev = pcrfw.scalar(0)
+        self.previous_soil_moist_content = self.initial_soil_moist_content
+        self.previous_soil_sat_zone_storage = self.initial_soil_sat_zone_storage
+        self.previous_baseflow = self.initial_baseflow
+        self.current_soil_moist_content = self.initial_soil_moist_content
+        self.current_soil_sat_zone_storage = self.initial_soil_sat_zone_storage
+        self.current_baseflow = self.initial_baseflow
+        self.initial_cell_total_flow = pcrfw.scalar(0)
+        self.previous_cell_total_flow = pcrfw.scalar(0)
 
     def dynamic(self):
         """Contains the implementation of the dynamic section of the model.
@@ -154,46 +165,46 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         Results of prev time step can be used as input for the curr time step.
         The dynamic section is executed a specified number of timesteps.
         """
-        t = self.currentStep
-        self.logger.info(f"Cycle {t} of {self.config.simulation_period.last_step}")
-        print(f"## Timestep {t} of {self.config.simulation_period.last_step}")
+        current_timestep = self.currentStep
+        self.logger.info(f"Cycle {current_timestep} of {self.config.simulation_period.last_step}")
+        print(f"## Timestep {current_timestep} of {self.config.simulation_period.last_step}")
 
         self.logger.debug("Reading NDVI map from '%s'...", self.config.raster_series.ndvi)
         try:
-            ndvi = self.__readmap_series_wrapper(
+            current_ndvi = self.__readmap_series_wrapper(
                 files_partial_path=self.config.raster_series.ndvi,
                 dynamic_readmap_func=self.readmap,
                 supress_errors=True,
             )
-            self.ndvi_ant = ndvi
+            self.previous_ndvi = current_ndvi
         except RuntimeError:
             self.logger.warning(
                 "There was an problem reading NDVI map from '%s' on timestep %d. Using previous successful timestep raster...",
                 self.config.raster_series.ndvi,
-                t,
+                current_timestep,
             )
-            ndvi = self.ndvi_ant
+            current_ndvi = self.previous_ndvi
 
         self.logger.debug("Reading landuse map from '%s'...", self.config.raster_series.landuse)
         try:
-            self.landuse = self.__readmap_series_wrapper(
+            self.current_landuse = self.__readmap_series_wrapper(
                 files_partial_path=self.config.raster_series.landuse,
                 dynamic_readmap_func=self.readmap,
                 supress_errors=True,
             )
-            self.landuse_ant = self.landuse
+            self.previous_landuse = self.current_landuse
         except RuntimeError:
             self.logger.warning(
                 "There was an problem reading LULC map from '%s' on timestep %d. Using previous successful timestep raster...",
                 self.config.raster_series.landuse,
-                t,
+                current_timestep,
             )
-            self.landuse = self.landuse_ant
+            self.current_landuse = self.previous_landuse
 
         self.logger.debug(
             "Reading precipitation map from '%s'...", self.config.raster_series.precipitation
         )
-        precipitation = self.__readmap_series_wrapper(
+        current_precipitation = self.__readmap_series_wrapper(
             files_partial_path=self.config.raster_series.precipitation,
             dynamic_readmap_func=self.readmap,
             conversion_func=pcr.scalar,
@@ -202,14 +213,14 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.logger.debug(
             "Reading potential evapotranspiration map from '%s'...", self.config.raster_series.etp
         )
-        ETp = self.__readmap_series_wrapper(
+        current_potential_evapotranspiration = self.__readmap_series_wrapper(
             files_partial_path=self.config.raster_series.etp,
             dynamic_readmap_func=self.readmap,
             conversion_func=pcr.scalar,
         )
 
         self.logger.debug("Reading Kp map from '%s'...", self.config.raster_series.kp)
-        Kp = self.__readmap_series_wrapper(
+        current_class_a_pan_coef = self.__readmap_series_wrapper(
             files_partial_path=self.config.raster_series.kp,
             dynamic_readmap_func=self.readmap,
             conversion_func=pcr.scalar,
@@ -218,221 +229,267 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.logger.debug(
             "Reading rainydays file from '%s'...", self.config.lookuptable_files.rainy_days
         )
-        month = ((t - 1) % 12) + 1
-        rainyDays = self.__lookup_wrapper(
+        month = ((current_timestep - 1) % 12) + 1
+        current_rainy_days = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.rainy_days,
             lookup_value=month,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: manning...")
-        n_manning = self.__lookup_wrapper(
+        current_n_manning = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.manning,
-            lookup_value=self.landuse,
+            lookup_value=self.current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: a_v...")
-        Av = self.__lookup_wrapper(
+        vegeted_area_fraction = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.a_v,
-            lookup_value=self.landuse,
+            lookup_value=self.current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: a_o...")
-        Ao = self.__lookup_wrapper(
+        open_water_area_fraction = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.a_o,
-            lookup_value=self.landuse,
+            lookup_value=self.current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: a_s...")
-        As = self.__lookup_wrapper(
+        bare_soil_area_fraction = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.a_s,
-            lookup_value=self.landuse,
+            lookup_value=self.current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: a_i...")
-        Ai = self.__lookup_wrapper(
+        impervious_area_fraction = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.a_i,
-            lookup_value=self.landuse,
+            lookup_value=self.current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: K_c_min...")
-        self.kc_min = self.__lookup_wrapper(
+        self.min_crop_coef = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.kc_min,
-            lookup_value=self.landuse,
+            lookup_value=self.current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Reading landuse attributes: K_c_max...")
-        self.kc_max = self.__lookup_wrapper(
+        self.max_crop_coef = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.kc_max,
-            lookup_value=self.landuse,
+            lookup_value=self.current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
 
         self.logger.debug("Interception")
-        SR = Interception.get_reflectances_simple_ration(ndvi)
-        FPAR = Interception.get_fpar(
+        current_reflectances_simple_ratio = Interception.get_reflectances_simple_ration(
+            current_ndvi
+        )
+        current_fpar = Interception.get_fpar(
             self.config.constants.fraction_photo_active_radiation_min,
             self.config.constants.fraction_photo_active_radiation_max,
-            SR,
-            self.sr_min,
-            self.sr_max,
+            current_reflectances_simple_ratio,
+            self.min_reflectances_simple_ratio,
+            self.max_reflectances_simple_ratio,
         )
-        LAI = Interception.get_leaf_area_index(
-            FPAR,
+        current_leaf_area_index = Interception.get_leaf_area_index(
+            current_fpar,
             self.config.constants.fraction_photo_active_radiation_max,
             self.config.constants.leaf_area_interception_max,
         )
-        self.Itp = Interception.get_interception(
+        self.current_interception = Interception.get_interception(
             self.config.calibration_parameters.alpha,
-            LAI,
-            precipitation,
-            rainyDays,
-            Av,
+            current_leaf_area_index,
+            current_precipitation,
+            current_rainy_days,
+            vegeted_area_fraction,
         )
 
         self.logger.debug("Evapotranspiration")
 
-        Kc_1 = Interception.get_crop_coef(
-            ndvi, self.ndvi_min, self.ndvi_max, self.kc_min, self.kc_max
+        partial_crop_coef = Interception.get_crop_coef(
+            current_ndvi, self.ndvi_min, self.ndvi_max, self.min_crop_coef, self.max_crop_coef
         )
-        # condicao do kc, se NDVI < 1.1NDVI_min, kc = kc_min
-        kc_cond1 = pcrfw.scalar(ndvi < 1.1 * self.ndvi_min)
-        kc_cond2 = pcrfw.scalar(ndvi > 1.1 * self.ndvi_min)
-        Kc = pcr.scalar((kc_cond2 * Kc_1) + (kc_cond1 * self.kc_min))
+        # If NDVI < 1.1 * NDVI_min, kc = kc_min
+        crop_coef_lt_min_ndvi = pcrfw.scalar(current_ndvi < 1.1 * self.ndvi_min)
+        crop_coef_gt_min_ndvi = pcrfw.scalar(current_ndvi > 1.1 * self.ndvi_min)
+        current_crop_coef = pcr.scalar(
+            (crop_coef_gt_min_ndvi * partial_crop_coef)
+            + (crop_coef_lt_min_ndvi * self.min_crop_coef)
+        )
+
+        # TODO: Rename variable
         Ks = pcr.scalar(
-            Evapotranspiration.get_water_stress_coef_et_vegeted_area(self.TUr, self.TUw, self.TUcc)
+            Evapotranspiration.get_water_stress_coef_et_vegeted_area(
+                self.current_soil_moist_content,
+                self.soil_moistute_content_wilting_point,
+                self.soil_moisture_content_field_capacity,
+            )
         )
 
         # Vegetated area
-        self.ET_av = Evapotranspiration.get_et_vegetated_area(ETp, Kc, Ks)
+        self.real_et_vegeted_area = Evapotranspiration.get_et_vegetated_area(
+            current_potential_evapotranspiration, current_crop_coef, Ks
+        )
 
         # Impervious area
         # ET impervious area = Interception of impervious area
-        cond = pcr.scalar((precipitation != 0))
-        self.ET_ai = self.config.constants.impervious_area_interception * cond
+        self.real_et_impervious_area = (
+            self.config.constants.impervious_area_interception
+            * pcr.scalar(current_precipitation != 0)
+        )
 
         # Open water
-        self.ET_ao = Evapotranspiration.get_actual_et_open_water_area(ETp, Kp, precipitation, Ao)
-        # self.report(ET_ao,self.config.output_directory.output+'ETao')
+        self.real_et_open_water_area = Evapotranspiration.get_actual_et_open_water_area(
+            current_potential_evapotranspiration,
+            current_class_a_pan_coef,
+            current_precipitation,
+            open_water_area_fraction,
+        )
 
         # Bare soil
-        self.ET_as = Evapotranspiration.get_water_stress_coef_et_bare_soil_area(
-            ETp, self.kc_min, Ks
+        self.real_et_bare_soil_area = Evapotranspiration.get_water_stress_coef_et_bare_soil_area(
+            current_potential_evapotranspiration, self.min_crop_coef, Ks
         )
-        self.ETr = (Av * self.ET_av) + (Ai * self.ET_ai) + (Ao * self.ET_ao) + (As * self.ET_as)
+        self.total_real_et = (
+            (vegeted_area_fraction * self.real_et_vegeted_area)
+            + (impervious_area_fraction * self.real_et_impervious_area)
+            + (open_water_area_fraction * self.real_et_open_water_area)
+            + (bare_soil_area_fraction * self.real_et_bare_soil_area)
+        )
 
         self.logger.debug("Surface Runoff")
 
-        Pdm = precipitation / rainyDays
-        Ch = SurfaceRunoff.get_coef_soil_moist_conditions(
-            self.TUr,
-            self.dg,
-            self.Zr,
-            self.TUsat,
+        average_daily_rain_on_rainy_days = current_precipitation / current_rainy_days
+        soil_moisture_coef = SurfaceRunoff.get_coef_soil_moist_conditions(
+            self.current_soil_moist_content,
+            self.soil_bulk_density,
+            self.soil_rootzone_depth,
+            self.soil_moist_content_sat_point,
             self.config.calibration_parameters.beta,
         )
-        Cper = SurfaceRunoff.get_runoff_coef_permeable_areas(
-            self.TUw,
-            self.dg,
-            self.Zr,
-            self.S,
-            n_manning,
+        pot_runoff_coef_permeable_areas = SurfaceRunoff.get_runoff_coef_permeable_areas(
+            self.soil_moistute_content_wilting_point,
+            self.soil_bulk_density,
+            self.soil_rootzone_depth,
+            self.slope,
+            current_n_manning,
             self.config.calibration_parameters.w_1,
             self.config.calibration_parameters.w_2,
             self.config.calibration_parameters.w_3,
         )
-        Aimp = SurfaceRunoff.get_impervious_surface_percent_per_grid_cell(Ao, Ai)
-        Cimp = SurfaceRunoff.get_runoff_coef_impervious_area(Aimp)
-        Cwp = SurfaceRunoff.get_weighted_pot_runoff_coef(Aimp, Cper, Cimp)
-        Csr = SurfaceRunoff.get_actual_runoff_coef(Cwp, Pdm, self.config.calibration_parameters.rcd)
-
-        self.ES = SurfaceRunoff.get_surface_runoff(
-            Csr,
-            Ch,
-            precipitation,
-            self.Itp,
-            Ao,
-            self.ET_ao,
-            self.TUr,
-            self.TUsat,
+        total_fraction_impermeable_area_per_cell = (
+            SurfaceRunoff.get_impervious_surface_percent_per_grid_cell(
+                open_water_area_fraction, impervious_area_fraction
+            )
+        )
+        pot_runoff_coef_impermeable_areas = SurfaceRunoff.get_runoff_coef_impervious_area(
+            total_fraction_impermeable_area_per_cell
+        )
+        pot_runoff_coef = SurfaceRunoff.get_weighted_pot_runoff_coef(
+            total_fraction_impermeable_area_per_cell,
+            pot_runoff_coef_permeable_areas,
+            pot_runoff_coef_impermeable_areas,
+        )
+        actual_flow_coef = SurfaceRunoff.get_actual_runoff_coef(
+            pot_runoff_coef,
+            average_daily_rain_on_rainy_days,
+            self.config.calibration_parameters.rcd,
+        )
+        self.current_surface_runoff = SurfaceRunoff.get_surface_runoff(
+            actual_flow_coef,
+            soil_moisture_coef,
+            current_precipitation,
+            self.current_interception,
+            open_water_area_fraction,
+            self.real_et_open_water_area,
+            self.current_soil_moist_content,
+            self.soil_moist_content_sat_point,
         )
 
         self.logger.debug("Lateral Flow")
 
-        self.LF = Soil.get_lateral_flow(
+        self.current_lateral_flow = Soil.get_lateral_flow(
             self.config.calibration_parameters.f,
-            self.Kr,
-            self.TUr,
-            self.TUsat,
+            self.soil_hydraulic_conductivity_coef,
+            self.current_soil_moist_content,
+            self.soil_moist_content_sat_point,
         )
 
         self.logger.debug("Recharge Flow")
 
-        self.REC = Soil.get_recharge(
+        self.current_recharge = Soil.get_recharge(
             self.config.calibration_parameters.f,
-            self.Kr,
-            self.TUr,
-            self.TUsat,
+            self.soil_hydraulic_conductivity_coef,
+            self.current_soil_moist_content,
+            self.soil_moist_content_sat_point,
         )
 
         self.logger.debug("Baseflow")
 
-        self.EB = Soil.get_baseflow(
-            self.EBprev,
+        self.current_baseflow = Soil.get_baseflow(
+            self.previous_baseflow,
             self.config.calibration_parameters.alpha_gw,
-            self.REC,
-            self.TUs,
-            self.EB_lim,
+            self.current_recharge,
+            self.current_soil_sat_zone_storage,
+            self.baseflow_threshold,
         )
-        self.EBprev = self.EB
+        self.previous_baseflow = self.current_baseflow
 
         self.logger.debug("Soil Balance")
-        self.TUr = Soil.get_actual_soil_moist_cont_non_sat_zone(
-            self.TUrprev,
-            precipitation,
-            self.Itp,
-            self.ES,
-            self.LF,
-            self.REC,
-            self.ETr,
-            Ao,
-            self.TUsat,
+        self.current_soil_moist_content = Soil.get_actual_soil_moist_cont_non_sat_zone(
+            self.previous_soil_moist_content,
+            current_precipitation,
+            self.current_interception,
+            self.current_surface_runoff,
+            self.current_lateral_flow,
+            self.current_recharge,
+            self.total_real_et,
+            open_water_area_fraction,
+            self.soil_moist_content_sat_point,
         )
-        self.TUs = Soil.get_actual_water_cont_sat_zone(self.TUsprev, self.REC, self.EB)
-        self.TUrprev = self.TUr
-
-        self.TUsprev = self.TUs
+        self.current_soil_sat_zone_storage = Soil.get_actual_water_cont_sat_zone(
+            self.previous_soil_sat_zone_storage, self.current_recharge, self.current_baseflow
+        )
+        self.previous_soil_moist_content = self.current_soil_moist_content
+        self.previous_soil_sat_zone_storage = self.current_soil_sat_zone_storage
 
         self.logger.debug("Runoff")
 
-        base_date = self.config.simulation_period.start_date + relativedelta(months=t - 1)
+        base_date = self.config.simulation_period.start_date + relativedelta(
+            months=current_timestep - 1
+        )
         conversion_den = monthrange(base_date.year, base_date.month)[1] * 24 * 3600
 
-        self.Qtot = self.ES + self.LF + self.EB  # [mm]
-        self.Qtotvol = self.Qtot * self.config.grid.area * 0.001 / conversion_den  # [m3/s]
+        self.current_cell_total_discharge = (
+            self.current_surface_runoff + self.current_lateral_flow + self.current_baseflow
+        )  # [mm]
+        self.current_cell_total_discharge_vol = (
+            self.current_cell_total_discharge * self.config.grid.area * 0.001 / conversion_den
+        )  # [m3/s]
 
-        self.Qt = pcrfw.accuflux(self.ldd, self.Qtotvol)
-
-        self.runoff = (
-            self.config.calibration_parameters.x * self.Qprev
-            + (1 - self.config.calibration_parameters.x) * self.Qt
+        self.accumulated_cell_total_discharge = pcrfw.accuflux(
+            self.ldd, self.current_cell_total_discharge_vol
         )
-        self.Qprev = self.runoff
+
+        self.current_runoff = (
+            self.config.calibration_parameters.x * self.previous_cell_total_flow
+            + (1 - self.config.calibration_parameters.x) * self.accumulated_cell_total_discharge
+        )
+        self.previous_cell_total_flow = self.current_runoff
 
         os.chdir(self.config.output_directory.path)
         self.logger.debug("Exporting variables to files")
 
-        self.__stepReport()
+        self.__current_step_report()
 
-    def __getEnabledOutputVars(self):
+    def __get_enabled_output_vars(self):
         # Store which variables have or have not been selected for export
-        self.enabledOuputVars = {
+        self.enabled_ouput_vars = {
             "itp": self.config.output_variables.itp,
             "bfw": self.config.output_variables.bfw,
             "srn": self.config.output_variables.srn,
@@ -444,31 +501,31 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             "arn": self.config.output_variables.arn,
         }
 
-    def __stepUpdateOutputVars(self):
-        self.outputVarsDict = {
-            "itp": self.Itp,
-            "bfw": self.EB,
-            "srn": self.ES,
-            "eta": self.ETr,
-            "lfw": self.LF,
-            "rec": self.REC,
-            "smc": self.TUr,
-            "rnf": self.Qtot,
-            "arn": self.runoff,
+    def __current_step_update_output_vars(self):
+        self.output_vars_dict = {
+            "itp": self.current_interception,
+            "bfw": self.current_baseflow,
+            "srn": self.current_surface_runoff,
+            "eta": self.total_real_et,
+            "lfw": self.current_lateral_flow,
+            "rec": self.current_recharge,
+            "smc": self.current_soil_moist_content,
+            "rnf": self.current_cell_total_discharge,
+            "arn": self.current_runoff,
         }
 
-    def __stepReport(self):
-        self.__stepUpdateOutputVars()
+    def __current_step_report(self):
+        self.__current_step_update_output_vars()
 
-        for outputVar, isOutputVarEnabled in self.enabledOuputVars.items():
-            if not isOutputVarEnabled:
+        for output_var, is_output_var_enabled in self.enabled_ouput_vars.items():
+            if not is_output_var_enabled:
                 continue
 
             # Export TIFF raster series
             if self.config.output_variables.file_format is OutputFileFormat.GEOTIFF:
                 report(
-                    variable=self.outputVarsDict.get(outputVar),
-                    name=outputVar,
+                    variable=self.output_vars_dict.get(output_var),
+                    name=output_var,
                     timestep=self.currentStep,
                     outpath=self.config.output_directory.path,
                     file_format=OutputFileFormat.GEOTIFF,
@@ -477,101 +534,98 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
             # Export PCRaster map format raster series
             if self.config.output_variables.file_format is OutputFileFormat.PCRASTER:
-                self.report(variable=self.outputVarsDict.get(outputVar), name=outputVar)
+                self.report(variable=self.output_vars_dict.get(output_var), name=output_var)
 
             # Check if we have to export the time series of the selected
             # variable (fileName)
             if self.config.raster_files.sample_locations and self.config.output_variables.tss:
                 # Export tss according to variable (fileName) selected
-                # The same as self.TssFileXxx.sample(self.Xxx)
-                self.sampleTimeSeriesDict.get(outputVar)(self.outputVarsDict.get(outputVar))
+                # The same as self.tss_file_xxx.sample(self.xxx)
+                self.sample_time_series_dict.get(output_var)(self.output_vars_dict.get(output_var))
 
-    def __setupTimeoutputTimeseries(self):
+    def __setup_timeoutput_timeseries(self):
         # read sample map location as nominal
         try:
             sample_map = pcrfw.nominal(self.config.raster_files.sample_locations)
         except RuntimeError:
             self.logger.error(
-                "Error reading sample map file at '%s'"
-                % (self.config.raster_files.sample_locations)
+                "Error reading sample map file at '%s'", self.config.raster_files.sample_locations
             )
             raise
 
         # Initialize Tss report at sample locations or pits
-        self.TssFileRun = pcrfw.TimeoutputTimeseries(
+        self.tss_file_run = pcrfw.TimeoutputTimeseries(
             "tss_rnf",
             self,
             self.config.raster_files.sample_locations,
             noHeader=True,
         )
-        self.TssFileAccRun = pcrfw.TimeoutputTimeseries(
+        self.tss_file_accrun = pcrfw.TimeoutputTimeseries(
             "tss_arn",
             self,
             self.config.raster_files.sample_locations,
             noHeader=True,
         )
-        self.TssFileInt = pcrfw.TimeoutputTimeseries(
+        self.tss_file_int = pcrfw.TimeoutputTimeseries(
             "tss_itp",
             self,
             self.config.raster_files.sample_locations,
             noHeader=True,
         )
-        self.TssFileBflow = pcrfw.TimeoutputTimeseries(
+        self.tss_file_bflow = pcrfw.TimeoutputTimeseries(
             "tss_bfw",
             self,
             self.config.raster_files.sample_locations,
             noHeader=True,
         )
-        self.TssFileSfRun = pcrfw.TimeoutputTimeseries(
+        self.tss_file_sfrun = pcrfw.TimeoutputTimeseries(
             "tss_srn",
             self,
             self.config.raster_files.sample_locations,
             noHeader=True,
         )
-        self.TssFileEta = pcrfw.TimeoutputTimeseries(
+        self.tss_file_eta = pcrfw.TimeoutputTimeseries(
             "tss_eta",
             self,
             self.config.raster_files.sample_locations,
             noHeader=True,
         )
-        self.TssFileLf = pcrfw.TimeoutputTimeseries(
+        self.tss_file_lf = pcrfw.TimeoutputTimeseries(
             "tss_lfw",
             self,
             self.config.raster_files.sample_locations,
             noHeader=True,
         )
-        self.TssFileRec = pcrfw.TimeoutputTimeseries(
+        self.tss_file_rec = pcrfw.TimeoutputTimeseries(
             "tss_rec",
             self,
             self.config.raster_files.sample_locations,
             noHeader=True,
         )
-        self.TssFileSsat = pcrfw.TimeoutputTimeseries(
+        self.tss_file_ssat = pcrfw.TimeoutputTimeseries(
             "tss_smc",
             self,
             self.config.raster_files.sample_locations,
             noHeader=True,
         )
 
-        self.sampleTimeSeriesDict = {
-            "itp": self.TssFileInt.sample,
-            "bfw": self.TssFileBflow.sample,
-            "srn": self.TssFileSfRun.sample,
-            "eta": self.TssFileEta.sample,
-            "lfw": self.TssFileLf.sample,
-            "rec": self.TssFileRec.sample,
-            "smc": self.TssFileSsat.sample,
-            "rnf": self.TssFileRun.sample,
-            "arn": self.TssFileAccRun.sample,
+        self.sample_time_series_dict = {
+            "itp": self.tss_file_int.sample,
+            "bfw": self.tss_file_bflow.sample,
+            "srn": self.tss_file_sfrun.sample,
+            "eta": self.tss_file_eta.sample,
+            "lfw": self.tss_file_lf.sample,
+            "rec": self.tss_file_rec.sample,
+            "smc": self.tss_file_ssat.sample,
+            "rnf": self.tss_file_run.sample,
+            "arn": self.tss_file_accrun.sample,
         }
         # Information for output, get sample location numbers - integer,
-        # from 1 to n
-        self.mvalue = -999
         # Convert sample location to multidimensional array
-        self.sample_array = pcrfw.pcr2numpy(sample_map, self.mvalue)
+        sample_array = pcrfw.pcr2numpy(sample_map, -999)
         # create 1d array with unique locations values
         # (1 to N number os locations)
-        self.sample_vals = np.asarray(np.unique(self.sample_array))
+        self.sample_vals = np.asarray(np.unique(sample_array))
 
     def __readmap_series_wrapper(
         self,
