@@ -14,7 +14,7 @@ from rubem.file._file_generators import report
 from rubem.hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
 
 
-class RUBEM(pcrfw.DynamicModel):
+class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
     def __init__(self, config: ModelConfiguration):
         pcrfw.DynamicModel.__init__(self)
         self.logger = logging.getLogger(__name__)

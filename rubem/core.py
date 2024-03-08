@@ -4,7 +4,7 @@ import logging
 import humanize
 from pcraster.framework import DynamicFramework
 
-from rubem._dynamic_model import RUBEM
+from rubem._dynamic_model import RainfallRunoffBalanceEnhancedModel
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.file._file_convertions import tss2csv
 
@@ -29,7 +29,7 @@ class Model:
         self.config = model_configuration
 
         self.logger.info("Setting up model...")
-        self.dynamic_model_concept = RUBEM(self.config)
+        self.dynamic_model_concept = RainfallRunoffBalanceEnhancedModel(self.config)
 
         self.logger.info("Setting up dynamic model framework...")
         self.dynamic_model = DynamicFramework(
