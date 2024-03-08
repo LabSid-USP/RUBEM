@@ -34,13 +34,21 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.config = config
 
         self.logger.info("Reading clone file...")
-        try:
-            pcr.setclone(self.config.raster_files.clone)
-        except RuntimeError:
-            self.logger.error("Error reading clone file at '%s'", self.config.raster_files.clone)
-            raise
+        self.__readmap_wrapper(file_path=self.config.raster_files.clone, readmap_func=pcr.setclone)
 
-        self.__get_enabled_output_vars()
+        self.enabled_ouput_vars = {
+            "itp": self.config.output_variables.itp,
+            "bfw": self.config.output_variables.bfw,
+            "srn": self.config.output_variables.srn,
+            "eta": self.config.output_variables.eta,
+            "lfw": self.config.output_variables.lfw,
+            "rec": self.config.output_variables.rec,
+            "smc": self.config.output_variables.smc,
+            "rnf": self.config.output_variables.rnf,
+            "arn": self.config.output_variables.arn,
+        }
+
+        self.sample_time_series_dict = {}
 
     def initial(self):
         """Contains the initialization of variables used in the model.
@@ -71,7 +79,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         if self.config.raster_files.sample_locations and self.config.output_variables.tss:
             self.logger.info("Setting up TSS output files...")
-            self.__setup_timeoutput_timeseries()
+            self.__initial_setup_timeoutput_timeseries()
 
         self.logger.info("Reading min. and max. NDVI rasters...")
         self.ndvi_max = self.__readmap_wrapper(self.config.raster_files.ndvi_max)
@@ -487,22 +495,8 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         self.__current_step_report()
 
-    def __get_enabled_output_vars(self):
-        # Store which variables have or have not been selected for export
-        self.enabled_ouput_vars = {
-            "itp": self.config.output_variables.itp,
-            "bfw": self.config.output_variables.bfw,
-            "srn": self.config.output_variables.srn,
-            "eta": self.config.output_variables.eta,
-            "lfw": self.config.output_variables.lfw,
-            "rec": self.config.output_variables.rec,
-            "smc": self.config.output_variables.smc,
-            "rnf": self.config.output_variables.rnf,
-            "arn": self.config.output_variables.arn,
-        }
-
-    def __current_step_update_output_vars(self):
-        self.output_vars_dict = {
+    def __current_step_report(self):
+        output_vars_dict = {
             "itp": self.current_interception,
             "bfw": self.current_baseflow,
             "srn": self.current_surface_runoff,
@@ -514,9 +508,6 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             "arn": self.current_runoff,
         }
 
-    def __current_step_report(self):
-        self.__current_step_update_output_vars()
-
         for output_var, is_output_var_enabled in self.enabled_ouput_vars.items():
             if not is_output_var_enabled:
                 continue
@@ -524,7 +515,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             # Export TIFF raster series
             if self.config.output_variables.file_format is OutputFileFormat.GEOTIFF:
                 report(
-                    variable=self.output_vars_dict.get(output_var),
+                    variable=output_vars_dict.get(output_var),
                     name=output_var,
                     timestep=self.currentStep,
                     outpath=self.config.output_directory.path,
@@ -534,98 +525,41 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
             # Export PCRaster map format raster series
             if self.config.output_variables.file_format is OutputFileFormat.PCRASTER:
-                self.report(variable=self.output_vars_dict.get(output_var), name=output_var)
+                self.report(variable=output_vars_dict.get(output_var), name=output_var)
 
             # Check if we have to export the time series of the selected
             # variable (fileName)
             if self.config.raster_files.sample_locations and self.config.output_variables.tss:
                 # Export tss according to variable (fileName) selected
                 # The same as self.tss_file_xxx.sample(self.xxx)
-                self.sample_time_series_dict.get(output_var)(self.output_vars_dict.get(output_var))
+                self.sample_time_series_dict.get(output_var)(output_vars_dict.get(output_var))
 
-    def __setup_timeoutput_timeseries(self):
-        # read sample map location as nominal
-        try:
-            sample_map = pcrfw.nominal(self.config.raster_files.sample_locations)
-        except RuntimeError:
-            self.logger.error(
-                "Error reading sample map file at '%s'", self.config.raster_files.sample_locations
-            )
-            raise
+    def __initial_setup_timeoutput_timeseries(self):
 
-        # Initialize Tss report at sample locations or pits
-        self.tss_file_run = pcrfw.TimeoutputTimeseries(
-            "tss_rnf",
-            self,
-            self.config.raster_files.sample_locations,
-            noHeader=True,
-        )
-        self.tss_file_accrun = pcrfw.TimeoutputTimeseries(
-            "tss_arn",
-            self,
-            self.config.raster_files.sample_locations,
-            noHeader=True,
-        )
-        self.tss_file_int = pcrfw.TimeoutputTimeseries(
-            "tss_itp",
-            self,
-            self.config.raster_files.sample_locations,
-            noHeader=True,
-        )
-        self.tss_file_bflow = pcrfw.TimeoutputTimeseries(
-            "tss_bfw",
-            self,
-            self.config.raster_files.sample_locations,
-            noHeader=True,
-        )
-        self.tss_file_sfrun = pcrfw.TimeoutputTimeseries(
-            "tss_srn",
-            self,
-            self.config.raster_files.sample_locations,
-            noHeader=True,
-        )
-        self.tss_file_eta = pcrfw.TimeoutputTimeseries(
-            "tss_eta",
-            self,
-            self.config.raster_files.sample_locations,
-            noHeader=True,
-        )
-        self.tss_file_lf = pcrfw.TimeoutputTimeseries(
-            "tss_lfw",
-            self,
-            self.config.raster_files.sample_locations,
-            noHeader=True,
-        )
-        self.tss_file_rec = pcrfw.TimeoutputTimeseries(
-            "tss_rec",
-            self,
-            self.config.raster_files.sample_locations,
-            noHeader=True,
-        )
-        self.tss_file_ssat = pcrfw.TimeoutputTimeseries(
-            "tss_smc",
-            self,
-            self.config.raster_files.sample_locations,
-            noHeader=True,
-        )
+        if not self.config.raster_files.sample_locations:
+            return
 
-        self.sample_time_series_dict = {
-            "itp": self.tss_file_int.sample,
-            "bfw": self.tss_file_bflow.sample,
-            "srn": self.tss_file_sfrun.sample,
-            "eta": self.tss_file_eta.sample,
-            "lfw": self.tss_file_lf.sample,
-            "rec": self.tss_file_rec.sample,
-            "smc": self.tss_file_ssat.sample,
-            "rnf": self.tss_file_run.sample,
-            "arn": self.tss_file_accrun.sample,
-        }
+        sample_map = self.__readmap_wrapper(
+            file_path=self.config.raster_files.sample_locations,
+            readmap_func=pcrfw.nominal,
+        )
         # Information for output, get sample location numbers - integer,
         # Convert sample location to multidimensional array
         sample_array = pcrfw.pcr2numpy(sample_map, -999)
         # create 1d array with unique locations values
         # (1 to N number os locations)
         self.sample_vals = np.asarray(np.unique(sample_array))
+
+        # Initialize Tss report at sample locations or pits
+        variables = ["itp", "bfw", "srn", "eta", "lfw", "rec", "smc", "rnf", "arn"]
+        for var in variables:
+            tss_file = pcrfw.TimeoutputTimeseries(
+                f"tss_{var}",
+                self,
+                self.config.raster_files.sample_locations,
+                noHeader=True,
+            )
+            self.sample_time_series_dict[var] = tss_file.sample
 
     def __readmap_series_wrapper(
         self,
