@@ -11,7 +11,7 @@ import humanize
 from rubem import __release__
 from rubem.configuration.app_settings import AppSettings
 from rubem.configuration.data_ranges_settings import DataRangesSettings
-from rubem.core import Model
+from rubem.core import DynamicFrameworkWrapper
 from rubem.validation._validators import filePathArgValidator
 from rubem.configuration.model_configuration import ModelConfiguration
 
@@ -84,7 +84,7 @@ def main():
 
     try:
         model_config = ModelConfiguration(args.configfile, args.skip_inputs_validation)
-        model = Model.load(model_config)
+        model = DynamicFrameworkWrapper.load(model_config)
         model.run()
     except Exception as e:
         logger.critical("RUBEM unexpectedly quit.")

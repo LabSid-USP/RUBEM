@@ -20,7 +20,7 @@
       :template: custom-class-template.rst
       :nosignatures:
    
-      Model
+      DynamicFrameworkWrapper
    
    
 

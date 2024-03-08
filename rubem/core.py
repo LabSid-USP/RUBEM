@@ -9,7 +9,7 @@ from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.file._file_convertions import tss2csv
 
 
-class Model:
+class DynamicFrameworkWrapper:
     """Initialize the ``DynamicFrameworkWrapper`` class
 
     Wrapper for the ``DynamicFramework`` that runs the ``DynamicModelConcept`` of the Rainfall rUnoff Balance Enhanced Model.
