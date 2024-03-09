@@ -490,12 +490,11 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.previous_soil_sat_zone_storage = self.current_soil_sat_zone_storage
 
         self.logger.debug("Runoff")
-
-        conversion_den = monthrange(current_date.year, current_date.month)[1] * 24 * 3600
-
         self.current_cell_total_discharge = (
             self.current_surface_runoff + self.current_lateral_flow + self.current_baseflow
         )  # [mm]
+        
+        conversion_den = monthrange(current_date.year, current_date.month)[1] * 24 * 3600
         current_cell_total_discharge_vol = (
             self.current_cell_total_discharge * self.config.grid.area * 0.001 / conversion_den
         )  # [m3/s]
