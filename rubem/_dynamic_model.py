@@ -13,6 +13,7 @@ from rubem.configuration.output_format import OutputFileFormat
 from rubem.file._file_generators import report
 from rubem.hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
 
+MISSING_VALUE_DEFAULT = -9999
 
 class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
     """Rainfall-Runoff Balance Enhanced Model.
@@ -32,21 +33,10 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.logger = logging.getLogger(__name__)
 
         self.config = config
+        os.chdir(self.config.output_directory.path)
 
         self.logger.info("Reading clone file...")
         self.__readmap_wrapper(file_path=self.config.raster_files.clone, readmap_func=pcr.setclone)
-
-        self.enabled_ouput_vars = {
-            "itp": self.config.output_variables.itp,
-            "bfw": self.config.output_variables.bfw,
-            "srn": self.config.output_variables.srn,
-            "eta": self.config.output_variables.eta,
-            "lfw": self.config.output_variables.lfw,
-            "rec": self.config.output_variables.rec,
-            "smc": self.config.output_variables.smc,
-            "rnf": self.config.output_variables.rnf,
-            "arn": self.config.output_variables.arn,
-        }
 
         self.sample_time_series_dict = {}
         self.sample_vals = None
@@ -107,6 +97,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         if self.config.raster_files.sample_locations and self.config.output_variables.tss:
             self.logger.info("Setting up TSS output files...")
+            self.sample_vals = self.__initial_setup_sample_locations()
             self.__initial_setup_timeoutput_timeseries()
 
         self.logger.info("Reading min. and max. NDVI rasters...")
@@ -519,76 +510,72 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         )
         self.previous_cell_total_flow = self.current_runoff
 
-        os.chdir(self.config.output_directory.path)
         self.logger.debug("Exporting variables to files")
-
         self.__current_step_report()
 
     def __current_step_report(self):
         output_vars_dict = {
-            "itp": self.current_interception,
-            "bfw": self.current_baseflow,
-            "srn": self.current_surface_runoff,
-            "eta": self.current_total_real_evapotranspiration,
-            "lfw": self.current_lateral_flow,
-            "rec": self.current_recharge,
-            "smc": self.current_soil_moist_content,
-            "rnf": self.current_cell_total_discharge,
-            "arn": self.current_runoff,
+            self.config.output_variables.itp.get("id"): self.current_interception,
+            self.config.output_variables.bfw.get("id"): self.current_baseflow,
+            self.config.output_variables.srn.get("id"): self.current_surface_runoff,
+            self.config.output_variables.eta.get("id"): self.current_total_real_evapotranspiration,
+            self.config.output_variables.lfw.get("id"): self.current_lateral_flow,
+            self.config.output_variables.rec.get("id"): self.current_recharge,
+            self.config.output_variables.smc.get("id"): self.current_soil_moist_content,
+            self.config.output_variables.rnf.get("id"): self.current_cell_total_discharge,
+            self.config.output_variables.arn.get("id"): self.current_runoff,
         }
 
-        for output_var, is_output_var_enabled in self.enabled_ouput_vars.items():
-            if not is_output_var_enabled:
+        for var in self.config.output_variables.get_enabled_raster_series():
+            if not var.get("is_raster_series_enabled"):
                 continue
 
-            # Export TIFF raster series
             if self.config.output_variables.file_format is OutputFileFormat.GEOTIFF:
                 report(
-                    variable=output_vars_dict.get(output_var),
-                    name=output_var,
+                    variable=output_vars_dict.get(var.get("id")),
+                    name=var.get("raster_filename_prefix"),
                     timestep=self.currentStep,
                     outpath=self.config.output_directory.path,
                     file_format=OutputFileFormat.GEOTIFF,
                     base_raster_info=self.config.output_raster_base,
                 )
 
-            # Export PCRaster map format raster series
             if self.config.output_variables.file_format is OutputFileFormat.PCRASTER:
-                self.report(variable=output_vars_dict.get(output_var), name=output_var)
+                self.report(
+                    variable=output_vars_dict.get(var.get("id")),
+                    name=var.get("raster_filename_prefix"),
+                )
 
-            # Check if we have to export the time series of the selected
-            # variable (fileName)
             if self.config.raster_files.sample_locations and self.config.output_variables.tss:
-                # Export tss according to variable (fileName) selected
                 # The same as self.tss_file_xxx.sample(self.xxx)
-                self.sample_time_series_dict.get(output_var)(output_vars_dict.get(output_var))
+                sample_func = self.sample_time_series_dict.get(var.get("id"))
+                sample_func(output_vars_dict.get(var.get("id")))
 
     def __initial_setup_timeoutput_timeseries(self):
+        """Initial setup of timeoutput timeseries.
 
-        if not self.config.raster_files.sample_locations:
-            return
-
-        sample_map = self.__readmap_wrapper(
-            file_path=self.config.raster_files.sample_locations,
-            readmap_func=pcrfw.nominal,
-        )
-        # Information for output, get sample location numbers - integer,
-        # Convert sample location to multidimensional array
-        sample_array = pcrfw.pcr2numpy(sample_map, -999)
-        # create 1d array with unique locations values
-        # (1 to N number os locations)
-        self.sample_vals = np.asarray(np.unique(sample_array))
-
-        # Initialize Tss report at sample locations or pits
-        variables = ["itp", "bfw", "srn", "eta", "lfw", "rec", "smc", "rnf", "arn"]
-        for var in variables:
+        Initialize Tss report at sample locations or pits for each enabled output variable.
+        """
+        for var in self.config.output_variables.get_enabled_time_series():
             tss_file = pcrfw.TimeoutputTimeseries(
-                f"tss_{var}",
+                var.get("table_filename_prefix"),
                 self,
                 self.config.raster_files.sample_locations,
                 noHeader=True,
             )
-            self.sample_time_series_dict[var] = tss_file.sample
+            self.sample_time_series_dict[var.get("id")] = tss_file.sample
+
+    def __initial_setup_sample_locations(self) -> np.ndarray:
+        """Initial setup of sample locations.
+
+        Read the sample locations from the file and create a 1D array with unique locations values.
+        """
+        sample_map = self.__readmap_wrapper(
+            file_path=self.config.raster_files.sample_locations,
+            readmap_func=pcrfw.nominal,
+        )
+        sample_array = pcrfw.pcr2numpy(map=sample_map, mv=MISSING_VALUE_DEFAULT)
+        return np.asarray(np.unique(sample_array))
 
     def __readmap_series_wrapper(
         self,
