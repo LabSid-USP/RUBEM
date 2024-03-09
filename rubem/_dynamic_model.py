@@ -539,6 +539,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                     outpath=self.config.output_directory.path,
                     file_format=OutputFileFormat.GEOTIFF,
                     base_raster_info=self.config.output_raster_base,
+                    no_data_value=MISSING_VALUE_DEFAULT,
                 )
 
             if self.config.output_variables.file_format is OutputFileFormat.PCRASTER:
