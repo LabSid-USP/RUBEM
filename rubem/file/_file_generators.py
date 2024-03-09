@@ -4,6 +4,7 @@ from typing import Optional, Union
 
 from osgeo import gdal
 import pcraster as pcr
+from pcraster._pcraster import Field
 from pcraster.framework import pcr2numpy
 
 from rubem.configuration.output_format import OutputFileFormat
@@ -17,7 +18,7 @@ gdal.AllRegister()
 
 
 def report(
-    variable: pcr._pcraster.Field,
+    variable: Field,
     name: str,
     outpath: Union[str, bytes, os.PathLike],
     base_raster_info: OutputRasterBase,
@@ -28,7 +29,7 @@ def report(
     """Storing map data to disk using GDAL
 
     :param variable: Variable containing the PCRaster map data
-    :type variable: pcr._pcraster.Field
+    :type variable: Field
 
     :param timestep: Current timestep. If set the filename will contain the timestep (dynamic mode). Default is ``None``.
     :type timestep: int, optional
@@ -62,7 +63,7 @@ def report(
 
 
 def __report(
-    variable: pcr._pcraster.Field,
+    variable: Field,
     outpath: Union[str, bytes, os.PathLike],
     name: str,
     driver_short_name: str,

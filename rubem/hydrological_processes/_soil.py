@@ -1,4 +1,5 @@
 import pcraster as pcr
+from pcraster._pcraster import Field
 
 
 class Soil:
@@ -12,9 +13,9 @@ class Soil:
     @staticmethod
     def get_lateral_flow(
         preferred_flow_direction: float,
-        hydraulic_cond_coef: pcr._pcraster.Field,
-        actual_soil_moist_cont_non_sat_zone: pcr._pcraster.Field,
-        soil_moist_cont_sat_point: pcr._pcraster.Field,
+        hydraulic_cond_coef: Field,
+        actual_soil_moist_cont_non_sat_zone: Field,
+        soil_moist_cont_sat_point: Field,
     ):
         """Return Lateral Flow in the pixel [mm].
 
@@ -22,16 +23,16 @@ class Soil:
         :type preferred_flow_direction: float
 
         :param hydraulic_cond_coef: Hydraulic Conductivity of soil class [mm/month]
-        :type hydraulic_cond_coef: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type hydraulic_cond_coef: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param actual_soil_moist_cont_non_sat_zone: Actual soil moisture content non-saturated zone [mm]
-        :type actual_soil_moist_cont_non_sat_zone: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type actual_soil_moist_cont_non_sat_zone: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param soil_moist_cont_sat_point: Soil moisture content at saturation point []
-        :type soil_moist_cont_sat_point: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type soil_moist_cont_sat_point: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Lateral Flow [mm]
-        :rtype: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         return (
             preferred_flow_direction
@@ -42,26 +43,26 @@ class Soil:
     @staticmethod
     def get_recharge(
         preferred_flow_direction: float,
-        hydraulic_cond_coef: pcr._pcraster.Field,
-        actual_soil_moist_cont_non_sat_zone: pcr._pcraster.Field,
-        soil_mois_cont_sat_point: pcr._pcraster.Field,
-    ) -> pcr._pcraster.Field:
+        hydraulic_cond_coef: Field,
+        actual_soil_moist_cont_non_sat_zone: Field,
+        soil_mois_cont_sat_point: Field,
+    ) -> Field:
         """Return Recharge in the pixel [mm].
 
         :param preferred_flow_direction: preferred flow direction parameter [-]
         :type preferred_flow_direction: float
 
         :param hydraulic_cond_coef: Hydraulic Conductivity of soil class [mm/month]
-        :type hydraulic_cond_coef: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type hydraulic_cond_coef: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param actual_soil_moist_cont_non_sat_zone: Actual soil moisture content non-saturated zone [mm]
-        :type actual_soil_moist_cont_non_sat_zone: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type actual_soil_moist_cont_non_sat_zone: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param soil_mois_cont_sat_point: Soil moisture content at saturation point [-]
-        :type soil_mois_cont_sat_point: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type soil_mois_cont_sat_point: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Monthly Recharge [mm]
-        :rtype: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         return (
             (1 - preferred_flow_direction)
@@ -71,31 +72,31 @@ class Soil:
 
     @staticmethod
     def get_baseflow(
-        previous_baseflow: pcr._pcraster.Field,
+        previous_baseflow: Field,
         baseflow_recession_coef: float,
-        recharge: pcr._pcraster.Field,
-        water_cont_sat_zone: pcr._pcraster.Field,
-        threshold_for_baseflow_ocurrence: pcr._pcraster.Field,
-    ) -> pcr._pcraster.Field:
+        recharge: Field,
+        water_cont_sat_zone: Field,
+        threshold_for_baseflow_ocurrence: Field,
+    ) -> Field:
         """Return Baseflow in the pixel [mm].
 
         :param previous_baseflow: Baseflow at timestep t-1 [mm]
-        :type previous_baseflow: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type previous_baseflow: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param baseflow_recession_coef: Baseflow recession coefficient (Calibrated) [-]
         :type baseflow_recession_coef: float
 
         :param recharge: Monthly Recharge at timestep t
-        :type recharge: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type recharge: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param water_cont_sat_zone: Water content at saturated zone [mm]
-        :type water_cont_sat_zone: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type water_cont_sat_zone: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param threshold_for_baseflow_ocurrence: Threshold for baseflow ocurrence [mm]
-        :type threshold_for_baseflow_ocurrence: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type threshold_for_baseflow_ocurrence: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Monthly Baseflow [mm]
-        :rtype: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         # limit condition for base flow
         cond_lim_for_baseflow = pcr.scalar(water_cont_sat_zone > threshold_for_baseflow_ocurrence)
@@ -107,47 +108,47 @@ class Soil:
     # First soil layer
     @staticmethod
     def get_actual_soil_moist_cont_non_sat_zone(
-        previous_soil_moist_cont: pcr._pcraster.Field,
-        precipitation: pcr._pcraster.Field,
-        interception: pcr._pcraster.Field,
-        surface_runoff: pcr._pcraster.Field,
-        lateral_flow: pcr._pcraster.Field,
-        recharge: pcr._pcraster.Field,
-        actual_evapotranpiration: pcr._pcraster.Field,
-        open_water_area_fraction: pcr._pcraster.Field,
-        soil_moist_cont_sat_point: pcr._pcraster.Field,
-    ) -> pcr._pcraster.Field:
+        previous_soil_moist_cont: Field,
+        precipitation: Field,
+        interception: Field,
+        surface_runoff: Field,
+        lateral_flow: Field,
+        recharge: Field,
+        actual_evapotranpiration: Field,
+        open_water_area_fraction: Field,
+        soil_moist_cont_sat_point: Field,
+    ) -> Field:
         """Return Actual Soil Moisture Content at non-saturated zone in the pixel [mm].
 
         :param previous_soil_moist_cont: Soil moisture content at timestep t-1 [mm]
-        :type previous_soil_moist_cont: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type previous_soil_moist_cont: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param precipitation: Monthly precipitation [mm]
-        :type precipitation: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type precipitation: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param interception: Monthly Interception [mm]
-        :type interception: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type interception: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param surface_runoff: Monthly Surface Runoff [mm]
-        :type surface_runoff: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type surface_runoff: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param lateral_flow: Monthly Lateral Flow [mm]
-        :type lateral_flow: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type lateral_flow: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param recharge: Monthly Recharge [mm]
-        :type recharge: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type recharge: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param actual_evapotranpiration: Monthly Actual Evapotranspiration [mm]
-        :type actual_evapotranpiration: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type actual_evapotranpiration: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param open_water_area_fraction: Open Water Area Fraction [-]
-        :type open_water_area_fraction: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type open_water_area_fraction: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param soil_moist_cont_sat_point: Soil moisture content at saturation point []
-        :type soil_moist_cont_sat_point: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type soil_moist_cont_sat_point: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Soil Moisture Content [mm]
-        :rtype: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
 
         # condition for pixel of water, if open_water_area_fraction different of 1 (not water)
@@ -178,23 +179,23 @@ class Soil:
     # Second soil layer
     @staticmethod
     def get_actual_water_cont_sat_zone(
-        previous_water_cont_sat_zone: pcr._pcraster.Field,
-        recharge: pcr._pcraster.Field,
-        baseflow: pcr._pcraster.Field,
-    ) -> pcr._pcraster.Field:
+        previous_water_cont_sat_zone: Field,
+        recharge: Field,
+        baseflow: Field,
+    ) -> Field:
         """Return Actual Water Content at saturated zone in the pixel [mm].
 
         :param previous_water_cont_sat_zone: Water content at saturated zone at timestep t-1 [mm]
-        :type previous_water_cont_sat_zone: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type previous_water_cont_sat_zone: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param recharge: Monthly Recharge [mm]
-        :type recharge: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type recharge: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param baseflow: Monthly Baseflow[mm]
-        :type baseflow: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type baseflow: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Water content at saturated zone [mm]
-        :rtype: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         # soil balance
         return previous_water_cont_sat_zone + recharge - baseflow

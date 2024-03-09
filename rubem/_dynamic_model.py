@@ -6,6 +6,7 @@ from typing import Callable, Optional, Union
 from dateutil.relativedelta import relativedelta
 import numpy as np
 import pcraster as pcr
+from pcraster._pcraster import Field
 import pcraster.framework as pcrfw
 
 from rubem.configuration.model_configuration import ModelConfiguration
@@ -14,6 +15,7 @@ from rubem.file._file_generators import report
 from rubem.hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
 
 MISSING_VALUE_DEFAULT = -9999
+
 
 class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
     """Rainfall-Runoff Balance Enhanced Model.
@@ -493,7 +495,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.current_cell_total_discharge = (
             self.current_surface_runoff + self.current_lateral_flow + self.current_baseflow
         )  # [mm]
-        
+
         conversion_den = monthrange(current_date.year, current_date.month)[1] * 24 * 3600
         current_cell_total_discharge_vol = (
             self.current_cell_total_discharge * self.config.grid.area * 0.001 / conversion_den
@@ -582,7 +584,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         dynamic_readmap_func: Callable,
         conversion_func: Optional[Callable] = None,
         supress_errors: bool = False,
-    ) -> pcr._pcraster.Field:
+    ) -> Field:
         """Read a map from a raster series for a given step from a specified location.
 
         :param dynamic_readmap_func: Function to read the map file.
@@ -598,7 +600,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         :type supress_errors: Optional[bool]
 
         :return: The data map read from the file.
-        :rtype: pcr._pcraster.Field
+        :rtype: Field
 
         :raises RuntimeError: The data map for the step was not found in the specified path.
         """
@@ -620,7 +622,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         file_path: Union[str, bytes, os.PathLike],
         readmap_func: Callable = pcrfw.readmap,
         conversion_func: Optional[Callable] = None,
-    ) -> pcr._pcraster.Field:
+    ) -> Field:
         """Read a data map for a given data type from a specified location.
 
         :param file_path: The path where the data map is located.
@@ -633,7 +635,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         :type conversion_func: Optional[Callable]
 
         :return: The data map read from the file.
-        :rtype: pcr._pcraster.Field
+        :rtype: Field
 
         :raises RuntimeError: The specified data map was not loaded correctly.
         """
@@ -654,7 +656,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         file_path: Union[str, bytes, os.PathLike],
         lookup_value,
         lookup_func: Callable,
-    ) -> pcr._pcraster.Field:
+    ) -> Field:
         """Read a data from a lookup table for a given data type.
 
         :param file_path: The file path where the data is located.
@@ -667,7 +669,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         :type lookup_func: Callable
 
         :return: The data read from the table.
-        :rtype: pcr._pcraster.Field
+        :rtype: Field
 
         :raises RuntimeError: The specified data was not loaded correctly.
         """

@@ -1,4 +1,5 @@
 import pcraster as pcr
+from pcraster._pcraster import Field
 
 
 class Interception:
@@ -10,44 +11,44 @@ class Interception:
     """
 
     @staticmethod
-    def get_reflectances_simple_ration(ndvi: pcr._pcraster.Field) -> pcr._pcraster.Field:
+    def get_reflectances_simple_ration(ndvi: Field) -> Field:
         """Return Reflectances Simple Ratio (SR).
 
         :param ndvi: Normalized Difference Vegetation Index (NDVI) at the pixel
-        :type ndvi: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type ndvi: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Reflectances Simple Ratio (SR) [-]
-        :rtype: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         return (1 + ndvi) / (1 - ndvi)
 
     @staticmethod
     def get_crop_coef(
-        ndvi: pcr._pcraster.Field,
-        ndvi_min: pcr._pcraster.Field,
-        ndvi_max: pcr._pcraster.Field,
-        crop_coef_min: pcr._pcraster.Field,
-        crop_coef_max: pcr._pcraster.Field,
-    ) -> pcr._pcraster.Field:
+        ndvi: Field,
+        ndvi_min: Field,
+        ndvi_max: Field,
+        crop_coef_min: Field,
+        crop_coef_max: Field,
+    ) -> Field:
         """Return Crop Coefficient (Kc).
 
         :param ndvi: Normalized Difference Vegetation Index (NDVI) at the pixel
-        :type ndvi: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type ndvi: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param ndvi_min: Minimum Normalized Difference Vegetation Index (NDVI) at the pixel
-        :type ndvi_min: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type ndvi_min: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param ndvi_max: Maximum Normalized Difference Vegetation Index (NDVI) at the pixel
-        :type ndvi_max: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type ndvi_max: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param crop_coef_min: Minimum Crop Coefficient landuse class [-]
-        :type crop_coef_min: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type crop_coef_min: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param crop_coef_max: Maximum Crop Coefficient landuse class [-]
-        :type crop_coef_max: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type crop_coef_max: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Crop Coefficient (Kc) [-]
-        :rtype: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         return crop_coef_min + (
             (crop_coef_max - crop_coef_min) * ((ndvi - ndvi_min) / (ndvi_max - ndvi_min))
@@ -57,10 +58,10 @@ class Interception:
     def get_fpar(
         fpar_min: float,
         fpar_max: float,
-        reflectances_simple_ratio: pcr._pcraster.Field,
-        reflectances_simple_ratio_min: pcr._pcraster.Field,
-        reflectances_simple_ratio_max: pcr._pcraster.Field,
-    ) -> pcr._pcraster.Field:
+        reflectances_simple_ratio: Field,
+        reflectances_simple_ratio_min: Field,
+        reflectances_simple_ratio_max: Field,
+    ) -> Field:
         """Return Fraction of Photosynthetically Active Radiation (FPAR).
 
         :param fpar_min: Minimum Fraction of Photosynthetically Active Radiation [-]
@@ -70,16 +71,16 @@ class Interception:
         :type fpar_max: float
 
         :param reflectances_simple_ratio: Reflectances Simple Ratio [-]
-        :type reflectances_simple_ratio: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type reflectances_simple_ratio: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param reflectances_simple_ratio_min: Mimimum Reflectances Simple Ratio [-]
-        :type reflectances_simple_ratio_min: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type reflectances_simple_ratio_min: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param reflectances_simple_ratio_max: Maximum Reflectances Simple Ratio [-]
-        :type reflectances_simple_ratio_max: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type reflectances_simple_ratio_max: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Fraction of Photosynthetically Active Radiation (FPAR) [-]
-        :rtype: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         fpar_comp = (
             (reflectances_simple_ratio - reflectances_simple_ratio_min)
@@ -90,14 +91,14 @@ class Interception:
 
     @staticmethod
     def get_leaf_area_index(
-        fpar: pcr._pcraster.Field,
+        fpar: Field,
         fpar_max: float,
         leaf_area_index_max: float,
-    ) -> pcr._pcraster.Field:
+    ) -> Field:
         """Return Leaf Area Index (LAI).
 
         :param fpar: Fraction of Photosynthetically Active Radiation (FPAR) [-]
-        :type fpar: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type fpar: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation (FPAR) [-]
         :type fpar_max: float
@@ -106,37 +107,37 @@ class Interception:
         :type leaf_area_index_max: float
 
         :returns: Leaf Area Index (LAI) [-]
-        :rtype:pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :rtype:Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         return leaf_area_index_max * ((pcr.log10(1 - fpar)) / (pcr.log10(1 - fpar_max)))
 
     @staticmethod
     def get_interception(
         alfa: float,
-        leaf_area_index: pcr._pcraster.Field,
-        precipitation: pcr._pcraster.Field,
-        rainy_days: pcr._pcraster.Field,
-        vegeted_area_fraction: pcr._pcraster.Field,
-    ) -> pcr._pcraster.Field:
+        leaf_area_index: Field,
+        precipitation: Field,
+        rainy_days: Field,
+        vegeted_area_fraction: Field,
+    ) -> Field:
         """Return Interception [mm].
 
         :param alfa: Interception Parameter [-]
         :type alfa: float
 
         :param leaf_area_index: Leaf Area Index (LAI) [-]
-        :type leaf_area_index: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type leaf_area_index: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param precipitation: Monthly Precipitation [mm]
-        :type precipitation: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type precipitation: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param rainy_days: Number of rainy days for month
-        :type rainy_days: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type rainy_days: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param vegeted_area_fraction: Vegetated Area Fraction
-        :type vegeted_area_fraction: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :type vegeted_area_fraction: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Monthly Interception [mm]
-        :rtype: pcr._pcraster.Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         # condition of precipitation, to divide by non zero number (missing value)
         cond_non_zero_prec = pcr.scalar((precipitation != 0))
