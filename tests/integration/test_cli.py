@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 import tempfile
-from unittest import result
 
 import pytest
 
