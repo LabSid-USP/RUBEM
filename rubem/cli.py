@@ -12,7 +12,7 @@ from rubem import __release__
 from rubem.configuration.app_settings import AppSettings
 from rubem.configuration.data_ranges_settings import DataRangesSettings
 from rubem.core import DynamicFrameworkWrapper
-from rubem.validation._validators import filePathArgValidator
+from rubem.validation.cli_validators import file_path_cli_arg_validator
 from rubem.configuration.model_configuration import ModelConfiguration
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ def main():
     parser.add_argument(
         "-c",
         "--configfile",
-        type=filePathArgValidator,
+        type=file_path_cli_arg_validator,
         help="path to configuration file",
         required=True,
     )
