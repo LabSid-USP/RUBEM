@@ -67,7 +67,7 @@ class DynamicFrameworkWrapper:
             exec_time = time.time() - t0
             self.logger.info("Elapsed time: %.2fs", exec_time)
             print(f"Elapsed time: {humanize.precisedelta(exec_time, minimum_unit='seconds')}")
-            self.__exportTablesAsCSV()
+            self.__export_tables_as_csv()
 
     @classmethod
     def load(cls, data):
@@ -87,7 +87,7 @@ class DynamicFrameworkWrapper:
         else:
             raise ValueError("Unsupported model configuration format", type(data))
 
-    def __exportTablesAsCSV(self) -> None:
+    def __export_tables_as_csv(self) -> None:
         """Converts PCRaster TSS files to Comma-Separated Values (CSV) files."""
         if self.config.raster_files.sample_locations and self.config.output_variables.tss:
             self.logger.info("Exporting tables as CSV...")
