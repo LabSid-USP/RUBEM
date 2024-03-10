@@ -27,7 +27,6 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
     has the flexibility to study a wide range of applications, including impacts of changes in
     climate and land use, has flexible spatial resolution, the inputs are raster-type matrix
     files obtained from remote sensing data and operates with a reduced number of parameters.
-
     """
 
     def __init__(self, config: ModelConfiguration):
