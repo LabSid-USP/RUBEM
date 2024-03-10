@@ -115,7 +115,47 @@ class TestCliApp:
             subprocess.check_output(["python", "rubem", "-c", "invalid_path"])
 
     @pytest.mark.integration
-    def test_cli_app_valid_args(self):
+    def test_cli_app_not_a_file_config(self):
+        with pytest.raises(subprocess.CalledProcessError):
+            subprocess.check_output(["python", "rubem", "-c", os.path.dirname(__file__)])
+
+    @pytest.mark.integration
+    def test_cli_app_invalid_extension_config_json_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with open(
+                file=os.path.join(temp_dir, "bagheera.jaguar"), mode="w", encoding="utf8"
+            ) as f:
+                f.write(json.dumps(self.config))
+
+            with pytest.raises(subprocess.CalledProcessError):
+                subprocess.check_output(
+                    ["python", "rubem", "-c", os.path.join(temp_dir, "bagheera.jaguar")]
+                )
+
+    @pytest.mark.integration
+    def test_cli_app_invalid_config_json_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with open(file=os.path.join(temp_dir, "config.json"), mode="w", encoding="utf8") as f:
+                f.write("invalid_json")
+
+            with pytest.raises(subprocess.CalledProcessError):
+                subprocess.check_output(
+                    ["python", "rubem", "-c", os.path.join(temp_dir, "config.json")]
+                )
+
+    @pytest.mark.integration
+    def test_cli_app_empty_config_json_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with open(file=os.path.join(temp_dir, "config.json"), mode="w", encoding="utf8") as f:
+                f.write(json.dumps({}))
+
+            with pytest.raises(subprocess.CalledProcessError):
+                subprocess.check_output(
+                    ["python", "rubem", "-c", os.path.join(temp_dir, "config.json")]
+                )
+
+    @pytest.mark.integration
+    def test_cli_app_valid_config_json_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             self.config["DIRECTORIES"]["output"] = temp_dir
             with open(file=os.path.join(temp_dir, "config.json"), mode="w", encoding="utf8") as f:
