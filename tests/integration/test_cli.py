@@ -201,3 +201,51 @@ class TestCliApp:
             assert os.path.exists(os.path.join(temp_dir, "tss_smc.csv"))
             assert os.path.exists(os.path.join(temp_dir, "tss_rnf.csv"))
             assert os.path.exists(os.path.join(temp_dir, "tss_arn.csv"))
+
+    @pytest.mark.integration
+    def test_cli_app_skip_input_data_validation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.config["DIRECTORIES"]["output"] = temp_dir
+            with open(file=os.path.join(temp_dir, "config.json"), mode="w", encoding="utf8") as f:
+                f.write(json.dumps(self.config))
+
+            subprocess.check_output(
+                ["python", "rubem", "-s", "-c", os.path.join(temp_dir, "config.json")]
+            )
+
+            assert os.path.exists(os.path.join(temp_dir, "itp00000.001"))
+            assert os.path.exists(os.path.join(temp_dir, "itp00000.002"))
+            assert os.path.exists(os.path.join(temp_dir, "itp00000.003"))
+            assert os.path.exists(os.path.join(temp_dir, "bfw00000.001"))
+            assert os.path.exists(os.path.join(temp_dir, "bfw00000.002"))
+            assert os.path.exists(os.path.join(temp_dir, "bfw00000.003"))
+            assert os.path.exists(os.path.join(temp_dir, "srn00000.001"))
+            assert os.path.exists(os.path.join(temp_dir, "srn00000.002"))
+            assert os.path.exists(os.path.join(temp_dir, "srn00000.003"))
+            assert os.path.exists(os.path.join(temp_dir, "eta00000.001"))
+            assert os.path.exists(os.path.join(temp_dir, "eta00000.002"))
+            assert os.path.exists(os.path.join(temp_dir, "eta00000.003"))
+            assert os.path.exists(os.path.join(temp_dir, "lfw00000.001"))
+            assert os.path.exists(os.path.join(temp_dir, "lfw00000.002"))
+            assert os.path.exists(os.path.join(temp_dir, "lfw00000.003"))
+            assert os.path.exists(os.path.join(temp_dir, "rec00000.001"))
+            assert os.path.exists(os.path.join(temp_dir, "rec00000.002"))
+            assert os.path.exists(os.path.join(temp_dir, "rec00000.003"))
+            assert os.path.exists(os.path.join(temp_dir, "smc00000.001"))
+            assert os.path.exists(os.path.join(temp_dir, "smc00000.002"))
+            assert os.path.exists(os.path.join(temp_dir, "smc00000.003"))
+            assert os.path.exists(os.path.join(temp_dir, "rnf00000.001"))
+            assert os.path.exists(os.path.join(temp_dir, "rnf00000.002"))
+            assert os.path.exists(os.path.join(temp_dir, "rnf00000.003"))
+            assert os.path.exists(os.path.join(temp_dir, "arn00000.001"))
+            assert os.path.exists(os.path.join(temp_dir, "arn00000.002"))
+            assert os.path.exists(os.path.join(temp_dir, "arn00000.003"))
+            assert os.path.exists(os.path.join(temp_dir, "tss_itp.csv"))
+            assert os.path.exists(os.path.join(temp_dir, "tss_bfw.csv"))
+            assert os.path.exists(os.path.join(temp_dir, "tss_srn.csv"))
+            assert os.path.exists(os.path.join(temp_dir, "tss_eta.csv"))
+            assert os.path.exists(os.path.join(temp_dir, "tss_lfw.csv"))
+            assert os.path.exists(os.path.join(temp_dir, "tss_rec.csv"))
+            assert os.path.exists(os.path.join(temp_dir, "tss_smc.csv"))
+            assert os.path.exists(os.path.join(temp_dir, "tss_rnf.csv"))
+            assert os.path.exists(os.path.join(temp_dir, "tss_arn.csv"))
