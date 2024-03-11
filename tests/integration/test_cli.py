@@ -32,6 +32,7 @@ class TestCliApp:
         "RASTERS": {
             "dem": f"{test_data_dir}/fixtures/base/maps/dem/dem.map",
             "clone": f"{test_data_dir}/fixtures/base/maps/clone/clone.map",
+            "ldd": f"{test_data_dir}/fixtures/base/maps/ldd/ldd.map",
             "ndvi_max": f"{test_data_dir}/fixtures/base/maps/ndvi/ndvi_max.map",
             "ndvi_min": f"{test_data_dir}/fixtures/base/maps/ndvi/ndvi_min.map",
             "soil": f"{test_data_dir}/fixtures/base/maps/soil/soil.map",
@@ -157,9 +158,16 @@ class TestCliApp:
                     ["python", "rubem", "-c", os.path.join(temp_dir, "config.json")]
                 )
 
-    # TODO: Fix this test for Accumulated Total Runoff (arn) raster and table
     @pytest.mark.integration
     def test_cli_app_valid_config_json_file(self):
+        """Test the CLI application with a valid config.json file.
+
+        .. note::
+
+            To obtain reproducible results, the LDD raster must be set.
+            See the `LDD` section in the `config.json` file.
+            Refer to LabSid-USP/RUBEM#120 for more information.
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
             self.config["DIRECTORIES"]["output"] = temp_dir
             with open(file=os.path.join(temp_dir, "config.json"), mode="w", encoding="utf8") as f:
@@ -186,8 +194,8 @@ class TestCliApp:
                 "smc00000.002",
                 "rnf00000.001",
                 "rnf00000.002",
-                # "arn00000.001",
-                # "arn00000.002",
+                "arn00000.001",
+                "arn00000.002",
             ]
 
             for raster_file in raster_files:
@@ -206,7 +214,7 @@ class TestCliApp:
                 "tss_rec.csv",
                 "tss_smc.csv",
                 "tss_rnf.csv",
-                # "tss_arn.csv",
+                "tss_arn.csv",
             ]
 
             for table_file in table_files:
