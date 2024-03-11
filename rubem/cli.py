@@ -1,9 +1,7 @@
 import argparse
-from datetime import datetime
 import logging
 import logging.config
 import logging.handlers
-import os
 from typing import Optional
 
 import humanize
@@ -105,22 +103,12 @@ def setup_logging(custom_logging_config: Optional[dict] = None):
         "formatter": "basic_formatter",
         "level": logging.WARNING,
     }
-    rotating_file_handler_config = {
-        "class": "logging.handlers.RotatingFileHandler",
-        "formatter": "basic_formatter",
-        "filename": os.path.join(
-            os.path.expanduser("~"), ".rubem", f"rubem-{datetime.today().strftime('%d%m%Y')}.log"
-        ),
-        "maxBytes": 5242880,
-        "backupCount": 3,
-        "level": logging.INFO,
-    }
     basic_formatter_config = {"format": log_format, "datefmt": "%Y-%m-%dT%H:%M:%S%z"}
     default_logging_config = {
         "version": 1,
         "formatters": {"basic_formatter": basic_formatter_config},
-        "handlers": {"console": console_handler_config, "file": rotating_file_handler_config},
-        "root": {"handlers": ["console", "file"], "level": logging.DEBUG},
+        "handlers": {"console": console_handler_config},
+        "root": {"handlers": ["console"], "level": logging.DEBUG},
     }
 
     if custom_logging_config:
