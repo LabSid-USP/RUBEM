@@ -10,7 +10,7 @@ from tests.utils import compare_rasters, compare_csv
 
 class TestCliApp:
 
-    test_data_dir = os.path.join(os.path.dirname(__file__), os.path.pardir)
+    test_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
     test_data_result_dir = os.path.join(test_data_dir, "fixtures", "base", "out")
     config = {
         "SIM_TIME": {"start": "01/01/2000", "end": "01/02/2000"},
