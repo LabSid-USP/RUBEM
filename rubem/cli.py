@@ -87,13 +87,12 @@ def main():
     except Exception as e:
         logger.critical("RUBEM unexpectedly quit.")
         logger.exception(e)
-        raise SystemExit(1)
-    except KeyboardInterrupt:
+        raise SystemExit(1) from e
+    except KeyboardInterrupt as e:
         logger.critical("RUBEM was interrupted by the user.")
-        raise SystemExit(2)
-    else:
-        logger.info("RUBEM successfully finished!")
-        raise SystemExit(0)
+        raise SystemExit(2) from e
+
+    logger.info("RUBEM successfully finished!")
 
 
 def setup_logging(custom_logging_config: Optional[dict] = None):
