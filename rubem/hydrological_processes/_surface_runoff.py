@@ -6,8 +6,8 @@ class SurfaceRunoff:
     """Class to calculate surface runoff.
 
     This class contains methods to calculate coefficient representing soil moisture conditions (Ch),
-    runoff coefficient for permeable areas (Cper), percentage of impervious surface per grid cell and
-    the runoff coefficient of the impervious area (Cimp), weighted potential runoff coefficient (Cwp),
+    potential runoff coefficient for permeable areas (Cper), percentage of impervious surface per grid cell and
+    the potential runoff coefficient of the impervious area (Cimp), weighted potential runoff coefficient (Cwp),
     actual runoff coefficient (Csr), and surface runoff.
     """
 
@@ -55,7 +55,7 @@ class SurfaceRunoff:
         w2: float,
         w3: float,
     ) -> Field:
-        """Return the runoff coefficient for permeable areas (Cper).
+        """Return the potential runoff coefficient for permeable areas (Cper).
 
         :param soil_water_coef_permeable_ares: Soil water content at wilting point
         :type soil_water_coef_permeable_ares: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
@@ -81,7 +81,7 @@ class SurfaceRunoff:
         :param w3: Weight for slope component [-]
         :type w3: float
 
-        :returns: Runoff coefficient for permeable areas (Cper).
+        :returns: Potential runoff coefficient for permeable areas (Cper).
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         tuw = soil_water_coef_permeable_ares / (
@@ -115,12 +115,12 @@ class SurfaceRunoff:
     def get_runoff_coef_impervious_area(
         percent_impervious_surface_per_grid_cell: Field,
     ) -> Field:
-        """Return the runoff coefficient of the impervious area.
+        """Return the Potential runoff coefficient of the impervious area.
 
         :param percent_impervious_surface_per_grid_cell: percentage of impervious surface per grid cell
         :type percent_impervious_surface_per_grid_cell: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
-        :returns: Runoff coefficient of the impervious area
+        :returns: Potential runoff coefficient of the impervious area
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         return 0.09 * pcr.exp((2.4 * percent_impervious_surface_per_grid_cell))
