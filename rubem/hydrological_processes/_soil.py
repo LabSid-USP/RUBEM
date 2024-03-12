@@ -114,7 +114,7 @@ class Soil:
         surface_runoff: Field,
         lateral_flow: Field,
         recharge: Field,
-        actual_evapotranpiration: Field,
+        actual_evapotranspiration: Field,
         open_water_area_fraction: Field,
         soil_moist_cont_sat_point: Field,
     ) -> Field:
@@ -138,8 +138,8 @@ class Soil:
         :param recharge: Monthly Recharge [mm]
         :type recharge: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
-        :param actual_evapotranpiration: Monthly Actual Evapotranspiration [mm]
-        :type actual_evapotranpiration: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :param actual_evapotranspiration: Monthly Actual Evapotranspiration [mm]
+        :type actual_evapotranspiration: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param open_water_area_fraction: Open Water Area Fraction [-]
         :type open_water_area_fraction: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
@@ -161,7 +161,7 @@ class Soil:
             - surface_runoff
             - lateral_flow
             - recharge
-            - actual_evapotranpiration
+            - actual_evapotranspiration
         )
         # condition for positivie balance
         cond_positive_balance = pcr.scalar(balance > 0)
