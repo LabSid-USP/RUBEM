@@ -41,14 +41,14 @@ class Evapotranspiration:
 
     @staticmethod
     def get_et_vegetated_area(
-        potential_etp: Field,
+        potential_et: Field,
         crop_coef: Field,
         water_stress_coef: Field,
     ) -> Field:
         """Return evapotranspiration of vegetated area.
 
-        :param potential_etp: Potential Evapotranspiration [mm]
-        :type potential_etp: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :param potential_et: Potential Evapotranspiration [mm]
+        :type potential_et: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param crop_coef: Crop Coefficient [-]
         :type crop_coef: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
@@ -59,7 +59,7 @@ class Evapotranspiration:
         :returns: Actual Evapotranspiration
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
-        return potential_etp * crop_coef * water_stress_coef
+        return potential_et * crop_coef * water_stress_coef
 
     @staticmethod
     def get_pan_coef_et_open_water_area(
@@ -88,15 +88,15 @@ class Evapotranspiration:
 
     @staticmethod
     def get_actual_et_open_water_area(
-        potential_etp: Field,
+        potential_et: Field,
         pan_coef: Field,
         precipitation: Field,
         open_water_area_fraction: Field,
     ) -> Field:
         """Return actual evapotranspiration of open water area.
 
-        :param potential_etp: Monthly Potential Evapotranspiration [mm]
-        :type potential_etp: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :param potential_et: Monthly Potential Evapotranspiration [mm]
+        :type potential_et: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param pan_coef: pan coefficient (Kp) []
         :type pan_coef: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
@@ -113,7 +113,7 @@ class Evapotranspiration:
         # condition for pixel of water
         cond_water_pixel = pcr.scalar(open_water_area_fraction == 1)
 
-        partial_actual_etowa = potential_etp / pan_coef
+        partial_actual_etowa = potential_et / pan_coef
 
         # conditions for max value for partial_actual_etp_owa,
         # if partial_actual_etp_owa > precipitation in pixel with open_water_area_fraction = 1, then actual_etp_owa = precipitation
