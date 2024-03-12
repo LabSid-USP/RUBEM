@@ -4,12 +4,12 @@ import logging
 import humanize
 from pcraster.framework import DynamicFramework
 
-from rubem._dynamic_model import RUBEM
+from rubem._dynamic_model import RainfallRunoffBalanceEnhancedModel
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.file._file_convertions import tss2csv
 
 
-class Model:
+class DynamicFrameworkWrapper:
     """Initialize the ``DynamicFrameworkWrapper`` class
 
     Wrapper for the ``DynamicFramework`` that runs the ``DynamicModelConcept`` of the Rainfall rUnoff Balance Enhanced Model.
@@ -29,7 +29,7 @@ class Model:
         self.config = model_configuration
 
         self.logger.info("Setting up model...")
-        self.dynamic_model_concept = RUBEM(self.config)
+        self.dynamic_model_concept = RainfallRunoffBalanceEnhancedModel(self.config)
 
         self.logger.info("Setting up dynamic model framework...")
         self.dynamic_model = DynamicFramework(
@@ -67,7 +67,7 @@ class Model:
             exec_time = time.time() - t0
             self.logger.info("Elapsed time: %.2fs", exec_time)
             print(f"Elapsed time: {humanize.precisedelta(exec_time, minimum_unit='seconds')}")
-            self.__exportTablesAsCSV()
+            self.__export_tables_as_csv()
 
     @classmethod
     def load(cls, data):
@@ -87,7 +87,7 @@ class Model:
         else:
             raise ValueError("Unsupported model configuration format", type(data))
 
-    def __exportTablesAsCSV(self) -> None:
+    def __export_tables_as_csv(self) -> None:
         """Converts PCRaster TSS files to Comma-Separated Values (CSV) files."""
         if self.config.raster_files.sample_locations and self.config.output_variables.tss:
             self.logger.info("Exporting tables as CSV...")

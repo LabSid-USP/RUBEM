@@ -1,88 +1,60 @@
-# coding=utf-8
-# RUBEM is a distributed hydrological model to calculate monthly
-# flows with changes in land use over time.
-# Copyright (C) 2020-2024 LabSid PHA EPUSP
-
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
-# Contact: rubem.hydrological@labsid.eng.br
-
-"""Common file conversion functionality used by RUBEM"""
-
-from glob import glob
+import csv
+import glob
 import logging
-from os import remove
-from os.path import join, splitext
-
-from pandas import read_csv
+import os
 
 logger = logging.getLogger(__name__)
 
 
-def tss2csv(tssPath: str, colNames: list[str], eraseTSS: bool = True) -> None:
-    """Convert all PCRaster Time Series (*.tss) files present in the specified\
-        directory to (*.csv).
+def tss2csv(tss_dir_path: str, cols_names: list[str], should_delete_src_tss: bool = True) -> None:
+    """Convert all PCRaster Time Series (*.tss) files present in the specified directory to (*.csv).
 
-    :param tssPath: Directory containing the files.
-    :type tssPath: str
+    :param tss_dir_path: Directory containing the files.
+    :type tss_dir_path: str
 
-    :param colNames: List of strings of aliases for the column names.
-    :type colNames: list[str]
+    :param cols_names: List of strings of aliases for the column names.
+    :type cols_names: list[str]
 
-    :param eraseTSS: Remove PCRaster Time Series (*.tss) files after\
-        conversion, default to `True`
-    :type eraseTSS: bool, optional
+    :param should_delete_src_tss: Remove PCRaster Time Series (*.tss) files after conversion, default to ``True``s
+    :type should_delete_src_tss: bool, optional
     """
 
-    if not colNames:
-        raise TypeError(
-            "List of strings of aliases for the column names can't be"
-            f" {type(colNames)}"
+    if not tss_dir_path:
+        raise ValueError("The directory path is empty.")
+
+    if not os.path.isdir(tss_dir_path):
+        raise ValueError("The directory path does not exist.")
+
+    if not cols_names:
+        raise ValueError("The list of column names is empty.")
+
+    header = ["0"]
+    header.extend(cols_names)
+
+    for tss_file in glob.glob(os.path.join(tss_dir_path, "*.tss")):
+        dst_file_path = os.path.join(
+            os.path.dirname(tss_file), f"{os.path.splitext(tss_file)[0]}.csv"
         )
+        with open(file=tss_file, mode="r", encoding="utf8") as f:
+            lines = f.readlines()
 
-    # Create a list with all files in this folder with matching extension
-    tssFileList = glob(join(tssPath, "*.tss"))
-
-    # Iterate over file list to convert each tss file in a csv file
-    for tssFile in tssFileList:
-
-        # Read tss file properly
-        df = read_csv(tssFile, header=None, index_col=0, delim_whitespace=True)
-
-        if not df.shape[1] == len(colNames):
+        data = [line.split() for line in lines]
+        if len(data[0]) != len(header):
+            logger.error(
+                "Number of columns in the file %s is different from the number of column names.",
+                tss_file,
+            )
             raise ValueError(
-                f"The number of columns {(df.shape[1])} of data and header"
-                f" {len(colNames)} are not the same."
+                f"The number of columns in the file {tss_file} is different from the number of column names."
             )
 
-        # Remove tss extension and add csv extension preserving the filename
-        csvFileName = splitext(tssFile)[0] + ".csv"
+        with open(file=dst_file_path, mode="w", encoding="utf8", newline="") as csvfile:
+            writer = csv.writer(csvfile, delimiter=";")
+            writer.writerow(header)
+            writer.writerows(data)
 
-        # Export csv file
-        df.to_csv(csvFileName, sep=";", header=colNames)
-
-    if eraseTSS:
-        # Remove tss files
-        eraseFiles(tssFileList)
-
-
-def eraseFiles(fileList):
-    """Delete files from a specified list.
-
-    :param fileList: List of paths to files.
-    :type fileList: List
-    """
-    # Iterate over file list to remove each tss file
-    for file in fileList:
-        remove(file)
+        if should_delete_src_tss:
+            try:
+                os.remove(tss_file)
+            except Exception as e:
+                logger.error("Error while deleting file %s. %s", tss_file, e)

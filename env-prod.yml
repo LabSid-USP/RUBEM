@@ -5,6 +5,5 @@ channels:
 dependencies:
 - python=3.9
 - gdal=3.*
-- pandas=2.*
 - pcraster=4.*
 - humanize=4.*

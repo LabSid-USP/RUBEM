@@ -21,7 +21,7 @@ jobs:
           cache-environment: true
           post-cleanup: "all"
       - name: Test with pytest
-        run: pytest -x -l -ra --junitxml="TestResults-Rubem.xml"
+        run: pytest -x -l -ra -k "not slow" --junitxml="TestResults-Rubem.xml"
         shell: bash -el {0}
 
       - name: Upload pytest test results

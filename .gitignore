@@ -1,3 +1,6 @@
+# GDAL PAM file
+*.aux.xml
+
 # Visual Studio project settings
 .vs
 

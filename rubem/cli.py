@@ -1,9 +1,7 @@
 import argparse
-from datetime import datetime
 import logging
 import logging.config
 import logging.handlers
-import os
 from typing import Optional
 
 import humanize
@@ -11,8 +9,8 @@ import humanize
 from rubem import __release__
 from rubem.configuration.app_settings import AppSettings
 from rubem.configuration.data_ranges_settings import DataRangesSettings
-from rubem.core import Model
-from rubem.validation._validators import filePathArgValidator
+from rubem.core import DynamicFrameworkWrapper
+from rubem.validation.cli_validators import file_path_cli_arg_validator
 from rubem.configuration.model_configuration import ModelConfiguration
 
 logger = logging.getLogger(__name__)
@@ -52,16 +50,16 @@ def main():
         prog="rubem",
         description="Rainfall rUnoff Balance Enhanced Model (RUBEM)",
         epilog=(
-            f"RUBEM {__release__} Copyright (C) 2020-2024 - LabSid/PHA/EPUSP -"
-            "This program comes with ABSOLUTELY NO WARRANTY."
-            "This is free software, and you are welcome to redistribute it "
+            f"RUBEM {__release__} Copyright (C) 2020-2024 - LabSid/PHA/EPUSP - "
+            "This program comes with ABSOLUTELY NO WARRANTY. "
+            "This is a free software, and you are welcome to redistribute it "
             "under certain conditions."
         ),
     )
     parser.add_argument(
         "-c",
         "--configfile",
-        type=filePathArgValidator,
+        type=file_path_cli_arg_validator,
         help="path to configuration file",
         required=True,
     )
@@ -84,18 +82,17 @@ def main():
 
     try:
         model_config = ModelConfiguration(args.configfile, args.skip_inputs_validation)
-        model = Model.load(model_config)
+        model = DynamicFrameworkWrapper.load(model_config)
         model.run()
     except Exception as e:
         logger.critical("RUBEM unexpectedly quit.")
         logger.exception(e)
-        raise SystemExit(1)
-    except KeyboardInterrupt:
+        raise SystemExit(1) from e
+    except KeyboardInterrupt as e:
         logger.critical("RUBEM was interrupted by the user.")
-        raise SystemExit(2)
-    else:
-        logger.info("RUBEM successfully finished!")
-        raise SystemExit(0)
+        raise SystemExit(2) from e
+
+    logger.info("RUBEM successfully finished!")
 
 
 def setup_logging(custom_logging_config: Optional[dict] = None):
@@ -105,22 +102,12 @@ def setup_logging(custom_logging_config: Optional[dict] = None):
         "formatter": "basic_formatter",
         "level": logging.WARNING,
     }
-    rotating_file_handler_config = {
-        "class": "logging.handlers.RotatingFileHandler",
-        "formatter": "basic_formatter",
-        "filename": os.path.join(
-            os.path.expanduser("~"), ".rubem", f"rubem-{datetime.today().strftime('%d%m%Y')}.log"
-        ),
-        "maxBytes": 5242880,
-        "backupCount": 3,
-        "level": logging.INFO,
-    }
     basic_formatter_config = {"format": log_format, "datefmt": "%Y-%m-%dT%H:%M:%S%z"}
     default_logging_config = {
         "version": 1,
         "formatters": {"basic_formatter": basic_formatter_config},
-        "handlers": {"console": console_handler_config, "file": rotating_file_handler_config},
-        "root": {"handlers": ["console", "file"], "level": logging.DEBUG},
+        "handlers": {"console": console_handler_config},
+        "root": {"handlers": ["console"], "level": logging.DEBUG},
     }
 
     if custom_logging_config:
