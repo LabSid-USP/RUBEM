@@ -158,6 +158,7 @@ class TestCliApp:
                     ["python", "rubem", "-c", os.path.join(temp_dir, "config.json")]
                 )
 
+    @pytest.mark.slow
     @pytest.mark.integration
     def test_cli_app_valid_config_json_file(self):
         """Test the CLI application with a valid config.json file.
@@ -225,6 +226,7 @@ class TestCliApp:
                     os.path.join(self.test_data_result_dir, table_file),
                 )
 
+    @pytest.mark.slow
     @pytest.mark.integration
     def test_cli_app_skip_input_data_validation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
