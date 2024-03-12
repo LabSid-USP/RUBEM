@@ -117,7 +117,7 @@ class Interception:
         leaf_area_index: Field,
         precipitation: Field,
         rainy_days: Field,
-        vegeted_area_fraction: Field,
+        vegetated_area_fraction: Field,
     ) -> Field:
         """Return Interception [mm].
 
@@ -133,8 +133,8 @@ class Interception:
         :param rainy_days: Number of rainy days for month
         :type rainy_days: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
-        :param vegeted_area_fraction: Vegetated Area Fraction
-        :type vegeted_area_fraction: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :param vegetated_area_fraction: Vegetated Area Fraction
+        :type vegetated_area_fraction: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Monthly Interception [mm]
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
@@ -151,4 +151,4 @@ class Interception:
         interception_rate = 1 - pcr.exp(-min_daily_interception_limit * rainy_days / prec)
 
         # Total interception
-        return vegeted_area_fraction * precipitation * interception_rate
+        return vegetated_area_fraction * precipitation * interception_rate

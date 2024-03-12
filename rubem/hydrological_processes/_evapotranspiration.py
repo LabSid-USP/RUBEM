@@ -12,7 +12,7 @@ class Evapotranspiration:
     """
 
     @staticmethod
-    def get_water_stress_coef_et_vegeted_area(
+    def get_water_stress_coef_et_vegetated_area(
         actual_soil_moisture_content: Field,
         soil_class_wilting_point: Field,
         soild_class_field_capacity: Field,

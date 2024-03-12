@@ -279,7 +279,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         )
 
         self.logger.debug("Reading landuse attributes: a_v...")
-        vegeted_area_fraction = self.__lookup_wrapper(
+        vegetated_area_fraction = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.a_v,
             lookup_value=current_landuse,
             lookup_func=pcrfw.lookupscalar,
@@ -341,7 +341,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             current_leaf_area_index,
             current_precipitation,
             current_rainy_days,
-            vegeted_area_fraction,
+            vegetated_area_fraction,
         )
 
         self.logger.debug("Evapotranspiration")
@@ -357,7 +357,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         )
 
         water_stress_coef = pcr.scalar(
-            Evapotranspiration.get_water_stress_coef_et_vegeted_area(
+            Evapotranspiration.get_water_stress_coef_et_vegetated_area(
                 self.current_soil_moist_content,
                 self.soil_moistute_content_wilting_point,
                 self.soil_moisture_content_field_capacity,
@@ -365,7 +365,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         )
 
         # Vegetated area
-        real_et_vegeted_area = Evapotranspiration.get_et_vegetated_area(
+        real_et_vegetated_area = Evapotranspiration.get_et_vegetated_area(
             current_potential_evapotranspiration, current_crop_coef, water_stress_coef
         )
 
@@ -388,7 +388,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             current_potential_evapotranspiration, min_crop_coef, water_stress_coef
         )
         self.current_total_real_evapotranspiration = (
-            (vegeted_area_fraction * real_et_vegeted_area)
+            (vegetated_area_fraction * real_et_vegetated_area)
             + (impervious_area_fraction * real_et_impervious_area)
             + (open_water_area_fraction * real_et_open_water_area)
             + (bare_soil_area_fraction * real_et_bare_soil_area)
