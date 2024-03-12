@@ -473,7 +473,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.previous_baseflow = self.current_baseflow
 
         self.logger.debug("Soil Balance")
-        self.current_soil_moist_content = Soil.get_actual_soil_moist_cont_rootzone(
+        self.current_soil_moist_content = Soil.get_actual_soil_moist_cont(
             self.previous_soil_moist_content,
             current_precipitation,
             self.current_interception,

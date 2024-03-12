@@ -14,7 +14,7 @@ class Soil:
     def get_lateral_flow(
         preferred_flow_direction: float,
         hydraulic_cond_coef: Field,
-        actual_soil_moist_cont_rootzone: Field,
+        actual_soil_moist_cont: Field,
         soil_moist_cont_sat_point: Field,
     ):
         """Return Lateral Flow in the pixel [mm].
@@ -25,8 +25,8 @@ class Soil:
         :param hydraulic_cond_coef: Hydraulic Conductivity of soil class [mm/month]
         :type hydraulic_cond_coef: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
-        :param actual_soil_moist_cont_rootzone: Actual soil moisture content non-saturated zone [mm]
-        :type actual_soil_moist_cont_rootzone: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :param actual_soil_moist_cont : Actual soil moisture content non-saturated zone [mm]
+        :type actual_soil_moist_cont : Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param soil_moist_cont_sat_point: Soil moisture content at saturation point []
         :type soil_moist_cont_sat_point: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
@@ -37,14 +37,14 @@ class Soil:
         return (
             preferred_flow_direction
             * hydraulic_cond_coef
-            * ((actual_soil_moist_cont_rootzone / soil_moist_cont_sat_point) ** 2)
+            * ((actual_soil_moist_cont / soil_moist_cont_sat_point) ** 2)
         )
 
     @staticmethod
     def get_recharge(
         preferred_flow_direction: float,
         hydraulic_cond_coef: Field,
-        actual_soil_moist_cont_rootzone: Field,
+        actual_soil_moist_cont: Field,
         soil_mois_cont_sat_point: Field,
     ) -> Field:
         """Return Recharge in the pixel [mm].
@@ -55,8 +55,8 @@ class Soil:
         :param hydraulic_cond_coef: Hydraulic Conductivity of soil class [mm/month]
         :type hydraulic_cond_coef: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
-        :param actual_soil_moist_cont_rootzone: Actual soil moisture content non-saturated zone [mm]
-        :type actual_soil_moist_cont_rootzone: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :param actual_soil_moist_cont : Actual soil moisture content non-saturated zone [mm]
+        :type actual_soil_moist_cont : Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param soil_mois_cont_sat_point: Soil moisture content at saturation point [-]
         :type soil_mois_cont_sat_point: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
@@ -67,7 +67,7 @@ class Soil:
         return (
             (1 - preferred_flow_direction)
             * hydraulic_cond_coef
-            * ((actual_soil_moist_cont_rootzone / soil_mois_cont_sat_point) ** 2)
+            * ((actual_soil_moist_cont / soil_mois_cont_sat_point) ** 2)
         )
 
     @staticmethod
@@ -107,7 +107,7 @@ class Soil:
 
     # First soil layer
     @staticmethod
-    def get_actual_soil_moist_cont_rootzone(
+    def get_actual_soil_moist_cont(
         previous_soil_moist_cont: Field,
         precipitation: Field,
         interception: Field,

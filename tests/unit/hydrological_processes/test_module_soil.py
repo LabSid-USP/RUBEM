@@ -134,9 +134,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.1)
         tsat = pcr.scalar(5.5)
-        field = Soil.get_actual_soil_moist_cont_rootzone(
-            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
-        )
+        field = Soil.get_actual_soil_moist_cont(tur_prev, prec, itp, es, lf, rec, etr, ao, tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 5.0
         assert result == pytest.approx(expected)
@@ -152,9 +150,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.1)
         tsat = pcr.scalar(4.5)
-        field = Soil.get_actual_soil_moist_cont_rootzone(
-            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
-        )
+        field = Soil.get_actual_soil_moist_cont(tur_prev, prec, itp, es, lf, rec, etr, ao, tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 4.5
         assert result == pytest.approx(expected)
@@ -170,9 +166,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.1)
         tsat = pcr.scalar(5.5)
-        field = Soil.get_actual_soil_moist_cont_rootzone(
-            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
-        )
+        field = Soil.get_actual_soil_moist_cont(tur_prev, prec, itp, es, lf, rec, etr, ao, tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         assert result == pytest.approx(expected)
@@ -188,9 +182,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.1)
         tsat = pcr.scalar(0.0)
-        field = Soil.get_actual_soil_moist_cont_rootzone(
-            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
-        )
+        field = Soil.get_actual_soil_moist_cont(tur_prev, prec, itp, es, lf, rec, etr, ao, tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         assert result == pytest.approx(expected)
@@ -206,9 +198,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.0)
         tsat = pcr.scalar(5.5)
-        field = Soil.get_actual_soil_moist_cont_rootzone(
-            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
-        )
+        field = Soil.get_actual_soil_moist_cont(tur_prev, prec, itp, es, lf, rec, etr, ao, tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 5.5
         assert result == pytest.approx(expected)
@@ -224,9 +214,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.0)
         tsat = pcr.scalar(4.5)
-        field = Soil.get_actual_soil_moist_cont_rootzone(
-            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
-        )
+        field = Soil.get_actual_soil_moist_cont(tur_prev, prec, itp, es, lf, rec, etr, ao, tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 4.5
         assert result == pytest.approx(expected)
@@ -242,9 +230,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.0)
         tsat = pcr.scalar(5.5)
-        field = Soil.get_actual_soil_moist_cont_rootzone(
-            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
-        )
+        field = Soil.get_actual_soil_moist_cont(tur_prev, prec, itp, es, lf, rec, etr, ao, tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 5.5
         assert result == pytest.approx(expected)
@@ -260,9 +246,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.0)
         tsat = pcr.scalar(0.0)
-        field = Soil.get_actual_soil_moist_cont_rootzone(
-            tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
-        )
+        field = Soil.get_actual_soil_moist_cont(tur_prev, prec, itp, es, lf, rec, etr, ao, tsat)
         result = generalfunctions.getCellValue(field, 0, 0)
         expected = 0.0
         assert result == pytest.approx(expected)
@@ -280,9 +264,7 @@ class TestSoilBalanceSoilModule:
     @pytest.mark.unit
     def test_turCalc_None_values(self):
         with pytest.raises(TypeError):
-            Soil.get_actual_soil_moist_cont_rootzone(
-                None, None, None, None, None, None, None, None, None
-            )
+            Soil.get_actual_soil_moist_cont(None, None, None, None, None, None, None, None, None)
 
     @pytest.mark.unit
     def test_tusCalc_None_values(self):
