@@ -46,7 +46,7 @@ class SurfaceRunoff:
 
     @staticmethod
     def get_runoff_coef_permeable_areas(
-        soil_water_coef_permeable_ares: Field,
+        soil_water_coef_permeable_area: Field,
         soil_bulk_density: Field,
         rootzone_depth: Field,
         land_surface_slope: Field,
@@ -57,8 +57,8 @@ class SurfaceRunoff:
     ) -> Field:
         """Return the potential runoff coefficient for permeable areas (Cper).
 
-        :param soil_water_coef_permeable_ares: Soil water content at wilting point
-        :type soil_water_coef_permeable_ares: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :param soil_water_coef_permeable_area: Soil water content at wilting point
+        :type soil_water_coef_permeable_area: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param soil_bulk_density: Soil Bulk Density [g/cm3]
         :type soil_bulk_density:Field ``PCRASTER_VALUESCALE=VS_SCALAR``
@@ -84,7 +84,7 @@ class SurfaceRunoff:
         :returns: Potential runoff coefficient for permeable areas (Cper).
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
-        tuw = soil_water_coef_permeable_ares / (
+        tuw = soil_water_coef_permeable_area / (
             soil_bulk_density * rootzone_depth * 10
         )  # [%] soil wilting point
         return (
@@ -229,9 +229,7 @@ class SurfaceRunoff:
         ) * cond_positive_prec_etowa * cond_water_pixel
 
         # condition for tur > tursat
-        cond_saturation = pcr.scalar(
-            actual_soil_moist_cont_rootzone == soil_moist_cont_sat_point
-        )
+        cond_saturation = pcr.scalar(actual_soil_moist_cont_rootzone == soil_moist_cont_sat_point)
         return (
             (partial_surface_runoff * (1 - cond_saturation))
             + (precipitation - interception) * (cond_saturation) * (1 - cond_water_pixel)
