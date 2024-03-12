@@ -134,7 +134,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.1)
         tsat = pcr.scalar(5.5)
-        field = Soil.get_actual_soil_moist_cont_non_sat_zone(
+        field = Soil.get_actual_soil_moist_cont_rootzone(
             tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
@@ -152,7 +152,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.1)
         tsat = pcr.scalar(4.5)
-        field = Soil.get_actual_soil_moist_cont_non_sat_zone(
+        field = Soil.get_actual_soil_moist_cont_rootzone(
             tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
@@ -170,7 +170,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.1)
         tsat = pcr.scalar(5.5)
-        field = Soil.get_actual_soil_moist_cont_non_sat_zone(
+        field = Soil.get_actual_soil_moist_cont_rootzone(
             tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
@@ -188,7 +188,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.1)
         tsat = pcr.scalar(0.0)
-        field = Soil.get_actual_soil_moist_cont_non_sat_zone(
+        field = Soil.get_actual_soil_moist_cont_rootzone(
             tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
@@ -206,7 +206,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.0)
         tsat = pcr.scalar(5.5)
-        field = Soil.get_actual_soil_moist_cont_non_sat_zone(
+        field = Soil.get_actual_soil_moist_cont_rootzone(
             tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
@@ -224,7 +224,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.0)
         tsat = pcr.scalar(4.5)
-        field = Soil.get_actual_soil_moist_cont_non_sat_zone(
+        field = Soil.get_actual_soil_moist_cont_rootzone(
             tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
@@ -242,7 +242,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.0)
         tsat = pcr.scalar(5.5)
-        field = Soil.get_actual_soil_moist_cont_non_sat_zone(
+        field = Soil.get_actual_soil_moist_cont_rootzone(
             tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
@@ -260,7 +260,7 @@ class TestSoilBalanceSoilModule:
         etr = pcr.scalar(1.0)
         ao = pcr.scalar(1.0)
         tsat = pcr.scalar(0.0)
-        field = Soil.get_actual_soil_moist_cont_non_sat_zone(
+        field = Soil.get_actual_soil_moist_cont_rootzone(
             tur_prev, prec, itp, es, lf, rec, etr, ao, tsat
         )
         result = generalfunctions.getCellValue(field, 0, 0)
@@ -280,7 +280,7 @@ class TestSoilBalanceSoilModule:
     @pytest.mark.unit
     def test_turCalc_None_values(self):
         with pytest.raises(TypeError):
-            Soil.get_actual_soil_moist_cont_non_sat_zone(
+            Soil.get_actual_soil_moist_cont_rootzone(
                 None, None, None, None, None, None, None, None, None
             )
 

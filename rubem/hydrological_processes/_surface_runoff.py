@@ -184,7 +184,7 @@ class SurfaceRunoff:
         interception: Field,
         open_water_area_fraction: Field,
         evapotranspiration_open_water_area: Field,
-        actual_soil_moist_cont_non_sat_zone: Field,
+        actual_soil_moist_cont_rootzone: Field,
         soil_moist_cont_sat_point: Field,
     ) -> Field:
         """Return surface runoff [mm].
@@ -207,8 +207,8 @@ class SurfaceRunoff:
         :param evapotranspiration_open_water_area: Evaporation of Open Water Area [mm]
         :type evapotranspiration_open_water_area: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
-        :param actual_soil_moist_cont_non_sat_zone: Actual soil moisture content non-saturated zone [mm]
-        :type actual_soil_moist_cont_non_sat_zone: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
+        :param actual_soil_moist_cont_rootzone: Actual soil moisture content non-saturated zone [mm]
+        :type actual_soil_moist_cont_rootzone: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param soil_moist_cont_sat_point: Soil moisture content at saturation point [-]
         :type soil_moist_cont_sat_point: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
@@ -230,7 +230,7 @@ class SurfaceRunoff:
 
         # condition for tur > tursat
         cond_saturation = pcr.scalar(
-            actual_soil_moist_cont_non_sat_zone == soil_moist_cont_sat_point
+            actual_soil_moist_cont_rootzone == soil_moist_cont_sat_point
         )
         return (
             (partial_surface_runoff * (1 - cond_saturation))
