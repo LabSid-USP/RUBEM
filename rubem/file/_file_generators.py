@@ -3,7 +3,6 @@ import os
 from typing import Optional, Union
 
 from osgeo import gdal
-import pcraster as pcr
 from pcraster._pcraster import Field
 from pcraster.framework import pcr2numpy
 
