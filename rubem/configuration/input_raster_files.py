@@ -2,10 +2,10 @@ import logging
 import os
 from typing import Optional, Union
 
-from rubem.configuration.raster_map import RasterMap
-from rubem.configuration.data_ranges_settings import DataRangesSettings
-from rubem.validation.raster_map_validator import RasterMapValidator
-from rubem.validation.raster_data_rules import RasterDataRules
+from ..configuration.raster_map import RasterMap
+from ..configuration.data_ranges_settings import DataRangesSettings
+from ..validation.raster_map_validator import RasterMapValidator
+from ..validation.raster_data_rules import RasterDataRules
 
 
 class InputRasterFiles:

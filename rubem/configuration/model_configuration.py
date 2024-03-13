@@ -7,18 +7,18 @@ import textwrap
 from typing import Union
 
 
-from rubem.configuration.calibration_parameters import CalibrationParameters
-from rubem.configuration.initial_soil_conditions import InitialSoilConditions
-from rubem.configuration.input_raster_files import InputRasterFiles
-from rubem.configuration.input_raster_series import InputRasterSeries
-from rubem.configuration.input_table_files import InputTableFiles
-from rubem.configuration.model_constants import ModelConstants
-from rubem.configuration.output_data_directory import OutputDataDirectory
-from rubem.configuration.output_format import OutputFileFormat
-from rubem.configuration.output_raster_base import OutputRasterBase
-from rubem.configuration.output_variables import OutputVariables
-from rubem.configuration.raster_grid_area import RasterGrid
-from rubem.configuration.simulation_period import SimulationPeriod
+from ..configuration.calibration_parameters import CalibrationParameters
+from ..configuration.initial_soil_conditions import InitialSoilConditions
+from ..configuration.input_raster_files import InputRasterFiles
+from ..configuration.input_raster_series import InputRasterSeries
+from ..configuration.input_table_files import InputTableFiles
+from ..configuration.model_constants import ModelConstants
+from ..configuration.output_data_directory import OutputDataDirectory
+from ..configuration.output_format import OutputFileFormat
+from ..configuration.output_raster_base import OutputRasterBase
+from ..configuration.output_variables import OutputVariables
+from ..configuration.raster_grid_area import RasterGrid
+from ..configuration.simulation_period import SimulationPeriod
 
 
 class ModelConfiguration:

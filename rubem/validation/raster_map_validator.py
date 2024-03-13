@@ -1,9 +1,9 @@
 import logging
 
-from rubem.validation.handlers.raster_all_ones import AllOnesValidatorHandler
-from rubem.validation.handlers.raster_all_zeroes import AllZeroesValidatorHandler
-from rubem.validation.handlers.raster_no_data import NoDataValidatorHandler
-from rubem.validation.handlers.raster_value_range import ValueRangeValidatorHandler
+from ..validation.handlers.raster_all_ones import AllOnesValidatorHandler
+from ..validation.handlers.raster_all_zeroes import AllZeroesValidatorHandler
+from ..validation.handlers.raster_no_data import NoDataValidatorHandler
+from ..validation.handlers.raster_value_range import ValueRangeValidatorHandler
 
 
 class RasterMapValidator:

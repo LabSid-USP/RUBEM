@@ -5,7 +5,7 @@ from typing import Optional, Union
 
 from osgeo import gdal
 
-from rubem.validation.raster_data_rules import RasterDataRules
+from ..validation.raster_data_rules import RasterDataRules
 
 
 class RasterBand:
