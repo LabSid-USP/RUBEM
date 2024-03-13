@@ -37,8 +37,8 @@ class OutputVariables:
     :param tss: Enable or disable Create time output time series (TSS). Defaults to `False`.
     :type tss: bool, optional
 
-    :param output_format: The output file format. Defaults to ``OutputFileFormat.PCRASTER``.
-    :type output_format: OutputFileFormat, optional
+    :param output_formats: The output file formats. Defaults to ``OutputFileFormat.PCRASTER``.
+    :type output_formats: OutputFileFormat, optional
     """
 
     def __init__(
@@ -53,7 +53,7 @@ class OutputVariables:
         rnf: bool = False,
         arn: bool = False,
         tss: bool = False,
-        output_format: OutputFileFormat = OutputFileFormat.PCRASTER,
+        output_formats: OutputFileFormat = OutputFileFormat.PCRASTER,
     ) -> None:
         self.logger = logging.getLogger(__name__)
         self.itp = {
@@ -120,7 +120,7 @@ class OutputVariables:
             "table_filename_prefix": "tss_arn",
         }
         self.tss = tss
-        self.file_format = output_format
+        self.file_formats = output_formats
 
     def get_enabled_raster_series(self) -> list:
         """
@@ -202,5 +202,5 @@ class OutputVariables:
             f"Total Runoff (RNF): {'Enabled' if self.rnf else 'Disabled'}\n"
             f"Accumulated Total Runoff (ARN): {'Enabled' if self.rnf else 'Disabled'}\n"
             f"Create time output time series (TSS): {'Enabled' if self.tss else 'Disabled'}\n"
-            f"Output format: {self.file_format}"
+            f"Output format: {self.file_formats}"
         )

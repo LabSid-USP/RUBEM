@@ -52,5 +52,5 @@ class TestOutputVariables:
             smc=smc,
             rnf=rnf,
             tss=tss,
-            output_format=output_format,
+            output_formats=output_format,
         )

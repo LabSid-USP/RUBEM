@@ -6,6 +6,7 @@ import os
 import textwrap
 from typing import Union
 
+from osgeo import gdal
 
 from rubem.configuration.calibration_parameters import CalibrationParameters
 from rubem.configuration.initial_soil_conditions import InitialSoilConditions
@@ -105,6 +106,14 @@ class ModelConfiguration:
                 impervious_area_interception=float(self.__get_setting("CONSTANTS", "i_imp")),
             )
             self.output_directory = OutputDataDirectory(self.__get_setting("DIRECTORIES", "output"))
+
+            output_formats = OutputFileFormat.PCRASTER
+
+            if self.__get_setting(
+                "RASTER_FILE_FORMAT", "tiff_raster_series"
+            ) and self.__check_driver_availability("GTiff"):
+                output_formats = output_formats | OutputFileFormat.GEOTIFF
+
             self.output_variables = OutputVariables(
                 itp=str_to_bool(self.__get_setting("GENERATE_FILE", "itp")),
                 bfw=str_to_bool(self.__get_setting("GENERATE_FILE", "bfw")),
@@ -116,11 +125,7 @@ class ModelConfiguration:
                 rnf=str_to_bool(self.__get_setting("GENERATE_FILE", "rnf")),
                 arn=str_to_bool(self.__get_setting("GENERATE_FILE", "arn")),
                 tss=str_to_bool(self.__get_setting("GENERATE_FILE", "tss")),
-                output_format=(
-                    OutputFileFormat.PCRASTER
-                    if str_to_bool(self.__get_setting("RASTER_FILE_FORMAT", "map_raster_series"))
-                    else OutputFileFormat.GEOTIFF
-                ),
+                output_formats=output_formats,
             )
             self.raster_series = InputRasterSeries(
                 etp=self.__get_setting("DIRECTORIES", "etp"),
@@ -172,6 +177,16 @@ class ModelConfiguration:
         self.problems.extend(self.raster_series.problems)
         self.problems.extend(self.raster_files.problems)
         self.__check_inconsistencies()
+
+    def __check_driver_availability(self, driver_name: str) -> bool:
+        """Check if a GDAL driver is available."""
+        result = gdal.GetDriverByName(driver_name) is not None
+        if not result:
+            self.logger.warning(
+                "GDAL driver not available: %s. Output format will be disabled.",
+                driver_name,
+            )
+        return result
 
     def __check_inconsistencies(self):
         if not self.output_variables.any_enabled():

@@ -1,7 +1,7 @@
-from enum import Enum, auto
+from enum import Flag, auto
 
 
-class OutputFileFormat(Enum):
+class OutputFileFormat(Flag):
     """
     Enum class representing the output file format options.
     """
