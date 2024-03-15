@@ -210,7 +210,6 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             current_ndvi = self.__readmap_series_wrapper(
                 files_partial_path=self.config.raster_series.ndvi,
                 dynamic_readmap_func=self.readmap,
-                supress_errors=True,
             )
             self.previous_ndvi = current_ndvi
         except RuntimeError:
@@ -226,7 +225,6 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             current_landuse = self.__readmap_series_wrapper(
                 files_partial_path=self.config.raster_series.landuse,
                 dynamic_readmap_func=self.readmap,
-                supress_errors=True,
             )
             self.previous_landuse = current_landuse
         except RuntimeError:
