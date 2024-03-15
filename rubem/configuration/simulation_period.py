@@ -2,6 +2,8 @@ from datetime import date, datetime
 import logging
 from typing import Optional, Union
 
+DATE_FORMAT = "%d/%m/%Y"
+
 
 class SimulationPeriod:
     """
@@ -28,8 +30,14 @@ class SimulationPeriod:
         self.logger = logging.getLogger(__name__)
 
         if start >= end:
-            self.logger.error("Start date (%s) must be before end date (%s).", start, end)
-            raise ValueError(f"Start date ({start}) must be before end date ({end}).")
+            self.logger.error(
+                "Start date (%s) must be before end date (%s).",
+                start.strftime(DATE_FORMAT),
+                end.strftime(DATE_FORMAT),
+            )
+            raise ValueError(
+                f"Start date ({start.strftime(DATE_FORMAT)}) must be before end date ({end.strftime(DATE_FORMAT)})."
+            )
 
         self.start_date = start
         self.end_date = end
@@ -40,10 +48,12 @@ class SimulationPeriod:
 
         if alignment > self.start_date:
             self.logger.error(
-                "Alignment date (%s) is after start date (%s).", alignment, self.start_date
+                "Alignment date (%s) is after start date (%s).",
+                alignment.strftime(DATE_FORMAT),
+                self.start_date.strftime(DATE_FORMAT),
             )
             raise ValueError(
-                f"Alignment date ({alignment}) must be before start date ({self.start_date})."
+                f"Alignment date ({alignment.strftime(DATE_FORMAT)}) must be before start date ({self.start_date.strftime(DATE_FORMAT)})."
             )
 
         self.first_step = (start.year - alignment.year) * 12 + (start.month - alignment.month) + 1
