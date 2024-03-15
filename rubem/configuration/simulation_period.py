@@ -33,14 +33,12 @@ class SimulationPeriod:
             self.logger.info("No alignment date provided. Using start date as alignment.")
             alignment = self.start_date
 
-        if alignment < self.start_date or alignment > self.end_date:
+        if alignment > self.start_date:
             self.logger.error(
-                "Date alignment must be between start (%s) and end (%s) dates.",
-                self.start_date,
-                self.end_date,
+                "Alignment date (%s) is after start date (%s).", alignment, self.start_date
             )
             raise ValueError(
-                f"Date alignment must be between start ({self.start_date}) and end ({self.end_date}) dates."
+                f"Alignment date ({alignment}) must be before start date ({self.start_date})."
             )
 
         self.first_step = (start.year - alignment.year) * 12 + (start.month - alignment.month) + 1
