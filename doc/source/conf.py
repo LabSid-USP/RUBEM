@@ -57,7 +57,16 @@ email_automode = True
 
 # Turn on sphinx.ext.autosummary
 autosummary_generate = True
-autodoc_mock_imports = ["pcraster", "osgeo", "skgstat", "pykrige", "numpy", "pandas", "humanize"]
+autodoc_mock_imports = [
+    "pcraster",
+    "osgeo",
+    "skgstat",
+    "pykrige",
+    "numpy",
+    "pandas",
+    "humanize",
+    "dateutil",
+]
 # Add __init__ doc (ie. params) to class summaries
 autoclass_content = "both"
 # Remove 'view source code' from top of page (for html, not python)
