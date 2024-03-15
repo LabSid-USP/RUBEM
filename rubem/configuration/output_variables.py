@@ -1,6 +1,6 @@
 import logging
 
-from rubem.configuration.output_format import OutputFileFormat
+from ..configuration.output_format import OutputFileFormat
 
 
 class OutputVariables:

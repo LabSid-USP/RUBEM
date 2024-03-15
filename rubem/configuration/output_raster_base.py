@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Union
 
-from rubem.configuration.raster_map import RasterMap
+from ..configuration.raster_map import RasterMap
 
 
 class OutputRasterBase:

@@ -1,6 +1,6 @@
 import logging
 
-from rubem.configuration.data_ranges_settings import DataRangesSettings
+from ..configuration.data_ranges_settings import DataRangesSettings
 
 
 class InitialSoilConditions:

@@ -6,12 +6,12 @@ from typing import Optional
 
 import humanize
 
-from rubem import __release__
-from rubem.configuration.app_settings import AppSettings
-from rubem.configuration.data_ranges_settings import DataRangesSettings
-from rubem.core import DynamicFrameworkWrapper
-from rubem.validation.cli_validators import file_path_cli_arg_validator
-from rubem.configuration.model_configuration import ModelConfiguration
+from . import __release__
+from .configuration.app_settings import AppSettings
+from .configuration.data_ranges_settings import DataRangesSettings
+from .core import DynamicFrameworkWrapper
+from .validation.cli_validators import file_path_cli_arg_validator
+from .configuration.model_configuration import ModelConfiguration
 
 logger = logging.getLogger(__name__)
 

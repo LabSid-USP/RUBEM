@@ -4,9 +4,9 @@ import logging
 import humanize
 from pcraster.framework import DynamicFramework
 
-from rubem._dynamic_model import RainfallRunoffBalanceEnhancedModel
-from rubem.configuration.model_configuration import ModelConfiguration
-from rubem.file._file_convertions import tss2csv
+from ._dynamic_model import RainfallRunoffBalanceEnhancedModel
+from .configuration.model_configuration import ModelConfiguration
+from .file._file_convertions import tss2csv
 
 
 class DynamicFrameworkWrapper:
@@ -78,7 +78,7 @@ class DynamicFrameworkWrapper:
         :type data: Any
 
         :return: The loaded Model object.
-        :rtype: rubem.configuration.model_configuration.ModelConfiguration
+        :rtype: ..configuration.model_configuration.ModelConfiguration
 
         :raises ValueError: If the model configuration format is unsupported.
         """

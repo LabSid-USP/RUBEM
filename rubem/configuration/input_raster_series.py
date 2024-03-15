@@ -3,10 +3,10 @@ import os
 from typing import Union
 import re
 
-from rubem.configuration.raster_map import RasterMap
-from rubem.configuration.data_ranges_settings import DataRangesSettings
-from rubem.validation.raster_map_validator import RasterMapValidator
-from rubem.validation.raster_data_rules import RasterDataRules
+from ..configuration.raster_map import RasterMap
+from ..configuration.data_ranges_settings import DataRangesSettings
+from ..validation.raster_map_validator import RasterMapValidator
+from ..validation.raster_data_rules import RasterDataRules
 
 RASTER_SERIES_FILENAME_MAX_CHARS = 8
 RASTER_SERIES_FILENAME_EXTENSION_NUM_DIGITS = 3

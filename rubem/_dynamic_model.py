@@ -9,10 +9,10 @@ import pcraster as pcr
 from pcraster._pcraster import Field
 import pcraster.framework as pcrfw
 
-from rubem.configuration.model_configuration import ModelConfiguration
-from rubem.configuration.output_format import OutputFileFormat
-from rubem.file._file_generators import report
-from rubem.hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
+from .configuration.model_configuration import ModelConfiguration
+from .configuration.output_format import OutputFileFormat
+from .file._file_generators import report
+from .hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
 
 MISSING_VALUE_DEFAULT = -9999
 
