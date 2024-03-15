@@ -195,13 +195,13 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         """
         current_timestep = self.currentStep
         current_date = self.config.simulation_period.start_date + relativedelta(
-            months=current_timestep - 1
+            months=(current_timestep - self.config.simulation_period.first_step)
         )
         self.logger.info(
             "Cycle %s of %s (%s)",
             current_timestep,
             self.config.simulation_period.last_step,
-            current_date.strftime("%d/%m/%Y"),
+            current_date.strftime("%b/%Y"),
         )
         print(f"## Timestep {current_timestep} of {self.config.simulation_period.last_step}")
 
