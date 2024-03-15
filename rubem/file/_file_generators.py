@@ -6,8 +6,8 @@ from osgeo import gdal
 from pcraster._pcraster import Field
 from pcraster.framework import pcr2numpy
 
-from rubem.configuration.output_format import OutputFileFormat
-from rubem.configuration.output_raster_base import OutputRasterBase
+from ..configuration.output_format import OutputFileFormat
+from ..configuration.output_raster_base import OutputRasterBase
 
 logger = logging.getLogger(__name__)
 

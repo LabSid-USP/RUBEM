@@ -1,7 +1,7 @@
 import numpy as np
 
-from rubem.validation.handlers.base import BaseValidatorHandler
-from rubem.validation.raster_data_rules import RasterDataRules
+from ...validation.handlers.base import BaseValidatorHandler
+from ...validation.raster_data_rules import RasterDataRules
 
 
 class ValueRangeValidatorHandler(BaseValidatorHandler):
