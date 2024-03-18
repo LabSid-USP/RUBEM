@@ -12,10 +12,6 @@ from ..configuration.output_raster_base import OutputRasterBase
 logger = logging.getLogger(__name__)
 
 
-gdal.UseExceptions()
-gdal.AllRegister()
-
-
 def report(
     variable: Field,
     name: str,
@@ -78,6 +74,9 @@ def __report(
         )
     else:
         out_tif = os.path.join(str(outpath), f"{name}.{extension}")
+
+    gdal.UseExceptions()
+    gdal.AllRegister()
 
     with gdal.GetDriverByName(driver_short_name).Create(
         out_tif,
