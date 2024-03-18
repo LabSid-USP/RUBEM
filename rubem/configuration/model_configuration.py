@@ -6,8 +6,6 @@ import os
 import textwrap
 from typing import Union
 
-from osgeo import gdal
-
 from ..configuration.calibration_parameters import CalibrationParameters
 from ..configuration.initial_soil_conditions import InitialSoilConditions
 from ..configuration.input_raster_files import InputRasterFiles
@@ -109,9 +107,9 @@ class ModelConfiguration:
 
             output_formats = OutputFileFormat.PCRASTER
 
-            if self.__get_setting(
-                "RASTER_FILE_FORMAT", "tiff_raster_series"
-            ) and self.__check_driver_availability("GTiff"):
+            if str_to_bool(
+                self.__get_setting("RASTER_FILE_FORMAT", "tiff_raster_series", optional=True)
+            ):
                 output_formats = output_formats | OutputFileFormat.GEOTIFF
 
             self.output_variables = OutputVariables(
@@ -127,6 +125,7 @@ class ModelConfiguration:
                 tss=str_to_bool(self.__get_setting("GENERATE_FILE", "tss")),
                 output_formats=output_formats,
             )
+
             self.raster_series = InputRasterSeries(
                 etp=self.__get_setting("DIRECTORIES", "etp"),
                 etp_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "etp_prefix"),
@@ -177,16 +176,6 @@ class ModelConfiguration:
         self.problems.extend(self.raster_series.problems)
         self.problems.extend(self.raster_files.problems)
         self.__check_inconsistencies()
-
-    def __check_driver_availability(self, driver_name: str) -> bool:
-        """Check if a GDAL driver is available."""
-        result = gdal.GetDriverByName(driver_name) is not None
-        if not result:
-            self.logger.warning(
-                "GDAL driver not available: %s. Output format will be disabled.",
-                driver_name,
-            )
-        return result
 
     def __check_inconsistencies(self):
         if not self.output_variables.any_enabled():
