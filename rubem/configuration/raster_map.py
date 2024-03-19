@@ -67,6 +67,9 @@ class RasterMap:
     ) -> None:
         self.logger = logging.getLogger(__name__)
 
+        gdal.UseExceptions()
+        gdal.AllRegister()
+
         self.logger.debug("Opening raster file: %s", file_path)
 
         self.__validate_file(file_path)

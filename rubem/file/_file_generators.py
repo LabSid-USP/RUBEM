@@ -3,7 +3,6 @@ import os
 from typing import Optional, Union
 
 from osgeo import gdal
-import pcraster as pcr
 from pcraster._pcraster import Field
 from pcraster.framework import pcr2numpy
 
@@ -11,10 +10,6 @@ from ..configuration.output_format import OutputFileFormat
 from ..configuration.output_raster_base import OutputRasterBase
 
 logger = logging.getLogger(__name__)
-
-
-gdal.UseExceptions()
-gdal.AllRegister()
 
 
 def report(
@@ -79,6 +74,9 @@ def __report(
         )
     else:
         out_tif = os.path.join(str(outpath), f"{name}.{extension}")
+
+    gdal.UseExceptions()
+    gdal.AllRegister()
 
     with gdal.GetDriverByName(driver_short_name).Create(
         out_tif,

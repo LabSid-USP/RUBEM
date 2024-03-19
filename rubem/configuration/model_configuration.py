@@ -6,7 +6,6 @@ import os
 import textwrap
 from typing import Union
 
-
 from ..configuration.calibration_parameters import CalibrationParameters
 from ..configuration.initial_soil_conditions import InitialSoilConditions
 from ..configuration.input_raster_files import InputRasterFiles
@@ -105,6 +104,14 @@ class ModelConfiguration:
                 impervious_area_interception=float(self.__get_setting("CONSTANTS", "i_imp")),
             )
             self.output_directory = OutputDataDirectory(self.__get_setting("DIRECTORIES", "output"))
+
+            output_formats = OutputFileFormat.PCRASTER
+
+            if str_to_bool(
+                self.__get_setting("RASTER_FILE_FORMAT", "tiff_raster_series", optional=True)
+            ):
+                output_formats = output_formats | OutputFileFormat.GEOTIFF
+
             self.output_variables = OutputVariables(
                 itp=str_to_bool(self.__get_setting("GENERATE_FILE", "itp")),
                 bfw=str_to_bool(self.__get_setting("GENERATE_FILE", "bfw")),
@@ -116,12 +123,9 @@ class ModelConfiguration:
                 rnf=str_to_bool(self.__get_setting("GENERATE_FILE", "rnf")),
                 arn=str_to_bool(self.__get_setting("GENERATE_FILE", "arn")),
                 tss=str_to_bool(self.__get_setting("GENERATE_FILE", "tss")),
-                output_format=(
-                    OutputFileFormat.PCRASTER
-                    if str_to_bool(self.__get_setting("RASTER_FILE_FORMAT", "map_raster_series"))
-                    else OutputFileFormat.GEOTIFF
-                ),
+                output_formats=output_formats,
             )
+
             self.raster_series = InputRasterSeries(
                 etp=self.__get_setting("DIRECTORIES", "etp"),
                 etp_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "etp_prefix"),

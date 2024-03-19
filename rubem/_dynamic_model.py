@@ -530,7 +530,13 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             if not var.get("is_raster_series_enabled"):
                 continue
 
-            if self.config.output_variables.file_format is OutputFileFormat.GEOTIFF:
+            if OutputFileFormat.PCRASTER in self.config.output_variables.file_formats:
+                self.report(
+                    variable=output_vars_dict.get(var.get("id")),
+                    name=var.get("raster_filename_prefix"),
+                )
+            
+            if OutputFileFormat.GEOTIFF in self.config.output_variables.file_formats:
                 report(
                     variable=output_vars_dict.get(var.get("id")),
                     name=var.get("raster_filename_prefix"),
@@ -539,12 +545,6 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                     file_format=OutputFileFormat.GEOTIFF,
                     base_raster_info=self.config.output_raster_base,
                     no_data_value=MISSING_VALUE_DEFAULT,
-                )
-
-            if self.config.output_variables.file_format is OutputFileFormat.PCRASTER:
-                self.report(
-                    variable=output_vars_dict.get(var.get("id")),
-                    name=var.get("raster_filename_prefix"),
                 )
 
             if self.config.raster_files.sample_locations and self.config.output_variables.tss:
