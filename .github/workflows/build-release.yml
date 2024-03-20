@@ -6,10 +6,13 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash -el {0}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
 
     steps:
       - name: Checkout repository
@@ -18,19 +21,16 @@ jobs:
       - uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: env-ci.yml
-          init-shell: >-
-            bash
-            powershell
+          init-shell: bash
           cache-environment: true
           post-cleanup: "all"
 
       - name: Create Version File
         run: |
-          Write-Output(("${{ github.ref_name }}" -replace 'v(.*)-.*', '$1') + '.0') > version.txt
+          echo "${{ github.ref_name }}" | sed -E 's/v(.*)-.*/\1/; s/$/.0/' > version.txt
           create-version-file metadata.yml --outfile versionfile.txt
-        shell: pwsh
 
-      - name: Create Package
+      - name: Create Package (${{ matrix.os }})
         run: pyinstaller rubem.spec --noconfirm
 
       - name: Test Package
@@ -39,18 +39,17 @@ jobs:
 
       - name: Zip files
         run: |
-          Set-Location -Path .\dist\rubem
-          7z a -tzip -mx=9 -r "..\rubem-${{ github.ref_name }}-win-x86_64.zip" .\*
-        shell: pwsh
+          cd ./dist/rubem
+          7z a -tzip -mx=9 -r "..\rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip" .\*
 
       - name: Test Zip
         run: |
-          7z t "dist/rubem-${{ github.ref_name }}-win-x86_64.zip"
+          7z t "dist/rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip"
 
       - name: Compute Hash
         run: |
-          $hash = Get-FileHash -Path dist/rubem-${{ github.ref_name }}-win-x86_64.zip -Algorithm SHA512
-          echo $hash.Hash $([System.IO.Path]::GetFileName($hash.Path)) > dist/rubem-${{ github.ref_name }}-win-x86_64.zip.sha512
+          hash=$(sha512sum dist/rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip | awk '{print $1}')
+          echo "$hash rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip" > dist/rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip.sha512
         shell: pwsh
 
       - name: Create Release
@@ -62,7 +61,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           files: |
-            ./dist/rubem-${{ github.ref_name }}-win-x86_64.zip
-            ./dist/rubem-${{ github.ref_name }}-win-x86_64.zip.sha512
+            ./dist/rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip
+            ./dist/rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip.sha512
           draft: false
           prerelease: false
