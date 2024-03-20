@@ -32,10 +32,10 @@ Digital Elevation Map (DEM)
 
 Mandatory path to Digital Elevation Map (DEM) file `[masl] <https://wiki.gis.com/wiki/index.php/Meters_above_sea_level>`_ in PCRaster map format :file:`*.map`: this map contains topographic ground elevation in meters. Must be a valid file path to a PCRaster map format :file:`*.map` file. :ref:`See more. <fileformats:Digital Elevation Map (DEM) raster>`
 
- .. code-block:: dosini
-    
-    [RASTERS]
-    dem = /Dataset/UIGCRB/input/maps/dem/dem.map
+.. code-block:: dosini
+   
+   [RASTERS]
+   dem = /Dataset/UIGCRB/input/maps/dem/dem.map
 
 Mask of Catchment (Clone)
 ``````````````````````````
@@ -53,7 +53,7 @@ Local Drain Direction (LDD)
 
 Optional path to Local Drain Direction (LDD) file in PCRaster map format :file:`*.map`. This map contains the local flow direction of each cell in the catchment. Must be a valid file path to a PCRaster map format :file:`*.map` file. :ref:`See more. <fileformats:Local Drain Direction (LDD) raster>`
 
-.. note:: 
+.. warning:: 
 
   If not specified in the simulation configuration, it will be automatically generated using ``lddcreate`` from `PCRaster <https://pcraster.geo.uu.nl/pcraster/latest/documentation/pcraster_manual/sphinx/op_lddcreate.html>`_.
 
@@ -100,30 +100,55 @@ Mandatory cell dimension value in meters. Value has to correspond to the pixel r
 Simulation Period
 `````````````````
 
+.. warning:: 
+   
+   All dates must be valid and fall within between the time period of the dataset input time range.
+
 Start Date
 ''''''''''
 
-Mandatory date of the first time step of the simulation scenario (day, month and year of the start period of simulation scenario). Start date must be before the end date.
+Mandatory date of the first time step of the simulation scenario (day, month and year of the start period of simulation scenario).
 
 .. code-block:: dosini
    
    [SIM_TIME]
    start = 01/01/2000
 
+.. warning:: 
+   
+      The start date must be less than the :ref:`end date. <userguide:End Date>`
+
 End Date
 ''''''''
 
-Mandatory date of the last time step of the simulation scenario (day, month and year of the last period of simulation scenario). End date must be after the start date.
+Mandatory date of the last time step of the simulation scenario (day, month and year of the last period of simulation scenario).
 
 .. code-block:: dosini
    
    [SIM_TIME]
    end = 01/08/2000
 
-.. note::
-   
-   Both dates must be valid and fall within between the time period of the dataset input time range. The ``end`` date must be greater than the ``start`` date.
+.. warning:: 
 
+   The end date must be greater than the :ref:`start date. <userguide:Start Date>`
+
+Alignment Date
+''''''''''''''
+
+Optional date of the alignment time step of the simulation scenario (day, month and year of the alignment period of simulation scenario). If not specified, the alignment date will be the same as the :ref:`start date. <userguide:Start Date>`
+
+.. code-block:: dosini
+   
+   [SIM_TIME]
+   alignment = 01/01/2000
+
+.. warning:: 
+   
+   The alignment date must be before the :ref:`start date. <userguide:Start Date>`
+
+.. note:: 
+
+   In certain scenarios, modelers may need to initiate simulations from a date other than the one corresponding to file ``*.001``. This will allow the transformation of time steps accordingly, ensuring alignment with the desired starting date for the simulation.
 
 Soil Parameters
 ----------------
@@ -152,6 +177,7 @@ Mandatory path to a tabular file with values :raw-html:`[g/cm<sup>3</sup>]` of B
 ````````````````````````````````````````````````````````````````````````````````
 
 Mandatory path to a tabular file with values [mm/month] of saturated hydraulic conductivity for each soil class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <saturated-hydraulic-conductivity-table>`
+
 .. code-block:: dosini
    
    [TABLES]
