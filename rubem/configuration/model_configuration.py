@@ -68,8 +68,15 @@ class ModelConfiguration:
 
             self.logger.debug("Loading configuration...")
             self.simulation_period = SimulationPeriod(
-                datetime.strptime(self.__get_setting("SIM_TIME", "start"), "%d/%m/%Y").date(),
-                datetime.strptime(self.__get_setting("SIM_TIME", "end"), "%d/%m/%Y").date(),
+                start=datetime.strptime(self.__get_setting("SIM_TIME", "start"), "%d/%m/%Y"),
+                end=datetime.strptime(self.__get_setting("SIM_TIME", "end"), "%d/%m/%Y"),
+                alignment=(
+                    datetime.strptime(
+                        self.__get_setting("SIM_TIME", "alignment", optional=True), "%d/%m/%Y"
+                    )
+                    if self.__get_setting("SIM_TIME", "alignment", optional=True)
+                    else None
+                ),
             )
             self.grid = RasterGrid(float(self.__get_setting("GRID", "grid")))
             self.calibration_parameters = CalibrationParameters(

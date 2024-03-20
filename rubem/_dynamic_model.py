@@ -195,13 +195,13 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         """
         current_timestep = self.currentStep
         current_date = self.config.simulation_period.start_date + relativedelta(
-            months=current_timestep - 1
+            months=(current_timestep - self.config.simulation_period.first_step)
         )
         self.logger.info(
             "Cycle %s of %s (%s)",
             current_timestep,
             self.config.simulation_period.last_step,
-            current_date.strftime("%d/%m/%Y"),
+            current_date.strftime("%b/%Y"),
         )
         print(f"## Timestep {current_timestep} of {self.config.simulation_period.last_step}")
 
@@ -210,7 +210,6 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             current_ndvi = self.__readmap_series_wrapper(
                 files_partial_path=self.config.raster_series.ndvi,
                 dynamic_readmap_func=self.readmap,
-                supress_errors=True,
             )
             self.previous_ndvi = current_ndvi
         except RuntimeError:
@@ -226,7 +225,6 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             current_landuse = self.__readmap_series_wrapper(
                 files_partial_path=self.config.raster_series.landuse,
                 dynamic_readmap_func=self.readmap,
-                supress_errors=True,
             )
             self.previous_landuse = current_landuse
         except RuntimeError:
