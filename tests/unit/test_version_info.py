@@ -31,12 +31,12 @@ class TestVersionInfo:
 
     @pytest.mark.unit
     def test_date_str(self):
-        assert "2023-01-24" == __date__
+        assert "2024-03-21" == __date__
 
     @pytest.mark.unit
     def test_version_str(self):
-        assert "0.2.3" == __version__
+        assert "0.9.0" == __version__
 
     @pytest.mark.unit
     def test_release_str(self):
-        assert "0.2.3-beta.2" == __release__
+        assert "0.9.0-beta.3" == __release__
