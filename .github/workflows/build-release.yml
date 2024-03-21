@@ -48,7 +48,7 @@ jobs:
       - name: Compute Hash
         run: |
           cd ./dist/
-          sha512sum rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip > rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip.sha512
+          shasum -a 512 rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip > rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip.sha512
 
       - name: Create Release
         id: create_release
