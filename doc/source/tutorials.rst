@@ -11,30 +11,35 @@ For this example, we will set up the RUBEM model for ten years: 2000 to 2009. Fo
 Create a new project
 `````````````````````
 
-Create a new project in the downloaded dataset directory named :file:`Iguazu.ini` or another appropriate filename. 
+Create a new project in the downloaded dataset directory named :file:`Iguazu.json` or another appropriate filename. 
  
 .. _initial-settings:
 
 Initial Settings
 ````````````````
 
-Open the created :file:`Iguazu.ini` file and enter the following fields into the file to specify a directory to store the model output files. The output directory is the directory where the model will store the results:
+Open the created :file:`Iguazu.json` file and enter the following fields into the file to specify a directory to store the model output files. The output directory is the directory where the model will store the results:
 
-.. code-block:: dosini
-   
-   [DIRECTORIES]
-   output = /Iguazu/output/
+.. code-block:: json
+
+   {
+        "DIRECTORIES": {
+            "output": "/Iguazu/output/",
+        }
+   }
 
 Enable ``Export results to station locations (tss)`` option to export of results at the locations of the gauging stations as CSV files. Then define the file containing the map of the stations locations ``samples``:
 
-.. code-block:: dosini
-    
-    [GENERATE_FILE]
-    tss = True
+.. code-block:: json
 
-    [RASTERS]
-    samples = /Iguazu/maps/stations/samples.map
-
+    {    
+        "GENERATE_FILE": {
+            "tss": true,
+        },
+        "RASTERS": {
+            "samples": "Iguazu/maps/stations/samples.map"
+        },
+    }
 
 Now let's fill in the other fields with the appropriate maps from the input directory (Dataset :file:`maps` folder), as indicated in the table below:
 
@@ -50,25 +55,28 @@ Now let's fill in the other fields with the appropriate maps from the input dire
 
 In the part ``Grid`` set 500.000 m as size value and in the part Simulation Period, set the ``start`` and ``end`` of the simulation, from January 2000 until December 2009.
 
-.. code-block:: dosini
+.. code-block:: json
 
-    [GRID]
-    grid = 500.00
-
-    [SIM_TIME]
-    start = 01/01/2000
-    end = 01/12/2009
-
-    [DIRECTORIES]
-    output = /Iguazu/output/
-
-    [GENERATE_FILE]
-    tss = True
-
-    [RASTERS]
-    dem = /Iguazu/input/maps/dem/dem.map
-    clone = /Iguazu/input/maps/clone/clone.map
-    samples = /Iguazu/maps/stations/samples.map  
+    {
+        "GRID": {
+            "grid": 500.00,
+        },
+        "SIM_TIME": {
+            "start": "01/01/2000",
+            "end": "01/12/2009",
+        },
+        "DIRECTORIES": {
+            "output": "Iguazu/output/",
+        },
+        "GENERATE_FILE": {
+            "tss": true,
+        },
+        "RASTERS": {
+            "dem": "Iguazu/input/maps/dem/dem.map",
+            "clone": "Iguazu/input/maps/clone/clone.map",
+            "samples": "Iguazu/maps/stations/samples.map",
+        },
+    }
 
 Soil settings
 ``````````````
@@ -91,40 +99,43 @@ Set the following values for ``Initial Soil Conditions`` fields:
 | Initial Soil Moisture Content  | ``0.5`` |
 +--------------------------------+---------+
 
-.. code-block:: dosini
+.. code-block:: json
 
-    [GRID]
-    grid = 500.00
-
-    [SIM_TIME]
-    start = 01/01/2000
-    end = 01/12/2009
-
-    [DIRECTORIES]
-    output = /Iguazu/output/
-
-    [GENERATE_FILE]
-    tss = True
-
-    [RASTERS]
-    dem = /Iguazu/input/maps/dem/dem.map
-    clone = /Iguazu/input/maps/clone/clone.map
-    samples = /Iguazu/maps/stations/samples.map 
-    soil =  /Iguazu/input/maps/soil/soil.map
-
-    [TABLES]
-    bulk_density = /Iguazu/input/txt/soil/Bdens.txt
-    K_sat = /Iguazu/input/txt/soil/Ksat.txt
-    T_fcap = /Iguazu/input/txt/soil/Tfc.txt
-    T_sat = /Iguazu/input/txt/soil/Tsat.txt
-    T_wp = /Iguazu/input/txt/soil/Twp.txt
-    rootzone_depth = /Iguazu/input/txt/soil/Dpz.txt
-
-    [INITIAL_SOIL_CONDITIONS]
-    T_ini = 0.5
-    bfw_ini = 10.0
-    bfw_lim = 150.0
-    S_sat_ini = 151.0
+    {
+        "GRID": {
+            "grid": 500.00,
+        },
+        "SIM_TIME": {
+            "start": "01/01/2000",
+            "end": "01/12/2009",
+        },
+        "DIRECTORIES": {
+            "output": "Iguazu/output/",
+        },
+        "GENERATE_FILE": {
+            "tss": true,
+        },
+        "RASTERS": {
+            "dem": "Iguazu/input/maps/dem/dem.map",
+            "clone": "Iguazu/input/maps/clone/clone.map",
+            "samples": "Iguazu/maps/stations/samples.map ",
+            "soil": "Iguazu/input/maps/soil/soil.map",
+        },
+        "TABLES": {
+            "bulk_density": "Iguazu/input/txt/soil/Bdens.txt",
+            "K_sat": "Iguazu/input/txt/soil/Ksat.txt",
+            "T_fcap": "Iguazu/input/txt/soil/Tfc.txt",
+            "T_sat": "Iguazu/input/txt/soil/Tsat.txt",
+            "T_wp": "Iguazu/input/txt/soil/Twp.txt",
+            "rootzone_depth": "Iguazu/input/txt/soil/Dpz.txt",
+        },
+        "INITIAL_SOIL_CONDITIONS": {
+            "T_ini": 0.5,
+            "bfw_ini": 10.0,
+            "bfw_lim": 150.0,
+            "S_sat_ini": 151.0,
+        },
+    }
 
 Land Use settings
 ``````````````````
@@ -149,131 +160,135 @@ Use the default values for ``FPAR``, ``LAI`` and ``Impervious Area Interception`
 | Impervious Area Interception | ``2.5``   |
 +------------------------------+-----------+
 
-.. code-block:: dosini
+.. code-block:: json
 
-    [GRID]
-    grid = 500.00
-
-    [SIM_TIME]
-    start = 01/01/2000
-    end = 01/12/2009
-
-    [DIRECTORIES]
-    output = /Iguazu/output/
-    ndvi = /Iguazu/input/maps/ndvi/
-    landuse = /Iguazu/input/maps/landuse/
-
-    [FILENAME_PREFIXES]
-    ndvi_prefix = ndvi
-    landuse_prefix = cov    
-
-    [GENERATE_FILE]
-    tss = True
-
-    [RASTERS]
-    dem = /Iguazu/input/maps/dem/dem.map
-    clone = /Iguazu/input/maps/clone/clone.map
-    samples = /Iguazu/maps/stations/samples.map 
-    soil =  /Iguazu/input/maps/soil/soil.map
-    ndvi_max = /Iguazu/input/maps/ndvi/ndvi_max.map
-    ndvi_min = /Iguazu/input/maps/ndvi/ndvi_min.map    
-
-    [TABLES]
-    bulk_density = /Iguazu/input/txt/soil/Bdens.txt
-    K_sat = /Iguazu/input/txt/soil/Ksat.txt
-    T_fcap = /Iguazu/input/txt/soil/Tfc.txt
-    T_sat = /Iguazu/input/txt/soil/Tsat.txt
-    T_wp = /Iguazu/input/txt/soil/Twp.txt
-    rootzone_depth = /Iguazu/input/txt/soil/Dpz.txt
-    a_i = /Iguazu/input/txt/landuse/a_i.txtF
-    a_o = /Iguazu/input/txt/landuse/a_o.txt
-    a_s = /Iguazu/input/txt/landuse/a_s.txt
-    a_v = /Iguazu/input/txt/landuse/a_v.txt
-    manning = /Iguazu/input/txt/landuse/manning.txt
-    K_c_min = /Iguazu/input/txt/landuse/kcmin.txt
-    K_c_max = /Iguazu/input/txt/landuse/kcmax.txt
-
-
-    [INITIAL_SOIL_CONDITIONS]
-    T_ini = 0.5
-    bfw_ini = 10.0
-    bfw_lim = 150.0
-    S_sat_ini = 151.0
-
-    [CONSTANTS]
-    fpar_max = 0.950
-    fpar_min = 0.001
-    lai_max = 12.000
-    i_imp = 2.500
+    {
+        "GRID": {
+            "grid": 500.00,
+        },
+        "SIM_TIME": {
+            "start": "01/01/2000",
+            "end": "01/12/2009",
+        },
+        "DIRECTORIES": {
+            "output": "Iguazu/output/",
+            "ndvi": "Iguazu/input/maps/ndvi/",
+            "landuse": "Iguazu/input/maps/landuse/",
+        },
+        "FILENAME_PREFIXES": {
+            "ndvi_prefix": "ndvi",
+            "landuse_prefix": "cov",
+        },
+        "GENERATE_FILE": {
+            "tss": true,
+        },
+        "RASTERS": {
+            "dem": "Iguazu/input/maps/dem/dem.map",
+            "clone": "Iguazu/input/maps/clone/clone.map",
+            "samples": "Iguazu/maps/stations/samples.map",
+            "soil": "Iguazu/input/maps/soil/soil.map",
+            "ndvi_max": "Iguazu/input/maps/ndvi/ndvi_max.map",
+            "ndvi_min": "Iguazu/input/maps/ndvi/ndvi_min.map",
+        },
+        "TABLES": {
+            "bulk_density": "Iguazu/input/txt/soil/Bdens.txt",
+            "K_sat": "Iguazu/input/txt/soil/Ksat.txt",
+            "T_fcap": "Iguazu/input/txt/soil/Tfc.txt",
+            "T_sat": "Iguazu/input/txt/soil/Tsat.txt",
+            "T_wp": "Iguazu/input/txt/soil/Twp.txt",
+            "rootzone_depth": "Iguazu/input/txt/soil/Dpz.txt",
+            "a_i": "Iguazu/input/txt/landuse/a_i.txtF",
+            "a_o": "Iguazu/input/txt/landuse/a_o.txt",
+            "a_s": "Iguazu/input/txt/landuse/a_s.txt",
+            "a_v": "Iguazu/input/txt/landuse/a_v.txt",
+            "manning": "Iguazu/input/txt/landuse/manning.txt",
+            "K_c_min": "Iguazu/input/txt/landuse/kcmin.txt",
+            "K_c_max": "Iguazu/input/txt/landuse/kcmax.txt",
+        },
+        "INITIAL_SOIL_CONDITIONS": {
+            "T_ini": 0.5,
+            "bfw_ini": 10.0,
+            "bfw_lim": 150.0,
+            "S_sat_ini": 151.0,
+        },
+        "CONSTANTS": {
+            "fpar_max": 0.950,
+            "fpar_min": 0.001,
+            "lai_max": 12.000,
+            "i_imp": 2.500,
+        },
+    }
 
 Climate settings
 `````````````````
  
 In the ``Climate`` section define the appropriate map-series from :file:`/input/maps/prec/` for ``Precipitation [mm/month]``, :file:`/input/maps/etp/` for ``Potential Evapotranspiration [mm/month]``, and :file:`/input/maps/kp/` for ``Class A Pan Coefficient [-]``. In the ``Rainy days`` section select the appropriate file from :file:`/input/txt/`. It should be noted that the start date always has to correspond with the first climate forcing file (:file:`*.001`).
 
-.. code-block:: dosini
+.. code-block:: json
 
-    [GRID]
-    grid = 500.00
-
-    [SIM_TIME]
-    start = 01/01/2000
-    end = 01/12/2009
-
-    [DIRECTORIES]
-    output = /Iguazu/output/
-    ndvi = /Iguazu/input/maps/ndvi/
-    landuse = /Iguazu/input/maps/landuse/
-    etp = /Iguazu/input/maps/etp/
-    prec = /Iguazu/input/maps/prec/
-    kp = /Iguazu/input/maps/kp/
-
-    [FILENAME_PREFIXES]
-    etp_prefix = etp
-    prec_prefix = prec
-    kp_prefix = kp
-    ndvi_prefix = ndvi    
-    landuse_prefix = cob  
-
-    [GENERATE_FILE]
-    tss = True
-
-    [RASTERS]
-    dem = /Iguazu/input/maps/dem/dem.map
-    clone = /Iguazu/input/maps/clone/clone.map
-    samples = /Iguazu/maps/stations/samples.map 
-    soil =  /Iguazu/input/maps/soil/soil.map
-    ndvi_max = /Iguazu/input/maps/ndvi/ndvi_max.map
-    ndvi_min = /Iguazu/input/maps/ndvi/ndvi_min.map    
-
-    [TABLES]
-    rainydays = /Iguazu/input/txt/rainydays.txt
-    bulk_density = /Iguazu/input/txt/soil/Bdens.txt
-    K_sat = /Iguazu/input/txt/soil/Ksat.txt
-    T_fcap = /Iguazu/input/txt/soil/Tfc.txt
-    T_sat = /Iguazu/input/txt/soil/Tsat.txt
-    T_wp = /Iguazu/input/txt/soil/Twp.txt
-    rootzone_depth = /Iguazu/input/txt/soil/Dpz.txt
-    a_i = /Iguazu/input/txt/landuse/a_i.txt
-    a_o = /Iguazu/input/txt/landuse/a_o.txt
-    a_s = /Iguazu/input/txt/landuse/a_s.txt
-    a_v = /Iguazu/input/txt/landuse/a_v.txt
-    manning = /Iguazu/input/txt/landuse/manning.txt
-    K_c_min = /Iguazu/input/txt/landuse/kcmin.txt
-    K_c_max = /Iguazu/input/txt/landuse/kcmax.txt
-
-
-    [INITIAL_SOIL_CONDITIONS]
-    T_ini = 0.5
-    bfw_ini = 10.0
-    bfw_lim = 150.0
-    S_sat_ini = 151.0
-
-    [CONSTANTS]
-    fpar_max = 0.950
-    fpar_min = 0.001
-    lai_max = 12.000
-    i_imp = 2.500
+    {
+        "GRID": {
+            "grid": 500.00,
+        },
+        "SIM_TIME": {
+            "start": "01/01/2000",
+            "end": "01/12/2009",
+        },
+        "DIRECTORIES": {
+            "output": "Iguazu/output/",
+            "ndvi": "Iguazu/input/maps/ndvi/",
+            "landuse": "Iguazu/input/maps/landuse/",
+            "etp": "Iguazu/input/maps/etp/",
+            "prec": "Iguazu/input/maps/prec/",
+            "kp": "Iguazu/input/maps/kp/",
+        },
+        "FILENAME_PREFIXES": {
+            "etp_prefix": "etp",
+            "prec_prefix": "prec",
+            "kp_prefix": "kp",
+            "ndvi_prefix": "ndvi",
+            "landuse_prefix": "cob",
+        },
+        "GENERATE_FILE": {
+            "tss": true,
+        },
+        "RASTERS": {
+            "dem": "Iguazu/input/maps/dem/dem.map",
+            "clone": "Iguazu/input/maps/clone/clone.map",
+            "samples": "Iguazu/maps/stations/samples.map",
+            "soil": "Iguazu/input/maps/soil/soil.map",
+            "ndvi_max": "Iguazu/input/maps/ndvi/ndvi_max.map",
+            "ndvi_min": "Iguazu/input/maps/ndvi/ndvi_min.map",
+        },
+        "TABLES": {
+            "rainydays": "Iguazu/input/txt/rainydays.txt",
+            "bulk_density": "Iguazu/input/txt/soil/Bdens.txt",
+            "K_sat": "Iguazu/input/txt/soil/Ksat.txt",
+            "T_fcap": "Iguazu/input/txt/soil/Tfc.txt",
+            "T_sat": "Iguazu/input/txt/soil/Tsat.txt",
+            "T_wp": "Iguazu/input/txt/soil/Twp.txt",
+            "rootzone_depth": "Iguazu/input/txt/soil/Dpz.txt",
+            "a_i": "Iguazu/input/txt/landuse/a_i.txt",
+            "a_o": "Iguazu/input/txt/landuse/a_o.txt",
+            "a_s": "Iguazu/input/txt/landuse/a_s.txt",
+            "a_v": "Iguazu/input/txt/landuse/a_v.txt",
+            "manning": "Iguazu/input/txt/landuse/manning.txt",
+            "K_c_min": "Iguazu/input/txt/landuse/kcmin.txt",
+            "K_c_max": "Iguazu/input/txt/landuse/kcmax.txt",
+        },
+        "INITIAL_SOIL_CONDITIONS": {
+            "T_ini": 0.5,
+            "bfw_ini": 10.0,
+            "bfw_lim": 150.0,
+            "S_sat_ini": 151.0,
+        },
+        "CONSTANTS": {
+            "fpar_max": 0.950,
+            "fpar_min": 0.001,
+            "lai_max": 12.000,
+            "i_imp": 2.500,
+        },
+    }
 
 Parameters Settings
 ````````````````````
@@ -302,80 +317,82 @@ Values in this tab correspond to calibrated parameters in the basin. For the dat
 | Flow Recession Coefficient (x)            | ``0.307`` |
 +-------------------------------------------+-----------+
 
-.. code-block:: dosini
+.. code-block:: json
 
-    [GRID]
-    grid = 500.00
-
-    [SIM_TIME]
-    start = 01/01/2000
-    end = 01/12/2009
-
-    [DIRECTORIES]
-    output = /Iguazu/output/
-    ndvi = /Iguazu/input/maps/ndvi/
-    landuse = /Iguazu/input/maps/landuse/
-    etp = /Iguazu/input/maps/etp/
-    prec = /Iguazu/input/maps/prec/
-    kp = /Iguazu/input/maps/kp/
-
-    [FILENAME_PREFIXES]
-    etp_prefix = etp
-    prec_prefix = prec
-    kp_prefix = kp
-    ndvi_prefix = ndvi    
-    landuse_prefix = cob  
-
-    [GENERATE_FILE]
-    tss = True
-
-    [RASTERS]
-    dem = /Iguazu/input/maps/dem/dem.map
-    clone = /Iguazu/input/maps/clone/clone.map
-    samples = /Iguazu/maps/stations/samples.map 
-    soil =  /Iguazu/input/maps/soil/soil.map
-    ndvi_max = /Iguazu/input/maps/ndvi/ndvi_max.map
-    ndvi_min = /Iguazu/input/maps/ndvi/ndvi_min.map    
-
-    [TABLES]
-    rainydays = /Iguazu/input/txt/rainydays.txt
-    bulk_density = /Iguazu/input/txt/soil/Bdens.txt
-    K_sat = /Iguazu/input/txt/soil/Ksat.txt
-    T_fcap = /Iguazu/input/txt/soil/Tfc.txt
-    T_sat = /Iguazu/input/txt/soil/Tsat.txt
-    T_wp = /Iguazu/input/txt/soil/Twp.txt
-    rootzone_depth = /Iguazu/input/txt/soil/Dpz.txt
-    a_i = /Iguazu/input/txt/landuse/a_i.txt
-    a_o = /Iguazu/input/txt/landuse/a_o.txt
-    a_s = /Iguazu/input/txt/landuse/a_s.txt
-    a_v = /Iguazu/input/txt/landuse/a_v.txt
-    manning = /Iguazu/input/txt/landuse/manning.txt
-    K_c_min = /Iguazu/input/txt/landuse/kcmin.txt
-    K_c_max = /Iguazu/input/txt/landuse/kcmax.txt
-
-
-    [INITIAL_SOIL_CONDITIONS]
-    T_ini = 0.5
-    bfw_ini = 10.0
-    bfw_lim = 150.0
-    S_sat_ini = 151.0
-
-    [CONSTANTS]
-    fpar_max = 0.950
-    fpar_min = 0.001
-    lai_max = 12.000
-    i_imp = 2.500
-
-    [CALIBRATION]
-    alpha = 4.41
-    b = 0.07
-    w1 = 0.51
-    w2 = 0.12
-    w3 = 0.37
-    rcd = 5.37
-    f = 0.58
-    alpha_gw = 0.92
-    x = 0.307
+    {
+        "GRID": {
+            "grid": 500.00,
+        },
+        "SIM_TIME": {
+            "start": "01/01/2000",
+            "end": "01/12/2009",
+        },
+        "DIRECTORIES": {
+            "output": "Iguazu/output/",
+            "ndvi": "Iguazu/input/maps/ndvi/",
+            "landuse": "Iguazu/input/maps/landuse/",
+            "etp": "Iguazu/input/maps/etp/",
+            "prec": "Iguazu/input/maps/prec/",
+            "kp": "Iguazu/input/maps/kp/",
+        },
+        "FILENAME_PREFIXES": {
+            "etp_prefix": "etp",
+            "prec_prefix": "prec",
+            "kp_prefix": "kp",
+            "ndvi_prefix": "ndvi",
+            "landuse_prefix": "cob",
+        },
+        "GENERATE_FILE": {
+            "tss": true,
+        },
+        "RASTERS": {
+            "dem": "Iguazu/input/maps/dem/dem.map",
+            "clone": "Iguazu/input/maps/clone/clone.map",
+            "samples": "Iguazu/maps/stations/samples.map",
+            "soil": "Iguazu/input/maps/soil/soil.map",
+            "ndvi_max": "Iguazu/input/maps/ndvi/ndvi_max.map",
+            "ndvi_min": "Iguazu/input/maps/ndvi/ndvi_min.map",
+        },
+        "TABLES": {
+            "rainydays": "Iguazu/input/txt/rainydays.txt",
+            "bulk_density": "Iguazu/input/txt/soil/Bdens.txt",
+            "K_sat": "Iguazu/input/txt/soil/Ksat.txt",
+            "T_fcap": "Iguazu/input/txt/soil/Tfc.txt",
+            "T_sat": "Iguazu/input/txt/soil/Tsat.txt",
+            "T_wp": "Iguazu/input/txt/soil/Twp.txt",
+            "rootzone_depth": "Iguazu/input/txt/soil/Dpz.txt",
+            "a_i": "Iguazu/input/txt/landuse/a_i.txt",
+            "a_o": "Iguazu/input/txt/landuse/a_o.txt",
+            "a_s": "Iguazu/input/txt/landuse/a_s.txt",
+            "a_v": "Iguazu/input/txt/landuse/a_v.txt",
+            "manning": "Iguazu/input/txt/landuse/manning.txt",
+            "K_c_min": "Iguazu/input/txt/landuse/kcmin.txt",
+            "K_c_max": "Iguazu/input/txt/landuse/kcmax.txt",
+        },
+        "INITIAL_SOIL_CONDITIONS": {
+            "T_ini": 0.5,
+            "bfw_ini": 10.0,
+            "bfw_lim": 150.0,
+            "S_sat_ini": 151.0,
+        },
+        "CONSTANTS": {
+            "fpar_max": 0.950,
+            "fpar_min": 0.001,
+            "lai_max": 12.000,
+            "i_imp": 2.500,
+        },
+        "CALIBRATION": {
+            "alpha": 4.41,
+            "b": 0.07,
+            "w1": 0.51,
+            "w2": 0.12,
+            "w3": 0.37,
+            "rcd": 5.37,
+            "f": 0.58,
+            "alpha_gw": 0.92,
+            "x": 0.307,
+        },
+    }
 
 
 Model Execution Settings
@@ -385,139 +402,122 @@ Within this section it's necessary to specify for each variable if you want this
 
 In the example below  it can be seen that ``Recharge``, ``Accumulated Total Runoff`` and ``Total Interception`` are checked to be reported. If ``Export Results to stations locations (tss)``  was defined as ``True``, time-series for the selected variables will be generated.
 
-The default format the generated raster files is PCRaster map format ``map_raster_series = True``.
+The default format the generated raster files is PCRaster map format ``map_raster_series": true,``.
 
 The complete project configuration file should look like this:
 
-.. code-block:: dosini
+.. code-block:: json
 
-    [GRID]
-    grid = 500.00
-
-    [SIM_TIME]
-    start = 01/01/2000
-    end = 01/12/2009
-
-    [DIRECTORIES]
-    output = /Iguazu/output/
-    ndvi = /Iguazu/input/maps/ndvi/
-    landuse = /Iguazu/input/maps/landuse/
-    etp = /Iguazu/input/maps/etp/
-    prec = /Iguazu/input/maps/prec/
-    kp = /Iguazu/input/maps/kp/
-
-    [FILENAME_PREFIXES]
-    etp_prefix = etp
-    prec_prefix = prec
-    kp_prefix = kp
-    ndvi_prefix = ndvi    
-    landuse_prefix = cob  
-
-    [RASTERS]
-    dem = /Iguazu/input/maps/dem/dem.map
-    clone = /Iguazu/input/maps/clone/clone.map
-    samples = /Iguazu/maps/stations/samples.map 
-    soil =  /Iguazu/input/maps/soil/soil.map
-    ndvi_max = /Iguazu/input/maps/ndvi/ndvi_max.map
-    ndvi_min = /Iguazu/input/maps/ndvi/ndvi_min.map    
-
-    [TABLES]
-    rainydays = /Iguazu/input/txt/rainydays.txt
-    bulk_density = /Iguazu/input/txt/soil/Bdens.txt
-    K_sat = /Iguazu/input/txt/soil/Ksat.txt
-    T_fcap = /Iguazu/input/txt/soil/Tfc.txt
-    T_sat = /Iguazu/input/txt/soil/Tsat.txt
-    T_wp = /Iguazu/input/txt/soil/Twp.txt
-    rootzone_depth = /Iguazu/input/txt/soil/Dpz.txt
-    a_i = /Iguazu/input/txt/landuse/a_i.txt
-    a_o = /Iguazu/input/txt/landuse/a_o.txt
-    a_s = /Iguazu/input/txt/landuse/a_s.txt
-    a_v = /Iguazu/input/txt/landuse/a_v.txt
-    manning = /Iguazu/input/txt/landuse/manning.txt
-    K_c_min = /Iguazu/input/txt/landuse/kcmin.txt
-    K_c_max = /Iguazu/input/txt/landuse/kcmax.txt
-
-
-    [INITIAL_SOIL_CONDITIONS]
-    T_ini = 0.5
-    bfw_ini = 10.0
-    bfw_lim = 150.0
-    S_sat_ini = 151.0
-
-    [CONSTANTS]
-    fpar_max = 0.950
-    fpar_min = 0.001
-    lai_max = 12.000
-    i_imp = 2.500
-
-    [CALIBRATION]
-    alpha = 4.41
-    b = 0.07
-    w1 = 0.51
-    w2 = 0.12
-    w3 = 0.37
-    rcd = 5.37
-    f = 0.58
-    alpha_gw = 0.92
-    x = 0.307
-
-    [GENERATE_FILE]
-    itp = True
-    bfw = False
-    srn = False
-    eta = False
-    lfw = False
-    rec = True
-    smc = False
-    rnf = False
-    arn = True
-    tss = True    
-
-    [RASTER_FILE_FORMAT]
-    map_raster_series = True
-    tiff_raster_series = False
+    {
+        "GRID": {
+            "grid": 500.00,
+        },
+        "SIM_TIME": {
+            "start": "01/01/2000",
+            "end": "01/12/2009",
+        },
+        "DIRECTORIES": {
+            "output": "Iguazu/output/",
+            "ndvi": "Iguazu/input/maps/ndvi/",
+            "landuse": "Iguazu/input/maps/landuse/",
+            "etp": "Iguazu/input/maps/etp/",
+            "prec": "Iguazu/input/maps/prec/",
+            "kp": "Iguazu/input/maps/kp/",
+        },
+        "FILENAME_PREFIXES": {
+            "etp_prefix": "etp",
+            "prec_prefix": "prec",
+            "kp_prefix": "kp",
+            "ndvi_prefix": "ndvi",
+            "landuse_prefix": "cob",
+        },
+        "GENERATE_FILE": {
+            "tss": true,
+        },
+        "RASTERS": {
+            "dem": "Iguazu/input/maps/dem/dem.map",
+            "clone": "Iguazu/input/maps/clone/clone.map",
+            "samples": "Iguazu/maps/stations/samples.map",
+            "soil": "Iguazu/input/maps/soil/soil.map",
+            "ndvi_max": "Iguazu/input/maps/ndvi/ndvi_max.map",
+            "ndvi_min": "Iguazu/input/maps/ndvi/ndvi_min.map",
+        },
+        "TABLES": {
+            "rainydays": "Iguazu/input/txt/rainydays.txt",
+            "bulk_density": "Iguazu/input/txt/soil/Bdens.txt",
+            "K_sat": "Iguazu/input/txt/soil/Ksat.txt",
+            "T_fcap": "Iguazu/input/txt/soil/Tfc.txt",
+            "T_sat": "Iguazu/input/txt/soil/Tsat.txt",
+            "T_wp": "Iguazu/input/txt/soil/Twp.txt",
+            "rootzone_depth": "Iguazu/input/txt/soil/Dpz.txt",
+            "a_i": "Iguazu/input/txt/landuse/a_i.txt",
+            "a_o": "Iguazu/input/txt/landuse/a_o.txt",
+            "a_s": "Iguazu/input/txt/landuse/a_s.txt",
+            "a_v": "Iguazu/input/txt/landuse/a_v.txt",
+            "manning": "Iguazu/input/txt/landuse/manning.txt",
+            "K_c_min": "Iguazu/input/txt/landuse/kcmin.txt",
+            "K_c_max": "Iguazu/input/txt/landuse/kcmax.txt",
+        },
+        "INITIAL_SOIL_CONDITIONS": {
+            "T_ini": 0.5,
+            "bfw_ini": 10.0,
+            "bfw_lim": 150.0,
+            "S_sat_ini": 151.0,
+        },
+        "CONSTANTS": {
+            "fpar_max": 0.950,
+            "fpar_min": 0.001,
+            "lai_max": 12.000,
+            "i_imp": 2.500,
+        },
+        "CALIBRATION": {
+            "alpha": 4.41,
+            "b": 0.07,
+            "w1": 0.51,
+            "w2": 0.12,
+            "w3": 0.37,
+            "rcd": 5.37,
+            "f": 0.58,
+            "alpha_gw": 0.92,
+            "x": 0.307,
+        },
+        "GENERATE_FILE": {
+            "itp": true,
+            "bfw": false,
+            "srn": false,
+            "eta": false,
+            "lfw": false,
+            "rec": true,
+            "smc": false,
+            "rnf": false,
+            "arn": true,
+            "tss": true,
+        },
+        "RASTER_FILE_FORMAT": {
+            "map_raster_series": true,
+            "tiff_raster_series": false,
+        },
+    }
 
 In a proper Conda environment, run the following command:
 
 .. code-block:: console
-    
-    $ python rubem -c Iguazu.ini
+
+    $ python rubem -c Iguazu.json
 
 If all the project's configuration file is specified correctly, the user should be faced with the following:
 
 .. code-block:: console
-    
-    RUBEM::Started
-    RUBEM::Reading configuration file... OK
-    RUBEM::Running dynamic model...
-    RUBEM::Reading input files... OK
-    .Time: 1
-        Interception... OK
-        Evapotranspiration... OK
-        Surface Runoff... OK
-        Lateral Flow... OK
-        Recharge Flow... OK
-        Baseflow... OK
-        Soil Balance... OK
-        Runoff... OK
-    Exporting variables to files... OK
-    Ending cycle 1 of 122
 
-    [This part was purposely omitted because of limited space]
+    Loading configuration and validating inputs...
+    Simulation started...
+    .## Timestep 1 of 120
+    .## Timestep 2 of 120
 
-    .Time: 120
-        Interception... OK
-        Evapotranspiration... OK
-        Surface Runoff... OK
-        Lateral Flow... OK
-        Recharge Flow... OK
-        Baseflow... OK
-        Soil Balance... OK
-        Runoff... OK
-    Exporting variables to files... OK
-    Ending cycle 120 of 120
-    RUBEM::Dynamic model runtime: 9.38 seconds
-    RUBEM::Converting *.tss files to *.csv... OK
-    RUBEM::Finished
+    -- Omited for brevity --
+
+    .## Timestep 120 of 120
+    Simulation finished successfully!
+    Elapsed time: 5 seconds
 
 The files generated by the model will be in the directory specified in the ``output`` parameter.
