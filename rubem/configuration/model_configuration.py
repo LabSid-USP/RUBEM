@@ -1,4 +1,3 @@
-import configparser
 from datetime import datetime
 import json
 import logging
@@ -24,18 +23,16 @@ class ModelConfiguration:
     """Represents the configuration settings for the model.
 
     The `ModelConfiguration` class is responsible for loading and storing the configuration settings
-    required for running the model. It supports loading configuration from either a dictionary,
-    an INI file, or a JSON file.
+    required for running the model. It supports loading configuration from either a dictionary or a JSON file.
 
     :param config_input: The configuration input. It can be a dictionary containing the configuration
-        settings, a file path to an INI or JSON file, or a file-like object.
+        settings, a file path to a JSON file, or a file-like object.
 
     :param validate_input: Whether to validate the input. Defaults to `True`.
     :type validate_input: bool, optional
 
     :raises FileNotFoundError: If the specified config file is not found.
     :raises ValueError: If the config file type is not supported.
-    :raises configparser.Error: If the INI file is not valid.
     :raises json.JSONDecodeError: If the JSON file is not valid.
     :raises KeyError: If a required setting is missing.
     :raises ValueError: If a setting value is invalid.
@@ -58,9 +55,7 @@ class ModelConfiguration:
                     self.logger.error("Config file not found: %s", config_input_str)
                     raise FileNotFoundError(f"Config file not found: {config_input_str}")
 
-                if config_input_str.endswith(".ini"):
-                    self.config = self.__read_ini(config_input_str)
-                elif config_input_str.endswith(".json"):
+                if config_input_str.endswith(".json"):
                     self.config = self.__read_json(config_input_str)
                 else:
                     self.logger.error("Unsupported file type: %s", config_input_str)
@@ -234,16 +229,6 @@ class ModelConfiguration:
                 print(f"{i}) {message}")
                 i += 1
             print()
-
-    def __read_ini(self, file_path: Union[str, bytes, os.PathLike]):
-        self.logger.debug("Reading INI file: %s", file_path)
-        try:
-            parser = configparser.ConfigParser()
-            parser.read(file_path, encoding="utf-8")
-            return {section: dict(parser.items(section)) for section in parser.sections()}
-        except configparser.Error as e:
-            self.logger.error("Error parsing INI file: %s", e)
-            raise
 
     def __read_json(self, file_path: Union[str, bytes, os.PathLike]):
         self.logger.debug("Reading JSON file: %s", file_path)
