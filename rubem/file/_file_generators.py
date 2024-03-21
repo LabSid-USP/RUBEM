@@ -68,12 +68,14 @@ def __report(
     no_data_value: float = -9999,
 ):
     if timestep:
-        out_tif = os.path.join(
-            str(outpath),
-            f"{name}{str(timestep).zfill(10 - len(name))}.{extension}",
+        out_tif = os.path.abspath(
+            os.path.join(
+                str(outpath),
+                f"{name}{str(timestep).zfill(10 - len(name))}.{extension}",
+            )
         )
     else:
-        out_tif = os.path.join(str(outpath), f"{name}.{extension}")
+        out_tif = os.path.abspath(os.path.join(str(outpath), f"{name}.{extension}"))
 
     gdal.UseExceptions()
     gdal.AllRegister()
