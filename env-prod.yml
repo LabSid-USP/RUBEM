@@ -7,3 +7,4 @@ dependencies:
 - gdal=3.*
 - pcraster=4.*
 - humanize=4.*
+- python-dateutil=2.*

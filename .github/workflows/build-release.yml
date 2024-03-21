@@ -1,61 +1,66 @@
 name: Build Release
 on:
-    push:
-      branches: "!*"
-      tags: "v*"
+  push:
+    branches: "!*"
+    tags: "v*"
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -el {0}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: conda-incubator/setup-miniconda@v3
-      with:
-        activate-environment: rubem-ci
-        environment-file: env-ci.yml
-        python-version: 3.9
-        auto-activate-base: false
+      - uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: env-ci.yml
+          init-shell: bash
+          cache-environment: true
+          post-cleanup: "all"
 
-    - name: Create Version File
-      run: |
-        Write-Output(("${{ github.ref_name }}" -replace 'v(.*)-.*', '$1') + '.0') > version.txt
-        create-version-file metadata.yml --outfile versionfile.txt
-    
-    - name: Create Package
-      run: pyinstaller rubem.spec --noconfirm
+      - name: Create Version File
+        run: |
+          echo "${{ github.ref_name }}" | sed -E 's/v(.*)-.*/\1/; s/$/.0/' > version.txt
+          create-version-file metadata.yml --outfile versionfile.txt
 
-    - name: Test Package
-      run: |
-        ./dist/rubem/rubem -h
+      - name: Create Package (${{ matrix.os }})
+        run: pyinstaller rubem.spec --noconfirm
 
-    - name: Zip files
-      run: |
-        Set-Location -Path .\dist\rubem
-        7z a -tzip -mx=9 -r "..\rubem-${{ github.ref_name }}-win-x86_64.zip" .\*
+      - name: Test Package
+        run: |
+          ./dist/rubem/rubem -h
 
-    - name: Test Zip
-      run: |
-        7z t "dist/rubem-${{ github.ref_name }}-win-x86_64.zip"
+      - name: Zip files
+        run: |
+          cd ./dist/rubem
+          7z a -tzip -mx=9 -r "..\rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip" .\*
 
-    - name: Compute Hash
-      run: |
-        $hash = Get-FileHash -Path dist/rubem-${{ github.ref_name }}-win-x86_64.zip -Algorithm SHA512
-        echo $hash.Hash $([System.IO.Path]::GetFileName($hash.Path)) > dist/rubem-${{ github.ref_name }}-win-x86_64.zip.sha512
+      - name: Test Zip
+        run: |
+          7z t "dist/rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip"
 
-    - name: Create Release
-      id: create_release
-      uses: softprops/action-gh-release@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        name: ${{ github.ref_name }}
-        files: |
-          ./dist/rubem-${{ github.ref_name }}-win-x86_64.zip
-          ./dist/rubem-${{ github.ref_name }}-win-x86_64.zip.sha512
-        draft: false
-        prerelease: false
+      - name: Compute Hash
+        run: |
+          hash=$(sha512sum dist/rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip | awk '{print $1}')
+          echo "$hash rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip" > dist/rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip.sha512
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: |
+            ./dist/rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip
+            ./dist/rubem-${{ github.ref_name }}-${{ matrix.os }}-x86_64.zip.sha512
+          draft: false
+          prerelease: false
