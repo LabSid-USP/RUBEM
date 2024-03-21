@@ -89,13 +89,19 @@ class InputRasterSeries:
         else:
             self.logger.warning("Input data directories validation is disabled.")
 
-        self.etp = os.path.join(str(self.__etp_dir_path), self.__etp_filename_prefix)
-        self.precipitation = os.path.join(
-            str(self.__precipitation_dir_path), self.__precipitation_filename_prefix
+        self.etp = os.path.abspath(
+            os.path.join(str(self.__etp_dir_path), self.__etp_filename_prefix)
         )
-        self.ndvi = os.path.join(str(self.__ndvi_dir_path), self.__ndvi_filename_prefix)
-        self.kp = os.path.join(str(self.__kp_dir_path), self.__kp_filename_prefix)
-        self.landuse = os.path.join(str(self.__landuse_dir_path), self.__landuse_filename_prefix)
+        self.precipitation = os.path.abspath(
+            os.path.join(str(self.__precipitation_dir_path), self.__precipitation_filename_prefix)
+        )
+        self.ndvi = os.path.abspath(
+            os.path.join(str(self.__ndvi_dir_path), self.__ndvi_filename_prefix)
+        )
+        self.kp = os.path.abspath(os.path.join(str(self.__kp_dir_path), self.__kp_filename_prefix))
+        self.landuse = os.path.abspath(
+            os.path.join(str(self.__landuse_dir_path), self.__landuse_filename_prefix)
+        )
 
     def __validate_directories(self) -> None:
         directories = [

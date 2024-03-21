@@ -31,9 +31,9 @@ def tss2csv(tss_dir_path: str, cols_names: list[str], should_delete_src_tss: boo
     header = ["0"]
     header.extend(cols_names)
 
-    for tss_file in glob.glob(os.path.join(tss_dir_path, "*.tss")):
-        dst_file_path = os.path.join(
-            os.path.dirname(tss_file), f"{os.path.splitext(tss_file)[0]}.csv"
+    for tss_file in glob.glob(os.path.abspath(os.path.join(tss_dir_path, "*.tss"))):
+        dst_file_path = os.path.abspath(
+            os.path.join(os.path.dirname(tss_file), f"{os.path.splitext(tss_file)[0]}.csv")
         )
         with open(file=tss_file, mode="r", encoding="utf8") as f:
             lines = f.readlines()

@@ -13,11 +13,15 @@ class AppSettings:
 
     __instance = None
     __default_appsettings_dir = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
-    __default_appsettings_file = os.path.join(__default_appsettings_dir, "appsettings.json")
+    __default_appsettings_file = os.path.abspath(
+        os.path.join(__default_appsettings_dir, "appsettings.json")
+    )
 
     if "PYTHON_ENVIRONMENT" in os.environ and os.environ["PYTHON_ENVIRONMENT"]:
         custom_env_settings = f"appsettings.{os.environ['PYTHON_ENVIRONMENT']}.json"
-        custom_env_settings_path = os.path.join(__default_appsettings_dir, custom_env_settings)
+        custom_env_settings_path = os.path.abspath(
+            os.path.join(__default_appsettings_dir, custom_env_settings)
+        )
         if (
             os.path.isfile(custom_env_settings_path)
             and os.path.getsize(custom_env_settings_path) > 0
@@ -58,7 +62,7 @@ class AppSettings:
         """
 
         if app_settings_file_path:
-            app_settings_file_path_str = str(app_settings_file_path)
+            app_settings_file_path_str = os.path.abspath(app_settings_file_path)
         else:
             app_settings_file_path_str = self.__default_appsettings_file
 
