@@ -22,11 +22,11 @@ def file_path_cli_arg_validator(path: str):
         logger.error("Specified file path %s is empty", path)
         raise argparse.ArgumentTypeError(f'Specified file path "{path}" is empty.')
 
-    if not os.path.splitext(path)[1] in [".json", ".ini"]:
+    if not os.path.splitext(path)[1] in [".json"]:
         logger.error("Specified file path %s is not a valid file format", path)
         raise argparse.ArgumentTypeError(
             f'Specified file path "{path}" is not a valid file format. '
-            f"Only JSON and INI file formats are supported."
+            f"Only JSON file format is supported."
         )
 
     return path
