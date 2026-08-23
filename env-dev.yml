@@ -3,10 +3,11 @@ channels:
 - conda-forge
 - defaults
 dependencies:
-- python=3.9.*
-- gdal
+- python=3.12.*
+- gdal=3.*
 - humanize
-- pcraster
+- numpy=2.*
+- pcraster=4.4.*
 - pip
 - py
 - pyfakefs
