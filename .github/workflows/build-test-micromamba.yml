@@ -4,7 +4,6 @@ on:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["main"]
 
 jobs:
   build:
@@ -13,7 +12,7 @@ jobs:
       max-parallel: 5
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: env-dev.yml
@@ -21,7 +20,7 @@ jobs:
           cache-environment: true
           post-cleanup: "all"
       - name: Test with pytest
-        run: pytest -x -l -ra -k "not slow" --junitxml="TestResults-Rubem.xml"
+        run: pytest -ra --junitxml="TestResults-Rubem.xml"
         shell: bash -el {0}
 
       - name: Upload pytest test results

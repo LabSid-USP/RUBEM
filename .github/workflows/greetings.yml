@@ -11,6 +11,6 @@ jobs:
     steps:
     - uses: actions/first-interaction@v3
       with:
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        issue-message: 'Welcome to RUBEM community! Thanks so much for creating your first issue :)'
-        pr-message: 'Thanks so much for creating your first PR, the RUBEM community thanks you :)'
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        issue_message: 'Welcome to RUBEM community! Thanks so much for creating your first issue :)'
+        pr_message: 'Thanks so much for creating your first PR, the RUBEM community thanks you :)'
