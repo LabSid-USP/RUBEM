@@ -10,8 +10,9 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - uses: actions/stale@v10
+      - uses: actions/stale@v11
         with:
+          exempt-issue-labels: "roadmap,paper,breaking-change"
           days-before-issue-stale: 30
           days-before-issue-close: 14
           stale-issue-label: "stale"
