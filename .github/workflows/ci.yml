@@ -44,8 +44,8 @@ jobs:
         include:
           - os: windows-latest
             python: "3.13"
-          - os: macos-latest
-            python: "3.13"
+        # macOS is excluded until PCRaster's osx-arm64 build stops crashing
+        # model runs; see LabSid-USP/RUBEM#227.
     steps:
       - uses: actions/checkout@v7
       - uses: mamba-org/setup-micromamba@v3
@@ -166,36 +166,36 @@ jobs:
           if-no-files-found: error
       - name: Smoke test the wheel without dependencies
         run: |
-          python -m venv "$RUNNER_TEMP/smoke-wheel"
-          source "$RUNNER_TEMP/smoke-wheel/bin/activate"
+          cd "$RUNNER_TEMP"
+          python -m venv smoke-wheel
+          source smoke-wheel/bin/activate
           if python -c "import rubem" 2>/dev/null; then
             echo "rubem must not be importable in a fresh environment" >&2
             exit 1
           fi
-          pip install --no-deps dist/*.whl
-          cd "$RUNNER_TEMP"
+          pip install --no-deps "$GITHUB_WORKSPACE"/dist/*.whl
           python -c "import rubem, importlib.resources as r; print(rubem.__version__); r.files('rubem').joinpath('appsettings.json').read_text()"
       - name: Smoke test the sdist without dependencies
         run: |
-          python -m venv "$RUNNER_TEMP/smoke-sdist"
-          source "$RUNNER_TEMP/smoke-sdist/bin/activate"
+          cd "$RUNNER_TEMP"
+          python -m venv smoke-sdist
+          source smoke-sdist/bin/activate
           if python -c "import rubem" 2>/dev/null; then
             echo "rubem must not be importable in a fresh environment" >&2
             exit 1
           fi
-          pip install --no-deps dist/*.tar.gz
-          cd "$RUNNER_TEMP"
+          pip install --no-deps "$GITHUB_WORKSPACE"/dist/*.tar.gz
           python -c "import rubem, importlib.resources as r; print(rubem.__version__); r.files('rubem').joinpath('appsettings.json').read_text()"
       - name: Smoke test the CLI without native dependencies
         run: |
-          python -m venv "$RUNNER_TEMP/smoke-cli"
-          source "$RUNNER_TEMP/smoke-cli/bin/activate"
+          cd "$RUNNER_TEMP"
+          python -m venv smoke-cli
+          source smoke-cli/bin/activate
           if python -c "import rubem" 2>/dev/null; then
             echo "rubem must not be importable in a fresh environment" >&2
             exit 1
           fi
-          pip install dist/*.whl
-          cd "$RUNNER_TEMP"
+          pip install "$GITHUB_WORKSPACE"/dist/*.whl
           rubem --version
           echo '{}' > smoke-config.json
           if output=$(rubem -c smoke-config.json 2>&1); then
