@@ -1,15 +1,14 @@
 import logging
 import os
-import re
 from typing import Union
 
 from ..configuration.data_ranges_settings import DataRangesSettings
 from ..configuration.raster_map import RasterMap
+from ..file._naming import RASTER_SERIES_BASENAME_LENGTH, raster_series_pattern
 from ..validation.raster_data_rules import RasterDataRules
 from ..validation.raster_map_validator import RasterMapValidator
 
-RASTER_SERIES_FILENAME_MAX_CHARS = 8
-RASTER_SERIES_FILENAME_EXTENSION_NUM_DIGITS = 3
+RASTER_SERIES_FILENAME_MAX_CHARS = RASTER_SERIES_BASENAME_LENGTH
 
 
 class InputRasterSeries:
@@ -158,9 +157,7 @@ class InputRasterSeries:
             )
 
     def __validate_files_with_prefix(self, directory, prefix, valid_range, rules) -> int:
-        num_digits = RASTER_SERIES_FILENAME_MAX_CHARS - len(prefix)
-        regex_pattern = rf"^{prefix}[0-9]{{{num_digits}}}\.[0-9]{{{RASTER_SERIES_FILENAME_EXTENSION_NUM_DIGITS}}}$"
-        compiled_pattern = re.compile(regex_pattern, re.IGNORECASE)
+        compiled_pattern = raster_series_pattern(prefix)
 
         counter = 0
         with os.scandir(directory) as it:
