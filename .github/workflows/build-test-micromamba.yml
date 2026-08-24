@@ -61,6 +61,12 @@ jobs:
           print("numpy", numpy.__version__)
           PYCHECK
         shell: bash -el {0}
+      - name: Install the golden pip overlay
+        run: |
+          if grep -qvE '^\s*(#|$)' ci/golden-pip.lock; then
+            pip install --require-hashes -r ci/golden-pip.lock
+          fi
+        shell: bash -el {0}
       - name: Reproduce the golden outputs byte-for-byte
         run: RUBEM_EXACT_GOLDEN=1 pytest tests -m exact -ra --ignore=tests/integration/doc
         shell: bash -el {0}
