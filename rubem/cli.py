@@ -29,8 +29,11 @@ def main():
     :raises SystemExit(1): If the program exits with an error.
     :raises SystemExit(2): If the program is interrupted by the user.
     """
+    setup_logging()
     app_settings = AppSettings()
-    setup_logging(app_settings.get_setting("logging"))
+    custom_logging_config = app_settings.get_setting("logging")
+    if custom_logging_config:
+        setup_logging(custom_logging_config)
 
     try:
         i18n_settings = app_settings.get_setting("i18n")

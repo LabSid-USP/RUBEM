@@ -44,7 +44,9 @@ class ModelConfiguration:
         self.logger = logging.getLogger(__name__)
         self.problems = []
 
-        print(f"Loading configuration{' and validating inputs' if validate_input else ''}...")
+        self.logger.info(
+            "Loading configuration%s...", " and validating inputs" if validate_input else ""
+        )
         try:
             if isinstance(config_input, dict):
                 self.logger.debug("Reading configuration from dictionary")
@@ -221,14 +223,10 @@ class ModelConfiguration:
             )
 
         if self.problems:
-            print("Configuration problems found:")
-            i = 1
+            self.logger.warning("Configuration problems found: %d", len(self.problems))
             for problem in self.problems:
                 message = f"{problem.get('description')}: {problem.get('reason')} {problem.get('implication', '')} {problem.get('file', '')}"
                 self.logger.warning("Configuration problem: %s", message)
-                print(f"{i}) {message}")
-                i += 1
-            print()
 
     def __read_json(self, file_path: Union[str, bytes, os.PathLike]):
         self.logger.debug("Reading JSON file: %s", file_path)
@@ -247,7 +245,7 @@ class ModelConfiguration:
                 self.logger.error("Missing setting: %s in section: %s", setting, section)
                 raise ValueError(f"Missing setting: {setting} in section: {section}") from e
 
-            self.logger.warning("Optional setting not found: %s in section: %s", setting, section)
+            self.logger.debug("Optional setting not found: %s in section: %s", setting, section)
             return ""
 
     def __str__(self):
