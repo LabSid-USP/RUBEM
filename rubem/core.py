@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 
 import humanize
@@ -89,10 +90,18 @@ class DynamicFrameworkWrapper:
 
     def __export_tables_as_csv(self) -> None:
         """Converts PCRaster TSS files to Comma-Separated Values (CSV) files."""
-        if self.config.raster_files.sample_locations and self.config.output_variables.tss:
+        enabled_time_series = self.config.output_variables.get_enabled_time_series()
+        if self.config.raster_files.sample_locations and enabled_time_series:
             self.logger.info("Exporting tables as CSV...")
             cols = [str(n) for n in self.dynamic_model_concept.sample_vals[1:]]
-            tss2csv(self.config.output_directory.path, cols)
+            tss_files = [
+                os.path.join(
+                    self.config.output_directory.path,
+                    f"{var.get('table_filename_prefix')}.tss",
+                )
+                for var in enabled_time_series
+            ]
+            tss2csv([f for f in tss_files if os.path.isfile(f)], cols)
         else:
             self.logger.warning(
                 "Generation of time series was not configured to export time series files."
