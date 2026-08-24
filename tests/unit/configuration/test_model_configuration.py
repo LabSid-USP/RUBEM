@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
+from rubem.configuration.app_settings import DEFAULT_SETTINGS_FILE
 from rubem.configuration.input_raster_series import InputRasterSeries
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.configuration.raster_map import RasterBand
@@ -175,6 +176,9 @@ class TestModelConfiguration:
 
     @pytest.fixture(autouse=True)
     def setup(self, fs, mocker):
+        # The value ranges come from the packaged settings file, which the fake
+        # file system must expose.
+        fs.add_real_file(str(DEFAULT_SETTINGS_FILE))
         # The fake files carry no raster header; the geometry is read from a stub.
         mocker.patch(
             "rubem.configuration.output_raster_base.read_raster_geometry",

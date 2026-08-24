@@ -14,18 +14,17 @@ from tests.helpers.synthetic import write_synthetic_dataset
 class SettingsOverride:
     """Stand in for ``AppSettings`` with a few settings replaced.
 
-    The command line constructs the settings singleton itself, so the
-    replacement is installed as the class and answers the construction call
-    with this object. Every setting that is not overridden comes from the
-    packaged ``appsettings.json``, which keeps the value ranges the
-    configuration needs.
+    The command line asks the class for ``AppSettings.default()``, so the
+    replacement is installed as the class and answers that call with this
+    object. Every setting that is not overridden comes from the packaged
+    ``appsettings.json``.
     """
 
     def __init__(self, **overrides):
         self.overrides = overrides
-        self.packaged = AppSettings()
+        self.packaged = AppSettings.default()
 
-    def __call__(self):
+    def default(self):
         return self
 
     def get_setting(self, key):
@@ -108,15 +107,19 @@ class TestCliRun:
         assert "Simulation failed: the framework failed" in logged
 
     @pytest.mark.unit
-    def test_a_failing_run_exits_with_one(self, tmp_path, capsys, restore_logging):
+    def test_an_invalid_configuration_exits_with_one_without_a_traceback(
+        self, tmp_path, capsys, restore_logging
+    ):
         config_path = tmp_path / "config.json"
         config_path.write_text(json.dumps({}), encoding="utf8")
 
         with pytest.raises(SystemExit) as error:
             main(["-c", str(config_path)])
 
+        captured = capsys.readouterr().err
         assert error.value.code == 1
-        assert "RUBEM unexpectedly quit." in capsys.readouterr().err
+        assert "Invalid configuration: Missing setting: start in section: SIM_TIME" in captured
+        assert "Traceback" not in captured
 
     @pytest.mark.unit
     def test_an_interrupted_run_exits_with_two(

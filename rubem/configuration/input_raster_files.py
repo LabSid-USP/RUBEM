@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator,
 
 from .._paths import as_path
 from ..configuration._problems import Problem
-from ..configuration.data_ranges_settings import DataRangesSettings
+from ..configuration._ranges import raster_ranges
 from ..configuration.raster_map import RasterMap
 from ..validation.raster_content import check_extremes, check_sample_ids
 from ..validation.raster_data_rules import RasterDataRules
@@ -73,7 +73,7 @@ class InputRasterFiles(BaseModel):
             logger.warning("Input raster files validation is disabled.")
             return self
 
-        ranges = DataRangesSettings().rasters
+        ranges = raster_ranges()
         files = [
             (
                 self.dem,

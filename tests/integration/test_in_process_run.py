@@ -2,8 +2,6 @@ import os
 
 import pytest
 
-from rubem.configuration.app_settings import AppSettings
-from rubem.configuration.data_ranges_settings import DataRangesSettings
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.core import DynamicFrameworkWrapper
 from tests.helpers.config import base_model_config
@@ -21,7 +19,6 @@ class TestInProcessRun:
     @pytest.mark.slow
     @pytest.mark.integration
     def test_run_leaves_the_caller_working_directory_untouched(self, tmp_path):
-        DataRangesSettings(AppSettings().get_setting("value_ranges"))
         output_dir = tmp_path / "out"
         output_dir.mkdir()
         config = ModelConfiguration(base_model_config(str(output_dir)))

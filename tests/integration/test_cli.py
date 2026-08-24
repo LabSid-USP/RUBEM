@@ -115,8 +115,8 @@ class TestCliApp:
                 run_cli("-c", config_path)
 
     @pytest.mark.integration
-    def test_cli_app_reports_unexpected_failure(self):
-        """A failed run must say so on the console, traceback included.
+    def test_cli_app_reports_an_invalid_configuration(self):
+        """An unreadable configuration is reported on the console, without a traceback.
 
         The packaged ``appsettings.json`` carries no ``logging`` block, so the CLI
         falls back to its built-in configuration. That configuration must keep the
@@ -130,9 +130,10 @@ class TestCliApp:
 
             result = run_cli_capture("-c", config_path)
 
-            assert result.returncode == 1
-            assert "RUBEM unexpectedly quit." in result.stderr
-            assert "Traceback (most recent call last):" in result.stderr
+        assert result.returncode == 1
+        assert "Invalid configuration:" in result.stderr
+        assert "Error parsing JSON file" in result.stderr
+        assert "Traceback" not in result.stderr
 
     def _run_and_compare(self, temp_dir, *cli_flags):
         config_path = os.path.join(temp_dir, "config.json")
