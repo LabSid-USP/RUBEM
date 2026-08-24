@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  ancestry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Assert the tag points at main history
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+  ci:
+    needs: ancestry
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/ci.yml
+
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: ci
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Assert the installed version matches the tag
+        run: |
+          python -m venv "$RUNNER_TEMP/verify"
+          source "$RUNNER_TEMP/verify/bin/activate"
+          pip install dist/*.whl
+          tag="${GITHUB_REF_NAME#v}"
+          installed=$(python -c "import importlib.metadata as m; print(m.version('rubem'))")
+          echo "tag=$tag installed=$installed"
+          test "$tag" = "$installed"
+      - name: Smoke test the promoted wheel without native dependencies
+        run: |
+          source "$RUNNER_TEMP/verify/bin/activate"
+          cd "$RUNNER_TEMP"
+          rubem --version
+          echo '{}' > smoke-config.json
+          if output=$(rubem -c smoke-config.json 2>&1); then
+            echo "rubem must fail without pcraster/GDAL" >&2
+            exit 1
+          else
+            echo "$output" | grep -q "environment.yml"
+          fi
+
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: verify
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Compute checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+      - name: Create the GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc') }}
+          files: |
+            dist/*
