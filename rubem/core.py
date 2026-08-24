@@ -101,7 +101,17 @@ class DynamicFrameworkWrapper:
                 )
                 for var in enabled_time_series
             ]
-            tss2csv([f for f in tss_files if os.path.isfile(f)], cols)
+            missing = [f for f in tss_files if not os.path.isfile(f)]
+            if missing:
+                # The export also runs after a failed run, where a writer may
+                # never have been reached: the ones that exist are still
+                # converted, but the gap is named instead of being swallowed.
+                self.logger.warning(
+                    "%d enabled time series file(s) were not produced and cannot be converted: %s",
+                    len(missing),
+                    ", ".join(missing),
+                )
+            tss2csv([f for f in tss_files if f not in missing], cols)
         else:
             self.logger.warning(
                 "Generation of time series was not configured to export time series files."
