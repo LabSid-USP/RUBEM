@@ -1,0 +1,52 @@
+name: Bug report
+description: Report erroneous behavior to help us improve
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of the problem. A small reproducible test case is the best way to report a bug.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: To reproduce
+      description: Steps to reproduce the behavior, including the configuration file and the command line used.
+      placeholder: |
+        1. Create a configuration with ...
+        2. Run `rubem -c config.json`
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: RUBEM version
+      placeholder: v0.10.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 24.04
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Python, PCRaster and GDAL versions (for example the output of `conda list pcraster gdal python`).
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Logs, screenshots or anything else that helps.
