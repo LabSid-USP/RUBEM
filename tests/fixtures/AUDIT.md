@@ -35,10 +35,11 @@ regenerated once with `tests/fixtures/regenerate_golden.py`.
 - Determinism: the regeneration was executed twice on the same runner
   (regeneration step plus the byte-exact test's own rerun) and twice locally;
   each host reproduces its own bytes exactly. The promoted bytes were also
-  reproduced by the `exact` job on two further hosts of the same image, in
-  other Azure regions (`westus3` and `eastus2`, the latter an AMD EPYC 9V74
-  with glibc 2.39-0ubuntu8.8) than the generating one (`westcentralus`), so
-  the goldens are not bound to one physical machine of the pool.
+  reproduced by the `exact` job on three further hosts of the same image
+  (glibc 2.39-0ubuntu8.8), in Azure regions other than the generating one
+  (`westus3` and `eastus2` vs `westcentralus`) and on both CPU vendors of the
+  hosted pool (an AMD EPYC 9V74 and an Intel Xeon Platinum 8573C), so within
+  an image version the goldens are not bound to one machine or one CPU.
 - Byte-exact reproduction is asserted by the `exact` CI job
   (`RUBEM_EXACT_GOLDEN=1 pytest -m exact`) on that environment only; every
   other environment compares semantically with `rtol=1e-5`, `atol=1e-8`.
