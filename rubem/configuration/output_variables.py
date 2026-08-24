@@ -192,15 +192,15 @@ class OutputVariables:
 
     def __str__(self) -> str:
         return (
-            f"Total Interception (ITP): {'Enabled' if self.itp else 'Disabled'}\n"
-            f"Baseflow (BFW): {'Enabled' if self.bfw else 'Disabled'}\n"
-            f"Surface Runoff (SRN): {'Enabled' if self.srn else 'Disabled'}\n"
-            f"Actual Evapotranspiration (ETA): {'Enabled' if self.eta else 'Disabled'}\n"
-            f"Lateral Flow (LFW): {'Enabled' if self.lfw else 'Disabled'}\n"
-            f"Recharge (REC): {'Enabled' if self.rec else 'Disabled'}\n"
-            f"Soil Moisture Content (SMC): {'Enabled' if self.smc else 'Disabled'}\n"
-            f"Total Runoff (RNF): {'Enabled' if self.rnf else 'Disabled'}\n"
-            f"Accumulated Total Runoff (ARN): {'Enabled' if self.rnf else 'Disabled'}\n"
+            f"Total Interception (ITP): {'Enabled' if self.itp.get('is_raster_series_enabled') else 'Disabled'}\n"
+            f"Baseflow (BFW): {'Enabled' if self.bfw.get('is_raster_series_enabled') else 'Disabled'}\n"
+            f"Surface Runoff (SRN): {'Enabled' if self.srn.get('is_raster_series_enabled') else 'Disabled'}\n"
+            f"Actual Evapotranspiration (ETA): {'Enabled' if self.eta.get('is_raster_series_enabled') else 'Disabled'}\n"
+            f"Lateral Flow (LFW): {'Enabled' if self.lfw.get('is_raster_series_enabled') else 'Disabled'}\n"
+            f"Recharge (REC): {'Enabled' if self.rec.get('is_raster_series_enabled') else 'Disabled'}\n"
+            f"Soil Moisture Content (SMC): {'Enabled' if self.smc.get('is_raster_series_enabled') else 'Disabled'}\n"
+            f"Total Runoff (RNF): {'Enabled' if self.rnf.get('is_raster_series_enabled') else 'Disabled'}\n"
+            f"Accumulated Total Runoff (ARN): {'Enabled' if self.arn.get('is_raster_series_enabled') else 'Disabled'}\n"
             f"Create time output time series (TSS): {'Enabled' if self.tss else 'Disabled'}\n"
             f"Output format: {self.file_formats}"
         )
