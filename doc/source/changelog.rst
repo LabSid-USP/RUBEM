@@ -100,6 +100,11 @@ Unreleased
   next to the outputs, ``rubem config schema`` prints the 1.0 schema by
   default and ``rubem config migrate`` converts a legacy file (paths rebased
   onto the destination, atomic write, ``--force`` to overwrite).
+- Started the preprocessing overhaul: ``rubem preprocess`` sub-command
+  (``info`` describes a raster), shared raster I/O with explicit contracts
+  (atomic writes, natural ordering, geometry checks, collision detection,
+  all-no-data policy, ``manifest.csv``), and the legacy scripts no longer run
+  at import time.
 
 Version 0.9.0-beta.3
 ---------------------

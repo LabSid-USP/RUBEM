@@ -20,10 +20,8 @@
 
 """Interpolation method for generated metereological forcing maps series."""
 
-import time
-
-t1 = time.time()
 import os
+import time
 
 import numpy as np
 import pykrige.kriging_tools as kt
@@ -115,15 +113,17 @@ class Krige_Interpolation(DynamicModel):
         self.report(self.rain, "prec")
 
 
-# Number of timesteps must to be <= csv columns data
-nrOfTimeSteps = 20
-myModel = Krige_Interpolation(
-    "/path/for/output/files/",
-    "/path/and/filename/dem.map",
-    "/path/and/filename/CSV/file/data.csv",
-)
-dynamicModel = DynamicFramework(myModel, nrOfTimeSteps)
-dynamicModel.run()
+if __name__ == "__main__":
+    # Example invocation; edit the paths before running the module directly.
+    t1 = time.time()
+    # Number of timesteps must to be <= csv columns data
+    nrOfTimeSteps = 20
+    myModel = Krige_Interpolation(
+        "/path/for/output/files/",
+        "/path/and/filename/dem.map",
+        "/path/and/filename/CSV/file/data.csv",
+    )
+    dynamicModel = DynamicFramework(myModel, nrOfTimeSteps)
+    dynamicModel.run()
 
-tempoExec = time.time() - t1
-print("Tempo de execução: {} segundos".format(tempoExec))
+    print("Elapsed time: {} seconds".format(time.time() - t1))

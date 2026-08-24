@@ -1,0 +1,335 @@
+"""Raster input and output shared by the preprocessing tools.
+
+The contracts every tool follows:
+
+* a raster is read once into a :class:`RasterData` (array, no-data value,
+  geotransform, projection) and the GDAL dataset is closed immediately;
+* outputs are written to a temporary file next to the destination and renamed
+  into place, so a failed run never leaves a half-written raster behind;
+* series are ordered naturally (``etp2`` before ``etp10``), two inputs may not
+  map onto the same output name, and every raster of a series must share the
+  geometry of the first one;
+* an all-no-data raster is handled according to an explicit policy;
+* when a tool writes a directory of outputs, ``manifest.csv`` (source, target)
+  is written last, so its presence means the run completed.
+"""
+
+from __future__ import annotations
+
+import csv
+import logging
+import os
+import re
+import tempfile
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from enum import StrEnum
+from pathlib import Path
+
+import numpy as np
+
+from .._paths import PathInput, as_path
+
+logger = logging.getLogger(__name__)
+
+MANIFEST_NAME = "manifest.csv"
+
+
+class PreprocessingError(ValueError):
+    """A preprocessing tool cannot proceed with the given inputs."""
+
+
+class ValueScale(StrEnum):
+    """PCRaster value scales the tools can write."""
+
+    BOOLEAN = "boolean"
+    NOMINAL = "nominal"
+    ORDINAL = "ordinal"
+    SCALAR = "scalar"
+    DIRECTIONAL = "directional"
+    LDD = "ldd"
+
+
+class AllNoDataPolicy(StrEnum):
+    """What to do with a raster whose cells are all missing."""
+
+    ERROR = "error"
+    WARN = "warn"
+    SKIP = "skip"
+
+
+@dataclass(frozen=True)
+class RasterData:
+    """The content and geometry of one single-band raster."""
+
+    array: np.ndarray
+    nodata: float | None
+    geotransform: tuple[float, float, float, float, float, float]
+    projection: str
+    source: str = ""
+
+    @property
+    def rows(self) -> int:
+        return int(self.array.shape[0])
+
+    @property
+    def cols(self) -> int:
+        return int(self.array.shape[1])
+
+    @property
+    def cell_size(self) -> float:
+        return float(self.geotransform[1])
+
+    @property
+    def west(self) -> float:
+        return float(self.geotransform[0])
+
+    @property
+    def north(self) -> float:
+        return float(self.geotransform[3])
+
+    @property
+    def is_rotated(self) -> bool:
+        return self.geotransform[2] != 0 or self.geotransform[4] != 0
+
+    def mask(self) -> np.ndarray:
+        """Boolean array, ``True`` on the cells that carry data."""
+        valid = (
+            np.isfinite(self.array)
+            if self.array.dtype.kind == "f"
+            else np.ones(self.array.shape, bool)
+        )
+        if self.nodata is not None:
+            valid &= self.array != self.nodata
+        return valid
+
+    def all_nodata(self) -> bool:
+        return not self.mask().any()
+
+
+def _gdal():
+    from osgeo import gdal
+
+    gdal.UseExceptions()
+    gdal.AllRegister()
+    return gdal
+
+
+def read_raster(path: PathInput, band: int = 1) -> RasterData:
+    """Read one band of a GDAL-readable raster and close it.
+
+    :raises FileNotFoundError: If the file does not exist.
+    :raises PreprocessingError: If the raster cannot be opened or has no such band.
+    """
+    file = as_path(path)
+    if not file.is_file():
+        raise FileNotFoundError(f"Raster not found: {file}")
+    gdal = _gdal()
+    try:
+        dataset = gdal.OpenEx(str(file), gdal.GA_ReadOnly)
+    except RuntimeError as e:
+        raise PreprocessingError(f"{file} cannot be opened as a raster: {e}") from e
+    try:
+        if band < 1 or band > dataset.RasterCount:
+            raise PreprocessingError(
+                f"{file} has {dataset.RasterCount} band(s); band {band} does not exist."
+            )
+        raster_band = dataset.GetRasterBand(band)
+        return RasterData(
+            array=raster_band.ReadAsArray(),
+            nodata=raster_band.GetNoDataValue(),
+            geotransform=tuple(dataset.GetGeoTransform()),
+            projection=dataset.GetProjection() or "",
+            source=str(file),
+        )
+    finally:
+        dataset = None
+
+
+def check_same_geometry(reference: RasterData, other: RasterData, label: str) -> None:
+    """Raise :class:`PreprocessingError` unless both rasters share size and transform."""
+    same_size = reference.array.shape == other.array.shape
+    same_transform = all(
+        abs(a - b) <= 1e-9 * max(1.0, abs(a))
+        for a, b in zip(reference.geotransform, other.geotransform)
+    )
+    if not (same_size and same_transform):
+        raise PreprocessingError(
+            f"{label}: {other.source or 'raster'} ({other.array.shape[1]}x{other.array.shape[0]}, "
+            f"transform {other.geotransform}) does not share the geometry of "
+            f"{reference.source or 'the reference'} ({reference.cols}x{reference.rows}, "
+            f"transform {reference.geotransform})."
+        )
+
+
+def apply_all_nodata_policy(raster: RasterData, policy: AllNoDataPolicy, label: str) -> bool:
+    """Return whether ``raster`` should be processed.
+
+    ``error`` raises, ``warn`` logs and processes, ``skip`` logs and returns ``False``.
+    """
+    if not raster.all_nodata():
+        return True
+    message = f"{label}: every cell of {raster.source or 'the raster'} is missing."
+    if policy is AllNoDataPolicy.ERROR:
+        raise PreprocessingError(message)
+    logger.warning("%s%s", message, " Skipped." if policy is AllNoDataPolicy.SKIP else "")
+    return policy is not AllNoDataPolicy.SKIP
+
+
+_NUMBER_RUN = re.compile(r"(\d+)")
+
+
+def natural_key(name: str) -> list:
+    """Sort key that orders embedded numbers numerically (``etp2`` before ``etp10``)."""
+    return [int(part) if part.isdigit() else part.lower() for part in _NUMBER_RUN.split(name)]
+
+
+def natural_sorted(paths: Iterable[PathInput]) -> list[Path]:
+    """The paths in natural order of their file names."""
+    return sorted((as_path(p) for p in paths), key=lambda p: natural_key(p.name))
+
+
+def check_no_collisions(targets: Sequence[tuple[PathInput, PathInput]]) -> None:
+    """Raise :class:`PreprocessingError` when two sources map onto one target."""
+    seen: dict[Path, Path] = {}
+    for source, target in targets:
+        target_path = as_path(target).absolute()
+        source_path = as_path(source)
+        if target_path in seen:
+            raise PreprocessingError(
+                f"{source_path} and {seen[target_path]} would both be written to {target_path}."
+            )
+        seen[target_path] = source_path
+
+
+class AtomicOutput:
+    """A destination written through a temporary file in the same directory.
+
+    Use as a context manager: the body writes to ``temporary``; on success the
+    temporary file replaces the destination, on failure it is removed.
+    """
+
+    def __init__(self, destination: PathInput) -> None:
+        self.destination = as_path(destination)
+        self.temporary: Path | None = None
+
+    def __enter__(self) -> Path:
+        self.destination.parent.mkdir(parents=True, exist_ok=True)
+        handle, name = tempfile.mkstemp(
+            prefix=f".{self.destination.name}.", suffix=".tmp", dir=self.destination.parent
+        )
+        os.close(handle)
+        self.temporary = Path(name)
+        return self.temporary
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        assert self.temporary is not None
+        if exc_type is None:
+            self.temporary.replace(self.destination)
+        else:
+            self.temporary.unlink(missing_ok=True)
+
+
+GDAL_TYPE_BY_SCALE = {
+    ValueScale.BOOLEAN: "Byte",
+    ValueScale.NOMINAL: "Int32",
+    ValueScale.ORDINAL: "Int32",
+    ValueScale.SCALAR: "Float32",
+    ValueScale.DIRECTIONAL: "Float32",
+    ValueScale.LDD: "Byte",
+}
+
+
+def write_geotiff(
+    destination: PathInput,
+    array: np.ndarray,
+    geotransform: Sequence[float],
+    projection: str = "",
+    nodata: float | None = None,
+    gdal_type: str | None = None,
+) -> Path:
+    """Write a single-band LZW GeoTIFF atomically and return its path.
+
+    :param gdal_type: GDAL data type name (``Float32``, ``Int32``, ``Byte``, ...);
+        defaults to the type matching the array.
+    """
+    gdal = _gdal()
+    from osgeo import gdal_array
+
+    type_code = (
+        gdal.GetDataTypeByName(gdal_type)
+        if gdal_type
+        else gdal_array.NumericTypeCodeToGDALTypeCode(array.dtype)
+    )
+    if not type_code:
+        raise PreprocessingError(f"Unsupported data type for GeoTIFF: {gdal_type or array.dtype}")
+    with AtomicOutput(destination) as temporary:
+        # GDAL derives the driver from the extension of the final name; the
+        # temporary file keeps it after the destination name.
+        dataset = gdal.GetDriverByName("GTiff").Create(
+            str(temporary), array.shape[1], array.shape[0], 1, type_code, options=["COMPRESS=LZW"]
+        )
+        try:
+            band = dataset.GetRasterBand(1)
+            if nodata is not None:
+                band.SetNoDataValue(float(nodata))
+            band.WriteArray(array)
+            dataset.SetGeoTransform(tuple(float(v) for v in geotransform))
+            if projection:
+                dataset.SetProjection(projection)
+            dataset.FlushCache()
+        finally:
+            dataset = None
+    return as_path(destination)
+
+
+def write_pcraster_map(
+    destination: PathInput,
+    array: np.ndarray,
+    value_scale: ValueScale,
+    geotransform: Sequence[float],
+    nodata: float | None = None,
+) -> Path:
+    """Write a PCRaster map atomically from an array, on the given north-up geometry.
+
+    PCRaster maps are north-up only; a rotated or sheared transform is refused.
+    Cells equal to ``nodata`` (or not finite) become missing values.
+    """
+    import pcraster as pcr
+
+    west, cell, rotation_x, north, rotation_y, cell_y = (float(v) for v in geotransform)
+    if rotation_x != 0 or rotation_y != 0:
+        raise PreprocessingError("PCRaster maps are north-up only; the geometry is rotated.")
+    if abs(abs(cell_y) - cell) > 1e-9 * max(1.0, cell):
+        raise PreprocessingError("PCRaster maps need square cells.")
+    scale = {
+        ValueScale.BOOLEAN: pcr.Boolean,
+        ValueScale.NOMINAL: pcr.Nominal,
+        ValueScale.ORDINAL: pcr.Ordinal,
+        ValueScale.SCALAR: pcr.Scalar,
+        ValueScale.DIRECTIONAL: pcr.Directional,
+        ValueScale.LDD: pcr.Ldd,
+    }[value_scale]
+    rows, cols = array.shape
+    pcr.setclone(rows, cols, cell, west, north)
+    data = np.array(array, dtype=np.float64 if value_scale is ValueScale.SCALAR else np.int32)
+    missing = -9999.0 if value_scale is ValueScale.SCALAR else -9999
+    invalid = ~np.isfinite(np.asarray(array, dtype=float))
+    if nodata is not None:
+        invalid |= np.asarray(array) == nodata
+    data[invalid] = missing
+    field = pcr.numpy2pcr(scale, data, missing)
+    with AtomicOutput(destination) as temporary:
+        pcr.report(field, str(temporary))
+    return as_path(destination)
+
+
+def write_manifest(directory: PathInput, rows: Iterable[tuple[str, str]]) -> Path:
+    """Write ``manifest.csv`` (source, target) atomically; call it last."""
+    manifest = as_path(directory) / MANIFEST_NAME
+    with AtomicOutput(manifest) as temporary:
+        with temporary.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["source", "target"])
+            writer.writerows(rows)
+    return manifest
