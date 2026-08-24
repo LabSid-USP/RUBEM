@@ -95,6 +95,8 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
     backup names are allocated so that unrelated files next to a destination
     are never overwritten.
 
+    :raises ValueError: If the column names are empty, if a source has no data
+        rows, or if a source has a different number of columns.
     :raises IsADirectoryError: If a destination path is an existing directory.
 
     :param tss_files: Paths of the ``.tss`` files to convert.
@@ -126,8 +128,14 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
             with open(file=tss_file, mode="r", encoding="utf8") as f:
                 lines = f.readlines()
 
-            data = [line.split() for line in lines]
-            if data and len(data[0]) != len(header):
+            data = [line.split() for line in lines if line.strip()]
+            if not data:
+                logger.error("The time series file %s has no data rows.", tss_file)
+                raise ValueError(
+                    f"The time series file {tss_file} is empty; refusing to replace "
+                    "its CSV with a header-only file."
+                )
+            if len(data[0]) != len(header):
                 logger.error(
                     "Number of columns in the file %s is different from the number of column names.",
                     tss_file,

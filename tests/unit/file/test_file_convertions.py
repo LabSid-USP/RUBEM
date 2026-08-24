@@ -220,3 +220,25 @@ class TestTss2Csv:
         assert (tmp_path / "tss_a.csv").is_file()
         assert (tmp_path / "tss_b.csv").is_file()
         assert "tss_b.tss" in caplog.text
+
+    @pytest.mark.unit
+    def test_empty_source_fails_and_keeps_the_previous_csv(self, tmp_path):
+        """A truncated run must not replace usable results with a header-only file."""
+        first = tmp_path / "tss_a.tss"
+        second = tmp_path / "tss_b.tss"
+        write_tss(first, [(1, 10.5)])
+        second.write_text("", encoding="utf8")
+        (tmp_path / "tss_a.csv").write_text("previous a\n", encoding="utf8")
+        (tmp_path / "tss_b.csv").write_text("previous b\n", encoding="utf8")
+
+        with pytest.raises(ValueError, match="is empty"):
+            tss2csv([first, second], ["1"])
+
+        assert (tmp_path / "tss_a.csv").read_text(encoding="utf8") == "previous a\n"
+        assert (tmp_path / "tss_b.csv").read_text(encoding="utf8") == "previous b\n"
+        assert sorted(path.name for path in tmp_path.iterdir()) == [
+            "tss_a.csv",
+            "tss_a.tss",
+            "tss_b.csv",
+            "tss_b.tss",
+        ]
