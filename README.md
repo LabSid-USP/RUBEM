@@ -58,25 +58,17 @@ To get a local copy up and running follow these simple steps.
 
 This is an example of how to list things you need to use the software and how to install them.
 
-- From Miniconda base envionment create a new conda envionment
+- [PCRaster](https://pcraster.geo.uu.nl/) and [GDAL](https://gdal.org/) come from conda-forge: create the runtime environment from the repository's `environment.yml`
 
    ```sh
-   conda env create -n rubem --file env-prod.yml
+   conda env create -f environment.yml
    ```
 
 - Activate the new environment
 
-  - Windows
-
-    ```powershell
-    conda activate rubem
-    ```
-  
-  - Linux, macOS
-  
-    ```sh
-    source activate rubem
-    ```
+   ```sh
+   conda activate rubem
+   ```
 
 ### Installation
 
