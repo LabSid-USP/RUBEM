@@ -110,6 +110,10 @@ Unreleased
   order, PCRaster 8.3 naming, geometry checks against a clone, no-data
   policy, georeference for the GeoTIFF outputs; the legacy modules
   ``tif2map``, ``tif2pcrtss`` and ``pcrtss2tif`` are deprecated.
+- Added ``rubem preprocess minmax`` (``rubem.preprocessing.minmax_series``):
+  per-cell minimum and maximum of a raster series ignoring missing cells,
+  with the geometry checked across the series; the legacy ``minmax`` module
+  is deprecated.
 
 Version 0.9.0-beta.3
 ---------------------

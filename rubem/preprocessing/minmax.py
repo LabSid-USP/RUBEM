@@ -8,6 +8,19 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
+"""Deprecated: use ``rubem preprocess minmax`` or :mod:`rubem.preprocessing.minmax_series`.
+
+This module is kept for one minor release.
+"""
+
+import warnings
+
+warnings.warn(
+    "rubem.preprocessing.minmax is deprecated; use rubem.preprocessing.minmax_series.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 """Common file conversion functionality used by RUBEM"""
 
 import glob
