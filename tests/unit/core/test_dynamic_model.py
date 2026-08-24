@@ -61,7 +61,7 @@ class TestDynamicModelBehavior:
         assert not list(output_dir.glob("*.tss"))
 
     @pytest.mark.unit
-    def test_disabling_a_variable_skips_its_rasters(self, tmp_path):
+    def test_disabling_a_variable_skips_its_rasters_and_time_series(self, tmp_path):
         config = write_synthetic_dataset(str(tmp_path))
         config["GENERATE_FILE"]["itp"] = False
 
@@ -69,4 +69,17 @@ class TestDynamicModelBehavior:
 
         output_dir = tmp_path / "out"
         assert not list(output_dir.glob("itp*"))
+        assert not (output_dir / "tss_itp.csv").exists()
         assert (output_dir / "bfw00000.001").is_file()
+        assert (output_dir / "tss_bfw.csv").is_file()
+
+    @pytest.mark.unit
+    def test_stale_tss_files_in_the_output_directory_are_left_alone(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        stale = tmp_path / "out" / "stale.tss"
+        stale.write_text("1 42.0\n", encoding="utf8")
+
+        run_model(str(tmp_path), config=config)
+
+        assert stale.exists()
+        assert not (tmp_path / "out" / "stale.csv").exists()
