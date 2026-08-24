@@ -1,5 +1,6 @@
 import os
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -76,10 +77,10 @@ class TestDatedSeriesResolver:
             ALIGNMENT,
         )
 
-        assert resolver.path_for_step(1) == "/maps/a.map"
-        assert resolver.path_for_step(2) == "/maps/a.map"
-        assert resolver.path_for_step(3) == "/maps/b.map"
-        assert resolver.path_for_step(4) == "/maps/b.map"
+        assert Path(resolver.path_for_step(1)) == Path("/maps/a.map")
+        assert Path(resolver.path_for_step(2)) == Path("/maps/a.map")
+        assert Path(resolver.path_for_step(3)) == Path("/maps/b.map")
+        assert Path(resolver.path_for_step(4)) == Path("/maps/b.map")
         missing = resolver.path_for_step(5)
         assert isinstance(missing, MissingStep) and "2000-05" in missing.reason
 
@@ -105,9 +106,9 @@ class TestMonthlySeriesResolver:
             "ndvi", {m: f"/maps/ndvi{m:02d}.map" for m in range(1, 13)}, ALIGNMENT
         )
 
-        assert resolver.path_for_step(1) == "/maps/ndvi01.map"
-        assert resolver.path_for_step(14) == "/maps/ndvi02.map"
-        assert resolver.path_for_step(24) == "/maps/ndvi12.map"
+        assert Path(resolver.path_for_step(1)) == Path("/maps/ndvi01.map")
+        assert Path(resolver.path_for_step(14)) == Path("/maps/ndvi02.map")
+        assert Path(resolver.path_for_step(24)) == Path("/maps/ndvi12.map")
 
     @pytest.mark.unit
     def test_the_yearly_raster_replaces_the_set_from_its_year_on(self):
@@ -119,9 +120,9 @@ class TestMonthlySeriesResolver:
             yearly_file_path="/maps/ndvipr.map",
         )
 
-        assert resolver.path_for_step(12) == "/maps/ndvi12.map"
-        assert resolver.path_for_step(13) == "/maps/ndvipr.map"
-        assert resolver.path_for_step(30) == "/maps/ndvipr.map"
+        assert Path(resolver.path_for_step(12)) == Path("/maps/ndvi12.map")
+        assert Path(resolver.path_for_step(13)) == Path("/maps/ndvipr.map")
+        assert Path(resolver.path_for_step(30)) == Path("/maps/ndvipr.map")
 
     @pytest.mark.unit
     def test_rejects_incomplete_months_and_half_yearly_settings(self):
