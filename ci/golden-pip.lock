@@ -1,0 +1,5 @@
+# Hash-pinned PyPI overlay for the golden regression environment.
+# Installed in the exact CI job with: pip install --require-hashes -r ci/golden-pip.lock
+# Intentionally empty: the golden environment is conda-only at this point.
+# Add pure-Python runtime dependencies here (with --hash pins) when they enter
+# the dependency set, so byte-exact golden reproduction stays reproducible.

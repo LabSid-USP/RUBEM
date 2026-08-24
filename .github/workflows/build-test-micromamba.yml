@@ -30,3 +30,37 @@ jobs:
           path: "TestResults-Rubem.xml"
           retention-days: 1
         if: ${{ always() }}
+
+  exact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: ci/golden-env.lock
+          environment-name: golden
+          init-shell: bash
+          cache-environment: true
+          post-cleanup: "all"
+      - name: Assert the golden environment is active
+        run: |
+          python - <<'PYCHECK'
+          import os
+          import sys
+
+          prefix = os.environ.get("CONDA_PREFIX", "")
+          assert os.path.basename(prefix) == "golden", f"unexpected prefix: {prefix!r}"
+          assert sys.executable.startswith(prefix), sys.executable
+
+          import numpy
+          import osgeo
+          import pcraster  # noqa: F401
+
+          print("python", sys.version)
+          print("gdal", osgeo.__version__)
+          print("numpy", numpy.__version__)
+          PYCHECK
+        shell: bash -el {0}
+      - name: Reproduce the golden outputs byte-for-byte
+        run: RUBEM_EXACT_GOLDEN=1 pytest tests -m exact -ra --ignore=tests/integration/doc
+        shell: bash -el {0}
