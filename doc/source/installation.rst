@@ -24,12 +24,19 @@ From the repository
       git clone https://github.com/LabSid-USP/RUBEM.git
       cd RUBEM
 
-2. Create and activate the runtime environment:
+2. Create and activate the runtime environment, with conda:
 
    .. code-block:: console
 
       conda env create -f environment.yml
       conda activate rubem
+
+   or with micromamba, which has no ``conda`` command:
+
+   .. code-block:: console
+
+      micromamba create -f environment.yml -y
+      micromamba activate rubem
 
 3. Install RUBEM into the environment:
 
@@ -55,4 +62,4 @@ extras:
 
 .. code-block:: console
 
-   pip install -e .[dev]
+   pip install -e '.[dev]'

@@ -70,11 +70,18 @@ RUBEM depends on [PCRaster](https://pcraster.geo.uu.nl/) and [GDAL](https://gdal
    cd RUBEM
    ```
 
-2. Create and activate the runtime environment:
+2. Create and activate the runtime environment, with conda:
 
    ```sh
    conda env create -f environment.yml
    conda activate rubem
+   ```
+
+   or with micromamba, which has no `conda` command:
+
+   ```sh
+   micromamba create -f environment.yml -y
+   micromamba activate rubem
    ```
 
 3. Install RUBEM into the environment:
