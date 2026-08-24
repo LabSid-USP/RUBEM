@@ -24,11 +24,13 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install lint tools
-        run: pip install "ruff==0.16.4"
+        run: pip install "ruff==0.16.4" "cffconvert==2.0.0"
       - name: Ruff check
         run: ruff check .
       - name: Ruff format check
         run: ruff format --check .
+      - name: Validate the citation metadata
+        run: cffconvert --validate
 
   test:
     runs-on: ${{ matrix.os }}
