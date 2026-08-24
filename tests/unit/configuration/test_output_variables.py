@@ -52,3 +52,13 @@ class TestOutputVariables:
             tss=tss,
             output_formats=output_format,
         )
+
+
+class TestOutputVariablesStr:
+    @pytest.mark.unit
+    def test_str_reflects_the_enablement_flags(self):
+        variables = OutputVariables(itp=False, arn=True, tss=False)
+        text = str(variables)
+        assert "Total Interception (ITP): Disabled" in text
+        assert "Accumulated Total Runoff (ARN): Enabled" in text
+        assert "Create time output time series (TSS): Disabled" in text

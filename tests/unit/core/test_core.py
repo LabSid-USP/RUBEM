@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 from osgeo import gdal
@@ -38,6 +40,32 @@ class TestDynamicFrameworkWrapper:
         assert not list(output_dir.glob("*.tss")), "tss files must be converted to csv"
 
     @pytest.mark.unit
+    def test_an_embedded_run_writes_nothing_to_stdout(self, tmp_path, capsys):
+        """The library reports through logging; only a front end prints."""
+        run_model(str(tmp_path))
+
+        assert capsys.readouterr().out == ""
+
+    @pytest.mark.unit
+    def test_every_enabled_time_series_is_required_by_the_export(self, tmp_path, monkeypatch):
+        """A missing enabled writer must not be dropped from the conversion."""
+        from rubem import core
+
+        converted = []
+        real_tss2csv = core.tss2csv
+
+        def record(tss_files, cols_names, **kwargs):
+            converted.extend(str(path) for path in tss_files)
+            return real_tss2csv(tss_files, cols_names, **kwargs)
+
+        monkeypatch.setattr(core, "tss2csv", record)
+        run_model(str(tmp_path))
+
+        assert sorted(os.path.basename(path) for path in converted) == sorted(
+            f"tss_{variable}.tss" for variable in VARIABLES
+        )
+
+    @pytest.mark.unit
     def test_outputs_are_finite_on_valid_cells(self, tmp_path):
         run_model(str(tmp_path))
         for variable in VARIABLES:
@@ -69,3 +97,21 @@ class TestDynamicFrameworkWrapper:
         run_model(str(second))
         for base in (first, second):
             assert (base / "out" / "tss_arn.csv").is_file()
+
+
+class TestRunFailureHandling:
+    @pytest.mark.unit
+    def test_failed_runs_do_not_convert_time_series(self, tmp_path, mocker):
+        config = write_synthetic_dataset(str(tmp_path))
+        model_config = ModelConfiguration(config, validate_input=False)
+        wrapper = DynamicFrameworkWrapper.load(model_config)
+
+        stale_tss = tmp_path / "out" / "tss_itp.tss"
+        stale_tss.write_text("1 42.0\n", encoding="utf8")
+        mocker.patch.object(wrapper.dynamic_model, "run", side_effect=RuntimeError("boom"))
+
+        with pytest.raises(RuntimeError, match="boom"):
+            wrapper.run()
+
+        assert stale_tss.exists(), "sources must survive a failed run"
+        assert not (tmp_path / "out" / "tss_itp.csv").exists()

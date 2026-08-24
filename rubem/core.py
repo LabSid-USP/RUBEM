@@ -50,7 +50,6 @@ class DynamicFrameworkWrapper:
         """
         Wrapper of the ``DynamicFramework.run()`` that runs the ``DynamicModelConcept``.
         """
-        print("Simulation started...")
         t0 = time.time()
         self.logger.info(
             "Started model run for %s cycles...", self.config.simulation_period.total_steps
@@ -58,17 +57,21 @@ class DynamicFrameworkWrapper:
 
         try:
             self.dynamic_model.run()
-            self.logger.info("Simulation finished!")
-            print("Simulation finished successfully!")
-        except RuntimeError as e:
-            self.logger.error("Simulation failed with error: %s", e)
-            print("Simulation finished with error! See log for details.")
+            self.logger.info("Simulation finished successfully!")
+        except RuntimeError as error:
+            # The exception carries the traceback to whoever handles it; logging
+            # it here as well would print it twice under the CLI, which logs it
+            # once at its own boundary.
+            self.logger.error("Simulation failed: %s", error)
             raise
         finally:
             exec_time = time.time() - t0
-            self.logger.info("Elapsed time: %.2fs", exec_time)
-            print(f"Elapsed time: {humanize.precisedelta(exec_time, minimum_unit='seconds')}")
-            self.__export_tables_as_csv()
+            self.logger.info(
+                "Elapsed time: %s",
+                humanize.precisedelta(exec_time, minimum_unit="seconds"),
+            )
+
+        self.__export_tables_as_csv()
 
     @classmethod
     def load(cls, data):
@@ -91,7 +94,11 @@ class DynamicFrameworkWrapper:
     def __export_tables_as_csv(self) -> None:
         """Converts PCRaster TSS files to Comma-Separated Values (CSV) files."""
         enabled_time_series = self.config.output_variables.get_enabled_time_series()
-        if self.config.raster_files.sample_locations and enabled_time_series:
+        if (
+            self.config.raster_files.sample_locations
+            and enabled_time_series
+            and self.dynamic_model_concept.sample_vals is not None
+        ):
             self.logger.info("Exporting tables as CSV...")
             cols = [str(n) for n in self.dynamic_model_concept.sample_vals[1:]]
             tss_files = [
@@ -101,17 +108,11 @@ class DynamicFrameworkWrapper:
                 )
                 for var in enabled_time_series
             ]
-            missing = [f for f in tss_files if not os.path.isfile(f)]
-            if missing:
-                # The export also runs after a failed run, where a writer may
-                # never have been reached: the ones that exist are still
-                # converted, but the gap is named instead of being swallowed.
-                self.logger.warning(
-                    "%d enabled time series file(s) were not produced and cannot be converted: %s",
-                    len(missing),
-                    ", ".join(missing),
-                )
-            tss2csv([f for f in tss_files if f not in missing], cols)
+            # The export now runs only after a successful run, so every enabled
+            # writer must have produced its file: the complete list is passed
+            # and ``tss2csv`` refuses to install anything if one is missing,
+            # instead of mixing fresh CSV files with those of an earlier run.
+            tss2csv(tss_files, cols)
         else:
             self.logger.warning(
                 "Generation of time series was not configured to export time series files."

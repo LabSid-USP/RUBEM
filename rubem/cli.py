@@ -29,8 +29,11 @@ def main():
     :raises SystemExit(1): If the program exits with an error.
     :raises SystemExit(2): If the program is interrupted by the user.
     """
+    setup_logging()
     app_settings = AppSettings()
-    setup_logging(app_settings.get_setting("logging"))
+    custom_logging_config = app_settings.get_setting("logging")
+    if custom_logging_config:
+        setup_logging(custom_logging_config)
 
     try:
         i18n_settings = app_settings.get_setting("i18n")
@@ -82,12 +85,29 @@ def main():
     require_runtime_deps()
 
     try:
+        import time
+
+        import humanize
+
         from .configuration.model_configuration import ModelConfiguration
         from .core import DynamicFrameworkWrapper
 
+        # The library only logs; the progress a command-line run is expected to
+        # show (see doc/source/tutorials.rst) is written here, so that an
+        # embedded run stays silent unless its host configures logging.
+        validating = " and validating inputs" if args.skip_inputs_validation else ""
+        print(f"Loading configuration{validating}...", flush=True)
         model_config = ModelConfiguration(args.configfile, args.skip_inputs_validation)
         model = DynamicFrameworkWrapper.load(model_config)
-        model.run()
+
+        print("Simulation started...", flush=True)
+        started = time.time()
+        try:
+            model.run()
+            print("Simulation finished successfully!", flush=True)
+        finally:
+            elapsed = humanize.precisedelta(time.time() - started, minimum_unit="seconds")
+            print(f"Elapsed time: {elapsed}", flush=True)
     except Exception as e:
         logger.critical("RUBEM unexpectedly quit.")
         logger.exception(e)
@@ -107,16 +127,41 @@ def setup_logging(custom_logging_config: Optional[dict] = None):
         "level": logging.WARNING,
     }
     basic_formatter_config = {"format": log_format, "datefmt": "%Y-%m-%dT%H:%M:%S%z"}
+    # Progress records carry a message meant for a person, so they are printed
+    # verbatim on stdout. The library only emits them; without this handler an
+    # embedded run says nothing.
+    progress_handler_config = {
+        "class": "logging.StreamHandler",
+        "formatter": "progress_formatter",
+        "level": logging.INFO,
+        "stream": "ext://sys.stdout",
+    }
     default_logging_config = {
         "version": 1,
-        "formatters": {"basic_formatter": basic_formatter_config},
-        "handlers": {"console": console_handler_config},
+        # Every module logger, this one included, is created at import time, before
+        # this runs. ``dictConfig`` disables pre-existing loggers unless told not to,
+        # which would silently discard everything they log afterwards.
+        "disable_existing_loggers": False,
+        "formatters": {
+            "basic_formatter": basic_formatter_config,
+            "progress_formatter": {"format": "%(message)s"},
+        },
+        "handlers": {"console": console_handler_config, "progress": progress_handler_config},
+        "loggers": {
+            "rubem.progress": {
+                "handlers": ["progress"],
+                "level": logging.INFO,
+                "propagate": False,
+            }
+        },
         "root": {"handlers": ["console"], "level": logging.DEBUG},
     }
 
     if custom_logging_config:
         try:
-            logging.config.dictConfig(custom_logging_config)
+            # A custom configuration that omits the flag gets the same treatment;
+            # one that sets it explicitly keeps its own value.
+            logging.config.dictConfig({"disable_existing_loggers": False, **custom_logging_config})
         except Exception:
             logging.config.dictConfig(default_logging_config)
     else:
