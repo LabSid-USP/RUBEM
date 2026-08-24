@@ -641,9 +641,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             previous = getattr(self, previous_name)
             if previous is None:
                 raise RuntimeError(
-                    f"Could not read the {label} raster from "
-                    f"'{self.config.raster_series.__getattribute__(series)}' for timestep "
-                    f"{step}, and there is no previous raster to fall back to."
+                    f"Could not read the {label} raster for timestep {step} "
+                    f"({self.config.series_resolvers[series]!r}), and there is no previous "
+                    "raster to fall back to."
                 ) from error
             self.logger.warning(
                 "There was a problem reading the %s raster on timestep %d. "
