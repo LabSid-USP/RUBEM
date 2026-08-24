@@ -6,17 +6,22 @@ import tempfile
 logger = logging.getLogger(__name__)
 
 
-def _remove(file_path: str) -> None:
+def _remove(file_path: str) -> bool:
     """Remove ``file_path`` if it exists, logging instead of raising on failure.
 
     Existence is checked with ``os.path.lexists`` so that a symlink is removed
     as the entry it is, even when it points nowhere.
+
+    :return: ``True`` when the path is gone afterwards.
+    :rtype: bool
     """
     try:
         if os.path.lexists(file_path):
             os.remove(file_path)
+        return True
     except OSError as e:
         logger.error("Error while deleting file %s. %s", file_path, e)
+        return False
 
 
 def _stage_path(dst_file_path: str, suffix: str) -> str:
@@ -80,12 +85,15 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
 
     The conversion is transactional: every CSV is first written to a
     temporary name, the temporary files are renamed only after all of them
-    were produced, any destination being overwritten is kept as a backup
-    until every rename succeeded, and the sources are removed last. A failure
-    therefore leaves the sources and the previous CSV files untouched. Only
-    the files passed in are read; nothing else in their directories is, and
-    the staging and backup names are allocated so that unrelated files next to
-    a destination are never overwritten.
+    were produced, and any destination being overwritten is kept as a backup
+    until every rename succeeded. A failure up to that point leaves the
+    sources and the previous CSV files untouched. Installing the last CSV
+    commits the conversion; the sources are deleted afterwards, so a source
+    that cannot be deleted is reported and converted again on the next run
+    instead of undoing CSV files that are already valid. Only the files passed
+    in are read; nothing else in their directories is, and the staging and
+    backup names are allocated so that unrelated files next to a destination
+    are never overwritten.
 
     :raises IsADirectoryError: If a destination path is an existing directory.
 
@@ -152,5 +160,11 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
             _remove(backup_file_path)
 
     if should_delete_src_tss:
-        for tss_file in tss_files:
-            _remove(tss_file)
+        undeleted = [tss_file for tss_file in tss_files if not _remove(tss_file)]
+        if undeleted:
+            logger.warning(
+                "The conversion is complete, but %d source file(s) could not be deleted and "
+                "will be converted again on the next run: %s",
+                len(undeleted),
+                ", ".join(undeleted),
+            )

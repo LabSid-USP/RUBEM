@@ -185,3 +185,30 @@ class TestTss2Csv:
 
         assert (tmp_path / "tss_itp.csv").is_dir()
         assert sorted(path.name for path in tmp_path.iterdir()) == ["tss_itp.csv", "tss_itp.tss"]
+
+    @pytest.mark.unit
+    def test_undeletable_sources_are_reported_and_keep_the_conversion(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """Deletion happens after the commit point, so it never undoes valid CSV files."""
+        first = tmp_path / "tss_a.tss"
+        second = tmp_path / "tss_b.tss"
+        write_tss(first, [(1, 10.5)])
+        write_tss(second, [(1, 20.5)])
+        real_remove = os.remove
+
+        def refuse_second(path):
+            if os.path.basename(str(path)) == "tss_b.tss":
+                raise PermissionError(f"{path} cannot be deleted")
+            return real_remove(path)
+
+        monkeypatch.setattr(os, "remove", refuse_second)
+
+        with caplog.at_level("WARNING"):
+            tss2csv([first, second], ["1"])
+
+        assert not first.exists()
+        assert second.exists()
+        assert (tmp_path / "tss_a.csv").is_file()
+        assert (tmp_path / "tss_b.csv").is_file()
+        assert "tss_b.tss" in caplog.text
