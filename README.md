@@ -140,8 +140,8 @@ Distributed under the GPLv3 License. See [`LICENSE.md`](https://github.com/LabSi
 [zenodo-url]: https://doi.org/10.5281/zenodo.10562516
 [readthedocs-shield]: https://readthedocs.org/projects/rubem/badge/?version=latest
 [readthedocs-url]: https://rubem.readthedocs.io/en/latest/?badge=latest
-[github-actions-unit-tests-shield]: https://github.com/LabSid-USP/RUBEM/actions/workflows/build-test-micromamba.yml/badge.svg
-[github-actions-unit-tests-url]: https://github.com/LabSid-USP/RUBEM/actions/workflows/build-test-micromamba.yml
+[github-actions-unit-tests-shield]: https://github.com/LabSid-USP/RUBEM/actions/workflows/ci.yml/badge.svg
+[github-actions-unit-tests-url]: https://github.com/LabSid-USP/RUBEM/actions/workflows/ci.yml
 [github-actions-codeql-shield]: https://github.com/LabSid-USP/RUBEM/actions/workflows/codeql-analysis.yml/badge.svg
 [github-actions-codeql-url]: https://github.com/LabSid-USP/RUBEM/actions/workflows/codeql-analysis.yml
 [contributors-shield]: https://img.shields.io/github/contributors/LabSid-USP/RUBEM

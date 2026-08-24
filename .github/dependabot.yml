@@ -1,17 +1,35 @@
 version: 2
 updates:
-- package-ecosystem: "github-actions"
-  directory: "/"
-  schedule:
-    interval: "daily"
-    day: monday
-    time: "08:00"
-    timezone: America/Sao_Paulo
-  reviewers:
-  - "soaressgabriel"
-  labels:
-  - "dependencies"
-  - "github_actions"
-  commit-message:
-    prefix: "[actions] "
-  open-pull-requests-limit: 100
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      python-packages:
+        patterns:
+          - "*"
+  - package-ecosystem: "conda"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      conda-packages:
+        patterns:
+          - "*"
