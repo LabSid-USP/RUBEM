@@ -33,6 +33,9 @@ class InputRasterFiles:
     :param ldd: Path to the Local Drain Direction (LDD) raster file. Defaults to ``None``.
     :type ldd: Union[str, bytes, os.PathLike], optional
 
+    :param georeference: Path to a raster whose coordinate reference system is written to the output GeoTIFF series. Must share the DEM geometry. Defaults to ``None``.
+    :type georeference: Union[str, bytes, os.PathLike], optional
+
     :param validate_input: If ``True``, validates the input raster files. Defaults to ``True``.
     :type validate_input: bool, optional
 
@@ -50,6 +53,7 @@ class InputRasterFiles:
         sample_locations: Optional[Union[str, bytes, os.PathLike]] = None,
         ldd: Optional[Union[str, bytes, os.PathLike]] = None,
         validate_input: bool = True,
+        georeference: Optional[Union[str, bytes, os.PathLike]] = None,
     ) -> None:
         self.logger = logging.getLogger(__name__)
         self.__ranges = DataRangesSettings()
@@ -63,6 +67,7 @@ class InputRasterFiles:
         self.soil = soil
         self.sample_locations = sample_locations if sample_locations else None
         self.ldd = ldd if ldd else None
+        self.georeference = georeference if georeference else None
 
         if validate_input:
             self.__validate_files()
@@ -107,11 +112,10 @@ class InputRasterFiles:
             )
 
         for file, valid_range, rules in files:
-            raster = RasterMap(file, valid_range, rules)
-            self.logger.debug(str(raster).replace("\n", ", "))
-
-            validator = RasterMapValidator()
-            valid, errors = validator.validate(raster)
+            with RasterMap(file, valid_range, rules) as raster:
+                self.logger.debug(str(raster).replace("\n", ", "))
+                validator = RasterMapValidator()
+                valid, errors = validator.validate(raster)
             if not valid:
                 self.problems.append(
                     {
@@ -128,6 +132,7 @@ class InputRasterFiles:
             f"DEM (PCRaster Map): {self.dem}\n"
             f"Mask of Catchment (Clone): {self.clone}\n"
             f"Local Drain Direction (LDD): {self.ldd if self.ldd else 'Not specified.'}\n"
+            f"Georeference: {self.georeference if self.georeference else 'Not specified.'}\n"
             f"NDVI Max.: {self.ndvi_max}\n"
             f"NDVI Min.: {self.ndvi_min}\n"
             f"Soil: {self.soil}\n"

@@ -173,7 +173,12 @@ class TestModelConfiguration:
     """
 
     @pytest.fixture(autouse=True)
-    def setup(self, fs):
+    def setup(self, fs, mocker):
+        # The fake files carry no raster header; the geometry is read from a stub.
+        mocker.patch(
+            "rubem.configuration.output_raster_base.read_raster_geometry",
+            return_value=(3, 3, (0.0, 1.0, 0.0, 3.0, 0.0, -1.0), ""),
+        )
         fs.create_file("/test_path/test_file.map", contents="42")
         fs.create_file("/test_path/test_file.tif", contents="42")
         fs.create_file("/test_path/test_file.txt", contents="42")

@@ -184,11 +184,10 @@ class InputRasterSeries:
         return counter
 
     def __validate_raster_file(self, file, valid_range, rules) -> None:
-        raster = RasterMap(file, valid_range, rules)
-        self.logger.debug(str(raster).replace("\n", ", "))
-
-        validator = RasterMapValidator()
-        valid, errors = validator.validate(raster)
+        with RasterMap(file, valid_range, rules) as raster:
+            self.logger.debug(str(raster).replace("\n", ", "))
+            validator = RasterMapValidator()
+            valid, errors = validator.validate(raster)
         if not valid:
             self.problems.append(
                 {

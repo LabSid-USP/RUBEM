@@ -92,6 +92,19 @@ Optional, if enabled, export time series data of selected output variables (comm
       },
    }
 
+Georeference
+''''''''''''
+
+Optional path to a raster (GeoTIFF :file:`*.tif`) whose coordinate reference system is written to the GeoTIFF raster series produced by the simulation. The raster must have exactly the DEM geometry (number of columns and rows, cell size and origin); when both it and the DEM define a coordinate reference system, they must define the same one. Without it, the outputs carry the DEM's coordinate reference system, which a PCRaster map does not have.
+
+.. code-block:: json
+
+   {
+      "RASTERS": {
+         "georeference": "/Dataset/UIGCRB/input/maps/dem/dem.tif",
+      }
+   }
+
 Stations Locations (Samples)
 ''''''''''''''''''''''''''''
 
