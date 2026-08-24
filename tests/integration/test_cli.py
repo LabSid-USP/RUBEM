@@ -127,3 +127,34 @@ class TestCliApp:
     def test_cli_app_skip_input_data_validation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             self._run_and_compare(temp_dir, "-s")
+
+    @pytest.mark.slow
+    @pytest.mark.integration
+    def test_cli_app_runs_from_any_working_directory(self):
+        """The run must not depend on, or change, the caller's cwd."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = os.path.join(temp_dir, "out")
+            os.makedirs(output_dir)
+            scratch_cwd = os.path.join(temp_dir, "elsewhere")
+            os.makedirs(scratch_cwd)
+            config_path = os.path.join(temp_dir, "config.json")
+            with open(file=config_path, mode="w", encoding="utf8") as f:
+                f.write(json.dumps(base_model_config(output_dir)))
+
+            subprocess.check_output(
+                [sys.executable, RUBEM_ENTRY, "-c", config_path], cwd=scratch_cwd
+            )
+
+            assert not os.listdir(scratch_cwd)
+            for raster_file in RASTER_GOLDENS + TIFF_GOLDENS:
+                result = compare_rasters(
+                    os.path.join(output_dir, raster_file),
+                    os.path.join(GOLDEN_DIR, raster_file),
+                )
+                assert result.equal, f"{raster_file}:\n{result.report()}"
+            for table_file in CSV_GOLDENS:
+                result = compare_csv(
+                    os.path.join(output_dir, table_file),
+                    os.path.join(GOLDEN_DIR, table_file),
+                )
+                assert result.equal, f"{table_file}:\n{result.report()}"
