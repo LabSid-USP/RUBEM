@@ -11,28 +11,34 @@ regenerated once with `tests/fixtures/regenerate_golden.py`.
 ## Generating environment and recipe
 
 - Base commit: `fb740f51aeaa38c45f93dd011078f954e2804bfd` (`main`)
-- Recipe: repository checkout, no package installation (the project has no
-  packaging metadata at this commit); the script invokes the CLI as
-  `python rubem -c <config>` from the repository root.
-- Environment: linux-64, Python 3.13.7, pcraster 4.4.2, gdal 3.11.5,
-  numpy 2.3.4; frozen as `ci/golden-env.lock` (conda explicit spec with MD5)
-  with an empty pip overlay `ci/golden-pip.lock`.
-- Determinism: the regeneration was executed twice; both runs produced
-  byte-identical outputs (identical `SHA256SUMS`).
+- Generator: the `exact` CI job on a GitHub-hosted `ubuntu-24.04` runner, in
+  the environment created from `ci/golden-env.lock` (conda explicit spec with
+  MD5; linux-64, Python 3.13.7, pcraster 4.4.2, gdal 3.11.5, numpy 2.3.4)
+  named `golden`, running `python tests/fixtures/regenerate_golden.py` from
+  the repository checkout (the project has no packaging metadata at this
+  commit). The regenerated `tests/fixtures/base/out/` was promoted from the
+  job's `golden-out` artifact.
+- Why the runner is the generator: byte identity of the outputs depends on
+  the C library and CPU of the executing host (identical conda packages
+  produce different last-bit floats under different glibc/libm builds), so
+  the canonical byte-exact environment is the CI runner image itself. Any
+  other machine, including developer workstations, compares semantically.
+- Determinism: the regeneration was executed twice on the same runner
+  (regeneration step plus the byte-exact test's own rerun) and twice locally;
+  each host reproduces its own bytes exactly.
 - Byte-exact reproduction is asserted by the `exact` CI job
   (`RUBEM_EXACT_GOLDEN=1 pytest -m exact`) on that environment only; every
   other environment compares semantically with `rtol=1e-5`, `atol=1e-8`.
   Those defaults are calibrated to cross-environment Float32 noise: variables
   that no input change touches differ by up to ~3e-5 in absolute value between
-  PCRaster/GDAL/Python builds, while real regressions (see the table below)
-  sit orders of magnitude above 1e-5 relative.
+  PCRaster/GDAL/Python builds and hosts, while real regressions (see the
+  table below) sit orders of magnitude above 1e-5 relative.
 - The goldens cover all three output families the configuration enables: the
-  PCRaster raster series (`{var}00000.{step:03d}`), the GeoTIFF raster series
-  (`{var}{step:07d}.tif`, 18 files, added when the oracle gained GeoTIFF
-  coverage; the legacy goldens never tracked them) and the time-series CSVs.
-  The tss CSVs use CRLF line endings as written by the model; a scoped
-  `.gitattributes` rule (`tests/fixtures/base/out/** -text`) keeps git from
-  normalizing any golden byte.
+  PCRaster raster series, the GeoTIFF raster series (18 files, added when the
+  oracle gained GeoTIFF coverage; the legacy goldens never tracked them) and
+  the time-series CSVs. The tss CSVs use CRLF line endings as written by the
+  model; a scoped `.gitattributes` rule (`tests/fixtures/base/out/** -text`)
+  keeps git from normalizing any golden byte.
 
 ## Impact of the correction (legacy vs regenerated)
 
@@ -47,7 +53,7 @@ Maximum absolute difference over valid (non-nodata) cells/values:
 | lfw | 4.381500e+01 | 2.936500e+01 |
 | rec | 4.381500e+01 | 2.936500e+01 |
 | smc | 1.492464e+02 | 9.440000e+01 |
-| rnf | 7.151137e+01 | 4.091924e+01 |
+| rnf | 7.151136e+01 | 4.091924e+01 |
 | arn | 2.810858e+01 | 2.374000e+01 |
 
 The soil-, baseflow- and runoff-related variables change materially because
