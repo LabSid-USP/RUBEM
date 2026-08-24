@@ -194,15 +194,13 @@ class InputRasterSeries:
         valid, errors = validator.validate(raster)
         if not valid:
             self.problems.append(
-                self.problems.append(
-                    {
-                        "description": "Raster file data validation failed.",
-                        "reason": f"Data rules violation(s): {[str(error) for error in errors]}",
-                        "implication": "This may lead to unexpected results.",
-                        "file": file,
-                        "blocking": False,
-                    }
-                )
+                {
+                    "description": "Raster file data validation failed.",
+                    "reason": f"Data rules violation(s): {[str(error) for error in errors]}",
+                    "implication": "This may lead to unexpected results.",
+                    "file": file,
+                    "blocking": False,
+                }
             )
 
     def __validate_raster_series_filenames_prefixes(self, prefix):
