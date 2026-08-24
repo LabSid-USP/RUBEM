@@ -276,3 +276,17 @@ class TestTss2Csv:
 
         assert (tmp_path / "tss_itp.csv").read_text(encoding="utf8") == "previous\n"
         assert sorted(path.name for path in tmp_path.iterdir()) == ["tss_itp.csv", "tss_itp.tss"]
+
+    @pytest.mark.unit
+    def test_conversion_leaves_the_process_umask_alone(self, tmp_path):
+        """Reading the umask back would mean changing it for every other thread."""
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5)])
+        before = os.umask(0o027)
+        try:
+            tss2csv([tss], ["1"])
+            after = os.umask(0o022)
+        finally:
+            os.umask(before)
+
+        assert after == 0o027

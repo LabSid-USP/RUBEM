@@ -1,9 +1,11 @@
 import csv
 import logging
 import os
-import tempfile
+import uuid
 
 logger = logging.getLogger(__name__)
+
+_STAGE_ATTEMPTS = 100
 
 
 def _remove(file_path: str) -> bool:
@@ -24,28 +26,29 @@ def _remove(file_path: str) -> bool:
         return False
 
 
-def _default_file_mode() -> int:
-    """Return the mode a file created by ``open`` would get under this umask."""
-    umask = os.umask(0o022)
-    os.umask(umask)
-    return 0o666 & ~umask
-
-
 def _stage_path(dst_file_path: str, suffix: str) -> str:
     """Reserve a unique path next to ``dst_file_path`` and return it.
 
     Staging and backup names are allocated instead of derived from the
     destination, so a file the user keeps as ``<destination>.tmp`` or
     ``<destination>.bak`` is never overwritten by a conversion, nor deleted by
-    its cleanup. ``mkstemp`` creates its file private to the owner, while the
-    staged file becomes an output of the model, so the permissions of a
-    normally created file are restored.
+    its cleanup. The file is created like any other output, with ``0o666``
+    left to the process umask: ``mkstemp`` would make it private to the owner,
+    and reading the umask back to correct that would have to change it
+    process-wide first, which races with everything else running.
+
+    :raises OSError: If no free name is found next to the destination.
     """
     directory, name = os.path.split(dst_file_path)
-    handle, path = tempfile.mkstemp(dir=directory or ".", prefix=f".{name}.", suffix=suffix)
-    os.close(handle)
-    os.chmod(path, _default_file_mode())
-    return path
+    for _ in range(_STAGE_ATTEMPTS):
+        path = os.path.join(directory or ".", f".{name}.{uuid.uuid4().hex[:8]}{suffix}")
+        try:
+            handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o666)
+        except FileExistsError:
+            continue
+        os.close(handle)
+        return path
+    raise OSError(f"Could not reserve a staging path next to {dst_file_path}.")
 
 
 def _backup_destination(dst_file_path: str) -> str | None:
