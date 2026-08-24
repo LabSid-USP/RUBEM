@@ -38,7 +38,7 @@ class AppSettings:
         :rtype: AppSettings
         """
         if cls.__instance is None:
-            cls.__instance = super(AppSettings, cls).__new__(cls)
+            cls.__instance = super().__new__(cls)
             cls.__instance.__initialized = False
         return cls.__instance
 

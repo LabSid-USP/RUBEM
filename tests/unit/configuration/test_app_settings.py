@@ -20,7 +20,8 @@ def env_reload(monkeypatch):
     """Set PYTHON_ENVIRONMENT/cwd, reload the module, then restore both and reload again.
 
     The env/cwd are undone immediately in the finalizer (rather than left to monkeypatch's
-    own teardown) so the module is reloaded back to its default state before the test ends.
+    own teardown) so the module is reloaded back to its default state before the test ends,
+    and the finalizer checks that the reload really landed on the packaged file.
     """
 
     def _set(env_value=None, cwd=None):
@@ -35,7 +36,10 @@ def env_reload(monkeypatch):
     yield _set
 
     monkeypatch.undo()
-    importlib.reload(app_settings_module)
+    reloaded = importlib.reload(app_settings_module)
+    assert reloaded.AppSettings._AppSettings__default_appsettings_file == str(
+        DEFAULT_APPSETTINGS_FILE
+    )
 
 
 @pytest.fixture
@@ -48,6 +52,20 @@ class TestSingleton:
     @pytest.mark.unit
     def test_two_constructions_return_the_same_instance(self):
         assert AppSettings() is AppSettings()
+
+    @pytest.mark.unit
+    def test_a_class_captured_before_a_reload_still_constructs(self, env_reload):
+        """``rubem.cli`` and other modules import the class once; reloading the
+        module must not break the instances they build later."""
+        captured = AppSettings
+        captured._AppSettings__instance = None
+        try:
+            env_reload("Development")
+
+            assert captured().get_setting("value_ranges") is not None
+        finally:
+            captured._AppSettings__instance = None
+            captured()
 
     @pytest.mark.unit
     def test_second_construction_does_not_reload_settings(self, restore_default_settings):
@@ -160,8 +178,3 @@ class TestEnvironmentSelection:
         assert module.AppSettings._AppSettings__default_appsettings_file == str(
             DEFAULT_APPSETTINGS_FILE
         )
-
-    @pytest.mark.unit
-    def test_module_is_left_on_its_default_settings(self):
-        """Sanity check that the env_reload fixture always restores the module afterward."""
-        assert app_settings_module.AppSettings().get_setting("value_ranges") is not None
