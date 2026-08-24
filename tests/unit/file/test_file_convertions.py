@@ -284,9 +284,12 @@ class TestTss2Csv:
         write_tss(tss, [(1, 10.5)])
         before = os.umask(0o027)
         try:
+            # Windows keeps no real umask, so the value the platform stored is
+            # read back instead of assumed.
+            expected = os.umask(0o027)
             tss2csv([tss], ["1"])
             after = os.umask(0o022)
         finally:
             os.umask(before)
 
-        assert after == 0o027
+        assert after == expected
