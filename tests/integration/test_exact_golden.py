@@ -45,4 +45,8 @@ def test_exact_golden_reproduction(tmp_path):
         actual = sha256_of(candidate)
         if actual != expected[name]:
             mismatches.append(f"{name}: expected {expected[name]}, got {actual}")
-    assert not mismatches, "\n".join(mismatches)
+    header = (
+        "byte identity is expected only on the environment and runner image "
+        "recorded in tests/fixtures/AUDIT.md:"
+    )
+    assert not mismatches, "\n".join([header, *mismatches])

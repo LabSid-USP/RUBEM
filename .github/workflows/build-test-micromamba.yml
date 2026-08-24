@@ -32,7 +32,10 @@ jobs:
         if: ${{ always() }}
 
   exact:
-    runs-on: ubuntu-latest
+    # Pinned image: byte identity depends on the host C library and CPU, so the
+    # platform of the byte-exact job must not move under `ubuntu-latest`.
+    # See tests/fixtures/AUDIT.md.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: mamba-org/setup-micromamba@v3
@@ -60,6 +63,12 @@ jobs:
           print("gdal", osgeo.__version__)
           print("numpy", numpy.__version__)
           PYCHECK
+        shell: bash -el {0}
+      - name: Record the host fingerprint
+        run: |
+          echo "runner image: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
+          ldd --version | head -n 1
+          grep -m 1 "model name" /proc/cpuinfo
         shell: bash -el {0}
       - name: Install the golden pip overlay
         run: |

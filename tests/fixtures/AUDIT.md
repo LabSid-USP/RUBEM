@@ -11,28 +11,44 @@ regenerated once with `tests/fixtures/regenerate_golden.py`.
 ## Generating environment and recipe
 
 - Base commit: `fb740f51aeaa38c45f93dd011078f954e2804bfd` (`main`)
-- Generator: the `exact` CI job on a GitHub-hosted `ubuntu-24.04` runner, in
-  the environment created from `ci/golden-env.lock` (conda explicit spec with
-  MD5; linux-64, Python 3.13.7, pcraster 4.4.2, gdal 3.11.5, numpy 2.3.4)
-  named `golden`, running `python tests/fixtures/regenerate_golden.py` from
-  the repository checkout (the project has no packaging metadata at this
-  commit). The regenerated `tests/fixtures/base/out/` was promoted from the
-  job's `golden-out` artifact.
+- Generator: the `exact` CI job on a GitHub-hosted runner of the `ubuntu-24.04`
+  image (version `20260816.277.1`), in the environment created from
+  `ci/golden-env.lock` (conda explicit spec with MD5; linux-64, Python 3.13.7,
+  pcraster 4.4.2, gdal 3.11.5, numpy 2.3.4) named `golden`, running
+  `python tests/fixtures/regenerate_golden.py` from the repository checkout
+  (the project has no packaging metadata at this commit). The regenerated
+  `tests/fixtures/base/out/` was promoted from the job's `golden-out` artifact.
 - Why the runner is the generator: byte identity of the outputs depends on
   the C library and CPU of the executing host (identical conda packages
   produce different last-bit floats under different glibc/libm builds), so
   the canonical byte-exact environment is the CI runner image itself. Any
   other machine, including developer workstations, compares semantically.
+- Runner pin: the job declares `runs-on: ubuntu-24.04`, never `ubuntu-latest`,
+  so the platform cannot move to the next LTS image without an explicit change
+  here, and it prints the host fingerprint (image version, glibc, CPU model)
+  before reproducing, so a failure names the host that changed. Within an image
+  version the pool is still heterogeneous, which is accepted: the byte-exact
+  job guards the provenance of the goldens, while correctness is guarded by the
+  semantic comparison that runs on the whole matrix. If the image (or its
+  glibc) does move and the bytes change, regenerate on the new image and record
+  the new provenance and impact in this file; do not relax the assertion.
 - Determinism: the regeneration was executed twice on the same runner
   (regeneration step plus the byte-exact test's own rerun) and twice locally;
-  each host reproduces its own bytes exactly.
+  each host reproduces its own bytes exactly. The promoted bytes were also
+  reproduced by the `exact` job of the next commit, which ran on a different
+  host of the same image (Azure `westus3` vs `westcentralus`), so the goldens
+  are not bound to one physical machine of the pool.
 - Byte-exact reproduction is asserted by the `exact` CI job
   (`RUBEM_EXACT_GOLDEN=1 pytest -m exact`) on that environment only; every
   other environment compares semantically with `rtol=1e-5`, `atol=1e-8`.
   Those defaults are calibrated to cross-environment Float32 noise: variables
   that no input change touches differ by up to ~3e-5 in absolute value between
   PCRaster/GDAL/Python builds and hosts, while real regressions (see the
-  table below) sit orders of magnitude above 1e-5 relative.
+  table below) sit orders of magnitude above 1e-5 relative. Georeferencing is
+  not a data value and does not use those tolerances: geotransform components
+  are compared with `rtol=0` and an absolute tolerance of one millionth of a
+  pixel, so a misregistered output cannot pass on numerically identical
+  cells.
 - The goldens cover all three output families the configuration enables: the
   PCRaster raster series, the GeoTIFF raster series (18 files, added when the
   oracle gained GeoTIFF coverage; the legacy goldens never tracked them) and
