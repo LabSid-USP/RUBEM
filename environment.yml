@@ -6,10 +6,10 @@ name: rubem
 channels:
   - conda-forge
 dependencies:
-  - python>=3.12
+  - python>=3.14.7
   - gdal=3.*
-  - humanize>=4
+  - humanize>=4.16.0
   - numpy=2.*
   - pcraster=4.4.*
   - pip
-  - python-dateutil>=2
+  - python-dateutil>=2.9.0
