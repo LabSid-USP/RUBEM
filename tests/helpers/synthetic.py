@@ -7,6 +7,7 @@ fixture dataset under ``tests/fixtures/base``.
 """
 
 import os
+from datetime import date
 
 import numpy as np
 
@@ -19,6 +20,12 @@ MISSING = -9999.0
 
 _LULC_CLASS = 3
 _SOIL_CLASS = 1
+
+_DATE_FORMAT = "%d/%m/%Y"
+_START_DATE = date(2000, 1, 1)
+# The input series repeat every ``_SERIES_CYCLE`` steps, which keeps NDVI inside the
+# declared min/max rasters and rainfall positive for any number of steps.
+_SERIES_CYCLE = 6
 
 _LULC_TABLES = {
     "a_i": 0.0,
@@ -39,13 +46,28 @@ _SOIL_TABLES = {
 }
 
 
+def _end_date(timesteps):
+    """Return the last simulated month, rolling across calendar years."""
+    months = _START_DATE.month - 1 + (timesteps - 1)
+    return date(_START_DATE.year + months // 12, months % 12 + 1, _START_DATE.day)
+
+
 def write_synthetic_dataset(base_dir, timesteps=2):
     """Write the dataset under ``base_dir`` and return its configuration dict.
 
     :param base_dir: Directory that receives ``maps/``, ``txt/`` and ``out/``.
-    :param timesteps: Number of monthly steps starting at 01/01/2000.
+    :param timesteps: Number of monthly steps starting at 01/01/2000. Must be at
+        least 2, since :class:`SimulationPeriod` requires the start date to
+        precede the end date.
+    :raises ValueError: If ``timesteps`` is smaller than 2.
     """
     import pcraster as pcr
+
+    if timesteps < 2:
+        raise ValueError(
+            f"timesteps must be at least 2, got {timesteps}: a simulation period needs"
+            " a start date that precedes its end date."
+        )
 
     base_dir = str(base_dir)
     pcr.setclone(ROWS, COLS, CELL_SIZE, WEST, NORTH)
@@ -82,21 +104,22 @@ def write_synthetic_dataset(base_dir, timesteps=2):
         return f"{prefix}{'0' * (8 - len(prefix))}.{step:03d}"
 
     for step in range(1, timesteps + 1):
+        cycle = (step - 1) % _SERIES_CYCLE + 1
         write_map(
             f"ndvi/{series_name('ndvi', step)}",
-            np.full(ROWS * COLS, 0.5 + 0.05 * step),
+            np.full(ROWS * COLS, 0.5 + 0.05 * cycle),
             pcr.Scalar,
             np.float32,
         )
         write_map(
             f"etp/{series_name('etp', step)}",
-            np.full(ROWS * COLS, 80.0 + 5.0 * step),
+            np.full(ROWS * COLS, 80.0 + 5.0 * cycle),
             pcr.Scalar,
             np.float32,
         )
         write_map(
             f"rain/{series_name('prec', step)}",
-            np.full(ROWS * COLS, 120.0 - 10.0 * step),
+            np.full(ROWS * COLS, 120.0 - 10.0 * cycle),
             pcr.Scalar,
             np.float32,
         )
@@ -130,7 +153,10 @@ def write_synthetic_dataset(base_dir, timesteps=2):
     os.makedirs(output_dir, exist_ok=True)
     maps = os.path.join(base_dir, "maps")
     return {
-        "SIM_TIME": {"start": "01/01/2000", "end": f"01/{timesteps:02d}/2000"},
+        "SIM_TIME": {
+            "start": _START_DATE.strftime(_DATE_FORMAT),
+            "end": _end_date(timesteps).strftime(_DATE_FORMAT),
+        },
         "DIRECTORIES": {
             "output": output_dir,
             "etp": os.path.join(maps, "etp/"),
