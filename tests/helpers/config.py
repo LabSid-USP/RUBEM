@@ -25,8 +25,13 @@ RASTER_GOLDENS = [
     for variable in OUTPUT_VARIABLES
     for timestep in TIMESTEPS
 ]
+TIFF_GOLDENS = [
+    f"{variable}{timestep:07d}.tif"
+    for variable in OUTPUT_VARIABLES
+    for timestep in TIMESTEPS
+]
 CSV_GOLDENS = [f"tss_{variable}.csv" for variable in OUTPUT_VARIABLES]
-GOLDEN_FILES = RASTER_GOLDENS + CSV_GOLDENS
+GOLDEN_FILES = RASTER_GOLDENS + TIFF_GOLDENS + CSV_GOLDENS
 
 
 def base_model_config(output_dir):

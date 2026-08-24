@@ -21,7 +21,18 @@ regenerated once with `tests/fixtures/regenerate_golden.py`.
   byte-identical outputs (identical `SHA256SUMS`).
 - Byte-exact reproduction is asserted by the `exact` CI job
   (`RUBEM_EXACT_GOLDEN=1 pytest -m exact`) on that environment only; every
-  other environment compares semantically with `rtol=1e-7`, `atol=1e-9`.
+  other environment compares semantically with `rtol=1e-5`, `atol=1e-8`.
+  Those defaults are calibrated to cross-environment Float32 noise: variables
+  that no input change touches differ by up to ~3e-5 in absolute value between
+  PCRaster/GDAL/Python builds, while real regressions (see the table below)
+  sit orders of magnitude above 1e-5 relative.
+- The goldens cover all three output families the configuration enables: the
+  PCRaster raster series (`{var}00000.{step:03d}`), the GeoTIFF raster series
+  (`{var}{step:07d}.tif`, 18 files, added when the oracle gained GeoTIFF
+  coverage; the legacy goldens never tracked them) and the time-series CSVs.
+  The tss CSVs use CRLF line endings as written by the model; a scoped
+  `.gitattributes` rule (`tests/fixtures/base/out/** -text`) keeps git from
+  normalizing any golden byte.
 
 ## Impact of the correction (legacy vs regenerated)
 

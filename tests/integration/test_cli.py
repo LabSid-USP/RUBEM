@@ -12,6 +12,7 @@ from tests.helpers.config import (
     GOLDEN_DIR,
     RASTER_GOLDENS,
     REPO_ROOT,
+    TIFF_GOLDENS,
     base_model_config,
 )
 
@@ -96,7 +97,7 @@ class TestCliApp:
 
         run_cli(*cli_flags, "-c", config_path)
 
-        for raster_file in RASTER_GOLDENS:
+        for raster_file in RASTER_GOLDENS + TIFF_GOLDENS:
             candidate = os.path.join(temp_dir, raster_file)
             assert os.path.exists(candidate), f"missing output {raster_file}"
             result = compare_rasters(candidate, os.path.join(GOLDEN_DIR, raster_file))

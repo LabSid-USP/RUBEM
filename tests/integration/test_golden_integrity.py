@@ -19,6 +19,10 @@ class TestGoldenIntegrity:
         assert set(read_sha256sums()) == set(GOLDEN_FILES)
 
     @pytest.mark.integration
+    def test_golden_directory_contains_exactly_the_golden_files(self):
+        assert set(os.listdir(GOLDEN_DIR)) == set(GOLDEN_FILES) | {"SHA256SUMS"}
+
+    @pytest.mark.integration
     def test_golden_files_match_recorded_checksums(self):
         mismatches = []
         for name, digest in sorted(read_sha256sums().items()):
