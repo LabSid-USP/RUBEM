@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from datetime import date
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -213,10 +214,8 @@ class TestModelConfigurationFile:
 
         anchored = ModelConfigurationFile.model_validate(relative).resolve_paths(tmp_path)
 
-        assert anchored.rasters.dem == os.path.join(
-            str(tmp_path), os.path.relpath(config["RASTERS"]["dem"], tmp_path)
-        )
-        assert anchored.directories.output == os.path.join(str(tmp_path), "out")
+        assert Path(anchored.rasters.dem) == Path(config["RASTERS"]["dem"])
+        assert Path(anchored.directories.output) == tmp_path / "out"
         absolute = ModelConfigurationFile.model_validate(config)
         assert absolute.resolve_paths(tmp_path / "elsewhere") == absolute
         assert absolute.resolve_paths(None) is absolute
@@ -250,9 +249,9 @@ class TestLoaderAnchoring:
 
         loaded = ModelConfiguration.load(path)
 
-        assert loaded.base_dir == str(tmp_path)
-        assert loaded.raster_files.dem == config["RASTERS"]["dem"]
-        assert loaded.output_directory.path == config["DIRECTORIES"]["output"]
+        assert Path(loaded.base_dir) == tmp_path
+        assert Path(loaded.raster_files.dem) == Path(config["RASTERS"]["dem"])
+        assert Path(loaded.output_directory.path) == Path(config["DIRECTORIES"]["output"])
         assert not any(problem.blocking for problem in loaded.problems)
 
     @pytest.mark.unit
@@ -264,7 +263,7 @@ class TestLoaderAnchoring:
         with pytest.raises(FileNotFoundError):
             ModelConfiguration(relative, validate_input=True)
         loaded = ModelConfiguration.load(relative, base_dir=tmp_path)
-        assert loaded.raster_files.dem == config["RASTERS"]["dem"]
+        assert Path(loaded.raster_files.dem) == Path(config["RASTERS"]["dem"])
 
     @pytest.mark.unit
     def test_the_file_model_is_exposed(self, tmp_path):

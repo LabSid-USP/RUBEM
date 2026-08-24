@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -269,8 +270,8 @@ class TestModelConfiguration:
         mocker.patch("rubem.configuration.raster_map.RasterBand", return_value=band_mock)
         loaded = ModelConfiguration("/config.json")
 
-        assert loaded.base_dir == "/"
-        assert loaded.raster_files.dem == "/test_path/test_file.map"
+        assert Path(loaded.base_dir) == Path("/config.json").absolute().parent
+        assert Path(loaded.raster_files.dem) == Path("/test_path/test_file.map").absolute()
 
     @pytest.mark.unit
     def test_init_with_not_existent_json_file(self):
