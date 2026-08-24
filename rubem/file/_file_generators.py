@@ -43,18 +43,23 @@ def report(
 
     :param no_data_value: No data value. Default is ``-9999``.
     :type no_data_value: float, optional
+
+    :raises ValueError: If ``file_format`` is not ``OutputFileFormat.GEOTIFF``.
+        PCRaster maps are written by the framework's own ``report``.
     """
-    if file_format == OutputFileFormat.GEOTIFF:
-        __report(
-            variable=variable,
-            timestep=timestep,
-            outpath=outpath,
-            name=name,
-            driver_short_name="GTiff",
-            extension="tif",
-            base_raster_info=base_raster_info,
-            no_data_value=no_data_value,
-        )
+    if file_format != OutputFileFormat.GEOTIFF:
+        raise ValueError(f"Unsupported output file format: {file_format}")
+
+    __report(
+        variable=variable,
+        timestep=timestep,
+        outpath=outpath,
+        name=name,
+        driver_short_name="GTiff",
+        extension="tif",
+        base_raster_info=base_raster_info,
+        no_data_value=no_data_value,
+    )
 
 
 def __report(
