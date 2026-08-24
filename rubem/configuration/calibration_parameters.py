@@ -1,100 +1,61 @@
-import logging
 import math
+from typing import Self
 
-from ..configuration.data_ranges_settings import DataRangesSettings
+from pydantic import BaseModel, ConfigDict, model_validator
+
+from ._ranges import check_range
 
 
-class CalibrationParameters:
-    """
-    Represents a set of calibration parameters.
+class CalibrationParameters(BaseModel):
+    """Calibration parameters of the model.
 
-    :param alpha: Interception parameter.
-    :type alpha: float
+    Every parameter must lie within the range configured in the application
+    settings, and the land use, soil and slope factor weights must add up to 1.
 
-    :param beta: Rainfall Intensity parameter.
-    :type beta: float
+    :param alpha: Interception parameter [-].
+    :param beta: Rainfall intensity coefficient [-].
+    :param w_1: Land use factor weight [-].
+    :param w_2: Soil factor weight [-].
+    :param w_3: Slope factor weight [-].
+    :param rcd: Regional consecutive dryness level [mm].
+    :param f: Flow direction factor [-].
+    :param alpha_gw: Baseflow recession coefficient [-].
+    :param x: Flow recession coefficient [-].
 
-    :param w_1: Land Use Factor Weight.
-    :type w_1: float
-
-    :param w_2: Soil Factor Weight.
-    :type w_2: float
-
-    :param w_3: Slope Factor Weight.
-    :type w_3: float
-
-    :param rcd: Regional Consecutive Dryness Level
-    :type rcd: float
-
-    :param f: Flow Direction Factor.
-    :type f: float
-
-    :param alpha_gw: Baseflow Recession Coefficient.
-    :type alpha_gw: float
-
-    :param x: Flow Recession Coefficient.
-    :type x: float
-
-    :raises ValueError: If any of the parameters is out of range or if the sum of landuse, soil and slope factor weights is not equal to 1.0.
+    :raises ValueError: If any parameter is out of range or the weights do not add up to 1.
     """
 
-    def __init__(
-        self,
-        alpha: float,
-        beta: float,
-        w_1: float,
-        w_2: float,
-        w_3: float,
-        rcd: float,
-        f: float,
-        alpha_gw: float,
-        x: float,
-    ) -> None:
-        self.logger = logging.getLogger(__name__)
-        self.__ranges = DataRangesSettings()
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
-        self.__validate("Interception Parameter (alpha)", alpha, self.__ranges.variables["alpha"])
-        self.__validate(
-            "Rainfall Intensity Coefficient (beta)", beta, self.__ranges.variables["beta"]
-        )
-        self.__validate("Land Use Factor Weight (w_1)", w_1, self.__ranges.variables["w_1"])
-        self.__validate("Soil Factor Weight (w_2)", w_2, self.__ranges.variables["w_2"])
-        self.__validate("Slope Factor Weight (w_3)", w_3, self.__ranges.variables["w_3"])
-        self.__validate(
-            "Regional Consecutive Dryness Level (rcd)", rcd, self.__ranges.variables["rcd"]
-        )
-        self.__validate("Flow Direction Factor (f)", f, self.__ranges.variables["f"])
-        self.__validate(
-            "Baseflow Recession Coefficient (alpha_gw)",
-            alpha_gw,
-            self.__ranges.variables["alpha_gw"],
-        )
-        self.__validate("Flow Recession Coefficient (x)", x, self.__ranges.variables["x"])
+    alpha: float
+    beta: float
+    w_1: float
+    w_2: float
+    w_3: float
+    rcd: float
+    f: float
+    alpha_gw: float
+    x: float
 
-        if not math.isclose(w_1 + w_2 + w_3, 1.0):
+    @model_validator(mode="after")
+    def _check_ranges(self) -> Self:
+        check_range("Interception Parameter (alpha)", self.alpha, "alpha")
+        check_range("Rainfall Intensity Coefficient (beta)", self.beta, "beta")
+        check_range("Land Use Factor Weight (w_1)", self.w_1, "w_1")
+        check_range("Soil Factor Weight (w_2)", self.w_2, "w_2")
+        check_range("Slope Factor Weight (w_3)", self.w_3, "w_3")
+        check_range("Regional Consecutive Dryness Level (rcd)", self.rcd, "rcd")
+        check_range("Flow Direction Factor (f)", self.f, "f")
+        check_range("Baseflow Recession Coefficient (alpha_gw)", self.alpha_gw, "alpha_gw")
+        check_range("Flow Recession Coefficient (x)", self.x, "x")
+        if not math.isclose(self.w_1 + self.w_2 + self.w_3, 1.0):
             raise ValueError(
-                "The sum of landuse (w_1), soil (w_2) and slope (w_3) factor weights must be equal to 1.0."
+                "The sum of landuse (w_1), soil (w_2) and slope (w_3) factor weights "
+                "must be equal to 1.0."
             )
+        return self
 
-        self.alpha = alpha
-        self.beta = beta
-        self.w_1 = w_1
-        self.w_2 = w_2
-        self.w_3 = w_3
-        self.rcd = rcd
-        self.f = f
-        self.alpha_gw = alpha_gw
-        self.x = x
-
-    def __validate(self, parameter_name, parameter_value, valid_range):
-        min_value = valid_range["min"]
-        max_value = valid_range["max"]
-        if not min_value <= parameter_value <= max_value:
-            raise ValueError(
-                f"Parameter value out of range: {parameter_name}={parameter_value} [{min_value}\n{max_value}]."
-            )
-
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"Interception Parameter (alpha): {self.alpha} [-]\n"
             f"Rainfall Intensity Coefficient (beta): {self.beta} [-]\n"
