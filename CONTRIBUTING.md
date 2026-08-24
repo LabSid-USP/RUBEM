@@ -27,9 +27,9 @@ an issue:
 PCRaster and GDAL come from conda-forge; everything else installs with pip:
 
 ```sh
-conda env create -f environment.yml
-conda activate rubem
-pip install -e .[dev]
+conda env create -f environment.yml  # micromamba: micromamba create -f environment.yml -y
+conda activate rubem                 # micromamba: micromamba activate rubem
+pip install -e '.[dev]'
 ```
 
 ## Working on a change
