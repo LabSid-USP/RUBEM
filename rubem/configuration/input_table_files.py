@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Union
 
 
 class InputTableFiles:
@@ -62,20 +61,20 @@ class InputTableFiles:
 
     def __init__(
         self,
-        rainy_days: Union[str, bytes, os.PathLike],
-        a_i: Union[str, bytes, os.PathLike],
-        a_o: Union[str, bytes, os.PathLike],
-        a_s: Union[str, bytes, os.PathLike],
-        a_v: Union[str, bytes, os.PathLike],
-        manning: Union[str, bytes, os.PathLike],
-        bulk_density: Union[str, bytes, os.PathLike],
-        k_sat: Union[str, bytes, os.PathLike],
-        t_fcap: Union[str, bytes, os.PathLike],
-        t_sat: Union[str, bytes, os.PathLike],
-        t_wp: Union[str, bytes, os.PathLike],
-        rootzone_depth: Union[str, bytes, os.PathLike],
-        kc_min: Union[str, bytes, os.PathLike],
-        kc_max: Union[str, bytes, os.PathLike],
+        rainy_days: str | bytes | os.PathLike,
+        a_i: str | bytes | os.PathLike,
+        a_o: str | bytes | os.PathLike,
+        a_s: str | bytes | os.PathLike,
+        a_v: str | bytes | os.PathLike,
+        manning: str | bytes | os.PathLike,
+        bulk_density: str | bytes | os.PathLike,
+        k_sat: str | bytes | os.PathLike,
+        t_fcap: str | bytes | os.PathLike,
+        t_sat: str | bytes | os.PathLike,
+        t_wp: str | bytes | os.PathLike,
+        rootzone_depth: str | bytes | os.PathLike,
+        kc_min: str | bytes | os.PathLike,
+        kc_max: str | bytes | os.PathLike,
         validate_input: bool = True,
     ) -> None:
         self.logger = logging.getLogger(__name__)

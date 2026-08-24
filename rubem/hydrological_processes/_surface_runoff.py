@@ -123,7 +123,7 @@ class SurfaceRunoff:
         :returns: Potential runoff coefficient of the impervious area
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
-        return 0.09 * pcr.exp((2.4 * percent_impervious_surface_per_grid_cell))
+        return 0.09 * pcr.exp(2.4 * percent_impervious_surface_per_grid_cell)
 
     @staticmethod
     def get_weighted_pot_runoff_coef(

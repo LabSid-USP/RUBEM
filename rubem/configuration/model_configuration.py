@@ -4,7 +4,6 @@ import math
 import os
 import textwrap
 from datetime import datetime
-from typing import Union
 
 from ..configuration.calibration_parameters import CalibrationParameters
 from ..configuration.initial_soil_conditions import InitialSoilConditions
@@ -41,9 +40,7 @@ class ModelConfiguration:
     :raises ValueError: If a setting value is invalid.
     """
 
-    def __init__(
-        self, config_input: Union[dict, str, bytes, os.PathLike], validate_input: bool = True
-    ):
+    def __init__(self, config_input: dict | str | bytes | os.PathLike, validate_input: bool = True):
         self.logger = logging.getLogger(__name__)
         self.problems = []
 
@@ -245,10 +242,10 @@ class ModelConfiguration:
                 message = f"{problem.get('description')}: {problem.get('reason')} {problem.get('implication', '')} {problem.get('file', '')}"
                 self.logger.warning("Configuration problem: %s", message)
 
-    def __read_json(self, file_path: Union[str, bytes, os.PathLike]):
+    def __read_json(self, file_path: str | bytes | os.PathLike):
         self.logger.debug("Reading JSON file: %s", file_path)
         try:
-            with open(file=file_path, mode="r", encoding="utf-8") as f:
+            with open(file=file_path, encoding="utf-8") as f:
                 return json.load(f)
         except json.JSONDecodeError as e:
             self.logger.error("Error parsing JSON file: %s", e)

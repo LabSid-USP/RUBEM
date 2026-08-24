@@ -201,7 +201,7 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
         for tss_file in tss_files:
             dst_file_path = _install_path(f"{os.path.splitext(tss_file)[0]}.csv")
 
-            with open(file=tss_file, mode="r", encoding="utf8") as f:
+            with open(file=tss_file, encoding="utf8") as f:
                 lines = f.readlines()
 
             data = [line.split() for line in lines if line.strip()]

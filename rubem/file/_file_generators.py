@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Optional, Union
 
 from osgeo import gdal
 from pcraster._pcraster import Field
@@ -16,9 +15,9 @@ logger = logging.getLogger(__name__)
 def report(
     variable: Field,
     name: str,
-    outpath: Union[str, bytes, os.PathLike],
+    outpath: str | bytes | os.PathLike,
     base_raster_info: OutputRasterBase,
-    timestep: Optional[int] = None,
+    timestep: int | None = None,
     file_format: OutputFileFormat = OutputFileFormat.GEOTIFF,
     no_data_value: float = -9999,
 ):
@@ -65,12 +64,12 @@ def report(
 
 def __report(
     variable: Field,
-    outpath: Union[str, bytes, os.PathLike],
+    outpath: str | bytes | os.PathLike,
     name: str,
     driver_short_name: str,
     extension: str,
     base_raster_info: OutputRasterBase,
-    timestep: Optional[int] = None,
+    timestep: int | None = None,
     no_data_value: float = -9999,
 ):
     if timestep:

@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Union
 
 
 class OutputDataDirectory:
@@ -13,7 +12,7 @@ class OutputDataDirectory:
 
     def __init__(
         self,
-        output_path: Union[str, bytes, os.PathLike],
+        output_path: str | bytes | os.PathLike,
     ) -> None:
         self.logger = logging.getLogger(__name__)
         self.path = str(output_path)

@@ -1,7 +1,8 @@
 import logging
 import math
 import os
-from typing import Iterable, Optional, Union
+from collections.abc import Iterable
+from typing import Union
 
 from osgeo import gdal, osr
 
@@ -69,7 +70,7 @@ class OutputRasterBase:
     def __init__(
         self,
         base_raster_path: PathLike,
-        georeference_path: Optional[PathLike] = None,
+        georeference_path: PathLike | None = None,
         must_match: Iterable[tuple[str, PathLike]] = (),
         allow_rotation: bool = True,
     ):

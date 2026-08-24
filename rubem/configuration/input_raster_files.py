@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Optional, Union
 
 from ..configuration.data_ranges_settings import DataRangesSettings
 from ..configuration.raster_map import RasterMap
@@ -45,15 +44,15 @@ class InputRasterFiles:
 
     def __init__(
         self,
-        dem: Union[str, bytes, os.PathLike],
-        clone: Union[str, bytes, os.PathLike],
-        ndvi_max: Union[str, bytes, os.PathLike],
-        ndvi_min: Union[str, bytes, os.PathLike],
-        soil: Union[str, bytes, os.PathLike],
-        sample_locations: Optional[Union[str, bytes, os.PathLike]] = None,
-        ldd: Optional[Union[str, bytes, os.PathLike]] = None,
+        dem: str | bytes | os.PathLike,
+        clone: str | bytes | os.PathLike,
+        ndvi_max: str | bytes | os.PathLike,
+        ndvi_min: str | bytes | os.PathLike,
+        soil: str | bytes | os.PathLike,
+        sample_locations: str | bytes | os.PathLike | None = None,
+        ldd: str | bytes | os.PathLike | None = None,
         validate_input: bool = True,
-        georeference: Optional[Union[str, bytes, os.PathLike]] = None,
+        georeference: str | bytes | os.PathLike | None = None,
     ) -> None:
         self.logger = logging.getLogger(__name__)
         self.__ranges = DataRangesSettings()

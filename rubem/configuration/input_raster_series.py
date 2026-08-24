@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Union
 
 from ..configuration.data_ranges_settings import DataRangesSettings
 from ..configuration.raster_map import RasterMap
@@ -55,15 +54,15 @@ class InputRasterSeries:
 
     def __init__(
         self,
-        etp: Union[str, bytes, os.PathLike],
+        etp: str | bytes | os.PathLike,
         etp_filename_prefix: str,
-        precipitation: Union[str, bytes, os.PathLike],
+        precipitation: str | bytes | os.PathLike,
         precipitation_filename_prefix: str,
-        ndvi: Union[str, bytes, os.PathLike],
+        ndvi: str | bytes | os.PathLike,
         ndvi_filename_prefix: str,
-        kp: Union[str, bytes, os.PathLike],
+        kp: str | bytes | os.PathLike,
         kp_filename_prefix: str,
-        landuse: Union[str, bytes, os.PathLike],
+        landuse: str | bytes | os.PathLike,
         landuse_filename_prefix: str,
         validate_input: bool = True,
     ) -> None:

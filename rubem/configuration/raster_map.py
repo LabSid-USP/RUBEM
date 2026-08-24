@@ -1,7 +1,6 @@
 import logging
 import os
 import re
-from typing import Optional, Union
 
 from osgeo import gdal
 
@@ -61,9 +60,9 @@ class RasterMap:
 
     def __init__(
         self,
-        file_path: Union[str, bytes, os.PathLike],
-        valid_range: Optional[dict[str, float]] = None,
-        rules: Optional[RasterDataRules] = None,
+        file_path: str | bytes | os.PathLike,
+        valid_range: dict[str, float] | None = None,
+        rules: RasterDataRules | None = None,
     ) -> None:
         self.logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Optional, Union
+from typing import Any
 
 
 class AppSettings:
@@ -53,7 +53,7 @@ class AppSettings:
         self.__initialized = True
         self.load()
 
-    def load(self, app_settings_file_path: Optional[Union[str, bytes, os.PathLike]] = None) -> None:
+    def load(self, app_settings_file_path: str | bytes | os.PathLike | None = None) -> None:
         """
         Load the specified application settings or from the default appsettings.json file.
 
@@ -75,7 +75,7 @@ class AppSettings:
                 f"Application settings file not found: {app_settings_file_path_str}"
             )
 
-        with open(app_settings_file_path_str, "r", encoding="utf8") as file:
+        with open(app_settings_file_path_str, encoding="utf8") as file:
             self.settings = json.load(file)
 
     def get_setting(self, key: str) -> Any:

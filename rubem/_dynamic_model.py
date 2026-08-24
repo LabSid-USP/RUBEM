@@ -2,7 +2,7 @@ import logging
 import os
 import warnings
 from calendar import monthrange
-from typing import Callable, Optional, Union
+from collections.abc import Callable
 
 import numpy as np
 import pcraster as pcr
@@ -675,9 +675,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
     def __readmap_series_wrapper(
         self,
-        files_partial_path: Union[str, bytes, os.PathLike],
+        files_partial_path: str | bytes | os.PathLike,
         dynamic_readmap_func: Callable,
-        conversion_func: Optional[Callable] = None,
+        conversion_func: Callable | None = None,
         suppress_errors: bool = False,
     ) -> Field:
         """Read a map from a raster series for a given step from a specified location.
@@ -714,9 +714,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
     def __readmap_wrapper(
         self,
-        file_path: Union[str, bytes, os.PathLike],
+        file_path: str | bytes | os.PathLike,
         readmap_func: Callable = pcrfw.readmap,
-        conversion_func: Optional[Callable] = None,
+        conversion_func: Callable | None = None,
     ) -> Field:
         """Read a data map for a given data type from a specified location.
 
@@ -748,7 +748,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
     def __lookup_wrapper(
         self,
-        file_path: Union[str, bytes, os.PathLike],
+        file_path: str | bytes | os.PathLike,
         lookup_value,
         lookup_func: Callable,
     ) -> Field:
