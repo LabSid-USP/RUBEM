@@ -52,12 +52,12 @@ class TestCliApp:
     @pytest.mark.integration
     def test_cli_app_help_ext(self):
         result = run_cli("--help")
-        assert b"usage: rubem [-h] -c CONFIGFILE [-V] [-s]" in result
+        assert b"Usage: rubem [OPTIONS] COMMAND [ARGS]..." in result
 
     @pytest.mark.integration
     def test_cli_app_help_short(self):
         result = run_cli("-h")
-        assert b"usage: rubem [-h] -c CONFIGFILE [-V] [-s]" in result
+        assert b"Usage: rubem [OPTIONS] COMMAND [ARGS]..." in result
 
     @pytest.mark.integration
     def test_cli_app_version_ext(self):
@@ -77,12 +77,12 @@ class TestCliApp:
     @pytest.mark.integration
     def test_cli_app_invalid_args(self):
         with pytest.raises(subprocess.CalledProcessError):
-            run_cli("-c", "invalid_path")
+            run_cli("run", "-c", "invalid_path")
 
     @pytest.mark.integration
     def test_cli_app_not_a_file_config(self):
         with pytest.raises(subprocess.CalledProcessError):
-            run_cli("-c", os.path.dirname(__file__))
+            run_cli("run", "-c", os.path.dirname(__file__))
 
     @pytest.mark.integration
     def test_cli_app_invalid_extension_config_json_file(self):
@@ -92,7 +92,7 @@ class TestCliApp:
                 f.write(json.dumps(base_model_config(temp_dir)))
 
             with pytest.raises(subprocess.CalledProcessError):
-                run_cli("-c", config_path)
+                run_cli("run", "-c", config_path)
 
     @pytest.mark.integration
     def test_cli_app_invalid_config_json_file(self):
@@ -102,7 +102,7 @@ class TestCliApp:
                 f.write("invalid_json")
 
             with pytest.raises(subprocess.CalledProcessError):
-                run_cli("-c", config_path)
+                run_cli("run", "-c", config_path)
 
     @pytest.mark.integration
     def test_cli_app_empty_config_json_file(self):
@@ -112,7 +112,7 @@ class TestCliApp:
                 f.write(json.dumps({}))
 
             with pytest.raises(subprocess.CalledProcessError):
-                run_cli("-c", config_path)
+                run_cli("run", "-c", config_path)
 
     @pytest.mark.integration
     def test_cli_app_reports_an_invalid_configuration(self):
@@ -128,19 +128,34 @@ class TestCliApp:
             with open(file=config_path, mode="w", encoding="utf8") as f:
                 f.write("invalid_json")
 
-            result = run_cli_capture("-c", config_path)
+            result = run_cli_capture("run", "-c", config_path)
 
         assert result.returncode == 1
         assert "Invalid configuration:" in result.stderr
         assert "Error parsing JSON file" in result.stderr
         assert "Traceback" not in result.stderr
 
+    @pytest.mark.integration
+    def test_cli_app_legacy_spelling_still_runs(self):
+        """``rubem -c <config>`` keeps working for one minor release, with a warning."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, "config.json")
+            with open(file=config_path, mode="w", encoding="utf8") as f:
+                f.write(json.dumps(base_model_config(temp_dir)))
+
+            result = run_cli_capture("-s", "-c", config_path)
+
+            assert result.returncode == 0, result.stderr
+            assert "Simulation finished successfully!" in result.stdout
+            assert "is deprecated; use 'rubem run -c <config>'" in result.stderr
+            assert os.path.exists(os.path.join(temp_dir, CSV_GOLDENS[0]))
+
     def _run_and_compare(self, temp_dir, *cli_flags):
         config_path = os.path.join(temp_dir, "config.json")
         with open(file=config_path, mode="w", encoding="utf8") as f:
             f.write(json.dumps(base_model_config(temp_dir)))
 
-        run_cli(*cli_flags, "-c", config_path)
+        run_cli("run", *cli_flags, "-c", config_path)
 
         for raster_file in RASTER_GOLDENS + TIFF_GOLDENS:
             candidate = os.path.join(temp_dir, raster_file)
@@ -177,7 +192,7 @@ class TestCliApp:
             with open(file=config_path, mode="w", encoding="utf8") as f:
                 f.write(json.dumps(base_model_config(temp_dir)))
 
-            output = run_cli("-c", config_path).decode("utf8")
+            output = run_cli("run", "-c", config_path).decode("utf8")
 
         for expected in (
             "Loading configuration and validating inputs...",
@@ -208,7 +223,7 @@ class TestCliApp:
                 f.write(json.dumps(base_model_config(output_dir)))
 
             subprocess.check_output(
-                [*RUBEM_COMMAND, "-c", config_path], cwd=scratch_cwd, env=cli_environment()
+                [*RUBEM_COMMAND, "run", "-c", config_path], cwd=scratch_cwd, env=cli_environment()
             )
 
             assert not os.listdir(scratch_cwd)

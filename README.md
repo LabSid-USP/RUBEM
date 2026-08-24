@@ -103,7 +103,7 @@ RUBEM depends on [PCRaster](https://pcraster.geo.uu.nl/) and [GDAL](https://gdal
 - Typical usage example
 
    ```sh
-   rubem --configfile config.json
+   rubem run --configfile config.json
    ```
 
 - Help usage example

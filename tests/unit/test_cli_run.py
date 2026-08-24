@@ -55,7 +55,7 @@ class TestCliRun:
         self, tmp_path, config_path, capsys, restore_logging
     ):
         """The console output promised by doc/source/tutorials.rst."""
-        main(["-c", str(config_path)])
+        main(["run", "-c", str(config_path)])
 
         output = capsys.readouterr().out
         for expected in (
@@ -73,7 +73,7 @@ class TestCliRun:
         self, config_path, monkeypatch, capsys, restore_logging
     ):
         """The console script calls ``main()`` without arguments."""
-        monkeypatch.setattr(sys, "argv", ["rubem", "-s", "-c", str(config_path)])
+        monkeypatch.setattr(sys, "argv", ["rubem", "run", "-s", "-c", str(config_path)])
 
         main()
 
@@ -81,7 +81,7 @@ class TestCliRun:
 
     @pytest.mark.unit
     def test_skipping_validation_says_so(self, config_path, capsys, restore_logging):
-        main(["-s", "-c", str(config_path)])
+        main(["run", "-s", "-c", str(config_path)])
 
         output = capsys.readouterr().out
         assert "Loading configuration...\n" in output
@@ -100,7 +100,7 @@ class TestCliRun:
         monkeypatch.setattr(DynamicFramework, "run", fail)
 
         with pytest.raises(SystemExit):
-            main(["-c", str(config_path)])
+            main(["run", "-c", str(config_path)])
 
         logged = capsys.readouterr().err
         assert logged.count("Traceback (most recent call last)") == 1
@@ -114,7 +114,7 @@ class TestCliRun:
         config_path.write_text(json.dumps({}), encoding="utf8")
 
         with pytest.raises(SystemExit) as error:
-            main(["-c", str(config_path)])
+            main(["run", "-c", str(config_path)])
 
         captured = capsys.readouterr().err
         assert error.value.code == 1
@@ -134,7 +134,7 @@ class TestCliRun:
         monkeypatch.setattr(DynamicFramework, "run", interrupt)
 
         with pytest.raises(SystemExit) as error:
-            main(["-c", str(config_path)])
+            main(["run", "-c", str(config_path)])
 
         captured = capsys.readouterr()
         assert error.value.code == 2
@@ -144,20 +144,96 @@ class TestCliRun:
 
 class TestCliArguments:
     @pytest.mark.unit
-    def test_version_is_printed_and_exits_cleanly(self, capsys, restore_logging):
+    @pytest.mark.parametrize("flag", ["--version", "-V"])
+    def test_version_is_printed_and_exits_cleanly(self, capsys, restore_logging, flag):
         with pytest.raises(SystemExit) as error:
-            main(["--version"])
+            main([flag])
 
         assert error.value.code == 0
         assert capsys.readouterr().out == f"RUBEM v{__release__}\n"
 
+
+class TestConfigSchema:
+    @pytest.mark.unit
+    def test_prints_the_legacy_schema_as_json(self, capsys, restore_logging):
+        import json
+
+        main(["config", "schema", "--format", "legacy"])
+
+        schema = json.loads(capsys.readouterr().out)
+        assert schema["title"] == "ModelConfigurationFile"
+        assert set(schema["required"]) >= {"SIM_TIME", "RASTERS", "TABLES"}
+
+    @pytest.mark.unit
+    def test_legacy_is_the_default_format(self, capsys, restore_logging):
+        import json
+
+        main(["config", "schema"])
+
+        assert "SIM_TIME" in json.loads(capsys.readouterr().out)["properties"]
+
+    @pytest.mark.unit
+    def test_an_unknown_format_is_rejected(self, capsys, restore_logging):
+        with pytest.raises(SystemExit) as error:
+            main(["config", "schema", "--format", "yaml"])
+
+        assert error.value.code == 2
+
     @pytest.mark.unit
     def test_the_configuration_file_is_required(self, capsys, restore_logging):
+        with pytest.raises(SystemExit) as error:
+            main(["run"])
+
+        assert error.value.code == 2
+        assert "Missing option '-c' / '--configfile'" in capsys.readouterr().err
+
+    @pytest.mark.unit
+    def test_no_arguments_prints_the_help(self, capsys, restore_logging):
         with pytest.raises(SystemExit) as error:
             main([])
 
         assert error.value.code == 2
-        assert "required: -c/--configfile" in capsys.readouterr().err
+        output = capsys.readouterr()
+        assert "Usage: rubem [OPTIONS] COMMAND [ARGS]..." in output.out + output.err
+        assert "run" in output.out + output.err and "config" in output.out + output.err
+
+    @pytest.mark.unit
+    def test_help_lists_the_commands_and_the_epilog(self, capsys, restore_logging):
+        with pytest.raises(SystemExit) as error:
+            main(["--help"])
+
+        assert error.value.code == 0
+        output = capsys.readouterr().out
+        assert "Run a simulation from a configuration file." in output
+        assert "ABSOLUTELY NO WARRANTY" in output
+
+    @pytest.mark.unit
+    def test_an_unknown_command_is_rejected(self, capsys, restore_logging):
+        with pytest.raises(SystemExit) as error:
+            main(["bogus"])
+
+        assert error.value.code == 2
+        assert "No such command 'bogus'" in capsys.readouterr().err
+
+    @pytest.mark.unit
+    def test_the_legacy_spelling_still_runs_with_a_deprecation_warning(
+        self, config_path, capsys, restore_logging
+    ):
+        with pytest.warns(DeprecationWarning, match="rubem run -c"):
+            main(["-s", "-c", str(config_path)])
+
+        captured = capsys.readouterr()
+        assert "Simulation finished successfully!" in captured.out
+        assert "is deprecated; use 'rubem run -c <config>'" in captured.err
+
+    @pytest.mark.unit
+    def test_the_legacy_spelling_needs_the_configuration_option(self, capsys, restore_logging):
+        """Bare unknown options are not mapped to ``run``: the error names the command line."""
+        with pytest.raises(SystemExit) as error:
+            main(["-s"])
+
+        assert error.value.code == 2
+        assert "No such option: -s" in capsys.readouterr().err
 
     @pytest.mark.unit
     def test_a_missing_configuration_file_is_rejected_before_anything_runs(
@@ -166,7 +242,7 @@ class TestCliArguments:
         missing = tmp_path / "missing.json"
 
         with pytest.raises(SystemExit) as error:
-            main(["-c", str(missing)])
+            main(["run", "-c", str(missing)])
 
         captured = capsys.readouterr()
         assert error.value.code == 2
@@ -198,7 +274,7 @@ class TestCliSettings:
             ),
         )
 
-        main(["-s", "-c", str(config_path)])
+        main(["run", "-s", "-c", str(config_path)])
 
         assert logging.getLogger().level == logging.INFO
         assert "custom-format RUBEM successfully finished!" in capsys.readouterr().err
@@ -209,7 +285,7 @@ class TestCliSettings:
     ):
         monkeypatch.setattr("rubem.cli.AppSettings", SettingsOverride(i18n={"language": "pt_BR"}))
 
-        main(["-s", "-c", str(config_path)])
+        main(["run", "-s", "-c", str(config_path)])
 
         output = capsys.readouterr().out
         assert "Elapsed time:" in output
@@ -222,7 +298,7 @@ class TestCliSettings:
     ):
         monkeypatch.setattr("rubem.cli.AppSettings", SettingsOverride(i18n={"language": "xx_XX"}))
 
-        main(["-s", "-c", str(config_path)])
+        main(["run", "-s", "-c", str(config_path)])
 
         captured = capsys.readouterr()
         assert "Failed to set language" in captured.err
@@ -236,6 +312,6 @@ class TestCliSettings:
         monkeypatch.setattr(humanize.i18n, "activate", refuse)
         monkeypatch.setattr("rubem.cli.AppSettings", SettingsOverride(i18n={"language": "en_US"}))
 
-        main(["-s", "-c", str(config_path)])
+        main(["run", "-s", "-c", str(config_path)])
 
         assert "Simulation finished successfully!" in capsys.readouterr().out

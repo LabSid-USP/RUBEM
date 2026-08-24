@@ -59,7 +59,7 @@ With the environment active, the ``rubem`` command is available anywhere:
 .. code-block:: console
 
    rubem -h
-   rubem -c config.json
+   rubem run -c config.json
 
 Development installs
 --------------------

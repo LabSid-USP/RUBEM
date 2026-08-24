@@ -79,6 +79,10 @@ Unreleased
   ignored, duplicated keys are reported (the last value still wins), and
   relative paths are anchored on the directory of the JSON file
   (``ModelConfiguration.load(path)``) or on an explicit ``base_dir``.
+- Moved the command line to Typer: ``rubem run -c <config> [-s]`` runs a
+  simulation and ``rubem config schema --format legacy`` prints the JSON
+  Schema of the configuration file; ``rubem -c <config>`` still works for one
+  minor release with a deprecation warning. ``typer`` is a runtime dependency.
 
 Version 0.9.0-beta.3
 ---------------------

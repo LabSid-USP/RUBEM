@@ -1113,49 +1113,68 @@ Configuration File Template
 Running RUBEM
 -------------
 
-When running RUBEM without any arguments, you will see the following message on your console:
+The ``rubem`` command has two subcommands: ``run`` executes a simulation and
+``config schema`` prints the JSON Schema of the configuration file. Running it
+without arguments shows the available commands:
 
 .. code-block:: console
 
    $ rubem
-   usage: rubem [-h] -c CONFIGFILE [-V] [-s]
-   rubem: error: the following arguments are required: -c/--configfile
+   Usage: rubem [OPTIONS] COMMAND [ARGS]...
+
+     Rainfall rUnoff Balance Enhanced Model (RUBEM)
+
+   Options:
+     -V, --version  Show the version and exit.
+     -h, --help     Show this message and exit.
+
+   Commands:
+     run     Run a simulation from a configuration file.
+     config  Inspect the configuration file format.
+
+.. note::
+
+   The former ``rubem -c <config>`` spelling (without ``run``) still works for
+   one minor release and prints a deprecation warning.
 
 Command Line Options
 ````````````````````
 
-Use ``-h`` or ``--help`` to get a brief description of RUBEM and each argument.
+Use ``-h`` or ``--help`` to get a brief description of each command and its arguments.
 
 .. code-block:: console
 
-   $ rubem -h
-   usage: rubem [-h] -c CONFIGFILE [-V] [-s]
+   $ rubem run -h
+   Usage: rubem run [OPTIONS]
 
-   Rainfall rUnoff Balance Enhanced Model (RUBEM)
+     Run a simulation from a configuration file.
 
-   optional arguments:
-   -h, --help            show this help message and exit
-   -c CONFIGFILE, --configfile CONFIGFILE
-                           path to configuration file
-   -V, --version         show version and exit
-   -s, --skip-inputs-validation
-                           disable input files validation before running the model
-
-   RUBEM 0.9.0-beta.3 Copyright (C) 2020-2024 - LabSid/PHA/EPUSP -This program comes with ABSOLUTELY NO WARRANTY.This is free software, and you are welcome to redistribute it under   
-   certain conditions. 
+   Options:
+     -c, --configfile PATH         Path to the configuration file (JSON).
+                                   [required]
+     -s, --skip-inputs-validation  Disable input files validation before running
+                                   the model.
+     -h, --help                    Show this message and exit.
 
 Use ``-V`` or ``--version`` to get the version of the RUBEM.
 
 .. code-block:: console
 
    $ rubem --version
-   RUBEM v0.9.0-beta.3
+   RUBEM v0.10.0.dev0
+
+Use ``config schema`` to print the JSON Schema of the configuration file
+(``--format legacy`` is the current, and default, format).
+
+.. code-block:: console
+
+   $ rubem config schema --format legacy
 
 Use ``-c`` or ``--configfile`` to set the path of the RUBEM configuration file.
 
 .. code-block:: console
 
-   $ rubem --configfile project-config.json
+   $ rubem run --configfile project-config.json
    .## Timestep 1 of 24
    .## Timestep 2 of 24
    .## Timestep 3 of 24

@@ -17,6 +17,7 @@ dependencies = [
   "numpy>=2",
   "python-dateutil>=2",
   "pydantic>=2.11,<3",
+  "typer>=0.16,<1",
 ]
 dynamic = ["version"]
 keywords = ["hydrology", "hydrological-model", "rainfall-runoff", "pcraster", "water-balance"]
