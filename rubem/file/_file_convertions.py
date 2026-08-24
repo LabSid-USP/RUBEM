@@ -63,6 +63,22 @@ def _reserve_path(dst_file_path: str, suffix: str) -> str:
     return path
 
 
+def _apply_mode(handle: int, path: str, mode: int | None) -> None:
+    """Give the open staging file *mode*, without going through its name.
+
+    ``os.fchmod`` acts on the descriptor reserved with ``O_EXCL``, so the mode
+    of the previous CSV cannot land on something else that took over the name
+    in the meantime. Windows has no ``fchmod``; there the path is used, which
+    is what the platform offers.
+    """
+    if mode is None:
+        return
+    if hasattr(os, "fchmod"):
+        os.fchmod(handle, mode)
+    else:  # pragma: no cover - exercised only on Windows
+        os.chmod(path, mode)
+
+
 def _install_path(dst_file_path: str) -> str:
     """Return the path a destination writes to, with symlinks resolved.
 
@@ -205,20 +221,20 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
                     "from the number of column names."
                 )
 
+            previous_mode = _destination_mode(dst_file_path)
             handle, tmp_file_path = _reserve_stage(dst_file_path, ".tmp")
             pending.append((tmp_file_path, dst_file_path))
+            # While the descriptor is still the one that was reserved.
+            _apply_mode(handle, tmp_file_path, previous_mode)
             with os.fdopen(handle, mode="w", encoding="utf8", newline="") as csvfile:
                 writer = csv.writer(csvfile, delimiter=";")
                 writer.writerow(header)
                 writer.writerows(data)
 
         for tmp_file_path, dst_file_path in pending:
-            previous_mode = _destination_mode(dst_file_path)
             backup_file_path = _backup_destination(dst_file_path)
             # Recorded before the install so that a failure in it is undone too.
             installs.append((dst_file_path, backup_file_path))
-            if previous_mode is not None:
-                os.chmod(tmp_file_path, previous_mode)
             os.replace(tmp_file_path, dst_file_path)
     except Exception:
         _undo_installs(installs)
