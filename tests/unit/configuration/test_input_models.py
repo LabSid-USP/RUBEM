@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -94,7 +95,7 @@ class TestInputTableFiles:
 
         tables = table_files(config)
 
-        assert tables.rainy_days == config["TABLES"]["rainydays"]
+        assert Path(tables.rainy_days) == Path(config["TABLES"]["rainydays"])
         assert "Rainy Days:" in str(tables)
         with pytest.raises(ValidationError):
             tables.manning = "x"
@@ -122,7 +123,7 @@ class TestInputTableFiles:
         with pytest.warns(DeprecationWarning, match="bytes paths"):
             tables = table_files(config, manning=os.fsencode(config["TABLES"]["manning"]))
 
-        assert tables.manning == config["TABLES"]["manning"]
+        assert Path(tables.manning) == Path(config["TABLES"]["manning"])
 
 
 class TestInputRasterFiles:
@@ -154,7 +155,7 @@ class TestInputRasterFiles:
         assert files.problems
         assert all(isinstance(problem, Problem) for problem in files.problems)
         assert not any(problem.blocking for problem in files.problems)
-        assert files.problems[0].file == config["RASTERS"]["ndvi_max"]
+        assert Path(files.problems[0].file) == Path(config["RASTERS"]["ndvi_max"])
 
     @pytest.mark.unit
     def test_validation_can_be_skipped(self, tmp_path):
@@ -188,8 +189,6 @@ class TestInputRasterSeries:
         config = write_synthetic_dataset(str(tmp_path))
 
         series = raster_series(config)
-
-        from pathlib import Path
 
         assert Path(series.etp).is_absolute()
         assert Path(series.etp).name == "etp"
