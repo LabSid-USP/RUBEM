@@ -83,3 +83,19 @@ class TestDynamicModelBehavior:
 
         assert stale.exists()
         assert not (tmp_path / "out" / "stale.csv").exists()
+
+    @pytest.mark.unit
+    def test_missing_first_ndvi_step_raises_a_clear_error(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        os.remove(tmp_path / "maps" / "ndvi" / "ndvi0000.001")
+
+        with pytest.raises(RuntimeError, match="NDVI raster.*no previous raster"):
+            run_model(str(tmp_path), validate_input=False, config=config)
+
+    @pytest.mark.unit
+    def test_missing_first_landuse_step_raises_a_clear_error(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        os.remove(tmp_path / "maps" / "lulc" / "cob00000.001")
+
+        with pytest.raises(RuntimeError, match="land-use raster.*no previous raster"):
+            run_model(str(tmp_path), validate_input=False, config=config)
