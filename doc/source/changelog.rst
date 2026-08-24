@@ -56,6 +56,10 @@ Unreleased
   dictionary-style ``get()`` is deprecated), ``OutputDataDirectory`` creates
   the directory in ``ensure_exists()`` rather than on construction, and
   ``OutputRasterBase.from_file()`` reads the geometry.
+- Rebuilt the input file objects (``InputRasterFiles``, ``InputRasterSeries``,
+  ``InputTableFiles``) as frozen Pydantic models with the same keywords,
+  attributes and exceptions; validation problems are ``Problem`` objects and
+  ``ConfigurationError`` carries the blocking ones.
 
 Version 0.9.0-beta.3
 ---------------------

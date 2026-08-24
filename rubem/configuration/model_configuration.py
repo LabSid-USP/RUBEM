@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .._paths import PathInput, as_path
+from ..configuration._problems import Problem
 from ..configuration.calibration_parameters import CalibrationParameters
 from ..configuration.initial_soil_conditions import InitialSoilConditions
 from ..configuration.input_raster_files import InputRasterFiles
@@ -203,29 +204,26 @@ class ModelConfiguration:
 
         if not self.output_variables.any_enabled():
             self.problems.append(
-                {
-                    "description": "Simulation will not produce any output.",
-                    "reason": "No Output Variables were selected.",
-                    "blocking": False,
-                }
+                Problem(
+                    description="Simulation will not produce any output.",
+                    reason="No Output Variables were selected.",
+                )
             )
 
         if self.raster_files.sample_locations and not self.output_variables.tss:
             self.problems.append(
-                {
-                    "description": "Simulation will not produce any Time Series tables.",
-                    "reason": "Sample Locations raster was provided but Time Series generation was not enabled.",
-                    "blocking": False,
-                }
+                Problem(
+                    description="Simulation will not produce any Time Series tables.",
+                    reason="Sample Locations raster was provided but Time Series generation was not enabled.",
+                )
             )
 
         if self.output_variables.tss and not self.raster_files.sample_locations:
             self.problems.append(
-                {
-                    "description": "Simulation will not produce any Time Series tables.",
-                    "reason": "Time Series generation was enabled but no Sample Locations raster was provided.",
-                    "blocking": False,
-                }
+                Problem(
+                    description="Simulation will not produce any Time Series tables.",
+                    reason="Time Series generation was enabled but no Sample Locations raster was provided.",
+                )
             )
 
         if (
@@ -234,18 +232,16 @@ class ModelConfiguration:
             and not self.output_variables.any_enabled()
         ):
             self.problems.append(
-                {
-                    "description": "Simulation will not produce any output.",
-                    "reason": "Sample Locations raster and Time Series generation were enabled but no Output Variables were selected.",
-                    "blocking": False,
-                }
+                Problem(
+                    description="Simulation will not produce any output.",
+                    reason="Sample Locations raster and Time Series generation were enabled but no Output Variables were selected.",
+                )
             )
 
         if self.problems:
             self.logger.warning("Configuration problems found: %d", len(self.problems))
             for problem in self.problems:
-                message = f"{problem.get('description')}: {problem.get('reason')} {problem.get('implication', '')} {problem.get('file', '')}"
-                self.logger.warning("Configuration problem: %s", message)
+                self.logger.warning("Configuration problem: %s", problem)
 
     def __read_json(self, file_path: PathInput):
         self.logger.debug("Reading JSON file: %s", file_path)
