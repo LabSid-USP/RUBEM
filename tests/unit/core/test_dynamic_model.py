@@ -3,9 +3,51 @@ import shutil
 
 import pytest
 
+from rubem.configuration.model_configuration import ModelConfiguration
+from rubem.core import DynamicFrameworkWrapper
 from tests.helpers.compare import compare_rasters
 from tests.helpers.synthetic import series_name, write_synthetic_dataset
 from tests.unit.core.test_core import expected_outputs, run_model
+
+STEP_FLUXES = (
+    "current_interception",
+    "current_total_real_evapotranspiration",
+    "current_surface_runoff",
+    "current_lateral_flow",
+    "current_recharge",
+    "current_cell_total_discharge",
+    "accumulated_cell_total_discharge",
+    "current_runoff",
+)
+INITIAL_ONLY = (
+    "dem",
+    "initial_soil_moist_content",
+    "initial_baseflow",
+    "initial_soil_sat_zone_storage",
+    "initial_cell_total_flow",
+)
+CARRIED_STATE = (
+    "ldd",
+    "slope",
+    "ndvi_min",
+    "ndvi_max",
+    "previous_ndvi",
+    "previous_landuse",
+    "previous_baseflow",
+    "current_baseflow",
+    "previous_soil_moist_content",
+    "current_soil_moist_content",
+    "previous_soil_sat_zone_storage",
+    "current_soil_sat_zone_storage",
+    "previous_cell_total_flow",
+    "baseflow_threshold",
+    "soil_hydraulic_conductivity_coef",
+    "soil_bulk_density",
+    "soil_rootzone_depth",
+    "soil_moist_content_sat_point",
+    "soil_moistute_content_wilting_point",
+    "soil_moisture_content_field_capacity",
+)
 
 
 class TestDynamicModelBehavior:
@@ -99,3 +141,35 @@ class TestDynamicModelBehavior:
 
         with pytest.raises(RuntimeError, match="land-use raster.*no previous raster"):
             run_model(str(tmp_path), validate_input=False, config=config)
+
+
+class TestStateRelease:
+    """Per-step fields are dropped once reported; the carried state survives."""
+
+    @pytest.mark.unit
+    def test_step_fluxes_and_initial_rasters_are_released_after_the_run(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        wrapper = DynamicFrameworkWrapper.load(ModelConfiguration(config, validate_input=False))
+        model = wrapper.dynamic_model_concept
+
+        wrapper.run()
+
+        held = [name for name in STEP_FLUXES + INITIAL_ONLY if getattr(model, name) is not None]
+        assert not held, f"still referenced after the run: {held}"
+        dropped = [name for name in CARRIED_STATE if getattr(model, name) is None]
+        assert not dropped, f"carried state released: {dropped}"
+
+    @pytest.mark.unit
+    def test_the_release_does_not_change_the_outputs(self, tmp_path):
+        """The reported rasters are built before the release; the run equals the
+        one of the wrapper helper step for step."""
+        released = tmp_path / "released"
+        reference = tmp_path / "reference"
+        run_model(str(released))
+        run_model(str(reference))
+
+        for name in expected_outputs():
+            if not name.endswith((".tif", ".001", ".002")):
+                continue
+            result = compare_rasters(released / "out" / name, reference / "out" / name)
+            assert result.equal, f"{name}:\n{result.report()}"
