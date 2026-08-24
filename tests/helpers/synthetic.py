@@ -18,7 +18,7 @@ WEST = 0.0
 NORTH = 1500.0
 MISSING = -9999.0
 
-_LULC_CLASS = 3
+_LULC_CLASSES = (3, 4)
 _SOIL_CLASS = 1
 
 _DATE_FORMAT = "%d/%m/%Y"
@@ -27,14 +27,18 @@ _START_DATE = date(2000, 1, 1)
 # declared min/max rasters and rainfall positive for any number of steps.
 _SERIES_CYCLE = 6
 
+# Two land-use classes that alternate over the series, so that a test can tell a
+# land-use raster from another one: with a single class every step would look the
+# same and any fallback would produce identical outputs. The area fractions of a
+# class add up to 1.
 _LULC_TABLES = {
-    "a_i": 0.0,
-    "a_o": 0.0,
-    "a_s": 0.0,
-    "a_v": 1.0,
-    "manning": 0.16,
-    "kcmin": 1.14,
-    "kcmax": 1.8,
+    "a_i": {3: 0.0, 4: 0.1},
+    "a_o": {3: 0.0, 4: 0.0},
+    "a_s": {3: 0.0, 4: 0.3},
+    "a_v": {3: 1.0, 4: 0.6},
+    "manning": {3: 0.16, 4: 0.05},
+    "kcmin": {3: 1.14, 4: 0.85},
+    "kcmax": {3: 1.8, 4: 1.25},
 }
 _SOIL_TABLES = {
     "dg": 1.54,
@@ -141,7 +145,7 @@ def write_synthetic_dataset(base_dir, timesteps=2):
         )
         write_map(
             f"lulc/{series_name('cob', step)}",
-            np.full(ROWS * COLS, _LULC_CLASS),
+            np.full(ROWS * COLS, _LULC_CLASSES[(step - 1) % len(_LULC_CLASSES)]),
             pcr.Nominal,
             np.int32,
         )
@@ -149,9 +153,10 @@ def write_synthetic_dataset(base_dir, timesteps=2):
     txt_dir = os.path.join(base_dir, "txt")
     os.makedirs(os.path.join(txt_dir, "lulc"), exist_ok=True)
     os.makedirs(os.path.join(txt_dir, "soil"), exist_ok=True)
-    for name, value in _LULC_TABLES.items():
+    for name, values in _LULC_TABLES.items():
         with open(os.path.join(txt_dir, "lulc", f"{name}.txt"), "w", encoding="utf8") as f:
-            f.write(f"{_LULC_CLASS} {value}\n")
+            for lulc_class in _LULC_CLASSES:
+                f.write(f"{lulc_class} {values[lulc_class]}\n")
     for name, value in _SOIL_TABLES.items():
         with open(os.path.join(txt_dir, "soil", f"{name}.txt"), "w", encoding="utf8") as f:
             f.write(f"{_SOIL_CLASS} {value}\n")

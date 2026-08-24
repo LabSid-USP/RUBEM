@@ -52,6 +52,17 @@ class TestSyntheticDataset:
         assert series_name("ndvi", step) == expected
 
     @pytest.mark.unit
+    def test_land_use_alternates_between_classes(self, tmp_path):
+        """Tests that compare land-use handling need consecutive steps to differ."""
+        write_synthetic_dataset(str(tmp_path), timesteps=4)
+        classes = [
+            set(np.unique(read_map(tmp_path / "maps" / "lulc" / series_name("cob", step))))
+            for step in range(1, 5)
+        ]
+        assert classes[0] != classes[1], "consecutive land-use steps must differ"
+        assert classes[0] == classes[2], "the land-use series must cycle"
+
+    @pytest.mark.unit
     def test_ndvi_stays_within_the_declared_bounds(self, tmp_path):
         """NDVI must never reach 1.0, where the simple ratio divides by zero."""
         config = write_synthetic_dataset(str(tmp_path), timesteps=25)
