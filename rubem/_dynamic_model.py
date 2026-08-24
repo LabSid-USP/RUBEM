@@ -597,15 +597,15 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
     def __current_step_report(self):
         output_vars_dict = {
-            self.config.output_variables.itp.get("id"): self.current_interception,
-            self.config.output_variables.bfw.get("id"): self.current_baseflow,
-            self.config.output_variables.srn.get("id"): self.current_surface_runoff,
-            self.config.output_variables.eta.get("id"): self.current_total_real_evapotranspiration,
-            self.config.output_variables.lfw.get("id"): self.current_lateral_flow,
-            self.config.output_variables.rec.get("id"): self.current_recharge,
-            self.config.output_variables.smc.get("id"): self.current_soil_moist_content,
-            self.config.output_variables.rnf.get("id"): self.current_cell_total_discharge,
-            self.config.output_variables.arn.get("id"): self.current_runoff,
+            self.config.output_variables.itp.id: self.current_interception,
+            self.config.output_variables.bfw.id: self.current_baseflow,
+            self.config.output_variables.srn.id: self.current_surface_runoff,
+            self.config.output_variables.eta.id: self.current_total_real_evapotranspiration,
+            self.config.output_variables.lfw.id: self.current_lateral_flow,
+            self.config.output_variables.rec.id: self.current_recharge,
+            self.config.output_variables.smc.id: self.current_soil_moist_content,
+            self.config.output_variables.rnf.id: self.current_cell_total_discharge,
+            self.config.output_variables.arn.id: self.current_runoff,
         }
 
         self.__report_raster_series(output_vars_dict)
@@ -617,16 +617,14 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         for var in self.config.output_variables.get_enabled_raster_series():
             if OutputFileFormat.PCRASTER in self.config.output_variables.file_formats:
                 self.report(
-                    variable=output_vars_dict.get(var.get("id")),
-                    name=str(
-                        Path(self.config.output_directory.path) / var.get("raster_filename_prefix")
-                    ),
+                    variable=output_vars_dict.get(var.id),
+                    name=str(Path(self.config.output_directory.path) / var.raster_filename_prefix),
                 )
 
             if OutputFileFormat.GEOTIFF in self.config.output_variables.file_formats:
                 report(
-                    variable=output_vars_dict.get(var.get("id")),
-                    name=var.get("raster_filename_prefix"),
+                    variable=output_vars_dict.get(var.id),
+                    name=var.raster_filename_prefix,
                     timestep=self.currentStep,
                     outpath=self.config.output_directory.path,
                     file_format=OutputFileFormat.GEOTIFF,
@@ -637,12 +635,12 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
     def __report_time_series(self, output_vars_dict):
         for var in self.config.output_variables.get_enabled_time_series():
             # The same as self.tss_file_xxx.sample(self.xxx)
-            sample_func = self.sample_time_series_dict.get(var.get("id"))
+            sample_func = self.sample_time_series_dict.get(var.id)
             if sample_func is None:
                 raise RuntimeError(
                     f"No time-series writer was set up for the enabled variable '{var.get('id')}'."
                 )
-            sample_func(output_vars_dict.get(var.get("id")))
+            sample_func(output_vars_dict.get(var.id))
 
     def __initial_setup_timeoutput_timeseries(self):
         """Initial setup of timeoutput timeseries.
@@ -651,12 +649,12 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         """
         for var in self.config.output_variables.get_enabled_time_series():
             tss_file = TimeoutputTimeseriesAdapter(
-                str(Path(self.config.output_directory.path) / var.get("table_filename_prefix")),
+                str(Path(self.config.output_directory.path) / var.table_filename_prefix),
                 self,
                 self.config.raster_files.sample_locations,
                 noHeader=True,
             )
-            self.sample_time_series_dict[var.get("id")] = tss_file.sample
+            self.sample_time_series_dict[var.id] = tss_file.sample
 
     def __initial_setup_sample_locations(self) -> np.ndarray:
         """Initial setup of sample locations.

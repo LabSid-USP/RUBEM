@@ -1,13 +1,61 @@
-import logging
+import warnings
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from ..configuration.output_format import OutputFileFormat
 
 NO_DATA_VALUE_DEFAULT = -9999
 
+VARIABLE_IDS = ("itp", "bfw", "srn", "eta", "lfw", "rec", "smc", "rnf", "arn")
 
-class OutputVariables:
+_LABELS = {
+    "itp": "Total Interception (ITP)",
+    "bfw": "Baseflow (BFW)",
+    "srn": "Surface Runoff (SRN)",
+    "eta": "Actual Evapotranspiration (ETA)",
+    "lfw": "Lateral Flow (LFW)",
+    "rec": "Recharge (REC)",
+    "smc": "Soil Moisture Content (SMC)",
+    "rnf": "Total Runoff (RNF)",
+    "arn": "Accumulated Total Runoff (ARN)",
+}
+
+
+class OutputVariable(BaseModel):
+    """One output variable of the model and what the run writes for it.
+
+    :param id: Short identifier (``itp``, ``bfw``, ...).
+    :param is_raster_series_enabled: Whether the raster series is written.
+    :param is_time_series_enabled: Whether the time series at the sample locations is written.
+    :param raster_filename_prefix: Prefix of the raster series files.
+    :param table_filename_prefix: Prefix of the time series file.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: str
+    is_raster_series_enabled: bool
+    is_time_series_enabled: bool
+    raster_filename_prefix: str
+    table_filename_prefix: str
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Deprecated dictionary-style access kept for one minor release."""
+        warnings.warn(
+            "OutputVariable.get() is deprecated; read the attribute instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return getattr(self, key, default)
+
+
+class OutputVariables(BaseModel):
     """
     Represents the output variables configuration.
+
+    Each variable flag enables its raster series; the time series of a variable
+    is written when the variable and ``tss`` are both enabled.
 
     :param itp: Enable or disable Total Interception (ITP). Defaults to `False`.
     :type itp: bool, optional
@@ -33,8 +81,8 @@ class OutputVariables:
     :param rnf: Enable or disable Total Runoff (RNF). Defaults to `False`.
     :type rnf: bool, optional
 
-    :param rnf: Enable or disable Accumulated Total Runoff (ARN). Defaults to `False`.
-    :type rnf: bool, optional
+    :param arn: Enable or disable Accumulated Total Runoff (ARN). Defaults to `False`.
+    :type arn: bool, optional
 
     :param tss: Enable or disable Create time output time series (TSS). Defaults to `False`.
     :type tss: bool, optional
@@ -46,114 +94,70 @@ class OutputVariables:
     :type no_data_value: float, optional
     """
 
-    def __init__(
-        self,
-        itp: bool = False,
-        bfw: bool = False,
-        srn: bool = False,
-        eta: bool = False,
-        lfw: bool = False,
-        rec: bool = False,
-        smc: bool = False,
-        rnf: bool = False,
-        arn: bool = False,
-        tss: bool = False,
-        output_formats: OutputFileFormat = OutputFileFormat.PCRASTER,
-        no_data_value: float = NO_DATA_VALUE_DEFAULT,
-    ) -> None:
-        self.logger = logging.getLogger(__name__)
-        self.itp = {
-            "id": "itp",
-            "is_raster_series_enabled": itp,
-            "is_time_series_enabled": tss and itp,
-            "raster_filename_prefix": "itp",
-            "table_filename_prefix": "tss_itp",
-        }
-        self.bfw = {
-            "id": "bfw",
-            "is_raster_series_enabled": bfw,
-            "is_time_series_enabled": tss and bfw,
-            "raster_filename_prefix": "bfw",
-            "table_filename_prefix": "tss_bfw",
-        }
-        self.srn = {
-            "id": "srn",
-            "is_raster_series_enabled": srn,
-            "is_time_series_enabled": tss and srn,
-            "raster_filename_prefix": "srn",
-            "table_filename_prefix": "tss_srn",
-        }
-        self.eta = {
-            "id": "eta",
-            "is_raster_series_enabled": eta,
-            "is_time_series_enabled": tss and eta,
-            "raster_filename_prefix": "eta",
-            "table_filename_prefix": "tss_eta",
-        }
-        self.lfw = {
-            "id": "lfw",
-            "is_raster_series_enabled": lfw,
-            "is_time_series_enabled": tss and lfw,
-            "raster_filename_prefix": "lfw",
-            "table_filename_prefix": "tss_lfw",
-        }
-        self.rec = {
-            "id": "rec",
-            "is_raster_series_enabled": rec,
-            "is_time_series_enabled": tss and rec,
-            "raster_filename_prefix": "rec",
-            "table_filename_prefix": "tss_rec",
-        }
-        self.smc = {
-            "id": "smc",
-            "is_raster_series_enabled": smc,
-            "is_time_series_enabled": tss and smc,
-            "raster_filename_prefix": "smc",
-            "table_filename_prefix": "tss_smc",
-        }
-        self.rnf = {
-            "id": "rnf",
-            "is_raster_series_enabled": rnf,
-            "is_time_series_enabled": tss and rnf,
-            "raster_filename_prefix": "rnf",
-            "table_filename_prefix": "tss_rnf",
-        }
-        self.arn = {
-            "id": "arn",
-            "is_raster_series_enabled": arn,
-            "is_time_series_enabled": tss and arn,
-            "raster_filename_prefix": "arn",
-            "table_filename_prefix": "tss_arn",
-        }
-        self.tss = tss
-        self.file_formats = output_formats
-        self.no_data_value = no_data_value
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
-    def get_enabled_raster_series(self) -> list:
+    itp: OutputVariable
+    bfw: OutputVariable
+    srn: OutputVariable
+    eta: OutputVariable
+    lfw: OutputVariable
+    rec: OutputVariable
+    smc: OutputVariable
+    rnf: OutputVariable
+    arn: OutputVariable
+    tss: bool = False
+    output_formats: OutputFileFormat = OutputFileFormat.PCRASTER
+    no_data_value: float = NO_DATA_VALUE_DEFAULT
+
+    @model_validator(mode="before")
+    @classmethod
+    def _expand_flags(cls, data: Any) -> Any:
+        """Turn the boolean flags of the constructor into variable objects."""
+        if not isinstance(data, dict):
+            return data
+        expanded = dict(data)
+        tss = bool(expanded.get("tss", False))
+        for variable_id in VARIABLE_IDS:
+            value = expanded.get(variable_id, False)
+            if isinstance(value, (OutputVariable, dict)):
+                continue
+            enabled = bool(value)
+            expanded[variable_id] = OutputVariable(
+                id=variable_id,
+                is_raster_series_enabled=enabled,
+                is_time_series_enabled=tss and enabled,
+                raster_filename_prefix=variable_id,
+                table_filename_prefix=f"tss_{variable_id}",
+            )
+        return expanded
+
+    @property
+    def file_formats(self) -> OutputFileFormat:
+        """The output file formats (alias of ``output_formats``)."""
+        return self.output_formats
+
+    @property
+    def variables(self) -> tuple[OutputVariable, ...]:
+        """The nine output variables, in the documented order."""
+        return tuple(getattr(self, variable_id) for variable_id in VARIABLE_IDS)
+
+    def get_enabled_raster_series(self) -> list[OutputVariable]:
         """
         Returns a list of enabled raster series.
 
         :return: A list of enabled raster series.
         :rtype: list
         """
-        return [
-            v
-            for k, v in self.__dict__.items()
-            if isinstance(v, dict) and v.get("is_raster_series_enabled")
-        ]
+        return [v for v in self.variables if v.is_raster_series_enabled]
 
-    def get_enabled_time_series(self) -> list:
+    def get_enabled_time_series(self) -> list[OutputVariable]:
         """
         Returns a list of enabled time series.
 
         :return: A list of enabled time series.
         :rtype: list
         """
-        return [
-            v
-            for k, v in self.__dict__.items()
-            if isinstance(v, dict) and v.get("is_time_series_enabled")
-        ]
+        return [v for v in self.variables if v.is_time_series_enabled]
 
     def any_enabled(self) -> bool:
         """
@@ -162,19 +166,7 @@ class OutputVariables:
         :return: ``True`` if any output variable is enabled, otherwise ``False``.
         :rtype: bool
         """
-        return any(
-            [
-                self.itp.get("is_raster_series_enabled"),
-                self.bfw.get("is_raster_series_enabled"),
-                self.srn.get("is_raster_series_enabled"),
-                self.eta.get("is_raster_series_enabled"),
-                self.lfw.get("is_raster_series_enabled"),
-                self.rec.get("is_raster_series_enabled"),
-                self.smc.get("is_raster_series_enabled"),
-                self.rnf.get("is_raster_series_enabled"),
-                self.arn.get("is_raster_series_enabled"),
-            ]
-        )
+        return any(v.is_raster_series_enabled for v in self.variables)
 
     def all_enabled(self) -> bool:
         """
@@ -183,31 +175,15 @@ class OutputVariables:
         :return: ``True`` if all output variables are enabled, otherwise ``False``.
         :rtype: bool
         """
-        return all(
-            [
-                self.itp.get("is_raster_series_enabled"),
-                self.bfw.get("is_raster_series_enabled"),
-                self.srn.get("is_raster_series_enabled"),
-                self.eta.get("is_raster_series_enabled"),
-                self.lfw.get("is_raster_series_enabled"),
-                self.rec.get("is_raster_series_enabled"),
-                self.smc.get("is_raster_series_enabled"),
-                self.rnf.get("is_raster_series_enabled"),
-                self.arn.get("is_raster_series_enabled"),
-            ]
-        )
+        return all(v.is_raster_series_enabled for v in self.variables)
 
     def __str__(self) -> str:
-        return (
-            f"Total Interception (ITP): {'Enabled' if self.itp.get('is_raster_series_enabled') else 'Disabled'}\n"
-            f"Baseflow (BFW): {'Enabled' if self.bfw.get('is_raster_series_enabled') else 'Disabled'}\n"
-            f"Surface Runoff (SRN): {'Enabled' if self.srn.get('is_raster_series_enabled') else 'Disabled'}\n"
-            f"Actual Evapotranspiration (ETA): {'Enabled' if self.eta.get('is_raster_series_enabled') else 'Disabled'}\n"
-            f"Lateral Flow (LFW): {'Enabled' if self.lfw.get('is_raster_series_enabled') else 'Disabled'}\n"
-            f"Recharge (REC): {'Enabled' if self.rec.get('is_raster_series_enabled') else 'Disabled'}\n"
-            f"Soil Moisture Content (SMC): {'Enabled' if self.smc.get('is_raster_series_enabled') else 'Disabled'}\n"
-            f"Total Runoff (RNF): {'Enabled' if self.rnf.get('is_raster_series_enabled') else 'Disabled'}\n"
-            f"Accumulated Total Runoff (ARN): {'Enabled' if self.arn.get('is_raster_series_enabled') else 'Disabled'}\n"
-            f"Create time output time series (TSS): {'Enabled' if self.tss else 'Disabled'}\n"
-            f"Output format: {self.file_formats}"
+        lines = [
+            f"{_LABELS[v.id]}: {'Enabled' if v.is_raster_series_enabled else 'Disabled'}"
+            for v in self.variables
+        ]
+        lines.append(
+            f"Create time output time series (TSS): {'Enabled' if self.tss else 'Disabled'}"
         )
+        lines.append(f"Output format: {self.output_formats}")
+        return "\n".join(lines)

@@ -11,7 +11,7 @@ class TestOutputDataDirectory:
         target = tmp_path / "results" / "run"
 
         with caplog.at_level("WARNING"):
-            directory = OutputDataDirectory(target)
+            directory = OutputDataDirectory(target).ensure_exists()
 
         assert target.is_dir()
         assert directory.path == str(target)
@@ -20,7 +20,7 @@ class TestOutputDataDirectory:
     @pytest.mark.unit
     def test_an_existing_empty_directory_is_accepted_silently(self, tmp_path, caplog):
         with caplog.at_level("WARNING"):
-            OutputDataDirectory(tmp_path)
+            OutputDataDirectory(tmp_path).ensure_exists()
 
         assert caplog.text == ""
 
@@ -29,7 +29,7 @@ class TestOutputDataDirectory:
         (tmp_path / "old.csv").write_text("x", encoding="utf8")
 
         with caplog.at_level("WARNING"):
-            OutputDataDirectory(tmp_path)
+            OutputDataDirectory(tmp_path).ensure_exists()
 
         assert "There is data in the output directory" in caplog.text
 
@@ -52,7 +52,7 @@ class TestOutputDataDirectory:
 
         with caplog.at_level("ERROR"):
             with pytest.raises(PermissionError):
-                OutputDataDirectory(target)
+                OutputDataDirectory(target).ensure_exists()
 
         assert "Failed to create output directory" in caplog.text
 
@@ -69,3 +69,23 @@ class TestOutputDataDirectory:
             directory = OutputDataDirectory(os.fsencode(str(tmp_path)))
 
         assert directory.path == str(tmp_path)
+
+    @pytest.mark.unit
+    def test_construction_alone_creates_nothing(self, tmp_path):
+        target = tmp_path / "later"
+
+        directory = OutputDataDirectory(target)
+
+        assert not target.exists()
+        assert directory.ensure_exists() is directory
+        assert target.is_dir()
+
+    @pytest.mark.unit
+    def test_is_frozen_and_keyword_construction_works(self, tmp_path):
+        from pydantic import ValidationError
+
+        directory = OutputDataDirectory(path=str(tmp_path))
+
+        assert directory.path == str(tmp_path)
+        with pytest.raises(ValidationError):
+            directory.path = "elsewhere"
