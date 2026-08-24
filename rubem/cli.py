@@ -112,6 +112,10 @@ def setup_logging(custom_logging_config: Optional[dict] = None):
     basic_formatter_config = {"format": log_format, "datefmt": "%Y-%m-%dT%H:%M:%S%z"}
     default_logging_config = {
         "version": 1,
+        # Every module logger, this one included, is created at import time, before
+        # this runs. ``dictConfig`` disables pre-existing loggers unless told not to,
+        # which would silently discard everything they log afterwards.
+        "disable_existing_loggers": False,
         "formatters": {"basic_formatter": basic_formatter_config},
         "handlers": {"console": console_handler_config},
         "root": {"handlers": ["console"], "level": logging.DEBUG},
@@ -119,7 +123,9 @@ def setup_logging(custom_logging_config: Optional[dict] = None):
 
     if custom_logging_config:
         try:
-            logging.config.dictConfig(custom_logging_config)
+            # A custom configuration that omits the flag gets the same treatment;
+            # one that sets it explicitly keeps its own value.
+            logging.config.dictConfig({"disable_existing_loggers": False, **custom_logging_config})
         except Exception:
             logging.config.dictConfig(default_logging_config)
     else:

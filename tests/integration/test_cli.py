@@ -23,6 +23,20 @@ def run_cli(*args):
     return subprocess.check_output([sys.executable, RUBEM_ENTRY, *args], cwd=REPO_ROOT)
 
 
+def run_cli_capture(*args):
+    """Run the CLI on the packaged settings without raising, capturing both streams."""
+    env = dict(os.environ)
+    env.pop("PYTHON_ENVIRONMENT", None)
+    return subprocess.run(
+        [sys.executable, RUBEM_ENTRY, *args],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 class TestCliApp:
     @pytest.mark.integration
     def test_cli_app_help_ext(self):
@@ -88,6 +102,26 @@ class TestCliApp:
 
             with pytest.raises(subprocess.CalledProcessError):
                 run_cli("-c", config_path)
+
+    @pytest.mark.integration
+    def test_cli_app_reports_unexpected_failure(self):
+        """A failed run must say so on the console, traceback included.
+
+        The packaged ``appsettings.json`` carries no ``logging`` block, so the CLI
+        falls back to its built-in configuration. That configuration must keep the
+        loggers created at import time -- ``rubem.cli``'s own among them -- enabled,
+        otherwise these diagnostics are dropped and the run fails in silence.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, "config.json")
+            with open(file=config_path, mode="w", encoding="utf8") as f:
+                f.write("invalid_json")
+
+            result = run_cli_capture("-c", config_path)
+
+            assert result.returncode == 1
+            assert "RUBEM unexpectedly quit." in result.stderr
+            assert "Traceback (most recent call last):" in result.stderr
 
     def _run_and_compare(self, temp_dir, *cli_flags):
         config_path = os.path.join(temp_dir, "config.json")
