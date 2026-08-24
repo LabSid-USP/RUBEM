@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from rubem.file._file_convertions import tss2csv
@@ -7,6 +9,23 @@ def write_tss(path, rows):
     with open(path, "w", encoding="utf8") as f:
         for row in rows:
             f.write(" ".join(str(value) for value in row) + "\n")
+
+
+def refuse_to_install(name):
+    """Build an ``os.replace`` that fails when the converted ``name`` is installed.
+
+    Only the move of the temporary file onto the destination fails; moving a
+    destination aside and putting it back keep working, as they do when the
+    failure comes from the new file rather than from the destination.
+    """
+    real_replace = os.replace
+
+    def replace(src, dst):
+        if os.path.basename(dst) == name and str(src).endswith(".tmp"):
+            raise PermissionError(f"{src} cannot be installed as {dst}")
+        return real_replace(src, dst)
+
+    return replace
 
 
 class TestTss2Csv:
@@ -71,3 +90,40 @@ class TestTss2Csv:
         assert bad.exists()
         assert not list(tmp_path.glob("*.csv"))
         assert not list(tmp_path.glob("*.tmp"))
+
+    @pytest.mark.unit
+    def test_failed_rename_restores_the_previous_csv(self, tmp_path, monkeypatch):
+        first = tmp_path / "tss_a.tss"
+        second = tmp_path / "tss_b.tss"
+        write_tss(first, [(1, 10.5)])
+        write_tss(second, [(1, 20.5)])
+        (tmp_path / "tss_a.csv").write_text("previous a\n", encoding="utf8")
+        (tmp_path / "tss_b.csv").write_text("previous b\n", encoding="utf8")
+
+        monkeypatch.setattr(os, "replace", refuse_to_install("tss_b.csv"))
+
+        with pytest.raises(PermissionError):
+            tss2csv([first, second], ["1"])
+
+        assert (tmp_path / "tss_a.csv").read_text(encoding="utf8") == "previous a\n"
+        assert (tmp_path / "tss_b.csv").read_text(encoding="utf8") == "previous b\n"
+        assert sorted(path.name for path in tmp_path.iterdir()) == [
+            "tss_a.csv",
+            "tss_a.tss",
+            "tss_b.csv",
+            "tss_b.tss",
+        ]
+
+    @pytest.mark.unit
+    def test_failed_rename_removes_the_csv_installed_before_it(self, tmp_path, monkeypatch):
+        first = tmp_path / "tss_a.tss"
+        second = tmp_path / "tss_b.tss"
+        write_tss(first, [(1, 10.5)])
+        write_tss(second, [(1, 20.5)])
+
+        monkeypatch.setattr(os, "replace", refuse_to_install("tss_b.csv"))
+
+        with pytest.raises(PermissionError):
+            tss2csv([first, second], ["1"])
+
+        assert sorted(path.name for path in tmp_path.iterdir()) == ["tss_a.tss", "tss_b.tss"]

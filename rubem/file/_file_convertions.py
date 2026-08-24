@@ -5,13 +5,44 @@ import os
 logger = logging.getLogger(__name__)
 
 
+def _remove(file_path: str) -> None:
+    """Remove ``file_path`` if it exists, logging instead of raising on failure."""
+    try:
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+    except OSError as e:
+        logger.error("Error while deleting file %s. %s", file_path, e)
+
+
+def _undo_installs(installs: list[tuple[str, str | None]]) -> None:
+    """Put the destinations back the way they were, in reverse installation order.
+
+    A destination that had no previous file is removed; one that had is
+    restored from its backup. Failures are logged rather than raised so that
+    they never mask the error that triggered the rollback.
+
+    :param installs: Pairs of destination path and backup path (``None`` when
+        the destination did not exist before the conversion).
+    :type installs: list[tuple[str, str | None]]
+    """
+    for dst_file_path, backup_file_path in reversed(installs):
+        if backup_file_path is None:
+            _remove(dst_file_path)
+            continue
+        try:
+            os.replace(backup_file_path, dst_file_path)
+        except OSError as e:
+            logger.error("Error while restoring file %s. %s", dst_file_path, e)
+
+
 def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True) -> None:
     """Convert the given PCRaster Time Series (``*.tss``) files to ``*.csv``.
 
     The conversion is transactional: every CSV is first written to a
     temporary name, the temporary files are renamed only after all of them
-    were produced, and the sources are removed only after every rename
-    succeeded. A failure therefore leaves the source files untouched. Only
+    were produced, any destination being overwritten is kept as a backup
+    until every rename succeeded, and the sources are removed last. A failure
+    therefore leaves the sources and the previous CSV files untouched. Only
     the files passed in are read; nothing else in their directories is.
 
     :param tss_files: Paths of the ``.tss`` files to convert.
@@ -34,7 +65,8 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
     header = ["0"]
     header.extend(cols_names)
 
-    renames = []
+    pending: list[tuple[str, str]] = []
+    installs: list[tuple[str, str | None]] = []
     try:
         for tss_file in tss_files:
             dst_file_path = f"{os.path.splitext(tss_file)[0]}.csv"
@@ -58,19 +90,25 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
                 writer = csv.writer(csvfile, delimiter=";")
                 writer.writerow(header)
                 writer.writerows(data)
-            renames.append((tmp_file_path, dst_file_path))
+            pending.append((tmp_file_path, dst_file_path))
 
-        for tmp_file_path, dst_file_path in renames:
+        for tmp_file_path, dst_file_path in pending:
+            backup_file_path = f"{dst_file_path}.bak" if os.path.isfile(dst_file_path) else None
+            if backup_file_path:
+                os.replace(dst_file_path, backup_file_path)
+            # Recorded before the install so that a failure in it is undone too.
+            installs.append((dst_file_path, backup_file_path))
             os.replace(tmp_file_path, dst_file_path)
     except Exception:
-        for tmp_file_path, _ in renames:
-            if os.path.isfile(tmp_file_path):
-                os.remove(tmp_file_path)
+        _undo_installs(installs)
+        for tmp_file_path, _ in pending:
+            _remove(tmp_file_path)
         raise
+
+    for _, backup_file_path in installs:
+        if backup_file_path:
+            _remove(backup_file_path)
 
     if should_delete_src_tss:
         for tss_file in tss_files:
-            try:
-                os.remove(tss_file)
-            except OSError as e:
-                logger.error("Error while deleting file %s. %s", tss_file, e)
+            _remove(tss_file)
