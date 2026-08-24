@@ -37,6 +37,10 @@ Unreleased
   georeference must share the DEM geometry, rotated grids are refused when
   PCRaster maps are written, and a GeoTIFF that cannot be written is removed
   instead of being left half-written.
+- Corrected the spelling of ``Interception.get_reflectances_simple_ratio``,
+  ``soil_moisture_content_wilting_point`` and the ``rubem.file._file_conversions``
+  module; the old names still work for one minor release and emit a
+  ``DeprecationWarning``.
 
 Version 0.9.0-beta.3
 ---------------------

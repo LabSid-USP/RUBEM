@@ -3,8 +3,8 @@ import pathlib
 
 import pytest
 
-from rubem.file import _file_convertions
-from rubem.file._file_convertions import _reserve_stage, tss2csv
+from rubem.file import _file_conversions
+from rubem.file._file_conversions import _reserve_stage, tss2csv
 
 
 class FakeUUID:
@@ -351,7 +351,7 @@ class TestTss2Csv:
         taken_path.write_text("taken", encoding="utf8")
 
         hexes = iter(["aaaaaaaa", "bbbbbbbb"])
-        monkeypatch.setattr(_file_convertions.uuid, "uuid4", lambda: FakeUUID(next(hexes)))
+        monkeypatch.setattr(_file_conversions.uuid, "uuid4", lambda: FakeUUID(next(hexes)))
 
         handle, path = _reserve_stage(str(dst), ".tmp")
         os.close(handle)
@@ -364,7 +364,7 @@ class TestTss2Csv:
         taken_path = tmp_path / f".{dst.name}.cccccccc.tmp"
         taken_path.write_text("taken", encoding="utf8")
 
-        monkeypatch.setattr(_file_convertions.uuid, "uuid4", lambda: FakeUUID("cccccccc"))
+        monkeypatch.setattr(_file_conversions.uuid, "uuid4", lambda: FakeUUID("cccccccc"))
 
         with pytest.raises(OSError, match=str(dst).replace("\\", "\\\\")):
             _reserve_stage(str(dst), ".tmp")
@@ -377,7 +377,7 @@ class TestTss2Csv:
         taken_path = tmp_path / ".tss_itp.csv.dddddddd.tmp"
         taken_path.write_text("taken", encoding="utf8")
 
-        monkeypatch.setattr(_file_convertions.uuid, "uuid4", lambda: FakeUUID("dddddddd"))
+        monkeypatch.setattr(_file_conversions.uuid, "uuid4", lambda: FakeUUID("dddddddd"))
 
         with pytest.raises(OSError, match="Could not reserve a staging path"):
             tss2csv([tss], ["1"])
@@ -417,3 +417,16 @@ class TestTss2Csv:
         assert backups[0].read_text(encoding="utf8") == "previous a\n"
         assert (tmp_path / "tss_a.csv").exists()
         assert not (tmp_path / "tss_b.csv").exists()
+
+
+class TestDeprecatedModuleName:
+    @pytest.mark.unit
+    def test_the_old_spelling_warns_and_exposes_the_same_function(self):
+        import importlib
+        import sys
+
+        sys.modules.pop("rubem.file._file_convertions", None)
+        with pytest.warns(DeprecationWarning, match="_file_convertions is deprecated"):
+            old = importlib.import_module("rubem.file._file_convertions")
+
+        assert old.tss2csv is tss2csv

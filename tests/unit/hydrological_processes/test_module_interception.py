@@ -14,7 +14,7 @@ class TestInterceptionModule:
     def test_srCalc_NDVI_lt_1(self):
         value = 0.555
         ndvi = pcr.scalar(value)
-        field = Interception.get_reflectances_simple_ration(ndvi)
+        field = Interception.get_reflectances_simple_ratio(ndvi)
         result = generalfunctions.getCellValue(field, 1, 1)
         expected = 3.49438214302063
         assert result == pytest.approx(expected)
@@ -24,12 +24,24 @@ class TestInterceptionModule:
         value = 1.0
         ndvi = pcr.scalar(value)
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            Interception.get_reflectances_simple_ration(ndvi)
+            Interception.get_reflectances_simple_ratio(ndvi)
 
     @pytest.mark.unit
     def test_srCalc_None_values(self):
         with pytest.raises(TypeError):
-            Interception.get_reflectances_simple_ration(None)
+            Interception.get_reflectances_simple_ratio(None)
+
+    @pytest.mark.unit
+    def test_the_old_spelling_warns_and_computes_the_same_value(self):
+        ndvi = pcr.scalar(0.555)
+        expected = generalfunctions.getCellValue(
+            Interception.get_reflectances_simple_ratio(ndvi), 1, 1
+        )
+
+        with pytest.warns(DeprecationWarning, match="get_reflectances_simple_ration"):
+            field = Interception.get_reflectances_simple_ration(ndvi)
+
+        assert generalfunctions.getCellValue(field, 1, 1) == pytest.approx(expected)
 
     @pytest.mark.unit
     def test_kcCalc(self):

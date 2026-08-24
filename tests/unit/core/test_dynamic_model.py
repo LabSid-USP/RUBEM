@@ -45,7 +45,7 @@ CARRIED_STATE = (
     "soil_bulk_density",
     "soil_rootzone_depth",
     "soil_moist_content_sat_point",
-    "soil_moistute_content_wilting_point",
+    "soil_moisture_content_wilting_point",
     "soil_moisture_content_field_capacity",
 )
 
@@ -272,3 +272,19 @@ class TestGeoreference:
             assert dataset.GetProjection() == ""
         finally:
             dataset = None
+
+
+class TestDeprecatedAttributeNames:
+    @pytest.mark.unit
+    def test_the_old_wilting_point_spelling_warns_and_aliases_the_new_one(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        wrapper = DynamicFrameworkWrapper.load(ModelConfiguration(config, validate_input=False))
+        model = wrapper.dynamic_model_concept
+
+        with pytest.warns(DeprecationWarning, match="soil_moistute_content_wilting_point"):
+            model.soil_moistute_content_wilting_point = "sentinel"
+        assert model.soil_moisture_content_wilting_point == "sentinel"
+
+        model.soil_moisture_content_wilting_point = "updated"
+        with pytest.warns(DeprecationWarning, match="soil_moistute_content_wilting_point"):
+            assert model.soil_moistute_content_wilting_point == "updated"

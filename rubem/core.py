@@ -7,7 +7,7 @@ from pcraster.framework import DynamicFramework
 
 from ._dynamic_model import RainfallRunoffBalanceEnhancedModel
 from .configuration.model_configuration import ModelConfiguration
-from .file._file_convertions import tss2csv
+from .file._file_conversions import tss2csv
 
 
 class DynamicFrameworkWrapper:
