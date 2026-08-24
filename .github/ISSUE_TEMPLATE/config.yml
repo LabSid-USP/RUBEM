@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and support
+    url: https://github.com/LabSid-USP/RUBEM/discussions
+    about: Ask questions and discuss ideas in GitHub Discussions.
+  - name: Documentation
+    url: https://rubem.readthedocs.io
+    about: User guide, tutorials and file format reference.
+  - name: Security reports
+    url: https://github.com/LabSid-USP/RUBEM/security/advisories/new
+    about: Report security problems privately.
