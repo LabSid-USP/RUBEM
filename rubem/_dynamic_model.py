@@ -524,10 +524,13 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.config.output_variables.arn.get("id"): self.current_runoff,
         }
 
-        for var in self.config.output_variables.get_enabled_raster_series():
-            if not var.get("is_raster_series_enabled"):
-                continue
+        self.__report_raster_series(output_vars_dict)
 
+        if self.config.raster_files.sample_locations:
+            self.__report_time_series(output_vars_dict)
+
+    def __report_raster_series(self, output_vars_dict):
+        for var in self.config.output_variables.get_enabled_raster_series():
             if OutputFileFormat.PCRASTER in self.config.output_variables.file_formats:
                 self.report(
                     variable=output_vars_dict.get(var.get("id")),
@@ -548,10 +551,15 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                     no_data_value=MISSING_VALUE_DEFAULT,
                 )
 
-            if self.config.raster_files.sample_locations and self.config.output_variables.tss:
-                # The same as self.tss_file_xxx.sample(self.xxx)
-                sample_func = self.sample_time_series_dict.get(var.get("id"))
-                sample_func(output_vars_dict.get(var.get("id")))
+    def __report_time_series(self, output_vars_dict):
+        for var in self.config.output_variables.get_enabled_time_series():
+            # The same as self.tss_file_xxx.sample(self.xxx)
+            sample_func = self.sample_time_series_dict.get(var.get("id"))
+            if sample_func is None:
+                raise RuntimeError(
+                    f"No time-series writer was set up for the enabled variable '{var.get('id')}'."
+                )
+            sample_func(output_vars_dict.get(var.get("id")))
 
     def __initial_setup_timeoutput_timeseries(self):
         """Initial setup of timeoutput timeseries.
