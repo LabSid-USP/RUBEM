@@ -63,11 +63,18 @@ RUBEM depends on [PCRaster](https://pcraster.geo.uu.nl/) and [GDAL](https://gdal
 
 ### Installation
 
-1. Get the source code, either by cloning the repository or by downloading and extracting the archive of the latest release from the [releases page](https://github.com/LabSid-USP/RUBEM/releases):
+1. Get the source code, either by cloning the repository:
 
    ```sh
    git clone https://github.com/LabSid-USP/RUBEM.git
    cd RUBEM
+   ```
+
+   or by downloading the archive of the latest release from the [releases page](https://github.com/LabSid-USP/RUBEM/releases) and entering the extracted directory, which is named after the release:
+
+   ```sh
+   tar -xzf RUBEM-<version>.tar.gz
+   cd RUBEM-<version>
    ```
 
 2. Create and activate the runtime environment, with conda:

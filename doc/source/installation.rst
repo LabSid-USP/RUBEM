@@ -15,14 +15,21 @@ Requirements
 From the repository
 -------------------
 
-1. Get the source code, either by cloning the repository or by downloading
-   and extracting the archive of the latest release from the
-   `releases page <https://github.com/LabSid-USP/RUBEM/releases>`__:
+1. Get the source code, either by cloning the repository:
 
    .. code-block:: console
 
       git clone https://github.com/LabSid-USP/RUBEM.git
       cd RUBEM
+
+   or by downloading the archive of the latest release from the
+   `releases page <https://github.com/LabSid-USP/RUBEM/releases>`__ and
+   entering the extracted directory, which is named after the release:
+
+   .. code-block:: console
+
+      tar -xzf RUBEM-<version>.tar.gz
+      cd RUBEM-<version>
 
 2. Create and activate the runtime environment, with conda:
 
