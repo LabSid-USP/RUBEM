@@ -242,3 +242,16 @@ class TestTss2Csv:
             "tss_b.csv",
             "tss_b.tss",
         ]
+
+    @pytest.mark.unit
+    def test_converted_files_keep_ordinary_permissions(self, tmp_path):
+        """The staging file is private to its owner; the installed CSV must not be."""
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5)])
+        control = tmp_path / "control.csv"
+        control.write_text("x\n", encoding="utf8")
+
+        tss2csv([tss], ["1"])
+
+        converted = tmp_path / "tss_itp.csv"
+        assert converted.stat().st_mode & 0o777 == control.stat().st_mode & 0o777
