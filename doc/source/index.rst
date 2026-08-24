@@ -32,7 +32,7 @@ All development activity is coordinated via the `RUBEM Github page <https://gith
    fileformats.rst
    datasets.rst
    preprocessing.rst
-   Python API Reference <generated/rubem.core.rst>     
+   api.rst
    changelog.rst
    code-of-conduct.rst
    support.rst

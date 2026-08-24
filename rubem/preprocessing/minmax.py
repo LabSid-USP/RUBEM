@@ -49,7 +49,7 @@ def readfile(file):
 
 # Export numpy 2 tif files using gdal
 def numpy2tif(sourceTif, outpath, numpy_array):
-    """Convert numpy arrays to (*.tif).
+    """Convert numpy arrays to ``*.tif``.
 
     :param sourceTif: Path to Digital Elevetion Model (DEM) with same resolution and size that tss files
     :sourceTif type: .tif  file

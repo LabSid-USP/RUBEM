@@ -12,7 +12,7 @@ class InputRasterFiles:
     """
     Represents a collection of input raster files used in RUBEM analysis.
 
-    :param dem: Path to the DEM file (*.map format).
+    :param dem: Path to the DEM file (``*.map`` format).
     :type dem: Union[str, bytes, os.PathLike]
 
     :param clone: Path to the mask of catchment (clone) file.

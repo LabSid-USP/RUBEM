@@ -66,6 +66,7 @@ keywords:
 - water balance
 - remote sensing
 - PCRaster
+version: 0.10.0.dev0
 license: GPL-3.0
 preferred-citation:
   type: article

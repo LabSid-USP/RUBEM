@@ -96,9 +96,9 @@ mathjax3_config = {
 }
 
 # Content-level warnings tracked for the upcoming documentation review:
-# unreferenced citations in overview.rst and the orphan api.rst page. Build
-# errors stay fatal through sphinx-build -W.
-suppress_warnings = ["ref.citation", "toc.not_included"]
+# unreferenced citations in overview.rst. Build errors stay fatal through
+# sphinx-build -W.
+suppress_warnings = ["ref.citation"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

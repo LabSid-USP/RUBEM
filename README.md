@@ -56,40 +56,61 @@ To get a local copy up and running follow these simple steps.
 
 ### Prerequisites
 
-This is an example of how to list things you need to use the software and how to install them.
+RUBEM depends on [PCRaster](https://pcraster.geo.uu.nl/) and [GDAL](https://gdal.org/), which are distributed through [conda-forge](https://conda-forge.org/). You need:
 
-- [PCRaster](https://pcraster.geo.uu.nl/) and [GDAL](https://gdal.org/) come from conda-forge: create the runtime environment from the repository's `environment.yml`
-
-   ```sh
-   conda env create -f environment.yml
-   ```
-
-- Activate the new environment
-
-   ```sh
-   conda activate rubem
-   ```
+- Python 3.12 or later
+- A conda-compatible package manager (Miniconda, Miniforge or micromamba)
 
 ### Installation
 
-1. Download the latest release zip file from the [releases page](https://github.com/LabSid-USP/RUBEM/releases);
-2. Extract the zip, and copy the extracted root directory into a local directory.
+1. Get the source code, either by cloning the repository:
 
+   ```sh
+   git clone https://github.com/LabSid-USP/RUBEM.git
+   cd RUBEM
+   ```
+
+   or by downloading the archive of the latest release from the [releases page](https://github.com/LabSid-USP/RUBEM/releases) and entering the extracted directory, which is named after the release:
+
+   ```sh
+   tar -xzf RUBEM-<version>.tar.gz
+   cd RUBEM-<version>
+   ```
+
+2. Create and activate the runtime environment, with conda:
+
+   ```sh
+   conda env create -f environment.yml
+   conda activate rubem
+   ```
+
+   or with micromamba, which has no `conda` command:
+
+   ```sh
+   micromamba create -f environment.yml -y
+   micromamba activate rubem
+   ```
+
+3. Install RUBEM into the environment:
+
+   ```sh
+   pip install .
+   ```
 
 <!-- USAGE EXAMPLES -->
 ## Usage
 
 - Typical usage example
 
- ```sh
-   python rubem --configfile config.ini
- ```
+   ```sh
+   rubem --configfile config.json
+   ```
 
 - Help usage example
 
-```sh
-python rubem -h
-```
+   ```sh
+   rubem -h
+   ```
 
 _For more examples, please refer to the [user guide](https://rubem.readthedocs.io/en/latest/userguide.html) and [tutorials](https://rubem.readthedocs.io/en/latest/tutorials.html)._
 
