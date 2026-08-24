@@ -18,7 +18,19 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Common file conversion to generate input data used by RUBEM."""
+"""Common file conversion to generate input data used by RUBEM.
+
+Deprecated: use ``rubem preprocess tif2map``
+or :mod:`rubem.preprocessing.conversions`. This module is kept for one minor release.
+"""
+
+import warnings
+
+warnings.warn(
+    "rubem.preprocessing.tif2map is deprecated; use rubem.preprocessing.conversions.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 import glob
 import os

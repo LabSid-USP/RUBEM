@@ -105,6 +105,11 @@ Unreleased
   (atomic writes, natural ordering, geometry checks, collision detection,
   all-no-data policy, ``manifest.csv``), and the legacy scripts no longer run
   at import time.
+- Added ``rubem preprocess tif2map``, ``tif2mapseries`` and ``mapseries2tif``
+  (``rubem.preprocessing.conversions``): value scale by option, natural file
+  order, PCRaster 8.3 naming, geometry checks against a clone, no-data
+  policy, georeference for the GeoTIFF outputs; the legacy modules
+  ``tif2map``, ``tif2pcrtss`` and ``pcrtss2tif`` are deprecated.
 
 Version 0.9.0-beta.3
 ---------------------
