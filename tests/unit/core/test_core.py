@@ -69,3 +69,21 @@ class TestDynamicFrameworkWrapper:
         run_model(str(second))
         for base in (first, second):
             assert (base / "out" / "tss_arn.csv").is_file()
+
+
+class TestRunFailureHandling:
+    @pytest.mark.unit
+    def test_failed_runs_do_not_convert_time_series(self, tmp_path, mocker):
+        config = write_synthetic_dataset(str(tmp_path))
+        model_config = ModelConfiguration(config, validate_input=False)
+        wrapper = DynamicFrameworkWrapper.load(model_config)
+
+        stale_tss = tmp_path / "out" / "tss_itp.tss"
+        stale_tss.write_text("1 42.0\n", encoding="utf8")
+        mocker.patch.object(wrapper.dynamic_model, "run", side_effect=RuntimeError("boom"))
+
+        with pytest.raises(RuntimeError, match="boom"):
+            wrapper.run()
+
+        assert stale_tss.exists(), "sources must survive a failed run"
+        assert not (tmp_path / "out" / "tss_itp.csv").exists()
