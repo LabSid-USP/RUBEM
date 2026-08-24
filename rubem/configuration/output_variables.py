@@ -59,63 +59,63 @@ class OutputVariables:
         self.itp = {
             "id": "itp",
             "is_raster_series_enabled": itp,
-            "is_time_series_enabled": tss,
+            "is_time_series_enabled": tss and itp,
             "raster_filename_prefix": "itp",
             "table_filename_prefix": "tss_itp",
         }
         self.bfw = {
             "id": "bfw",
             "is_raster_series_enabled": bfw,
-            "is_time_series_enabled": tss,
+            "is_time_series_enabled": tss and bfw,
             "raster_filename_prefix": "bfw",
             "table_filename_prefix": "tss_bfw",
         }
         self.srn = {
             "id": "srn",
             "is_raster_series_enabled": srn,
-            "is_time_series_enabled": tss,
+            "is_time_series_enabled": tss and srn,
             "raster_filename_prefix": "srn",
             "table_filename_prefix": "tss_srn",
         }
         self.eta = {
             "id": "eta",
             "is_raster_series_enabled": eta,
-            "is_time_series_enabled": tss,
+            "is_time_series_enabled": tss and eta,
             "raster_filename_prefix": "eta",
             "table_filename_prefix": "tss_eta",
         }
         self.lfw = {
             "id": "lfw",
             "is_raster_series_enabled": lfw,
-            "is_time_series_enabled": tss,
+            "is_time_series_enabled": tss and lfw,
             "raster_filename_prefix": "lfw",
             "table_filename_prefix": "tss_lfw",
         }
         self.rec = {
             "id": "rec",
             "is_raster_series_enabled": rec,
-            "is_time_series_enabled": tss,
+            "is_time_series_enabled": tss and rec,
             "raster_filename_prefix": "rec",
             "table_filename_prefix": "tss_rec",
         }
         self.smc = {
             "id": "smc",
             "is_raster_series_enabled": smc,
-            "is_time_series_enabled": tss,
+            "is_time_series_enabled": tss and smc,
             "raster_filename_prefix": "smc",
             "table_filename_prefix": "tss_smc",
         }
         self.rnf = {
             "id": "rnf",
             "is_raster_series_enabled": rnf,
-            "is_time_series_enabled": tss,
+            "is_time_series_enabled": tss and rnf,
             "raster_filename_prefix": "rnf",
             "table_filename_prefix": "tss_rnf",
         }
         self.arn = {
             "id": "arn",
             "is_raster_series_enabled": arn,
-            "is_time_series_enabled": tss,
+            "is_time_series_enabled": tss and arn,
             "raster_filename_prefix": "arn",
             "table_filename_prefix": "tss_arn",
         }
