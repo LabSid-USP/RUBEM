@@ -611,7 +611,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                     outpath=self.config.output_directory.path,
                     file_format=OutputFileFormat.GEOTIFF,
                     base_raster_info=self.config.output_raster_base,
-                    no_data_value=MISSING_VALUE_DEFAULT,
+                    no_data_value=self.config.output_variables.no_data_value,
                 )
 
     def __report_time_series(self, output_vars_dict):

@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import textwrap
 from datetime import datetime
@@ -14,9 +15,11 @@ from ..configuration.model_constants import ModelConstants
 from ..configuration.output_data_directory import OutputDataDirectory
 from ..configuration.output_format import OutputFileFormat
 from ..configuration.output_raster_base import OutputRasterBase
-from ..configuration.output_variables import OutputVariables
+from ..configuration.output_variables import NO_DATA_VALUE_DEFAULT, OutputVariables
 from ..configuration.raster_grid_area import RasterGrid
 from ..configuration.simulation_period import SimulationPeriod
+
+_ABSENT = object()
 
 
 class ModelConfiguration:
@@ -109,12 +112,12 @@ class ModelConfiguration:
             )
             self.output_directory = OutputDataDirectory(self.__get_setting("DIRECTORIES", "output"))
 
-            output_formats = OutputFileFormat.PCRASTER
-
-            if str_to_bool(
-                self.__get_setting("RASTER_FILE_FORMAT", "tiff_raster_series", optional=True)
-            ):
-                output_formats = output_formats | OutputFileFormat.GEOTIFF
+            output_formats = OutputFileFormat(0)
+            if self.__get_flag("RASTER_FILE_FORMAT", "map_raster_series", default=True):
+                output_formats |= OutputFileFormat.PCRASTER
+            if self.__get_flag("RASTER_FILE_FORMAT", "tiff_raster_series", default=False):
+                output_formats |= OutputFileFormat.GEOTIFF
+            no_data_value = self.__get_no_data_value()
 
             self.output_variables = OutputVariables(
                 itp=str_to_bool(self.__get_setting("GENERATE_FILE", "itp")),
@@ -128,6 +131,7 @@ class ModelConfiguration:
                 arn=str_to_bool(self.__get_setting("GENERATE_FILE", "arn")),
                 tss=str_to_bool(self.__get_setting("GENERATE_FILE", "tss")),
                 output_formats=output_formats,
+                no_data_value=no_data_value,
             )
 
             self.raster_series = InputRasterSeries(
@@ -182,6 +186,13 @@ class ModelConfiguration:
         self.__check_inconsistencies()
 
     def __check_inconsistencies(self):
+        if self.output_variables.any_enabled() and not self.output_variables.file_formats:
+            raise ValueError(
+                "No raster file format is enabled: set RASTER_FILE_FORMAT.map_raster_series "
+                "or RASTER_FILE_FORMAT.tiff_raster_series to true, or disable every output "
+                "variable."
+            )
+
         if not self.output_variables.any_enabled():
             self.problems.append(
                 {
@@ -236,6 +247,40 @@ class ModelConfiguration:
         except json.JSONDecodeError as e:
             self.logger.error("Error parsing JSON file: %s", e)
             raise
+
+    def __get_optional(self, section, setting):
+        """Return the setting, or ``_ABSENT`` when the section or the key is missing.
+
+        Unlike ``__get_setting(optional=True)``, an explicit empty value is
+        returned as such, so it can be rejected instead of silently defaulted.
+        """
+        try:
+            return self.config[section][setting]
+        except (KeyError, TypeError):
+            self.logger.debug("Optional setting not found: %s in section: %s", setting, section)
+            return _ABSENT
+
+    def __get_flag(self, section, setting, default: bool) -> bool:
+        """Read an optional boolean setting, falling back to ``default`` when absent."""
+        value = self.__get_optional(section, setting)
+        if value is _ABSENT:
+            return default
+        return str_to_bool(value)
+
+    def __get_no_data_value(self) -> float:
+        """Read ``RASTER_FILE_FORMAT.no_data_value``; ``-9999`` when absent."""
+        value = self.__get_optional("RASTER_FILE_FORMAT", "no_data_value")
+        if value is _ABSENT:
+            return NO_DATA_VALUE_DEFAULT
+        if isinstance(value, bool):
+            raise ValueError(f"Invalid RASTER_FILE_FORMAT.no_data_value: {value!r}")
+        try:
+            no_data_value = float(value)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Invalid RASTER_FILE_FORMAT.no_data_value: {value!r}") from e
+        if not math.isfinite(no_data_value):
+            raise ValueError(f"Invalid RASTER_FILE_FORMAT.no_data_value: {value!r}")
+        return no_data_value
 
     def __get_setting(self, section, setting, optional=False):
         try:

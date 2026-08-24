@@ -2,6 +2,8 @@ import logging
 
 from ..configuration.output_format import OutputFileFormat
 
+NO_DATA_VALUE_DEFAULT = -9999
+
 
 class OutputVariables:
     """
@@ -39,6 +41,9 @@ class OutputVariables:
 
     :param output_formats: The output file formats. Defaults to ``OutputFileFormat.PCRASTER``.
     :type output_formats: OutputFileFormat, optional
+
+    :param no_data_value: No-data value written to the GeoTIFF raster series. Defaults to ``-9999``.
+    :type no_data_value: float, optional
     """
 
     def __init__(
@@ -54,6 +59,7 @@ class OutputVariables:
         arn: bool = False,
         tss: bool = False,
         output_formats: OutputFileFormat = OutputFileFormat.PCRASTER,
+        no_data_value: float = NO_DATA_VALUE_DEFAULT,
     ) -> None:
         self.logger = logging.getLogger(__name__)
         self.itp = {
@@ -121,6 +127,7 @@ class OutputVariables:
         }
         self.tss = tss
         self.file_formats = output_formats
+        self.no_data_value = no_data_value
 
     def get_enabled_raster_series(self) -> list:
         """

@@ -27,6 +27,11 @@ Unreleased
   launcher module, and made the GeoTIFF writer reject unsupported formats.
   Run the model with ``rubem`` or ``python -m rubem``; executing the package
   directory as a script (``python rubem``) is no longer supported.
+- Honoured ``RASTER_FILE_FORMAT.map_raster_series`` (PCRaster maps can now be
+  disabled; a configuration with output variables but no raster format is
+  rejected), added the optional ``RASTER_FILE_FORMAT.no_data_value`` for the
+  GeoTIFF series (default ``-9999``), and matched raster series file names
+  with the prefix taken literally.
 
 Version 0.9.0-beta.3
 ---------------------
