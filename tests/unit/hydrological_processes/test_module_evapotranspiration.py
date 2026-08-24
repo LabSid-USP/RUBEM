@@ -1,13 +1,11 @@
-import pytest
-
 import pcraster as pcr
+import pytest
 from pcraster.framework import generalfunctions
 
 from rubem.hydrological_processes import Evapotranspiration
 
 
 class TestEvapotranspirationModule:
-
     @pytest.fixture(autouse=True)
     def setup(self):
         pcr.setclone(1, 1, 1, 1, 1)
@@ -42,7 +40,7 @@ class TestEvapotranspirationModule:
         tur = pcr.scalar(3.0)
         tuw = pcr.scalar(2.0)
         tucc = pcr.scalar(0.0)
-        with pytest.raises(RuntimeError, match="ln: function ln: Domain Error") as cm:
+        with pytest.raises(RuntimeError, match="ln: function ln: Domain Error"):
             Evapotranspiration.get_water_stress_coef_et_vegetated_area(tur, tuw, tucc)
 
     @pytest.mark.unit
@@ -73,7 +71,7 @@ class TestEvapotranspirationModule:
         fetch_dist = 0
         wind = 1.0
         relat_humidity = 1.0
-        with pytest.raises(RuntimeError, match="ln: function ln: Domain Error") as cm:
+        with pytest.raises(RuntimeError, match="ln: function ln: Domain Error"):
             Evapotranspiration.get_pan_coef_et_open_water_area(fetch_dist, wind, relat_humidity)
 
     @pytest.mark.unit

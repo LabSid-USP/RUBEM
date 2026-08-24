@@ -4,7 +4,6 @@ from rubem.configuration.model_configuration import CalibrationParameters
 
 
 class TestCalibrationParameters:
-
     @pytest.mark.unit
     @pytest.mark.parametrize(
         "alpha, beta, w_1, w_2, w_3, rcd, f, alpha_gw, x",

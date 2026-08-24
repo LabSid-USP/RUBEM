@@ -2,11 +2,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from rubem.configuration.raster_map import RasterMap, RasterDataRules, RasterBand
+from rubem.configuration.raster_map import RasterBand, RasterDataRules, RasterMap
 
 
 class TestRasterMap:
-
     @pytest.mark.unit
     def test_init_valid_file_no_range_no_rules(self, mocker):
         # Arrange

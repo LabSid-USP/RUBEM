@@ -8,7 +8,6 @@ from rubem.configuration.raster_map import RasterBand
 
 
 class TestModelConfiguration:
-
     valid_config_input = {
         "SIM_TIME": {"start": "01/01/2019", "end": "01/12/2020"},
         "DIRECTORIES": {
@@ -170,7 +169,7 @@ class TestModelConfiguration:
             "map_raster_series": true,
             "tiff_raster_series": true
         }
-    }    
+    }
     """
 
     @pytest.fixture(autouse=True)

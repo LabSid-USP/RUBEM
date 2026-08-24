@@ -1,5 +1,5 @@
-import time
 import logging
+import time
 
 import humanize
 from pcraster.framework import DynamicFramework

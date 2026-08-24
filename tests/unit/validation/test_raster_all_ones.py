@@ -1,15 +1,14 @@
 from unittest.mock import MagicMock
 
-import pytest
 import numpy as np
+import pytest
 
+from rubem.configuration.raster_map import RasterBand, RasterMap
 from rubem.validation.handlers.raster_all_ones import AllOnesValidatorHandler
 from rubem.validation.raster_data_rules import RasterDataRules
-from rubem.configuration.raster_map import RasterMap, RasterBand
 
 
 class TestAllOnesValidatorHandler:
-
     @pytest.mark.unit
     def test_handle_no_rules_set(self):
         # Arrange

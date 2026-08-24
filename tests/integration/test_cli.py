@@ -24,7 +24,6 @@ def run_cli(*args):
 
 
 class TestCliApp:
-
     @pytest.mark.integration
     def test_cli_app_help_ext(self):
         result = run_cli("--help")

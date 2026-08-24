@@ -1,12 +1,12 @@
 import logging
 import os
-from typing import Union
 import re
+from typing import Union
 
-from ..configuration.raster_map import RasterMap
 from ..configuration.data_ranges_settings import DataRangesSettings
-from ..validation.raster_map_validator import RasterMapValidator
+from ..configuration.raster_map import RasterMap
 from ..validation.raster_data_rules import RasterDataRules
+from ..validation.raster_map_validator import RasterMapValidator
 
 RASTER_SERIES_FILENAME_MAX_CHARS = 8
 RASTER_SERIES_FILENAME_EXTENSION_NUM_DIGITS = 3

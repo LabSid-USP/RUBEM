@@ -24,7 +24,7 @@ class NoDataValidatorHandler(BaseValidatorHandler):
             self.logger.info("`FORBID_NO_DATA` validator skipped because no rules were set.")
             return super().handle(raster, errors)
 
-        if not RasterDataRules.FORBID_NO_DATA in raster.rules:
+        if RasterDataRules.FORBID_NO_DATA not in raster.rules:
             self.logger.debug("`FORBID_NO_DATA` validator skipped because the rule was not set.")
             return super().handle(raster, errors)
 

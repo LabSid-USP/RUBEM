@@ -4,7 +4,6 @@ from rubem.configuration.output_data_directory import OutputDataDirectory
 
 
 class TestOutputDataDirectory:
-
     @pytest.mark.unit
     def test_create_directory_when_not_exists_then_create_it(self, mocker):
         mocker.patch("os.listdir", return_value=[])

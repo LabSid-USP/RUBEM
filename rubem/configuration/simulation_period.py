@@ -1,5 +1,5 @@
-from datetime import date, datetime
 import logging
+from datetime import date, datetime
 from typing import Optional, Union
 
 DATE_FORMAT = "%d/%m/%Y"

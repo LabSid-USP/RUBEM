@@ -20,12 +20,13 @@
 
 """Common file conversion functionality used by RUBEM."""
 
-from osgeo import gdal
-import numpy as np
 import glob
+import os
+
+import numpy as np
+from osgeo import gdal
 from pcraster import *
 from pcraster.framework import *
-import os
 
 
 class Tif2pcrTss(DynamicModel):
@@ -77,8 +78,6 @@ class Tif2pcrTss(DynamicModel):
 
 # Number of timesteps must match to number of files
 nrOfTimeSteps = 8
-myModel = Tif2pcrTss(
-    "/path/to/files/to/be/converted", "prefix", "/path/to/clone.map"
-)
+myModel = Tif2pcrTss("/path/to/files/to/be/converted", "prefix", "/path/to/clone.map")
 dynamicModel = DynamicFramework(myModel, nrOfTimeSteps)
 dynamicModel.run()

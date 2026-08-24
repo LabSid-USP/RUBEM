@@ -1,13 +1,13 @@
-from calendar import monthrange
-import os
 import logging
+import os
+from calendar import monthrange
 from typing import Callable, Optional, Union
 
-from dateutil.relativedelta import relativedelta
 import numpy as np
 import pcraster as pcr
-from pcraster._pcraster import Field
 import pcraster.framework as pcrfw
+from dateutil.relativedelta import relativedelta
+from pcraster._pcraster import Field
 
 from .configuration.model_configuration import ModelConfiguration
 from .configuration.output_format import OutputFileFormat
@@ -533,7 +533,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                     variable=output_vars_dict.get(var.get("id")),
                     name=var.get("raster_filename_prefix"),
                 )
-            
+
             if OutputFileFormat.GEOTIFF in self.config.output_variables.file_formats:
                 report(
                     variable=output_vars_dict.get(var.get("id")),

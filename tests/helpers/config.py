@@ -9,9 +9,7 @@ inputs.
 
 import os
 
-REPO_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
-)
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 FIXTURES_DIR = os.path.join(REPO_ROOT, "tests", "fixtures")
 BASE_DATA_DIR = os.path.join(FIXTURES_DIR, "base")
 GOLDEN_DIR = os.path.join(BASE_DATA_DIR, "out")
@@ -21,9 +19,7 @@ OUTPUT_VARIABLES = ("itp", "bfw", "srn", "eta", "lfw", "rec", "smc", "rnf", "arn
 TIMESTEPS = (1, 2)
 
 RASTER_GOLDENS = [
-    f"{variable}00000.{timestep:03d}"
-    for variable in OUTPUT_VARIABLES
-    for timestep in TIMESTEPS
+    f"{variable}00000.{timestep:03d}" for variable in OUTPUT_VARIABLES for timestep in TIMESTEPS
 ]
 TIFF_GOLDENS = [
     f"{variable}{timestep:07d}.tif"

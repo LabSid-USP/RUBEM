@@ -1,11 +1,11 @@
-import pytest
 import sys
+
+import pytest
 
 from rubem.configuration.model_configuration import RasterGrid
 
 
 class TestRasterGridArea:
-
     @pytest.mark.unit
     @pytest.mark.parametrize(
         "size",

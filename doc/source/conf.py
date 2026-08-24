@@ -17,7 +17,7 @@ import sys
 sys.path.insert(0, os.path.abspath("../.."))
 sys.path.insert(0, os.path.abspath("../../rubem"))
 
-from rubem import __version__, __release__
+from rubem import __release__, __version__
 
 # -- Project information -----------------------------------------------------
 

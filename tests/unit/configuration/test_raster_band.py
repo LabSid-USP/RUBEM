@@ -6,7 +6,6 @@ from rubem.configuration.raster_map import RasterBand
 
 
 class TestRasterBand:
-
     @pytest.mark.unit
     def test_init_valid_band(self):
         band_mock = MagicMock()

@@ -43,9 +43,7 @@ def main():
         )
 
         missing = [
-            name
-            for name in GOLDEN_FILES
-            if not os.path.isfile(os.path.join(temp_dir, name))
+            name for name in GOLDEN_FILES if not os.path.isfile(os.path.join(temp_dir, name))
         ]
         if missing:
             raise SystemExit(f"run did not produce: {', '.join(missing)}")
