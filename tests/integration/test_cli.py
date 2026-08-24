@@ -1,167 +1,118 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
 
 import pytest
 
-from tests.utils import compare_rasters, compare_csv
+from tests.helpers.compare import compare_csv, compare_rasters
+from tests.helpers.config import (
+    CSV_GOLDENS,
+    GOLDEN_DIR,
+    RASTER_GOLDENS,
+    REPO_ROOT,
+    TIFF_GOLDENS,
+    base_model_config,
+)
+
+RUBEM_ENTRY = os.path.join(REPO_ROOT, "rubem")
+
+
+def run_cli(*args):
+    return subprocess.check_output([sys.executable, RUBEM_ENTRY, *args], cwd=REPO_ROOT)
 
 
 class TestCliApp:
 
-    test_data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-    test_data_result_dir = os.path.join(test_data_dir, "fixtures", "base", "out")
-    config = {
-        "SIM_TIME": {"start": "01/01/2000", "end": "01/02/2000"},
-        "DIRECTORIES": {
-            "output": None,
-            "etp": f"{test_data_dir}/fixtures/base/maps/etp/",
-            "prec": f"{test_data_dir}/fixtures/base/maps/rain/",
-            "ndvi": f"{test_data_dir}/fixtures/base/maps/ndvi/",
-            "kp": f"{test_data_dir}/fixtures/base/maps/kp/",
-            "landuse": f"{test_data_dir}/fixtures/base/maps/lulc/",
-        },
-        "FILENAME_PREFIXES": {
-            "etp_prefix": "etp",
-            "prec_prefix": "prec",
-            "ndvi_prefix": "ndvi",
-            "kp_prefix": "kp",
-            "landuse_prefix": "cob",
-        },
-        "RASTERS": {
-            "dem": f"{test_data_dir}/fixtures/base/maps/dem/dem.map",
-            "clone": f"{test_data_dir}/fixtures/base/maps/clone/clone.map",
-            "ldd": f"{test_data_dir}/fixtures/base/maps/ldd/ldd.map",
-            "ndvi_max": f"{test_data_dir}/fixtures/base/maps/ndvi/ndvi_max.map",
-            "ndvi_min": f"{test_data_dir}/fixtures/base/maps/ndvi/ndvi_min.map",
-            "soil": f"{test_data_dir}/fixtures/base/maps/soil/soil.map",
-            "samples": f"{test_data_dir}/fixtures/base/maps/samples/samples.map",
-        },
-        "TABLES": {
-            "rainydays": f"{test_data_dir}/fixtures/base/txt/rainydays.txt",
-            "a_i": f"{test_data_dir}/fixtures/base/txt/lulc/a_i.txt",
-            "a_o": f"{test_data_dir}/fixtures/base/txt/lulc/a_o.txt",
-            "a_s": f"{test_data_dir}/fixtures/base/txt/lulc/a_s.txt",
-            "a_v": f"{test_data_dir}/fixtures/base/txt/lulc/a_v.txt",
-            "manning": f"{test_data_dir}/fixtures/base/txt/lulc/manning.txt",
-            "bulk_density": f"{test_data_dir}/fixtures/base/txt/soil/dg.txt",
-            "k_sat": f"{test_data_dir}/fixtures/base/txt/soil/Tsat.txt",
-            "t_fcap": f"{test_data_dir}/fixtures/base/txt/soil/Tcc.txt",
-            "t_sat": f"{test_data_dir}/fixtures/base/txt/soil/Tsat.txt",
-            "t_wp": f"{test_data_dir}/fixtures/base/txt/soil/Tw.txt",
-            "rootzone_depth": f"{test_data_dir}/fixtures/base/txt/soil/Zr.txt",
-            "k_c_min": f"{test_data_dir}/fixtures/base/txt/lulc/kcmin.txt",
-            "k_c_max": f"{test_data_dir}/fixtures/base/txt/lulc/kcmax.txt",
-        },
-        "GRID": {"grid": 500.0},
-        "CALIBRATION": {
-            "alpha": 4.5,
-            "b": 0.5,
-            "w_1": 0.333,
-            "w_2": 0.333,
-            "w_3": 0.334,
-            "rcd": 5.0,
-            "f": 0.5,
-            "alpha_gw": 0.5,
-            "x": 0.5,
-        },
-        "INITIAL_SOIL_CONDITIONS": {
-            "t_ini": 1.0,
-            "bfw_ini": 0.1,
-            "bfw_lim": 1.0,
-            "s_sat_ini": 1.1,
-        },
-        "CONSTANTS": {"fpar_max": 0.95, "fpar_min": 0.001, "lai_max": 12.0, "i_imp": 2.5},
-        "GENERATE_FILE": {
-            "itp": True,
-            "bfw": True,
-            "srn": True,
-            "eta": True,
-            "lfw": True,
-            "rec": True,
-            "smc": True,
-            "rnf": True,
-            "arn": True,
-            "tss": True,
-        },
-        "RASTER_FILE_FORMAT": {"map_raster_series": True, "tiff_raster_series": True},
-    }
-
     @pytest.mark.integration
     def test_cli_app_help_ext(self):
-        result = subprocess.check_output(["python", "rubem", "--help"])
+        result = run_cli("--help")
         assert b"usage: rubem [-h] -c CONFIGFILE [-V] [-s]" in result
 
     @pytest.mark.integration
     def test_cli_app_help_short(self):
-        result = subprocess.check_output(["python", "rubem", "-h"])
+        result = run_cli("-h")
         assert b"usage: rubem [-h] -c CONFIGFILE [-V] [-s]" in result
 
     @pytest.mark.integration
     def test_cli_app_version_ext(self):
-        result = subprocess.check_output(["python", "rubem", "--version"])
+        result = run_cli("--version")
         assert b"RUBEM v" in result
 
     @pytest.mark.integration
     def test_cli_app_version_short(self):
-        result = subprocess.check_output(["python", "rubem", "-V"])
+        result = run_cli("-V")
         assert b"RUBEM v" in result
 
     @pytest.mark.integration
     def test_cli_app_no_args(self):
         with pytest.raises(subprocess.CalledProcessError):
-            subprocess.check_output(["python", "rubem"])
+            run_cli()
 
     @pytest.mark.integration
     def test_cli_app_invalid_args(self):
         with pytest.raises(subprocess.CalledProcessError):
-            subprocess.check_output(["python", "rubem", "-c", "invalid_path"])
+            run_cli("-c", "invalid_path")
 
     @pytest.mark.integration
     def test_cli_app_not_a_file_config(self):
         with pytest.raises(subprocess.CalledProcessError):
-            subprocess.check_output(["python", "rubem", "-c", os.path.dirname(__file__)])
+            run_cli("-c", os.path.dirname(__file__))
 
     @pytest.mark.integration
     def test_cli_app_invalid_extension_config_json_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            with open(
-                file=os.path.join(temp_dir, "bagheera.jaguar"), mode="w", encoding="utf8"
-            ) as f:
-                f.write(json.dumps(self.config))
+            config_path = os.path.join(temp_dir, "bagheera.jaguar")
+            with open(file=config_path, mode="w", encoding="utf8") as f:
+                f.write(json.dumps(base_model_config(temp_dir)))
 
             with pytest.raises(subprocess.CalledProcessError):
-                subprocess.check_output(
-                    ["python", "rubem", "-c", os.path.join(temp_dir, "bagheera.jaguar")]
-                )
+                run_cli("-c", config_path)
 
     @pytest.mark.integration
     def test_cli_app_invalid_config_json_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            with open(file=os.path.join(temp_dir, "config.json"), mode="w", encoding="utf8") as f:
+            config_path = os.path.join(temp_dir, "config.json")
+            with open(file=config_path, mode="w", encoding="utf8") as f:
                 f.write("invalid_json")
 
             with pytest.raises(subprocess.CalledProcessError):
-                subprocess.check_output(
-                    ["python", "rubem", "-c", os.path.join(temp_dir, "config.json")]
-                )
+                run_cli("-c", config_path)
 
     @pytest.mark.integration
     def test_cli_app_empty_config_json_file(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            with open(file=os.path.join(temp_dir, "config.json"), mode="w", encoding="utf8") as f:
+            config_path = os.path.join(temp_dir, "config.json")
+            with open(file=config_path, mode="w", encoding="utf8") as f:
                 f.write(json.dumps({}))
 
             with pytest.raises(subprocess.CalledProcessError):
-                subprocess.check_output(
-                    ["python", "rubem", "-c", os.path.join(temp_dir, "config.json")]
-                )
+                run_cli("-c", config_path)
+
+    def _run_and_compare(self, temp_dir, *cli_flags):
+        config_path = os.path.join(temp_dir, "config.json")
+        with open(file=config_path, mode="w", encoding="utf8") as f:
+            f.write(json.dumps(base_model_config(temp_dir)))
+
+        run_cli(*cli_flags, "-c", config_path)
+
+        for raster_file in RASTER_GOLDENS + TIFF_GOLDENS:
+            candidate = os.path.join(temp_dir, raster_file)
+            assert os.path.exists(candidate), f"missing output {raster_file}"
+            result = compare_rasters(candidate, os.path.join(GOLDEN_DIR, raster_file))
+            assert result.equal, f"{raster_file}:\n{result.report()}"
+
+        for table_file in CSV_GOLDENS:
+            candidate = os.path.join(temp_dir, table_file)
+            assert os.path.exists(candidate), f"missing output {table_file}"
+            result = compare_csv(candidate, os.path.join(GOLDEN_DIR, table_file))
+            assert result.equal, f"{table_file}:\n{result.report()}"
 
     @pytest.mark.slow
     @pytest.mark.integration
     def test_cli_app_valid_config_json_file(self):
-        """Test the CLI application with a valid config.json file.
+        """Run the model on the synthetic dataset and compare with the goldens.
 
         .. note::
 
@@ -170,99 +121,10 @@ class TestCliApp:
             Refer to LabSid-USP/RUBEM#120 for more information.
         """
         with tempfile.TemporaryDirectory() as temp_dir:
-            test_config = self.config.copy()
-            test_config["DIRECTORIES"]["output"] = temp_dir
-            with open(file=os.path.join(temp_dir, "config.json"), mode="w", encoding="utf8") as f:
-                f.write(json.dumps(test_config))
-
-            subprocess.check_output(
-                ["python", "rubem", "-c", os.path.join(temp_dir, "config.json")]
-            )
-
-            raster_files = [
-                "itp00000.001",
-                "itp00000.002",
-                "bfw00000.001",
-                "bfw00000.002",
-                "srn00000.001",
-                "srn00000.002",
-                "eta00000.001",
-                "eta00000.002",
-                "lfw00000.001",
-                "lfw00000.002",
-                "rec00000.001",
-                "rec00000.002",
-                "smc00000.001",
-                "smc00000.002",
-                "rnf00000.001",
-                "rnf00000.002",
-                "arn00000.001",
-                "arn00000.002",
-            ]
-
-            for raster_file in raster_files:
-                assert os.path.exists(os.path.join(temp_dir, raster_file))
-                assert compare_rasters(
-                    os.path.join(temp_dir, raster_file),
-                    os.path.join(self.test_data_result_dir, raster_file),
-                )
-
-            table_files = [
-                "tss_itp.csv",
-                "tss_bfw.csv",
-                "tss_srn.csv",
-                "tss_eta.csv",
-                "tss_lfw.csv",
-                "tss_rec.csv",
-                "tss_smc.csv",
-                "tss_rnf.csv",
-                "tss_arn.csv",
-            ]
-
-            for table_file in table_files:
-                assert os.path.exists(os.path.join(temp_dir, table_file))
-                assert compare_csv(
-                    os.path.join(temp_dir, table_file),
-                    os.path.join(self.test_data_result_dir, table_file),
-                )
+            self._run_and_compare(temp_dir)
 
     @pytest.mark.slow
     @pytest.mark.integration
     def test_cli_app_skip_input_data_validation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            test_config = self.config.copy()
-            test_config["DIRECTORIES"]["output"] = temp_dir
-            with open(file=os.path.join(temp_dir, "config.json"), mode="w", encoding="utf8") as f:
-                f.write(json.dumps(test_config))
-
-            subprocess.check_output(
-                ["python", "rubem", "-s", "-c", os.path.join(temp_dir, "config.json")]
-            )
-
-            assert os.path.exists(os.path.join(temp_dir, "itp00000.001"))
-            assert os.path.exists(os.path.join(temp_dir, "itp00000.002"))
-            assert os.path.exists(os.path.join(temp_dir, "bfw00000.001"))
-            assert os.path.exists(os.path.join(temp_dir, "bfw00000.002"))
-            assert os.path.exists(os.path.join(temp_dir, "srn00000.001"))
-            assert os.path.exists(os.path.join(temp_dir, "srn00000.002"))
-            assert os.path.exists(os.path.join(temp_dir, "eta00000.001"))
-            assert os.path.exists(os.path.join(temp_dir, "eta00000.002"))
-            assert os.path.exists(os.path.join(temp_dir, "lfw00000.001"))
-            assert os.path.exists(os.path.join(temp_dir, "lfw00000.002"))
-            assert os.path.exists(os.path.join(temp_dir, "rec00000.001"))
-            assert os.path.exists(os.path.join(temp_dir, "rec00000.002"))
-            assert os.path.exists(os.path.join(temp_dir, "smc00000.001"))
-            assert os.path.exists(os.path.join(temp_dir, "smc00000.002"))
-            assert os.path.exists(os.path.join(temp_dir, "rnf00000.001"))
-            assert os.path.exists(os.path.join(temp_dir, "rnf00000.002"))
-            assert os.path.exists(os.path.join(temp_dir, "arn00000.001"))
-            assert os.path.exists(os.path.join(temp_dir, "arn00000.002"))
-            assert os.path.exists(os.path.join(temp_dir, "tss_itp.csv"))
-            assert os.path.exists(os.path.join(temp_dir, "tss_bfw.csv"))
-            assert os.path.exists(os.path.join(temp_dir, "tss_srn.csv"))
-            assert os.path.exists(os.path.join(temp_dir, "tss_eta.csv"))
-            assert os.path.exists(os.path.join(temp_dir, "tss_lfw.csv"))
-            assert os.path.exists(os.path.join(temp_dir, "tss_rec.csv"))
-            assert os.path.exists(os.path.join(temp_dir, "tss_smc.csv"))
-            assert os.path.exists(os.path.join(temp_dir, "tss_rnf.csv"))
-            assert os.path.exists(os.path.join(temp_dir, "tss_arn.csv"))
+            self._run_and_compare(temp_dir, "-s")

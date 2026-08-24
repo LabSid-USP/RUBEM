@@ -30,3 +30,60 @@ jobs:
           path: "TestResults-Rubem.xml"
           retention-days: 1
         if: ${{ always() }}
+
+  exact:
+    # Pinned image: byte identity depends on the host C library and CPU, so the
+    # platform of the byte-exact job must not move under `ubuntu-latest`.
+    # See tests/fixtures/AUDIT.md.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: ci/golden-env.lock
+          environment-name: golden
+          init-shell: bash
+          cache-environment: true
+          post-cleanup: "all"
+      - name: Assert the golden environment is active
+        run: |
+          python - <<'PYCHECK'
+          import os
+          import sys
+
+          prefix = os.environ.get("CONDA_PREFIX", "")
+          assert os.path.basename(prefix) == "golden", f"unexpected prefix: {prefix!r}"
+          assert sys.executable.startswith(prefix), sys.executable
+
+          import numpy
+          import osgeo
+          import pcraster  # noqa: F401
+
+          print("python", sys.version)
+          print("gdal", osgeo.__version__)
+          print("numpy", numpy.__version__)
+          PYCHECK
+        shell: bash -el {0}
+      - name: Record the host fingerprint
+        run: |
+          echo "runner image: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
+          ldd --version | sed -n '1p'
+          grep -m 1 "model name" /proc/cpuinfo
+          glibc=$(ldd --version | sed -n '1s/.* //p')
+          if [ "$glibc" != "$GOLDEN_GLIBC" ]; then
+            echo "::warning::the byte-exact host moved: glibc $glibc, goldens recorded" \
+                 "on $GOLDEN_GLIBC; if the bytes changed, regenerate them on this image" \
+                 "and record the new provenance in tests/fixtures/AUDIT.md"
+          fi
+        env:
+          GOLDEN_GLIBC: "2.39"
+        shell: bash -el {0}
+      - name: Install the golden pip overlay
+        run: |
+          if grep -qvE '^\s*(#|$)' ci/golden-pip.lock; then
+            pip install --require-hashes -r ci/golden-pip.lock
+          fi
+        shell: bash -el {0}
+      - name: Reproduce the golden outputs byte-for-byte
+        run: RUBEM_EXACT_GOLDEN=1 pytest tests -m exact -ra --ignore=tests/integration/doc
+        shell: bash -el {0}

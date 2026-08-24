@@ -1,0 +1,3 @@
+# The golden regression fixtures are a byte-exact oracle: git must never
+# normalize their line endings or contents.
+tests/fixtures/base/out/** -text
