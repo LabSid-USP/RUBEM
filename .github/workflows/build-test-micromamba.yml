@@ -67,6 +67,15 @@ jobs:
             pip install --require-hashes -r ci/golden-pip.lock
           fi
         shell: bash -el {0}
+      - name: Regenerate the goldens on this runner
+        run: python tests/fixtures/regenerate_golden.py
+        shell: bash -el {0}
+      - name: Upload the regenerated goldens
+        uses: actions/upload-artifact@v7
+        with:
+          name: golden-out
+          path: tests/fixtures/base/out/
+          if-no-files-found: error
       - name: Reproduce the golden outputs byte-for-byte
         run: RUBEM_EXACT_GOLDEN=1 pytest tests -m exact -ra --ignore=tests/integration/doc
         shell: bash -el {0}
