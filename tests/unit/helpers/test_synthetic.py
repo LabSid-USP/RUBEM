@@ -5,7 +5,7 @@ import pytest
 from osgeo import gdal
 
 from rubem.configuration.simulation_period import SimulationPeriod
-from tests.helpers.synthetic import write_synthetic_dataset
+from tests.helpers.synthetic import series_name, write_synthetic_dataset
 from tests.unit.core.test_core import expected_outputs, run_model
 
 gdal.UseExceptions()
@@ -38,6 +38,20 @@ class TestSyntheticDataset:
         assert period.total_steps == timesteps
 
     @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "step, expected",
+        [
+            (1, "ndvi0000.001"),
+            (999, "ndvi0000.999"),
+            (1000, "ndvi0001.000"),
+            (12345, "ndvi0012.345"),
+        ],
+    )
+    def test_series_names_keep_the_pcraster_8_3_convention(self, step, expected):
+        """Digits beyond the three-character extension move into the stem."""
+        assert series_name("ndvi", step) == expected
+
+    @pytest.mark.unit
     def test_ndvi_stays_within_the_declared_bounds(self, tmp_path):
         """NDVI must never reach 1.0, where the simple ratio divides by zero."""
         config = write_synthetic_dataset(str(tmp_path), timesteps=25)
@@ -45,7 +59,7 @@ class TestSyntheticDataset:
         high = read_map(config["RASTERS"]["ndvi_max"]).max()
 
         for step in range(1, 26):
-            values = read_map(tmp_path / "maps" / "ndvi" / f"ndvi0000.{step:03d}")
+            values = read_map(tmp_path / "maps" / "ndvi" / series_name("ndvi", step))
             assert values.min() >= low, f"step {step} is below ndvi_min"
             assert values.max() <= high, f"step {step} is above ndvi_max"
 

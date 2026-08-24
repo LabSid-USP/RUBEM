@@ -4,7 +4,7 @@ from osgeo import gdal
 
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.core import DynamicFrameworkWrapper
-from tests.helpers.synthetic import write_synthetic_dataset
+from tests.helpers.synthetic import series_name, write_synthetic_dataset
 
 gdal.UseExceptions()
 
@@ -15,7 +15,7 @@ def expected_outputs(timesteps=2):
     names = []
     for variable in VARIABLES:
         for step in range(1, timesteps + 1):
-            names.append(f"{variable}{'0' * (8 - len(variable))}.{step:03d}")
+            names.append(series_name(variable, step))
             names.append(f"{variable}{step:07d}.tif")
         names.append(f"tss_{variable}.csv")
     return names
@@ -41,7 +41,7 @@ class TestDynamicFrameworkWrapper:
     def test_outputs_are_finite_on_valid_cells(self, tmp_path):
         run_model(str(tmp_path))
         for variable in VARIABLES:
-            name = f"{variable}{'0' * (8 - len(variable))}.001"
+            name = series_name(variable, 1)
             dataset = gdal.Open(str(tmp_path / "out" / name))
             band = dataset.GetRasterBand(1)
             values = band.ReadAsArray().astype(float)

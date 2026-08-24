@@ -1,24 +1,53 @@
 import os
+import shutil
 
 import pytest
 
-from tests.helpers.synthetic import write_synthetic_dataset
+from tests.helpers.compare import compare_rasters
+from tests.helpers.synthetic import series_name, write_synthetic_dataset
 from tests.unit.core.test_core import expected_outputs, run_model
 
 
 class TestDynamicModelBehavior:
     @pytest.mark.unit
     def test_ndvi_and_landuse_gaps_fall_back_to_the_previous_step(self, tmp_path):
-        """Missing NDVI/LULC steps after the first reuse the previous raster."""
-        config = write_synthetic_dataset(str(tmp_path))
-        os.remove(tmp_path / "maps" / "ndvi" / "ndvi0000.002")
-        os.remove(tmp_path / "maps" / "lulc" / "cob00000.002")
+        """Missing NDVI/LULC steps after the first reuse the previous raster.
 
-        run_model(str(tmp_path), validate_input=False, config=config)
+        The gap run is compared with two controls: one whose second-step
+        rasters duplicate the first step, which it must reproduce exactly, and
+        the untouched dataset, whose distinct second-step NDVI it must not
+        reproduce. Checking only that the outputs exist would pass for any
+        fallback value.
+        """
+        gap_dir = tmp_path / "gap"
+        duplicate_dir = tmp_path / "duplicate"
+        distinct_dir = tmp_path / "distinct"
 
-        output_dir = tmp_path / "out"
-        missing = [n for n in expected_outputs() if not (output_dir / n).is_file()]
+        gap_config = write_synthetic_dataset(str(gap_dir))
+        os.remove(gap_dir / "maps" / "ndvi" / series_name("ndvi", 2))
+        os.remove(gap_dir / "maps" / "lulc" / series_name("cob", 2))
+        run_model(str(gap_dir), validate_input=False, config=gap_config)
+
+        duplicate_config = write_synthetic_dataset(str(duplicate_dir))
+        for directory, prefix in (("ndvi", "ndvi"), ("lulc", "cob")):
+            maps = duplicate_dir / "maps" / directory
+            shutil.copyfile(maps / series_name(prefix, 1), maps / series_name(prefix, 2))
+        run_model(str(duplicate_dir), config=duplicate_config)
+
+        run_model(str(distinct_dir))
+
+        missing = [n for n in expected_outputs() if not (gap_dir / "out" / n).is_file()]
         assert not missing, f"missing outputs: {missing}"
+
+        for variable in ("itp", "eta", "srn"):
+            name = series_name(variable, 2)
+            same = compare_rasters(gap_dir / "out" / name, duplicate_dir / "out" / name)
+            assert same.equal, f"{name} differs from the duplicated-input control:\n{same.report()}"
+
+        interception = series_name("itp", 2)
+        assert not compare_rasters(
+            gap_dir / "out" / interception, distinct_dir / "out" / interception
+        ), "the fallback reproduced the second-step NDVI instead of the first"
 
     @pytest.mark.unit
     def test_disabling_tss_produces_no_time_series(self, tmp_path):
