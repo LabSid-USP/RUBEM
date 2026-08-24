@@ -83,6 +83,12 @@ Unreleased
   simulation and ``rubem config schema --format legacy`` prints the JSON
   Schema of the configuration file; ``rubem -c <config>`` still works for one
   minor release with a deprecation warning. ``typer`` is a runtime dependency.
+- Added the model of configuration file format 1.0
+  (``ModelConfigurationFileV1``: strict keys, ``version``, ``metadata``, ISO
+  ``simulation_period``, the dated, monthly and directory raster series
+  specifications, ``model_simulation_output`` with per-format selections) and
+  its conversions from and to the legacy file. The format is not yet read by
+  the loader nor exposed on the command line.
 
 Version 0.9.0-beta.3
 ---------------------
