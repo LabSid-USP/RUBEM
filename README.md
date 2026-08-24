@@ -72,24 +72,27 @@ This is an example of how to list things you need to use the software and how to
 
 ### Installation
 
-1. Download the latest release zip file from the [releases page](https://github.com/LabSid-USP/RUBEM/releases);
-2. Extract the zip, and copy the extracted root directory into a local directory.
+1. Clone the repository (or download and extract the archive of the latest release from the [releases page](https://github.com/LabSid-USP/RUBEM/releases));
+2. Install RUBEM into the active environment:
 
+   ```sh
+   pip install .
+   ```
 
 <!-- USAGE EXAMPLES -->
 ## Usage
 
 - Typical usage example
 
- ```sh
-   python rubem --configfile config.ini
- ```
+   ```sh
+   rubem --configfile config.json
+   ```
 
 - Help usage example
 
-```sh
-python rubem -h
-```
+   ```sh
+   rubem -h
+   ```
 
 _For more examples, please refer to the [user guide](https://rubem.readthedocs.io/en/latest/userguide.html) and [tutorials](https://rubem.readthedocs.io/en/latest/tutorials.html)._
 
