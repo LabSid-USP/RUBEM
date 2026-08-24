@@ -5,29 +5,6 @@ import pytest
 from rubem.cli import setup_logging
 
 
-@pytest.fixture(name="restore_logging")
-def restore_logging_fixture():
-    """Undo the global changes ``dictConfig`` makes to the logging module."""
-    root = logging.getLogger()
-    saved_handlers = root.handlers[:]
-    saved_level = root.level
-    manager = root.manager
-    saved_disabled = {
-        name: existing.disabled
-        for name, existing in manager.loggerDict.items()
-        if isinstance(existing, logging.Logger)
-    }
-    try:
-        yield
-    finally:
-        root.handlers[:] = saved_handlers
-        root.setLevel(saved_level)
-        for name, disabled in saved_disabled.items():
-            existing = manager.loggerDict.get(name)
-            if isinstance(existing, logging.Logger):
-                existing.disabled = disabled
-
-
 class TestSetupLogging:
     @pytest.mark.unit
     def test_default_config_keeps_existing_loggers_enabled(self, restore_logging):
