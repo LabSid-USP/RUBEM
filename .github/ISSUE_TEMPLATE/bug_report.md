@@ -35,7 +35,7 @@ Steps to reproduce the behavior:
 <!-- Please complete the following information. -->
  
  - OS: [e.g. Microsoft Windows 11 Pro 22H2]
- - Version [e.g. v0.1.3]
+ - Version [e.g. v0.10.0]
 
 ### Additional context
 <!-- Add any other context about the problem here. -->

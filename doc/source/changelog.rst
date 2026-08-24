@@ -5,6 +5,18 @@ This is the list of changes to RUBEM between each release. For full details, see
 
 For a list of known issues and their fixes, visit the `Github issues page <https://github.com/LabSid-USP/RUBEM/issues>`__.
 
+Unreleased
+----------
+
+- Fixed the regression test oracle (corrected fixture inputs, structured
+  comparators, byte-exact reproduction on a frozen environment).
+- Packaged RUBEM with ``pyproject.toml``: ``pip install`` support, the
+  ``rubem`` console script and a single PEP 440 version source.
+- Replaced the PyInstaller bundles with sdist/wheel distributions verified by
+  the release pipeline.
+- Rebuilt the CI (lint, OS/Python matrix, documentation build, packaging
+  smokes) and updated the documentation build mechanics.
+
 Version 0.9.0-beta.3
 ---------------------
 
