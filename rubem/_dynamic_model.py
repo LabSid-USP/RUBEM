@@ -212,9 +212,16 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                 dynamic_readmap_func=self.readmap,
             )
             self.previous_ndvi = current_ndvi
-        except RuntimeError:
+        except RuntimeError as error:
+            if self.previous_ndvi is None:
+                raise RuntimeError(
+                    f"Could not read the NDVI raster from "
+                    f"'{self.config.raster_series.ndvi}' for timestep "
+                    f"{current_timestep}, and there is no previous raster to "
+                    "fall back to."
+                ) from error
             self.logger.warning(
-                "There was an problem reading NDVI map from '%s' on timestep %d. Using previous successful timestep raster...",
+                "There was a problem reading the NDVI raster from '%s' on timestep %d. Using the raster from the previous successful timestep...",
                 self.config.raster_series.ndvi,
                 current_timestep,
             )
@@ -227,9 +234,16 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                 dynamic_readmap_func=self.readmap,
             )
             self.previous_landuse = current_landuse
-        except RuntimeError:
+        except RuntimeError as error:
+            if self.previous_landuse is None:
+                raise RuntimeError(
+                    f"Could not read the land-use raster from "
+                    f"'{self.config.raster_series.landuse}' for timestep "
+                    f"{current_timestep}, and there is no previous raster to "
+                    "fall back to."
+                ) from error
             self.logger.warning(
-                "There was an problem reading LULC map from '%s' on timestep %d. Using previous successful timestep raster...",
+                "There was a problem reading the LULC raster from '%s' on timestep %d. Using the raster from the previous successful timestep...",
                 self.config.raster_series.landuse,
                 current_timestep,
             )
