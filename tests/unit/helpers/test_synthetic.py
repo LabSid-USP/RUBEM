@@ -5,6 +5,7 @@ import pytest
 from osgeo import gdal
 
 from rubem.configuration.simulation_period import SimulationPeriod
+from tests.helpers.compare import ensure_gdal_drivers
 from tests.helpers.synthetic import series_name, write_synthetic_dataset
 from tests.unit.core.test_core import expected_outputs, run_model
 
@@ -14,6 +15,9 @@ DATE_FORMAT = "%d/%m/%Y"
 
 
 def read_map(path):
+    # Running the model in this process replaces the GDAL driver registry with
+    # PCRaster's own, so the drivers are re-registered before reading.
+    ensure_gdal_drivers()
     dataset = gdal.Open(str(path))
     return dataset.GetRasterBand(1).ReadAsArray().astype(float)
 
