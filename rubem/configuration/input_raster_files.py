@@ -7,6 +7,7 @@ from .._paths import as_path
 from ..configuration._problems import Problem
 from ..configuration.data_ranges_settings import DataRangesSettings
 from ..configuration.raster_map import RasterMap
+from ..validation.raster_content import check_extremes, check_sample_ids
 from ..validation.raster_data_rules import RasterDataRules
 from ..validation.raster_map_validator import RasterMapValidator
 
@@ -108,10 +109,14 @@ class InputRasterFiles(BaseModel):
             )
 
         problems = []
+        bands = {}
         for file, valid_range, rules in files:
             with RasterMap(file, valid_range, rules) as raster:
                 logger.debug(str(raster).replace("\n", ", "))
                 valid, errors = RasterMapValidator().validate(raster)
+                if file in (self.ndvi_min, self.ndvi_max, self.sample_locations):
+                    band = raster.bands[0]
+                    bands[file] = (band.data_array.copy(), band.no_data_value)
             if not valid:
                 problems.append(
                     Problem(
@@ -121,6 +126,17 @@ class InputRasterFiles(BaseModel):
                         file=file,
                     )
                 )
+        minimum, minimum_no_data = bands[self.ndvi_min]
+        maximum, maximum_no_data = bands[self.ndvi_max]
+        problem = check_extremes(minimum, minimum_no_data, maximum, maximum_no_data, self.ndvi_max)
+        if problem is not None:
+            problems.append(problem)
+        if self.sample_locations:
+            values, no_data = bands[self.sample_locations]
+            problem = check_sample_ids(values, no_data, self.sample_locations)
+            if problem is not None:
+                problems.append(problem)
+
         self._problems = problems
         return self
 

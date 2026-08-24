@@ -17,6 +17,7 @@ from ..configuration._problems import Problem
 from ..configuration.data_ranges_settings import DataRangesSettings
 from ..configuration.raster_map import RasterMap
 from ..file._naming import RASTER_SERIES_BASENAME_LENGTH, raster_series_pattern
+from ..validation.raster_content import check_below_one, check_positive
 from ..validation.raster_data_rules import RasterDataRules
 from ..validation.raster_map_validator import RasterMapValidator
 
@@ -25,6 +26,10 @@ RASTER_SERIES_FILENAME_MAX_CHARS = RASTER_SERIES_BASENAME_LENGTH
 logger = logging.getLogger(__name__)
 
 SERIES = ("etp", "precipitation", "ndvi", "kp", "landuse")
+# Series the model cannot fall back on: every required step must exist.
+STRICT_SERIES = ("etp", "precipitation", "kp")
+# Series whose later gaps reuse the previous raster at run time.
+FALLBACK_SERIES = ("ndvi", "landuse")
 
 
 class InputRasterSeries(BaseModel):
@@ -46,6 +51,10 @@ class InputRasterSeries(BaseModel):
     :param landuse: Path to the directory containing land use data.
     :param landuse_filename_prefix: Prefix for the land use data filenames.
     :param validate_input: If ``True``, validates the directories and the content of their raster files. Defaults to ``True``.
+    :param required_steps: ``(first, last)`` time steps the simulation reads. When given, the
+        precipitation, ETP and Kp series must cover every step (blocking), the NDVI and land use
+        series must cover the first step (blocking) and later gaps are reported (the run reuses the
+        previous raster). Defaults to ``None`` (no completeness check).
 
     :raises NotADirectoryError: If any of the input data directories does not exist.
     :raises ValueError: If any of the input data directories is empty, or a prefix is too long.
@@ -69,8 +78,16 @@ class InputRasterSeries(BaseModel):
     landuse_directory: str = Field(validation_alias=AliasChoices("landuse", "landuse_directory"))
     landuse_filename_prefix: str
     validate_input: bool = Field(default=True, exclude=True, repr=False)
+    required_steps: tuple[int, int] | None = Field(default=None, exclude=True, repr=False)
 
     _problems: list[Problem] = PrivateAttr(default_factory=list)
+
+    @field_validator("required_steps")
+    @classmethod
+    def _check_steps(cls, value):
+        if value is not None and not 1 <= value[0] <= value[1]:
+            raise ValueError(f"required_steps must satisfy 1 <= first <= last, got {value}.")
+        return value
 
     @field_validator(*(f"{name}_directory" for name in SERIES), mode="before")
     @classmethod
@@ -134,6 +151,13 @@ class InputRasterSeries(BaseModel):
             "landuse": RasterDataRules.FORBID_NO_DATA | RasterDataRules.FORBID_ALL_ZEROES,
         }
 
+        content_rules = {
+            "kp": lambda values, no_data, file: check_positive(
+                values, no_data, file, "Class A pan coefficient (Kp)"
+            ),
+            "ndvi": lambda values, no_data, file: check_below_one(values, no_data, file, "NDVI"),
+        }
+
         problems = []
         total_num_files = []
         for name in SERIES:
@@ -143,11 +167,12 @@ class InputRasterSeries(BaseModel):
                 raise NotADirectoryError(f"Invalid input data directory: {directory}")
             if not any(directory.iterdir()):
                 raise ValueError(f"Empty input data directory: {directory}")
-            total_num_files.append(
-                self.__validate_files_with_prefix(
-                    directory, prefix, ranges[name], rules[name], problems
-                )
+            steps = self.__validate_files_with_prefix(
+                directory, prefix, ranges[name], rules[name], content_rules.get(name), problems
             )
+            total_num_files.append(len(steps))
+            if self.required_steps is not None:
+                problems.extend(self.__check_completeness(name, directory, prefix, steps))
 
         if len(set(total_num_files)) > 1:
             logger.warning(
@@ -157,30 +182,82 @@ class InputRasterSeries(BaseModel):
         self._problems = problems
         return self
 
+    def __check_completeness(self, name, directory, prefix, steps) -> list[Problem]:
+        first, last = self.required_steps
+        missing = [step for step in range(first, last + 1) if step not in steps]
+        if not missing:
+            return []
+        if name in STRICT_SERIES:
+            return [
+                Problem(
+                    description=f"The {name} raster series is incomplete.",
+                    reason=f"Missing steps {missing} of the required {first}-{last} "
+                    f"(prefix '{prefix}').",
+                    implication="The simulation cannot run without these rasters.",
+                    file=str(directory),
+                    blocking=True,
+                )
+            ]
+        problems = []
+        if first in missing:
+            problems.append(
+                Problem(
+                    description=f"The {name} raster series lacks the first step.",
+                    reason=f"Step {first} is missing (prefix '{prefix}').",
+                    implication="The simulation cannot start without it.",
+                    file=str(directory),
+                    blocking=True,
+                )
+            )
+        later = [step for step in missing if step != first]
+        if later:
+            problems.append(
+                Problem(
+                    description=f"The {name} raster series has gaps.",
+                    reason=f"Missing steps {later} of the required {first}-{last} "
+                    f"(prefix '{prefix}').",
+                    implication="The run reuses the previous raster for each missing step.",
+                    file=str(directory),
+                )
+            )
+        return problems
+
     @staticmethod
-    def __validate_files_with_prefix(directory, prefix, valid_range, rules, problems) -> int:
+    def __validate_files_with_prefix(
+        directory, prefix, valid_range, rules, content_rule, problems
+    ) -> set[int]:
         compiled_pattern = raster_series_pattern(prefix)
 
-        counter = 0
+        steps = set()
         for entry in directory.iterdir():
             if entry.is_file() and compiled_pattern.match(entry.name):
-                InputRasterSeries.__validate_raster_file(str(entry), valid_range, rules, problems)
-                counter += 1
+                InputRasterSeries.__validate_raster_file(
+                    str(entry), valid_range, rules, content_rule, problems
+                )
+                digits = entry.name[len(prefix) :].replace(".", "")
+                steps.add(int(digits))
 
-        if counter == 0:
+        if not steps:
             logger.error("No files found with prefix '%s' in directory '%s'", prefix, directory)
             raise FileNotFoundError(
                 f"No files found with prefix '{prefix}' in directory '{directory}'"
             )
 
-        logger.info("Found %d files with prefix '%s' in directory '%s'", counter, prefix, directory)
-        return counter
+        logger.info(
+            "Found %d files with prefix '%s' in directory '%s'", len(steps), prefix, directory
+        )
+        return steps
 
     @staticmethod
-    def __validate_raster_file(file, valid_range, rules, problems) -> None:
+    def __validate_raster_file(file, valid_range, rules, content_rule, problems) -> None:
         with RasterMap(file, valid_range, rules) as raster:
             logger.debug(str(raster).replace("\n", ", "))
             valid, errors = RasterMapValidator().validate(raster)
+            if content_rule is not None:
+                band = raster.bands[0]
+                problem = content_rule(band.data_array, band.no_data_value, file)
+                if problem is not None:
+                    problems.append(problem)
         if not valid:
             problems.append(
                 Problem(

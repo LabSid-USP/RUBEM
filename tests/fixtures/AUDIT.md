@@ -114,3 +114,10 @@ e33ea72c5e8ed1451b11eb5532ebbbe6871adb3bb616899a9fe82fdd0db52404  tss_smc.csv
 The current checksums live in `tests/fixtures/base/out/SHA256SUMS` and are
 guarded by `tests/integration/test_golden_integrity.py`. Any future golden
 change must update this file with the new justification and impact summary.
+
+## Known input inconsistencies
+
+- `txt/lulc/kcmax.txt` gives land use class 25 a maximum crop coefficient
+  (0.2) below its minimum (`kcmin.txt`: 0.7); class 25 occurs in the land use
+  rasters. The goldens encode this behaviour, so the legacy loader reports
+  `kc_max < kc_min` as a warning rather than rejecting the configuration.

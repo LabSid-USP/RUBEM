@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
+from rubem.configuration.input_raster_series import InputRasterSeries
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.configuration.raster_map import RasterBand
 
@@ -178,6 +179,16 @@ class TestModelConfiguration:
         mocker.patch(
             "rubem.configuration.output_raster_base.read_raster_geometry",
             return_value=(3, 3, (0.0, 1.0, 0.0, 3.0, 0.0, -1.0), ""),
+        )
+        # The fake tables, the mocked bands and the single-step fake series
+        # carry no meaningful content: the content and completeness checks
+        # are covered on real data in test_validation_tiers.py.
+        mocker.patch("rubem.configuration.model_configuration.check_lookup_tables", return_value=[])
+        mocker.patch("rubem.configuration.input_raster_files.check_extremes", return_value=None)
+        mocker.patch("rubem.configuration.input_raster_series.check_below_one", return_value=None)
+        mocker.patch("rubem.configuration.input_raster_series.check_positive", return_value=None)
+        mocker.patch.object(
+            InputRasterSeries, "_InputRasterSeries__check_completeness", return_value=[]
         )
         fs.create_file("/test_path/test_file.map", contents="42")
         fs.create_file("/test_path/test_file.tif", contents="42")

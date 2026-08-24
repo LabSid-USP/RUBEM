@@ -60,6 +60,15 @@ Unreleased
   ``InputTableFiles``) as frozen Pydantic models with the same keywords,
   attributes and exceptions; validation problems are ``Problem`` objects and
   ``ConfigurationError`` carries the blocking ones.
+- Added content validation of the inputs (skipped with ``-s``): lookup tables
+  must parse, ``dg``, ``Zr``, ``Tsat``, ``manning`` and the rainy days must be
+  positive, the rainy days must cover the twelve months, ``Tcc > Tw`` for
+  every class; ``kp`` must be positive and NDVI below 1 in every cell,
+  ``ndvi_max > ndvi_min`` per cell, sample identifiers contiguous from 1; the
+  precipitation, ETP and Kp series must cover every simulated step and the
+  NDVI and land use series the first one. Blocking problems raise
+  ``ConfigurationError``; ``kc_max < kc_min``, later NDVI/land use gaps and
+  area fractions not adding up to 1 are reported as warnings.
 
 Version 0.9.0-beta.3
 ---------------------

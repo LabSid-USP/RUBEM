@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .._paths import PathInput, as_path
-from ..configuration._problems import Problem
+from ..configuration._problems import ConfigurationError, Problem
 from ..configuration.calibration_parameters import CalibrationParameters
 from ..configuration.initial_soil_conditions import InitialSoilConditions
 from ..configuration.input_raster_files import InputRasterFiles
@@ -20,6 +20,7 @@ from ..configuration.output_raster_base import OutputRasterBase
 from ..configuration.output_variables import NO_DATA_VALUE_DEFAULT, OutputVariables
 from ..configuration.raster_grid_area import RasterGrid
 from ..configuration.simulation_period import SimulationPeriod
+from ..validation.lookup_tables import check_lookup_tables
 
 _ABSENT = object()
 
@@ -151,6 +152,10 @@ class ModelConfiguration:
                 landuse=self.__get_setting("DIRECTORIES", "landuse"),
                 landuse_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "landuse_prefix"),
                 validate_input=validate_input,
+                required_steps=(
+                    self.simulation_period.first_step,
+                    self.simulation_period.last_step,
+                ),
             )
             self.raster_files = InputRasterFiles(
                 dem=self.__get_setting("RASTERS", "dem"),
@@ -192,6 +197,8 @@ class ModelConfiguration:
 
         self.problems.extend(self.raster_series.problems)
         self.problems.extend(self.raster_files.problems)
+        if validate_input:
+            self.problems.extend(check_lookup_tables(self.lookuptable_files))
         self.__check_inconsistencies()
 
     def __check_inconsistencies(self):
@@ -242,6 +249,8 @@ class ModelConfiguration:
             self.logger.warning("Configuration problems found: %d", len(self.problems))
             for problem in self.problems:
                 self.logger.warning("Configuration problem: %s", problem)
+        if any(problem.blocking for problem in self.problems):
+            raise ConfigurationError(self.problems)
 
     def __read_json(self, file_path: PathInput):
         self.logger.debug("Reading JSON file: %s", file_path)
