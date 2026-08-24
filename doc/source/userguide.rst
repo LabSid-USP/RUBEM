@@ -1150,7 +1150,7 @@ Use ``-h`` or ``--help`` to get a brief description of each command and its argu
      Run a simulation from a configuration file.
 
    Options:
-     -c, --configfile PATH         Path to the configuration file (JSON).
+     -c, --configfile <path>       Path to the configuration file (JSON).
                                    [required]
      -s, --skip-inputs-validation  Disable input files validation before running
                                    the model.
@@ -1164,11 +1164,23 @@ Use ``-V`` or ``--version`` to get the version of the RUBEM.
    RUBEM v0.10.0.dev0
 
 Use ``config schema`` to print the JSON Schema of the configuration file
-(``--format legacy`` is the current, and default, format).
+(format 1.0 by default; ``--format legacy`` for the format documented in this
+guide).
 
 .. code-block:: console
 
+   $ rubem config schema
    $ rubem config schema --format legacy
+
+Use ``config migrate`` to convert a legacy configuration file to format 1.0.
+The migrated file is written next to the source as ``<name>-v1.json`` (or to
+``-o``), with its paths rebased onto the destination directory; an existing
+destination is only overwritten with ``--force``.
+
+.. code-block:: console
+
+   $ rubem config migrate -c project-config.json
+   Wrote /path/to/project-config-v1.json
 
 Use ``-c`` or ``--configfile`` to set the path of the RUBEM configuration file.
 

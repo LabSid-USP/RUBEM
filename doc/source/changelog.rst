@@ -93,6 +93,13 @@ Unreleased
   (directory, dated and monthly series; ``MissingStep`` markers instead of
   exceptions), used by the model for every series; the legacy directory
   series resolve to the same PCRaster file names as before.
+- Activated configuration format 1.0: a file with ``version`` is read as
+  such (strict keys, duplicated keys rejected), raster series and time series
+  are selected independently with their formats (CSV converts the ``.tss``
+  files, PCRasterTSS keeps them, both do both), ``metadata.json`` is written
+  next to the outputs, ``rubem config schema`` prints the 1.0 schema by
+  default and ``rubem config migrate`` converts a legacy file (paths rebased
+  onto the destination, atomic write, ``--force`` to overwrite).
 
 Version 0.9.0-beta.3
 ---------------------
