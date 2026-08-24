@@ -13,6 +13,11 @@ class TimeoutputTimeseriesAdapter(pcrfw.TimeoutputTimeseries):
     preserving the base behavior: the ``.tss`` extension is appended when
     missing, and stochastic runs still write into the current sample-number
     directory (placed between the directory and the filename).
+
+    A stochastic framework creates its sample directories under the working
+    directory, which is where the base class writes; a redirected output
+    directory has no such directory, so this adapter creates the one it
+    targets.
     """
 
     def _configureOutputFilename(self, filename):
@@ -21,6 +26,9 @@ class TimeoutputTimeseriesAdapter(pcrfw.TimeoutputTimeseries):
 
         if hasattr(self._userModel, "nrSamples"):
             directory, basename = os.path.split(filename)
-            filename = os.path.join(directory, str(self._userModel.currentSampleNumber()), basename)
+            sample_directory = os.path.join(directory, str(self._userModel.currentSampleNumber()))
+            if directory:
+                os.makedirs(sample_directory, exist_ok=True)
+            filename = os.path.join(sample_directory, basename)
 
         return filename

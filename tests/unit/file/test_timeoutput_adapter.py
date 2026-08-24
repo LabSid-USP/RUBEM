@@ -46,11 +46,19 @@ class TestTimeoutputTimeseriesAdapter:
         assert adapter._configureOutputFilename(absolute) == absolute + ".tss"
 
     @pytest.mark.unit
-    def test_places_sample_directory_between_directory_and_filename(self):
+    def test_places_sample_directory_between_directory_and_filename(self, tmp_path):
         adapter = _adapter_with(_StochasticModel())
-        absolute = os.path.join(os.sep, "out", "tss_itp")
-        expected = os.path.join(os.sep, "out", "2", "tss_itp.tss")
+        absolute = str(tmp_path / "out" / "tss_itp")
+        expected = str(tmp_path / "out" / "2" / "tss_itp.tss")
         assert adapter._configureOutputFilename(absolute) == expected
+
+    @pytest.mark.unit
+    def test_creates_the_redirected_sample_directory(self, tmp_path):
+        """The stochastic framework only creates sample directories under the cwd."""
+        adapter = _adapter_with(_StochasticModel())
+        target = adapter._configureOutputFilename(str(tmp_path / "out" / "tss_itp"))
+        assert target == str(tmp_path / "out" / "2" / "tss_itp.tss")
+        assert (tmp_path / "out" / "2").is_dir()
 
     @pytest.mark.unit
     def test_relative_stochastic_behavior_matches_base_class(self):
