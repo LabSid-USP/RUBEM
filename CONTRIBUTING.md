@@ -48,7 +48,7 @@ pip install -e '.[dev]'
   golden environment, and every change to them must be justified in
   `tests/fixtures/AUDIT.md`;
 - Update the documentation when behavior changes; `sphinx-build -W` must stay
-  clean (`pip install -e .[docs]`, then build `doc/source`).
+  clean (`pip install -e '.[docs]'`, then build `doc/source`).
 
 ## Commit and pull request style
 
