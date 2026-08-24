@@ -27,8 +27,8 @@ def _remove(file_path: str) -> bool:
         return False
 
 
-def _stage_path(dst_file_path: str, suffix: str) -> str:
-    """Reserve a unique path next to ``dst_file_path`` and return it.
+def _reserve_stage(dst_file_path: str, suffix: str) -> tuple[int, str]:
+    """Reserve a unique path next to ``dst_file_path`` and return ``(fd, path)``.
 
     Staging and backup names are allocated instead of derived from the
     destination, so a file the user keeps as ``<destination>.tmp`` or
@@ -37,6 +37,11 @@ def _stage_path(dst_file_path: str, suffix: str) -> str:
     left to the process umask: ``mkstemp`` would make it private to the owner,
     and reading the umask back to correct that would have to change it
     process-wide first, which races with everything else running.
+
+    The descriptor is returned open so that the caller can write through the
+    entry it created. Reopening the reserved name would give away that
+    exclusivity: in a directory writable by someone else, the name can be
+    replaced by a symlink between the two calls and the write would follow it.
 
     :raises OSError: If no free name is found next to the destination.
     """
@@ -47,45 +52,60 @@ def _stage_path(dst_file_path: str, suffix: str) -> str:
             handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o666)
         except FileExistsError:
             continue
-        os.close(handle)
-        return path
+        return handle, path
     raise OSError(f"Could not reserve a staging path next to {dst_file_path}.")
 
 
+def _reserve_path(dst_file_path: str, suffix: str) -> str:
+    """Reserve a unique path and close its descriptor, for a plain rename target."""
+    handle, path = _reserve_stage(dst_file_path, suffix)
+    os.close(handle)
+    return path
+
+
+def _install_path(dst_file_path: str) -> str:
+    """Return the path a destination writes to, with symlinks resolved.
+
+    A symlinked destination is part of the layout the user chose, so the
+    conversion updates what the link points at, as the previous in-place write
+    did, instead of replacing the link with a regular file. A link that points
+    nowhere yet has its target created, and in both cases the link itself is
+    never moved, replaced or removed.
+    """
+    return os.path.realpath(dst_file_path)
+
+
 def _destination_mode(dst_file_path: str) -> int | None:
-    """Return the permissions of an existing regular destination, if any.
+    """Return the permissions of an existing destination, if any.
 
     A conversion installs a freshly created file, so the permissions the user
     gave the previous CSV would be replaced by whatever the umask allows; they
-    are carried onto the staged file instead. A symlink carries none of its
-    own, and a destination that does not exist yet has none to carry.
+    are carried onto the staged file instead. A destination that does not
+    exist yet has none to carry.
     """
     try:
-        info = os.lstat(dst_file_path)
+        return stat.S_IMODE(os.stat(dst_file_path).st_mode)
     except OSError:
         return None
-    if stat.S_ISLNK(info.st_mode):
-        return None
-    return stat.S_IMODE(info.st_mode)
 
 
 def _backup_destination(dst_file_path: str) -> str | None:
     """Move an existing destination aside and return its backup path.
 
-    ``os.path.lexists`` is deliberate: a dangling symlink is invisible to
-    ``os.path.isfile``, so it would be replaced without a backup and lost when
-    the transaction rolled back.
+    The path handed in is the resolved destination, so what moves aside is the
+    file itself and never a symlink pointing at it. ``os.path.lexists`` keeps
+    the check honest for any entry ``os.path.isfile`` would report as absent.
 
     :raises IsADirectoryError: If the destination is a directory, which cannot
         be replaced by the converted file.
     """
     if not os.path.lexists(dst_file_path):
         return None
-    if os.path.isdir(dst_file_path) and not os.path.islink(dst_file_path):
+    if os.path.isdir(dst_file_path):
         raise IsADirectoryError(
             f"The destination {dst_file_path} is a directory and cannot be replaced."
         )
-    backup_file_path = _stage_path(dst_file_path, ".bak")
+    backup_file_path = _reserve_path(dst_file_path, ".bak")
     try:
         os.replace(dst_file_path, backup_file_path)
     except OSError:
@@ -125,7 +145,9 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
     temporary name, the temporary files are renamed only after all of them
     were produced, and any destination being overwritten is kept as a backup
     until every rename succeeded. A failure up to that point leaves the
-    sources and the previous CSV files untouched. Installing the last CSV
+    sources and the previous CSV files untouched. A destination that is a
+    symlink is followed: the conversion updates its target and leaves the link
+    itself alone. Installing the last CSV
     commits the conversion; the sources are deleted afterwards, so a source
     that cannot be deleted is reported and converted again on the next run
     instead of undoing CSV files that are already valid. Only the files passed
@@ -161,7 +183,7 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
     installs: list[tuple[str, str | None]] = []
     try:
         for tss_file in tss_files:
-            dst_file_path = f"{os.path.splitext(tss_file)[0]}.csv"
+            dst_file_path = _install_path(f"{os.path.splitext(tss_file)[0]}.csv")
 
             with open(file=tss_file, mode="r", encoding="utf8") as f:
                 lines = f.readlines()
@@ -183,9 +205,9 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
                     "from the number of column names."
                 )
 
-            tmp_file_path = _stage_path(dst_file_path, ".tmp")
+            handle, tmp_file_path = _reserve_stage(dst_file_path, ".tmp")
             pending.append((tmp_file_path, dst_file_path))
-            with open(file=tmp_file_path, mode="w", encoding="utf8", newline="") as csvfile:
+            with os.fdopen(handle, mode="w", encoding="utf8", newline="") as csvfile:
                 writer = csv.writer(csvfile, delimiter=";")
                 writer.writerow(header)
                 writer.writerows(data)

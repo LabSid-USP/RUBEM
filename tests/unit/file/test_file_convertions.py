@@ -153,8 +153,10 @@ class TestTss2Csv:
         ]
 
     @pytest.mark.unit
-    def test_failed_rename_restores_a_dangling_destination_symlink(self, tmp_path, monkeypatch):
-        """A symlink destination is an entry to preserve, even if it points nowhere."""
+    def test_a_failed_conversion_leaves_a_dangling_destination_symlink_untouched(
+        self, tmp_path, monkeypatch
+    ):
+        """A symlink destination is followed, so a failure cannot consume the link."""
         first = tmp_path / "tss_a.tss"
         second = tmp_path / "tss_b.tss"
         write_tss(first, [(1, 10.5)])
@@ -173,9 +175,10 @@ class TestTss2Csv:
         assert os.path.islink(link)
         # Windows reports the target through its extended-length form, so the
         # name and the directory are compared instead of the literal string.
-        restored = pathlib.Path(os.readlink(link))
-        assert restored.name == "missing_target.csv"
-        assert os.path.samefile(restored.parent, tmp_path)
+        target = pathlib.Path(os.readlink(link))
+        assert target.name == "missing_target.csv"
+        assert os.path.samefile(target.parent, tmp_path)
+        assert not (tmp_path / "missing_target.csv").exists()
         assert sorted(path.name for path in tmp_path.iterdir()) == [
             "tss_a.csv",
             "tss_a.tss",
@@ -307,3 +310,28 @@ class TestTss2Csv:
         tss2csv([tss], ["1"])
 
         assert (tmp_path / "tss_itp.csv").stat().st_mode & 0o777 == expected
+
+    @pytest.mark.unit
+    def test_a_symlinked_destination_updates_its_target(self, tmp_path):
+        """The link belongs to the user's layout: the conversion writes through it."""
+        outputs = tmp_path / "out"
+        shared = tmp_path / "shared"
+        outputs.mkdir()
+        shared.mkdir()
+        tss = outputs / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5)])
+        target = shared / "results.csv"
+        target.write_text("previous\n", encoding="utf8")
+        link = outputs / "tss_itp.csv"
+        try:
+            link.symlink_to(target)
+        except OSError:
+            pytest.skip("this platform does not allow creating symlinks")
+
+        tss2csv([tss], ["1"])
+
+        assert os.path.islink(link)
+        assert os.path.samefile(link, target)
+        assert target.read_text(encoding="utf8").splitlines() == ["0;1", "1;10.5"]
+        assert sorted(path.name for path in outputs.iterdir()) == ["tss_itp.csv"]
+        assert sorted(path.name for path in shared.iterdir()) == ["results.csv"]
