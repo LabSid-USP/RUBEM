@@ -52,3 +52,21 @@ class TestSetupLogging:
 
         assert not existing.disabled
         assert logging.getLogger().handlers
+
+
+class TestRestoreLoggingFixture:
+    """The fixture guards every test that reconfigures logging."""
+
+    @pytest.mark.unit
+    def test_configuring_logging_attaches_the_progress_handler(self, restore_logging):
+        setup_logging()
+
+        assert logging.getLogger("rubem.progress").handlers
+
+    @pytest.mark.unit
+    def test_the_progress_logger_is_left_as_it_was(self):
+        """Runs after the test above: its configuration must not have survived."""
+        progress = logging.getLogger("rubem.progress")
+
+        assert not progress.handlers
+        assert progress.propagate

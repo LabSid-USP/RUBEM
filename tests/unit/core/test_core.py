@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 from osgeo import gdal
@@ -43,6 +45,25 @@ class TestDynamicFrameworkWrapper:
         run_model(str(tmp_path))
 
         assert capsys.readouterr().out == ""
+
+    @pytest.mark.unit
+    def test_every_enabled_time_series_is_required_by_the_export(self, tmp_path, monkeypatch):
+        """A missing enabled writer must not be dropped from the conversion."""
+        from rubem import core
+
+        converted = []
+        real_tss2csv = core.tss2csv
+
+        def record(tss_files, cols_names, **kwargs):
+            converted.extend(str(path) for path in tss_files)
+            return real_tss2csv(tss_files, cols_names, **kwargs)
+
+        monkeypatch.setattr(core, "tss2csv", record)
+        run_model(str(tmp_path))
+
+        assert sorted(os.path.basename(path) for path in converted) == sorted(
+            f"tss_{variable}.tss" for variable in VARIABLES
+        )
 
     @pytest.mark.unit
     def test_outputs_are_finite_on_valid_cells(self, tmp_path):
