@@ -3,13 +3,12 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
+from rubem.configuration.raster_map import RasterBand, RasterMap
 from rubem.validation.handlers.raster_value_range import ValueRangeValidatorHandler
 from rubem.validation.raster_data_rules import RasterDataRules
-from rubem.configuration.raster_map import RasterMap, RasterBand
 
 
 class TestValueRangeValidatorHandler:
-
     @pytest.mark.unit
     def test_handle_valid_range(self):
         # Arrange

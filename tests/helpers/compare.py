@@ -187,9 +187,7 @@ def compare_rasters(
             geotransform1 = raster1.GetGeoTransform()
             geotransform2 = raster2.GetGeoTransform()
             tolerance = _geotransform_atol(geotransform1, geotransform_fraction)
-            for index, (component1, component2) in enumerate(
-                zip(geotransform1, geotransform2)
-            ):
+            for index, (component1, component2) in enumerate(zip(geotransform1, geotransform2)):
                 if not np.isclose(component1, component2, rtol=0.0, atol=tolerance):
                     differences.append(
                         Difference(
@@ -199,9 +197,7 @@ def compare_rasters(
                         )
                     )
         if "projection" in fields:
-            _compare_projections(
-                raster1.GetProjection(), raster2.GetProjection(), differences
-            )
+            _compare_projections(raster1.GetProjection(), raster2.GetProjection(), differences)
 
         for band_index in range(1, min(raster1.RasterCount, raster2.RasterCount) + 1):
             band1 = raster1.GetRasterBand(band_index)
@@ -220,9 +216,7 @@ def compare_rasters(
                 )
             ):
                 differences.append(
-                    Difference(
-                        "nodata", f"band {band_index}: {nodata1!r} vs {nodata2!r}"
-                    )
+                    Difference("nodata", f"band {band_index}: {nodata1!r} vs {nodata2!r}")
                 )
 
             if "shape" in fields and array1.shape != array2.shape:
@@ -295,8 +289,7 @@ def compare_csv(
             differences.append(
                 Difference(
                     "values",
-                    f"NaN patterns differ on {int(np.count_nonzero(nan1 != nan2))} "
-                    "cell(s)",
+                    f"NaN patterns differ on {int(np.count_nonzero(nan1 != nan2))} cell(s)",
                 )
             )
         valid = ~(nan1 | nan2)

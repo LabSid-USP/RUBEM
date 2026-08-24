@@ -1,0 +1,262 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install lint tools
+        run: pip install "ruff==0.16.4"
+      - name: Ruff check
+        run: ruff check .
+      - name: Ruff format check
+        run: ruff format --check .
+
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.12", "3.13", "3.14"]
+        include:
+          - os: windows-latest
+            python: "3.13"
+        # macOS is excluded until PCRaster's osx-arm64 build stops crashing
+        # model runs; see LabSid-USP/RUBEM#227.
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: environment.yml
+          create-args: python=${{ matrix.python }}
+          init-shell: bash
+          cache-environment: true
+          post-cleanup: "all"
+      - name: Assert interpreter matches the matrix entry
+        run: |
+          python - <<'PYCHECK'
+          import os
+          import sys
+
+          expected = os.environ["MATRIX_PYTHON"]
+          actual = f"{sys.version_info[0]}.{sys.version_info[1]}"
+          assert actual == expected, f"python {actual} != matrix {expected}"
+          print(sys.version)
+          PYCHECK
+        env:
+          MATRIX_PYTHON: ${{ matrix.python }}
+        shell: bash -el {0}
+      - name: Install RUBEM with test dependencies
+        run: pip install -e .[test,docs]
+        shell: bash -el {0}
+      - name: Run the test suite
+        run: pytest -n auto -ra --cov=rubem --cov-report=xml --junitxml="TestResults-Rubem.xml"
+        shell: bash -el {0}
+      - name: Upload test results
+        uses: actions/upload-artifact@v7
+        with:
+          name: pytest-results-${{ matrix.os }}-py${{ matrix.python }}
+          path: "TestResults-Rubem.xml"
+          retention-days: 1
+        if: ${{ always() }}
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: true
+          files: coverage.xml
+          fail_ci_if_error: false
+
+  exact:
+    # Pinned image: byte identity depends on the host C library and CPU, so the
+    # platform of the byte-exact job must not move under `ubuntu-latest`.
+    # See tests/fixtures/AUDIT.md.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: ci/golden-env.lock
+          environment-name: golden
+          init-shell: bash
+          cache-environment: true
+          post-cleanup: "all"
+      - name: Assert the golden environment is active
+        run: |
+          python - <<'PYCHECK'
+          import os
+          import sys
+
+          prefix = os.environ.get("CONDA_PREFIX", "")
+          assert os.path.basename(prefix) == "golden", f"unexpected prefix: {prefix!r}"
+          assert sys.executable.startswith(prefix), sys.executable
+
+          import numpy
+          import osgeo
+          import pcraster  # noqa: F401
+
+          print("python", sys.version)
+          print("gdal", osgeo.__version__)
+          print("numpy", numpy.__version__)
+          PYCHECK
+        shell: bash -el {0}
+      - name: Record the host fingerprint
+        run: |
+          echo "runner image: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
+          ldd --version | sed -n '1p'
+          grep -m 1 "model name" /proc/cpuinfo
+          glibc=$(ldd --version | sed -n '1s/.* //p')
+          if [ "$glibc" != "$GOLDEN_GLIBC" ]; then
+            echo "::warning::the byte-exact host moved: glibc $glibc, goldens recorded" \
+                 "on $GOLDEN_GLIBC; if the bytes changed, regenerate them on this image" \
+                 "and record the new provenance in tests/fixtures/AUDIT.md"
+          fi
+        env:
+          GOLDEN_GLIBC: "2.39"
+        shell: bash -el {0}
+      - name: Install RUBEM against the frozen environment
+        run: |
+          if grep -qvE '^\s*(#|$)' ci/golden-pip.lock; then
+            pip install --require-hashes -r ci/golden-pip.lock
+          fi
+          pip install -e . --no-deps
+        shell: bash -el {0}
+      - name: Reproduce the golden outputs byte-for-byte
+        run: RUBEM_EXACT_GOLDEN=1 pytest tests -m exact -ra --ignore=tests/integration/doc
+        shell: bash -el {0}
+
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install documentation dependencies
+        run: pip install -r doc/requirements.txt
+      - name: Build the documentation
+        run: sphinx-build -W -b html doc/source doc/_build/html
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install build tools
+        run: pip install "build==1.5.0" "twine==7.0.0"
+      - name: Build sdist and wheel
+        run: python -m build
+      - name: Check distribution metadata
+        run: twine check dist/*
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+      - name: Smoke test the wheel without dependencies
+        run: |
+          cd "$RUNNER_TEMP"
+          python -m venv smoke-wheel
+          source smoke-wheel/bin/activate
+          if python -c "import rubem" 2>/dev/null; then
+            echo "rubem must not be importable in a fresh environment" >&2
+            exit 1
+          fi
+          pip install --no-deps "$GITHUB_WORKSPACE"/dist/*.whl
+          python -c "import rubem, importlib.resources as r; print(rubem.__version__); r.files('rubem').joinpath('appsettings.json').read_text()"
+      - name: Smoke test the sdist without dependencies
+        run: |
+          cd "$RUNNER_TEMP"
+          python -m venv smoke-sdist
+          source smoke-sdist/bin/activate
+          if python -c "import rubem" 2>/dev/null; then
+            echo "rubem must not be importable in a fresh environment" >&2
+            exit 1
+          fi
+          pip install --no-deps "$GITHUB_WORKSPACE"/dist/*.tar.gz
+          python -c "import rubem, importlib.resources as r; print(rubem.__version__); r.files('rubem').joinpath('appsettings.json').read_text()"
+      - name: Smoke test the CLI without native dependencies
+        run: |
+          cd "$RUNNER_TEMP"
+          python -m venv smoke-cli
+          source smoke-cli/bin/activate
+          if python -c "import rubem" 2>/dev/null; then
+            echo "rubem must not be importable in a fresh environment" >&2
+            exit 1
+          fi
+          pip install "$GITHUB_WORKSPACE"/dist/*.whl
+          rubem --version
+          echo '{}' > smoke-config.json
+          if output=$(rubem -c smoke-config.json 2>&1); then
+            echo "rubem must fail without pcraster/GDAL" >&2
+            exit 1
+          else
+            echo "$output"
+            echo "$output" | grep -q "environment.yml"
+          fi
+
+  pip-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Audit the pinned development requirements
+        run: |
+          pip install pip-audit
+          pip-audit --strict -r ci/dev-requirements.lock
+
+  ci-success:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [lint, test, exact, docs, build]
+    if: ${{ always() }}
+    steps:
+      - name: Assert every required job succeeded
+        run: |
+          python3 - <<'PYCHECK'
+          import json
+          import sys
+
+          needs = json.loads("""${{ toJSON(needs) }}""")
+          failed = {
+              name: info["result"]
+              for name, info in needs.items()
+              if info["result"] != "success"
+          }
+          if failed:
+              print(f"failed jobs: {failed}", file=sys.stderr)
+              sys.exit(1)
+          print("all required jobs succeeded")
+          PYCHECK

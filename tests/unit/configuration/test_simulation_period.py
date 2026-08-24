@@ -1,11 +1,11 @@
 from datetime import date
+
 import pytest
 
 from rubem.configuration.simulation_period import SimulationPeriod
 
 
 class TestSimulationPeriod:
-
     @pytest.mark.unit
     @pytest.mark.parametrize(
         "start, end",

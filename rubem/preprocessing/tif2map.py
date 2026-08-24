@@ -20,9 +20,10 @@
 
 """Common file conversion to generate input data used by RUBEM."""
 
-from osgeo import gdal
 import glob
 import os
+
+from osgeo import gdal
 
 
 def tif2map(Tifs_Dir):

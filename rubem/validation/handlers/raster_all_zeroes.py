@@ -24,7 +24,7 @@ class AllZeroesValidatorHandler(BaseValidatorHandler):
             self.logger.info("`FORBID_ALL_ZEROES` validator skipped because no rules were set.")
             return super().handle(raster, errors)
 
-        if not RasterDataRules.FORBID_ALL_ZEROES in raster.rules:
+        if RasterDataRules.FORBID_ALL_ZEROES not in raster.rules:
             self.logger.debug("`FORBID_ALL_ZEROES` validator skipped because the rule was not set.")
             return super().handle(raster, errors)
 

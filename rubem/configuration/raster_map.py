@@ -1,6 +1,6 @@
 import logging
-import re
 import os
+import re
 from typing import Optional, Union
 
 from osgeo import gdal
@@ -110,6 +110,6 @@ class RasterMap:
                 f"GCPs: {self.raster.GetGCPs()}\n"
                 f"Metadata Domain List: {self.raster.GetMetadataDomainList()}\n"
                 f"Number of Bands: {self.raster.RasterCount}\n"
-                f"Bands: {[ str(band) for band in self.bands ]}"
+                f"Bands: {[str(band) for band in self.bands]}"
             )
         return "No raster file loaded"

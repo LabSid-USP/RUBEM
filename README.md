@@ -58,25 +58,17 @@ To get a local copy up and running follow these simple steps.
 
 This is an example of how to list things you need to use the software and how to install them.
 
-- From Miniconda base envionment create a new conda envionment
+- [PCRaster](https://pcraster.geo.uu.nl/) and [GDAL](https://gdal.org/) come from conda-forge: create the runtime environment from the repository's `environment.yml`
 
    ```sh
-   conda env create -n rubem --file env-prod.yml
+   conda env create -f environment.yml
    ```
 
 - Activate the new environment
 
-  - Windows
-
-    ```powershell
-    conda activate rubem
-    ```
-  
-  - Linux, macOS
-  
-    ```sh
-    source activate rubem
-    ```
+   ```sh
+   conda activate rubem
+   ```
 
 ### Installation
 
@@ -140,8 +132,8 @@ Distributed under the GPLv3 License. See [`LICENSE.md`](https://github.com/LabSi
 [zenodo-url]: https://doi.org/10.5281/zenodo.10562516
 [readthedocs-shield]: https://readthedocs.org/projects/rubem/badge/?version=latest
 [readthedocs-url]: https://rubem.readthedocs.io/en/latest/?badge=latest
-[github-actions-unit-tests-shield]: https://github.com/LabSid-USP/RUBEM/actions/workflows/build-test-micromamba.yml/badge.svg
-[github-actions-unit-tests-url]: https://github.com/LabSid-USP/RUBEM/actions/workflows/build-test-micromamba.yml
+[github-actions-unit-tests-shield]: https://github.com/LabSid-USP/RUBEM/actions/workflows/ci.yml/badge.svg
+[github-actions-unit-tests-url]: https://github.com/LabSid-USP/RUBEM/actions/workflows/ci.yml
 [github-actions-codeql-shield]: https://github.com/LabSid-USP/RUBEM/actions/workflows/codeql-analysis.yml/badge.svg
 [github-actions-codeql-url]: https://github.com/LabSid-USP/RUBEM/actions/workflows/codeql-analysis.yml
 [contributors-shield]: https://img.shields.io/github/contributors/LabSid-USP/RUBEM

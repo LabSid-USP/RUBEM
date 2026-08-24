@@ -1,18 +1,17 @@
 import pytest
 
 from rubem import (
-    __version__,
     __author__,
     __copyright__,
+    __date__,
     __email__,
     __license__,
-    __date__,
     __release__,
+    __version__,
 )
 
 
 class TestVersionInfo:
-
     @pytest.mark.unit
     def test_author_str(self):
         assert "LabSid PHA EPUSP" == __author__
@@ -31,12 +30,12 @@ class TestVersionInfo:
 
     @pytest.mark.unit
     def test_date_str(self):
-        assert "2024-03-21" == __date__
+        assert "2026-08-23" == __date__
 
     @pytest.mark.unit
     def test_version_str(self):
-        assert "0.9.0" == __version__
+        assert "0.10.0.dev0" == __version__
 
     @pytest.mark.unit
     def test_release_str(self):
-        assert "0.9.0-beta.3" == __release__
+        assert "0.10.0.dev0" == __release__

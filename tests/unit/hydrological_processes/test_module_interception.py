@@ -1,13 +1,11 @@
-import pytest
-
 import pcraster as pcr
+import pytest
 from pcraster.framework import generalfunctions
 
 from rubem.hydrological_processes import Interception
 
 
 class TestInterceptionModule:
-
     @pytest.fixture(autouse=True)
     def setup(self):
         pcr.setclone(1, 1, 1, 0, 1)

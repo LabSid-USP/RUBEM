@@ -1,6 +1,6 @@
-import os
-import logging
 import argparse
+import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def file_path_cli_arg_validator(path: str):
         logger.error("Specified file path %s is empty", path)
         raise argparse.ArgumentTypeError(f'Specified file path "{path}" is empty.')
 
-    if not os.path.splitext(path)[1] in [".json"]:
+    if os.path.splitext(path)[1] not in [".json"]:
         logger.error("Specified file path %s is not a valid file format", path)
         raise argparse.ArgumentTypeError(
             f'Specified file path "{path}" is not a valid file format. '

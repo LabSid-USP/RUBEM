@@ -1,12 +1,11 @@
-import pytest
 import pcraster as pcr
+import pytest
 from pcraster.framework import generalfunctions
 
 from rubem.hydrological_processes import Soil
 
 
 class TestLateralFlowSoilModule:
-
     @pytest.fixture(autouse=True)
     def setup(self):
         pcr.setclone(1, 1, 1, 1, 1)
@@ -38,7 +37,6 @@ class TestLateralFlowSoilModule:
 
 
 class TestRechargeSoilModule:
-
     @pytest.fixture(autouse=True)
     def setup(self):
         pcr.setclone(1, 1, 1, 1, 1)
@@ -70,7 +68,6 @@ class TestRechargeSoilModule:
 
 
 class TestBaseFlowSoilModule:
-
     @pytest.fixture(autouse=True)
     def setup(self):
         pcr.setclone(1, 1, 1, 1, 1)
@@ -118,7 +115,6 @@ class TestBaseFlowSoilModule:
 
 
 class TestSoilBalanceSoilModule:
-
     @pytest.fixture(autouse=True)
     def setup(self):
         pcr.setclone(1, 1, 1, 1, 1)

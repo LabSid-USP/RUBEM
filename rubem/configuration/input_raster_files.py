@@ -2,10 +2,10 @@ import logging
 import os
 from typing import Optional, Union
 
-from ..configuration.raster_map import RasterMap
 from ..configuration.data_ranges_settings import DataRangesSettings
-from ..validation.raster_map_validator import RasterMapValidator
+from ..configuration.raster_map import RasterMap
 from ..validation.raster_data_rules import RasterDataRules
+from ..validation.raster_map_validator import RasterMapValidator
 
 
 class InputRasterFiles:

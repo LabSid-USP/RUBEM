@@ -4,14 +4,11 @@ import logging.config
 import logging.handlers
 from typing import Optional
 
-import humanize
-
 from . import __release__
+from ._deps import require_runtime_deps
 from .configuration.app_settings import AppSettings
 from .configuration.data_ranges_settings import DataRangesSettings
-from .core import DynamicFrameworkWrapper
 from .validation.cli_validators import file_path_cli_arg_validator
-from .configuration.model_configuration import ModelConfiguration
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +36,8 @@ def main():
         i18n_settings = app_settings.get_setting("i18n")
         language = i18n_settings.get("language") if i18n_settings else None
         if language and language != "en_US":
+            import humanize
+
             humanize.i18n.activate(language)
     except Exception as e:
         logger.error("Failed to set language: %s, using 'en_US' as default language", e)
@@ -80,7 +79,12 @@ def main():
 
     args = parser.parse_args()
 
+    require_runtime_deps()
+
     try:
+        from .configuration.model_configuration import ModelConfiguration
+        from .core import DynamicFrameworkWrapper
+
         model_config = ModelConfiguration(args.configfile, args.skip_inputs_validation)
         model = DynamicFrameworkWrapper.load(model_config)
         model.run()

@@ -4,7 +4,6 @@ from rubem.configuration.model_constants import ModelConstants
 
 
 class TestModelConstants:
-
     @pytest.mark.unit
     @pytest.mark.parametrize(
         "fpar_max, fpar_min, lai_max, imp_int",

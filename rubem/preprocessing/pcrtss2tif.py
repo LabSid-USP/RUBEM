@@ -20,10 +20,11 @@
 
 """Common file conversion to generate input data used by RUBEM"""
 
-from osgeo import gdal
+import os
+
 import numpy as np
 import pcraster as pcr
-import os
+from osgeo import gdal
 
 
 def numpy2tif(sourceTif, outpath, numpy_array):
@@ -48,9 +49,7 @@ def numpy2tif(sourceTif, outpath, numpy_array):
     trans = ds.GetGeoTransform()
     # create the output image
     driver = ds.GetDriver()
-    outDs = driver.Create(
-        out_tif, cols, rows, 1, gdal.GDT_Int32, options=["COMPRESS=LZW"]
-    )
+    outDs = driver.Create(out_tif, cols, rows, 1, gdal.GDT_Int32, options=["COMPRESS=LZW"])
     outBand = outDs.GetRasterBand(1)
     outBand.SetNoDataValue(-9999)
     outBand.WriteArray(numpy_array)
@@ -75,9 +74,7 @@ def pcrTss2Tif(inputFolder, demSrc):
     src = demSrc
     outpath = inputFolder
     print(outpath)
-    files_path = [
-        os.path.join(outpath, fn) for fn in next(os.walk(outpath))[2]
-    ]
+    files_path = [os.path.join(outpath, fn) for fn in next(os.walk(outpath))[2]]
     for i in range(len(files_path)):
         print(files_path[i])
         readFile = pcr.readmap(files_path[i])

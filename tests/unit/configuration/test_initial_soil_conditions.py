@@ -1,11 +1,11 @@
 import sys
+
 import pytest
 
 from rubem.configuration.initial_soil_conditions import InitialSoilConditions
 
 
 class TestInitialSoilConditions:
-
     @pytest.mark.unit
     @pytest.mark.parametrize(
         "initial_soil_moisture_content, baseflow_ini, baseflow_lim, initial_saturated_zone_storage",

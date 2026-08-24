@@ -24,13 +24,14 @@ import time
 
 t1 = time.time()
 import os
-from osgeo import gdal
+
 import numpy as np
-import skgstat as skg
 import pykrige.kriging_tools as kt
-from pykrige.ok import OrdinaryKriging
+import skgstat as skg
+from osgeo import gdal
 from pcraster import *
 from pcraster.framework import *
+from pykrige.ok import OrdinaryKriging
 
 
 class Krige_Interpolation(DynamicModel):
@@ -105,9 +106,7 @@ class Krige_Interpolation(DynamicModel):
                 enable_plotting=False,
                 coordinates_type="geographic",
             )
-            self.z, ss = OK.execute(
-                "grid", self.gridx, (np.flip(self.gridy, axis=0))
-            )
+            self.z, ss = OK.execute("grid", self.gridx, (np.flip(self.gridy, axis=0)))
             self.z1 = np.where(self.z < 0, 0, self.z)
 
         self.rain = numpy2pcr(Scalar, self.z1, -999)

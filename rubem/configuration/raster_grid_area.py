@@ -17,4 +17,4 @@ class RasterGrid:
         self.area = size**2
 
     def __str__(self) -> str:
-        return f"{ self.area } [m²]"
+        return f"{self.area} [m²]"

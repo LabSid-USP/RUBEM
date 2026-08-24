@@ -24,7 +24,7 @@ class AllOnesValidatorHandler(BaseValidatorHandler):
             self.logger.info("`FORBID_ALL_ONES` validator skipped because no rules were set.")
             return super().handle(raster, errors)
 
-        if not RasterDataRules.FORBID_ALL_ONES in raster.rules:
+        if RasterDataRules.FORBID_ALL_ONES not in raster.rules:
             self.logger.debug("`FORBID_ALL_ONES` validator skipped because the rule was not set.")
             return super().handle(raster, errors)
 

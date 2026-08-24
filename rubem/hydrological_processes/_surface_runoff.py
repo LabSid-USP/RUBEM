@@ -90,7 +90,7 @@ class SurfaceRunoff:
         return (
             w1 * (0.02 / manning)
             + w2 * (tuw / (1 - tuw))
-            + w3 * ((land_surface_slope / (10 + land_surface_slope)))
+            + w3 * (land_surface_slope / (10 + land_surface_slope))
         )
 
     @staticmethod
@@ -184,7 +184,7 @@ class SurfaceRunoff:
         interception: Field,
         open_water_area_fraction: Field,
         evapotranspiration_open_water_area: Field,
-        actual_soil_moist_cont : Field,
+        actual_soil_moist_cont: Field,
         soil_moist_cont_sat_point: Field,
     ) -> Field:
         """Return surface runoff [mm].
@@ -229,7 +229,7 @@ class SurfaceRunoff:
         ) * cond_positive_prec_etowa * cond_water_pixel
 
         # condition for tur > tursat
-        cond_saturation = pcr.scalar(actual_soil_moist_cont  == soil_moist_cont_sat_point)
+        cond_saturation = pcr.scalar(actual_soil_moist_cont == soil_moist_cont_sat_point)
         return (
             (partial_surface_runoff * (1 - cond_saturation))
             + (precipitation - interception) * (cond_saturation) * (1 - cond_water_pixel)

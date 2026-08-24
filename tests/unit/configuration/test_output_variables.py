@@ -1,12 +1,10 @@
-import py
 import pytest
-from rubem.configuration.output_format import OutputFileFormat
 
+from rubem.configuration.output_format import OutputFileFormat
 from rubem.configuration.output_variables import OutputVariables
 
 
 class TestOutputVariables:
-
     @pytest.mark.unit
     @pytest.mark.parametrize(
         "itp, bfw, srn, eta, lfw, rec, smc, rnf, tss, output_format",

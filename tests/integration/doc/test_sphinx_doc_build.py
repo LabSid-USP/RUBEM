@@ -6,7 +6,6 @@ from sphinx.application import Sphinx
 
 
 class TestSphinxDocBuild:
-
     @pytest.mark.integration
     def test_build_html_docs(self):
         with tempfile.TemporaryDirectory() as temp_dir:

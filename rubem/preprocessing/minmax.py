@@ -10,11 +10,11 @@
 
 """Common file conversion functionality used by RUBEM"""
 
-import os
 import glob
-from osgeo import gdal
-import numpy as np
+import os
 
+import numpy as np
+from osgeo import gdal
 
 ##Attributes, defined by the user
 # Input_path =  'Directory containing the files'.
@@ -70,9 +70,7 @@ def numpy2tif(sourceTif, outpath, numpy_array):
     trans = ds.GetGeoTransform()
     # create the output image
     driver = ds.GetDriver()
-    outDs = driver.Create(
-        out_tif, cols, rows, 1, gdal.GDT_Float64, options=["COMPRESS=LZW"]
-    )
+    outDs = driver.Create(out_tif, cols, rows, 1, gdal.GDT_Float64, options=["COMPRESS=LZW"])
     outBand = outDs.GetRasterBand(1)
     outBand.SetNoDataValue(-999)
     outBand.WriteArray(numpy_array)

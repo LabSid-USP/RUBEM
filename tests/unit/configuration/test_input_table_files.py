@@ -1,4 +1,5 @@
 import os
+
 import pytest
 
 from rubem.configuration.input_table_files import InputTableFiles
