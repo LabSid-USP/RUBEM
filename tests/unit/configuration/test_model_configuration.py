@@ -49,7 +49,6 @@ class TestModelConfiguration:
             "rootzone_depth": "test_path/test_file.txt",
             "k_c_min": "test_path/test_file.txt",
             "k_c_max": "test_path/test_file.txt",
-            "t_por": "test_path/test_file.txt",
         },
         "GRID": {"grid": 500.0},
         "CALIBRATION": {
@@ -127,8 +126,7 @@ class TestModelConfiguration:
             "t_wp": "test_path/test_file.txt",
             "rootzone_depth": "test_path/test_file.txt",
             "k_c_min": "test_path/test_file.txt",
-            "k_c_max": "test_path/test_file.txt",
-            "t_por": "test_path/test_file.txt"
+            "k_c_max": "test_path/test_file.txt"
         },
         "GRID": {
             "grid": 500.0
