@@ -30,6 +30,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         ``None``, which reads ``sys.argv``.
     :type argv: Sequence[str], optional
 
+    :raises SystemExit(0): After ``--version`` or ``--help``.
     :raises SystemExit(1): If the simulation fails.
     :raises SystemExit(2): If the arguments are invalid or the program is
         interrupted by the user.

@@ -25,6 +25,8 @@ Unreleased
 - Failed clearly when the first NDVI or land-use raster cannot be read.
 - Gave ``rubem.cli.main`` an argument list parameter, removed the PyInstaller
   launcher module, and made the GeoTIFF writer reject unsupported formats.
+  Run the model with ``rubem`` or ``python -m rubem``; executing the package
+  directory as a script (``python rubem``) is no longer supported.
 
 Version 0.9.0-beta.3
 ---------------------
