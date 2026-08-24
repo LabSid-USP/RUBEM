@@ -1,17 +1,57 @@
 import csv
 import logging
 import os
+import tempfile
 
 logger = logging.getLogger(__name__)
 
 
 def _remove(file_path: str) -> None:
-    """Remove ``file_path`` if it exists, logging instead of raising on failure."""
+    """Remove ``file_path`` if it exists, logging instead of raising on failure.
+
+    Existence is checked with ``os.path.lexists`` so that a symlink is removed
+    as the entry it is, even when it points nowhere.
+    """
     try:
-        if os.path.isfile(file_path):
+        if os.path.lexists(file_path):
             os.remove(file_path)
     except OSError as e:
         logger.error("Error while deleting file %s. %s", file_path, e)
+
+
+def _stage_path(dst_file_path: str, suffix: str) -> str:
+    """Reserve a unique path next to ``dst_file_path`` and return it.
+
+    Staging and backup names are allocated instead of derived from the
+    destination, so a file the user keeps as ``<destination>.tmp`` or
+    ``<destination>.bak`` is never overwritten by a conversion, nor deleted by
+    its cleanup.
+    """
+    directory, name = os.path.split(dst_file_path)
+    handle, path = tempfile.mkstemp(dir=directory or ".", prefix=f".{name}.", suffix=suffix)
+    os.close(handle)
+    return path
+
+
+def _backup_destination(dst_file_path: str) -> str | None:
+    """Move an existing destination aside and return its backup path.
+
+    ``os.path.lexists`` is deliberate: a dangling symlink is invisible to
+    ``os.path.isfile``, so it would be replaced without a backup and lost when
+    the transaction rolled back.
+
+    :raises IsADirectoryError: If the destination is a directory, which cannot
+        be replaced by the converted file.
+    """
+    if not os.path.lexists(dst_file_path):
+        return None
+    if os.path.isdir(dst_file_path) and not os.path.islink(dst_file_path):
+        raise IsADirectoryError(
+            f"The destination {dst_file_path} is a directory and cannot be replaced."
+        )
+    backup_file_path = _stage_path(dst_file_path, ".bak")
+    os.replace(dst_file_path, backup_file_path)
+    return backup_file_path
 
 
 def _undo_installs(installs: list[tuple[str, str | None]]) -> None:
@@ -43,7 +83,11 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
     were produced, any destination being overwritten is kept as a backup
     until every rename succeeded, and the sources are removed last. A failure
     therefore leaves the sources and the previous CSV files untouched. Only
-    the files passed in are read; nothing else in their directories is.
+    the files passed in are read; nothing else in their directories is, and
+    the staging and backup names are allocated so that unrelated files next to
+    a destination are never overwritten.
+
+    :raises IsADirectoryError: If a destination path is an existing directory.
 
     :param tss_files: Paths of the ``.tss`` files to convert.
     :type tss_files: list
@@ -70,7 +114,6 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
     try:
         for tss_file in tss_files:
             dst_file_path = f"{os.path.splitext(tss_file)[0]}.csv"
-            tmp_file_path = f"{dst_file_path}.tmp"
 
             with open(file=tss_file, mode="r", encoding="utf8") as f:
                 lines = f.readlines()
@@ -86,16 +129,15 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
                     "from the number of column names."
                 )
 
+            tmp_file_path = _stage_path(dst_file_path, ".tmp")
+            pending.append((tmp_file_path, dst_file_path))
             with open(file=tmp_file_path, mode="w", encoding="utf8", newline="") as csvfile:
                 writer = csv.writer(csvfile, delimiter=";")
                 writer.writerow(header)
                 writer.writerows(data)
-            pending.append((tmp_file_path, dst_file_path))
 
         for tmp_file_path, dst_file_path in pending:
-            backup_file_path = f"{dst_file_path}.bak" if os.path.isfile(dst_file_path) else None
-            if backup_file_path:
-                os.replace(dst_file_path, backup_file_path)
+            backup_file_path = _backup_destination(dst_file_path)
             # Recorded before the install so that a failure in it is undone too.
             installs.append((dst_file_path, backup_file_path))
             os.replace(tmp_file_path, dst_file_path)

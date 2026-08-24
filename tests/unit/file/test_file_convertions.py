@@ -127,3 +127,61 @@ class TestTss2Csv:
             tss2csv([first, second], ["1"])
 
         assert sorted(path.name for path in tmp_path.iterdir()) == ["tss_a.tss", "tss_b.tss"]
+
+    @pytest.mark.unit
+    def test_neighbouring_backup_and_staging_files_are_left_alone(self, tmp_path):
+        """Files the user keeps next to a destination are not part of the transaction."""
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5)])
+        (tmp_path / "tss_itp.csv").write_text("previous\n", encoding="utf8")
+        (tmp_path / "tss_itp.csv.bak").write_text("kept backup\n", encoding="utf8")
+        (tmp_path / "tss_itp.csv.tmp").write_text("kept staging\n", encoding="utf8")
+
+        tss2csv([tss], ["1"])
+
+        assert (tmp_path / "tss_itp.csv.bak").read_text(encoding="utf8") == "kept backup\n"
+        assert (tmp_path / "tss_itp.csv.tmp").read_text(encoding="utf8") == "kept staging\n"
+        assert (tmp_path / "tss_itp.csv").read_text(encoding="utf8").splitlines() == [
+            "0;1",
+            "1;10.5",
+        ]
+        assert sorted(path.name for path in tmp_path.iterdir()) == [
+            "tss_itp.csv",
+            "tss_itp.csv.bak",
+            "tss_itp.csv.tmp",
+        ]
+
+    @pytest.mark.unit
+    def test_failed_rename_restores_a_dangling_destination_symlink(self, tmp_path, monkeypatch):
+        """A symlink destination is an entry to preserve, even if it points nowhere."""
+        first = tmp_path / "tss_a.tss"
+        second = tmp_path / "tss_b.tss"
+        write_tss(first, [(1, 10.5)])
+        write_tss(second, [(1, 20.5)])
+        link = tmp_path / "tss_a.csv"
+        link.symlink_to(tmp_path / "missing_target.csv")
+
+        monkeypatch.setattr(os, "replace", refuse_to_install("tss_b.csv"))
+
+        with pytest.raises(PermissionError):
+            tss2csv([first, second], ["1"])
+
+        assert os.path.islink(link)
+        assert os.readlink(link) == str(tmp_path / "missing_target.csv")
+        assert sorted(path.name for path in tmp_path.iterdir()) == [
+            "tss_a.csv",
+            "tss_a.tss",
+            "tss_b.tss",
+        ]
+
+    @pytest.mark.unit
+    def test_directory_destination_is_refused_without_touching_anything(self, tmp_path):
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5)])
+        (tmp_path / "tss_itp.csv").mkdir()
+
+        with pytest.raises(IsADirectoryError):
+            tss2csv([tss], ["1"])
+
+        assert (tmp_path / "tss_itp.csv").is_dir()
+        assert sorted(path.name for path in tmp_path.iterdir()) == ["tss_itp.csv", "tss_itp.tss"]
