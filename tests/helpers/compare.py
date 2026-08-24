@@ -12,6 +12,12 @@ absolute value on variables that no input change touches, so tighter defaults
 would flag pure environment noise. Real regressions sit orders of magnitude
 above 1e-5 relative; byte identity is asserted only by the ``exact`` job on
 the environment frozen in ``ci/golden-env.lock``.
+
+Georeferencing is compared on its own scale: the data ``rtol`` would make the
+accepted spatial shift grow with the magnitude of the coordinates (an origin
+at -49.687 degrees would accept ~5e-4 degrees, tens of metres, and a projected
+origin would accept kilometres), so geotransform components are compared with
+``rtol=0`` and an absolute tolerance derived from the pixel size.
 """
 
 import hashlib
@@ -29,6 +35,7 @@ PathLike = Union[str, bytes, os.PathLike]
 
 DEFAULT_RTOL = 1e-5
 DEFAULT_ATOL = 1e-8
+GEOTRANSFORM_PIXEL_FRACTION = 1e-6
 RASTER_FIELDS = ("bands", "shape", "nodata", "values", "geotransform", "projection")
 
 
@@ -74,6 +81,19 @@ def _nodata_mask(array, nodata):
     if np.isnan(nodata):
         return np.isnan(array)
     return np.isclose(array, nodata, rtol=0.0, atol=0.0)
+
+
+def _geotransform_atol(geotransform, fraction=GEOTRANSFORM_PIXEL_FRACTION):
+    """Return the absolute tolerance for geotransform components, in CRS units.
+
+    The meaningful scale of a geotransform is the pixel, never the magnitude of
+    the coordinates: a relative tolerance would accept a misregistration
+    proportional to the origin (and none at all for an origin of zero). The
+    tolerance is therefore a fraction of one pixel, which stays well above
+    Float64 noise and well below any shift that would matter on a map.
+    """
+    pixel = max(abs(geotransform[1]), abs(geotransform[5]))
+    return fraction * (pixel or 1.0)
 
 
 def _require_file(path, label):
@@ -124,10 +144,15 @@ def compare_rasters(
     *,
     rtol: float = DEFAULT_RTOL,
     atol: float = DEFAULT_ATOL,
+    geotransform_fraction: float = GEOTRANSFORM_PIXEL_FRACTION,
     fields=RASTER_FIELDS,
 ) -> CompareResult:
     """Compare two rasters field by field.
 
+    :param rtol: Relative tolerance for cell values only.
+    :param atol: Absolute tolerance for cell values only.
+    :param geotransform_fraction: Accepted misregistration, as a fraction of
+        one pixel; ``0.0`` requires identical geotransform components.
     :param fields: Which aspects to compare; any subset of
         ``("bands", "shape", "nodata", "values", "geotransform", "projection")``.
     """
@@ -148,14 +173,16 @@ def compare_rasters(
         if "geotransform" in fields:
             geotransform1 = raster1.GetGeoTransform()
             geotransform2 = raster2.GetGeoTransform()
+            tolerance = _geotransform_atol(geotransform1, geotransform_fraction)
             for index, (component1, component2) in enumerate(
                 zip(geotransform1, geotransform2)
             ):
-                if not np.isclose(component1, component2, rtol=rtol, atol=atol):
+                if not np.isclose(component1, component2, rtol=0.0, atol=tolerance):
                     differences.append(
                         Difference(
                             "geotransform",
-                            f"component {index}: {component1!r} vs {component2!r}",
+                            f"component {index}: {component1!r} vs {component2!r} "
+                            f"(atol {tolerance!r})",
                         )
                     )
         if "projection" in fields:
