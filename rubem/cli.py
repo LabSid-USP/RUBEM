@@ -96,18 +96,18 @@ def main():
         # show (see doc/source/tutorials.rst) is written here, so that an
         # embedded run stays silent unless its host configures logging.
         validating = " and validating inputs" if args.skip_inputs_validation else ""
-        print(f"Loading configuration{validating}...")
+        print(f"Loading configuration{validating}...", flush=True)
         model_config = ModelConfiguration(args.configfile, args.skip_inputs_validation)
         model = DynamicFrameworkWrapper.load(model_config)
 
-        print("Simulation started...")
+        print("Simulation started...", flush=True)
         started = time.time()
         try:
             model.run()
-            print("Simulation finished successfully!")
+            print("Simulation finished successfully!", flush=True)
         finally:
             elapsed = humanize.precisedelta(time.time() - started, minimum_unit="seconds")
-            print(f"Elapsed time: {elapsed}")
+            print(f"Elapsed time: {elapsed}", flush=True)
     except Exception as e:
         logger.critical("RUBEM unexpectedly quit.")
         logger.exception(e)
@@ -127,14 +127,33 @@ def setup_logging(custom_logging_config: Optional[dict] = None):
         "level": logging.WARNING,
     }
     basic_formatter_config = {"format": log_format, "datefmt": "%Y-%m-%dT%H:%M:%S%z"}
+    # Progress records carry a message meant for a person, so they are printed
+    # verbatim on stdout. The library only emits them; without this handler an
+    # embedded run says nothing.
+    progress_handler_config = {
+        "class": "logging.StreamHandler",
+        "formatter": "progress_formatter",
+        "level": logging.INFO,
+        "stream": "ext://sys.stdout",
+    }
     default_logging_config = {
         "version": 1,
         # Every module logger, this one included, is created at import time, before
         # this runs. ``dictConfig`` disables pre-existing loggers unless told not to,
         # which would silently discard everything they log afterwards.
         "disable_existing_loggers": False,
-        "formatters": {"basic_formatter": basic_formatter_config},
-        "handlers": {"console": console_handler_config},
+        "formatters": {
+            "basic_formatter": basic_formatter_config,
+            "progress_formatter": {"format": "%(message)s"},
+        },
+        "handlers": {"console": console_handler_config, "progress": progress_handler_config},
+        "loggers": {
+            "rubem.progress": {
+                "handlers": ["progress"],
+                "level": logging.INFO,
+                "propagate": False,
+            }
+        },
         "root": {"handlers": ["console"], "level": logging.DEBUG},
     }
 

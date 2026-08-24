@@ -33,6 +33,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
     def __init__(self, config: ModelConfiguration):
         pcrfw.DynamicModel.__init__(self)
         self.logger = logging.getLogger(__name__)
+        # User-facing progress: silent unless a front end configures it, which
+        # the CLI does in ``rubem.cli.setup_logging``.
+        self.progress = logging.getLogger("rubem.progress")
 
         self.config = config
 
@@ -203,7 +206,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.config.simulation_period.last_step,
             current_date.strftime("%b/%Y"),
         )
-        print(f"## Timestep {current_timestep} of {self.config.simulation_period.last_step}")
+        self.progress.info(
+            "## Timestep %d of %d", current_timestep, self.config.simulation_period.last_step
+        )
 
         self.logger.debug("Reading NDVI map from '%s'...", self.config.raster_series.ndvi)
         try:

@@ -38,6 +38,13 @@ class TestDynamicFrameworkWrapper:
         assert not list(output_dir.glob("*.tss")), "tss files must be converted to csv"
 
     @pytest.mark.unit
+    def test_an_embedded_run_writes_nothing_to_stdout(self, tmp_path, capsys):
+        """The library reports through logging; only a front end prints."""
+        run_model(str(tmp_path))
+
+        assert capsys.readouterr().out == ""
+
+    @pytest.mark.unit
     def test_outputs_are_finite_on_valid_cells(self, tmp_path):
         run_model(str(tmp_path))
         for variable in VARIABLES:
