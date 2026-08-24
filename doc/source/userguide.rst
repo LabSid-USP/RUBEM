@@ -1090,7 +1090,7 @@ When running RUBEM without any arguments, you will see the following message on 
 
 .. code-block:: console
 
-   $ python rubem
+   $ rubem
    usage: rubem [-h] -c CONFIGFILE [-V] [-s]
    rubem: error: the following arguments are required: -c/--configfile
 
@@ -1101,7 +1101,7 @@ Use ``-h`` or ``--help`` to get a brief description of RUBEM and each argument.
 
 .. code-block:: console
 
-   $ python rubem -h
+   $ rubem -h
    usage: rubem [-h] -c CONFIGFILE [-V] [-s]
 
    Rainfall rUnoff Balance Enhanced Model (RUBEM)
@@ -1121,14 +1121,14 @@ Use ``-V`` or ``--version`` to get the version of the RUBEM.
 
 .. code-block:: console
 
-   $ python rubem --version
+   $ rubem --version
    RUBEM v0.9.0-beta.3
 
 Use ``-c`` or ``--configfile`` to set the path of the RUBEM configuration file.
 
 .. code-block:: console
 
-   $ python rubem --configfile project-config.json
+   $ rubem --configfile project-config.json
    .## Timestep 1 of 24
    .## Timestep 2 of 24
    .## Timestep 3 of 24

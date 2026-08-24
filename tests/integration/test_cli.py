@@ -16,21 +16,32 @@ from tests.helpers.config import (
     base_model_config,
 )
 
-RUBEM_ENTRY = os.path.join(REPO_ROOT, "rubem")
+RUBEM_COMMAND = [sys.executable, "-m", "rubem"]
+
+
+def cli_environment():
+    """Environment for a ``python -m rubem`` child that runs the checkout.
+
+    The repository root goes first on ``PYTHONPATH`` so that the command works
+    from any working directory whether or not the package is installed, and
+    the packaged settings are used whatever the caller's ``PYTHON_ENVIRONMENT``.
+    """
+    env = dict(os.environ)
+    env.pop("PYTHON_ENVIRONMENT", None)
+    env["PYTHONPATH"] = os.pathsep.join(path for path in (REPO_ROOT, env.get("PYTHONPATH")) if path)
+    return env
 
 
 def run_cli(*args):
-    return subprocess.check_output([sys.executable, RUBEM_ENTRY, *args], cwd=REPO_ROOT)
+    return subprocess.check_output([*RUBEM_COMMAND, *args], cwd=REPO_ROOT, env=cli_environment())
 
 
 def run_cli_capture(*args):
-    """Run the CLI on the packaged settings without raising, capturing both streams."""
-    env = dict(os.environ)
-    env.pop("PYTHON_ENVIRONMENT", None)
+    """Run the CLI without raising, capturing both streams."""
     return subprocess.run(
-        [sys.executable, RUBEM_ENTRY, *args],
+        [*RUBEM_COMMAND, *args],
         cwd=REPO_ROOT,
-        env=env,
+        env=cli_environment(),
         capture_output=True,
         text=True,
         check=False,
@@ -196,7 +207,7 @@ class TestCliApp:
                 f.write(json.dumps(base_model_config(output_dir)))
 
             subprocess.check_output(
-                [sys.executable, RUBEM_ENTRY, "-c", config_path], cwd=scratch_cwd
+                [*RUBEM_COMMAND, "-c", config_path], cwd=scratch_cwd, env=cli_environment()
             )
 
             assert not os.listdir(scratch_cwd)
