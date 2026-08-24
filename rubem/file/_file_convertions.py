@@ -65,7 +65,14 @@ def _backup_destination(dst_file_path: str) -> str | None:
             f"The destination {dst_file_path} is a directory and cannot be replaced."
         )
     backup_file_path = _stage_path(dst_file_path, ".bak")
-    os.replace(dst_file_path, backup_file_path)
+    try:
+        os.replace(dst_file_path, backup_file_path)
+    except OSError:
+        # The reserved path is not recorded anywhere yet, so the rollback in
+        # ``tss2csv`` cannot know about it: it is released here instead of
+        # being left behind on every failed conversion.
+        _remove(backup_file_path)
+        raise
     return backup_file_path
 
 

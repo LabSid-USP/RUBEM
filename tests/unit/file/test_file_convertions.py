@@ -255,3 +255,24 @@ class TestTss2Csv:
 
         converted = tmp_path / "tss_itp.csv"
         assert converted.stat().st_mode & 0o777 == control.stat().st_mode & 0o777
+
+    @pytest.mark.unit
+    def test_a_failed_backup_leaves_no_reserved_file(self, tmp_path, monkeypatch):
+        """The reserved backup path is released when the destination cannot move."""
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5)])
+        (tmp_path / "tss_itp.csv").write_text("previous\n", encoding="utf8")
+        real_replace = os.replace
+
+        def refuse_backup(src, dst):
+            if str(dst).endswith(".bak"):
+                raise PermissionError(f"{src} cannot be moved to {dst}")
+            return real_replace(src, dst)
+
+        monkeypatch.setattr(os, "replace", refuse_backup)
+
+        with pytest.raises(PermissionError):
+            tss2csv([tss], ["1"])
+
+        assert (tmp_path / "tss_itp.csv").read_text(encoding="utf8") == "previous\n"
+        assert sorted(path.name for path in tmp_path.iterdir()) == ["tss_itp.csv", "tss_itp.tss"]
