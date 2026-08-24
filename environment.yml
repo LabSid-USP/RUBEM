@@ -1,0 +1,15 @@
+# Runtime environment for RUBEM.
+#
+# pcraster and gdal are distributed only through conda-forge; create this
+# environment first and then install RUBEM into it with `pip install .`.
+name: rubem
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.12
+  - gdal=3.*
+  - humanize>=4
+  - numpy=2.*
+  - pcraster=4.4.*
+  - pip
+  - python-dateutil>=2
