@@ -45,6 +45,27 @@ class TestCliRun:
         assert "Simulation finished successfully!" in output
 
     @pytest.mark.unit
+    def test_a_failing_run_logs_one_traceback(self, tmp_path, monkeypatch, capsys, restore_logging):
+        """The library reports the failure; only the CLI prints its traceback."""
+        from pcraster.framework import DynamicFramework
+
+        config_path = tmp_path / "config.json"
+        config_path.write_text(json.dumps(write_synthetic_dataset(str(tmp_path))), encoding="utf8")
+        monkeypatch.setattr(sys, "argv", ["rubem", "-c", str(config_path)])
+
+        def fail(self):
+            raise RuntimeError("the framework failed")
+
+        monkeypatch.setattr(DynamicFramework, "run", fail)
+
+        with pytest.raises(SystemExit):
+            main()
+
+        logged = capsys.readouterr().err
+        assert logged.count("Traceback (most recent call last)") == 1
+        assert "Simulation failed: the framework failed" in logged
+
+    @pytest.mark.unit
     def test_a_failing_run_exits_with_one(self, tmp_path, monkeypatch, capsys, restore_logging):
         config_path = tmp_path / "config.json"
         config_path.write_text(json.dumps({}), encoding="utf8")

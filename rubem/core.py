@@ -58,8 +58,11 @@ class DynamicFrameworkWrapper:
         try:
             self.dynamic_model.run()
             self.logger.info("Simulation finished successfully!")
-        except RuntimeError:
-            self.logger.exception("Simulation failed.")
+        except RuntimeError as error:
+            # The exception carries the traceback to whoever handles it; logging
+            # it here as well would print it twice under the CLI, which logs it
+            # once at its own boundary.
+            self.logger.error("Simulation failed: %s", error)
             raise
         finally:
             exec_time = time.time() - t0
