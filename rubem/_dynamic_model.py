@@ -3,6 +3,7 @@ import os
 import warnings
 from calendar import monthrange
 from collections.abc import Callable
+from pathlib import Path
 
 import numpy as np
 import pcraster as pcr
@@ -617,9 +618,8 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             if OutputFileFormat.PCRASTER in self.config.output_variables.file_formats:
                 self.report(
                     variable=output_vars_dict.get(var.get("id")),
-                    name=os.path.join(
-                        self.config.output_directory.path,
-                        var.get("raster_filename_prefix"),
+                    name=str(
+                        Path(self.config.output_directory.path) / var.get("raster_filename_prefix")
                     ),
                 )
 
@@ -651,10 +651,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         """
         for var in self.config.output_variables.get_enabled_time_series():
             tss_file = TimeoutputTimeseriesAdapter(
-                os.path.join(
-                    self.config.output_directory.path,
-                    var.get("table_filename_prefix"),
-                ),
+                str(Path(self.config.output_directory.path) / var.get("table_filename_prefix")),
                 self,
                 self.config.raster_files.sample_locations,
                 noHeader=True,

@@ -10,6 +10,7 @@ total (``itp0000001.tif``).
 
 import os
 import re
+from pathlib import Path
 
 RASTER_SERIES_BASENAME_LENGTH = 8
 RASTER_SERIES_EXTENSION_LENGTH = 3
@@ -51,9 +52,7 @@ def get_raster_series_filepath(directory, prefix: str, timestep: int) -> str:
     :param prefix: File name prefix, see :func:`raster_series_filename`.
     :param timestep: Time step, ``1`` or greater.
     """
-    return os.path.abspath(
-        os.path.join(os.fsdecode(directory), raster_series_filename(prefix, timestep))
-    )
+    return str((Path(os.fsdecode(directory)) / raster_series_filename(prefix, timestep)).absolute())
 
 
 def raster_series_pattern(prefix: str) -> re.Pattern:

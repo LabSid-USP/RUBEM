@@ -1,6 +1,9 @@
 import json
 import os
+from pathlib import Path
 from typing import Any
+
+from .._paths import PathInput, as_path
 
 
 class AppSettings:
@@ -12,20 +15,16 @@ class AppSettings:
     """
 
     __instance = None
-    __default_appsettings_dir = os.path.join(os.path.dirname(__file__), os.pardir)
-    __default_appsettings_file = os.path.abspath(
-        os.path.join(__default_appsettings_dir, "appsettings.json")
-    )
+    __default_appsettings_dir = Path(__file__).parent.parent
+    __default_appsettings_file = str((__default_appsettings_dir / "appsettings.json").absolute())
 
     if "PYTHON_ENVIRONMENT" in os.environ and os.environ["PYTHON_ENVIRONMENT"]:
         custom_env_settings = f"appsettings.{os.environ['PYTHON_ENVIRONMENT']}.json"
-        for candidate_dir in (__default_appsettings_dir, os.getcwd()):
-            custom_env_settings_path = os.path.abspath(
-                os.path.join(candidate_dir, custom_env_settings)
-            )
+        for candidate_dir in (__default_appsettings_dir, Path.cwd()):
+            custom_env_settings_path = str((candidate_dir / custom_env_settings).absolute())
             if (
-                os.path.isfile(custom_env_settings_path)
-                and os.path.getsize(custom_env_settings_path) > 0
+                Path(custom_env_settings_path).is_file()
+                and Path(custom_env_settings_path).stat().st_size > 0
             ):
                 __default_appsettings_file = custom_env_settings_path
                 break
@@ -53,7 +52,7 @@ class AppSettings:
         self.__initialized = True
         self.load()
 
-    def load(self, app_settings_file_path: str | bytes | os.PathLike | None = None) -> None:
+    def load(self, app_settings_file_path: PathInput | None = None) -> None:
         """
         Load the specified application settings or from the default appsettings.json file.
 
@@ -64,18 +63,17 @@ class AppSettings:
         """
 
         if app_settings_file_path:
-            app_settings_file_path_str = os.path.abspath(app_settings_file_path)
+            app_settings_file_path_str = str(as_path(app_settings_file_path).absolute())
         else:
             app_settings_file_path_str = self.__default_appsettings_file
 
-        if not os.path.exists(app_settings_file_path_str) or not os.path.isfile(
-            app_settings_file_path_str
-        ):
+        settings_path = Path(app_settings_file_path_str)
+        if not settings_path.exists() or not settings_path.is_file():
             raise FileNotFoundError(
                 f"Application settings file not found: {app_settings_file_path_str}"
             )
 
-        with open(app_settings_file_path_str, encoding="utf8") as file:
+        with settings_path.open(encoding="utf8") as file:
             self.settings = json.load(file)
 
     def get_setting(self, key: str) -> Any:

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pcraster.framework as pcrfw
 
@@ -21,14 +22,14 @@ class TimeoutputTimeseriesAdapter(pcrfw.TimeoutputTimeseries):
     """
 
     def _configureOutputFilename(self, filename):
-        if not os.path.splitext(filename)[1]:
+        if not Path(filename).suffix:
             filename += ".tss"
 
         if hasattr(self._userModel, "nrSamples"):
             directory, basename = os.path.split(filename)
-            sample_directory = os.path.join(directory, str(self._userModel.currentSampleNumber()))
+            sample_directory = str(Path(directory) / str(self._userModel.currentSampleNumber()))
             if directory:
-                os.makedirs(sample_directory, exist_ok=True)
-            filename = os.path.join(sample_directory, basename)
+                Path(sample_directory).mkdir(parents=True, exist_ok=True)
+            filename = str(Path(sample_directory) / basename)
 
         return filename

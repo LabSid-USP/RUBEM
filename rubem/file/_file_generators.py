@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 
 from osgeo import gdal
 from pcraster._pcraster import Field
@@ -76,7 +77,7 @@ def __report(
         filename = output_raster_filename(name, timestep, extension)
     else:
         filename = f"{name}.{extension}"
-    out_tif = os.path.abspath(os.path.join(os.fsdecode(outpath), filename))
+    out_tif = str((Path(os.fsdecode(outpath)) / filename).absolute())
 
     gdal.UseExceptions()
     gdal.AllRegister()
@@ -98,9 +99,10 @@ def __report(
                 dataset.SetProjection(base_raster_info.projection)
     except Exception as e:
         # A partially written file would pass for a result of the run.
-        if os.path.lexists(out_tif):
+        out_tif_path = Path(out_tif)
+        if out_tif_path.is_symlink() or out_tif_path.exists():
             try:
-                os.remove(out_tif)
+                out_tif_path.unlink()
             except OSError as removal_error:
                 logger.error("Could not remove the partial file %s: %s", out_tif, removal_error)
         raise RuntimeError(f"Could not write the raster {out_tif}: {e}") from e

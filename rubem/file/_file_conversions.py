@@ -3,6 +3,7 @@ import logging
 import os
 import stat
 import uuid
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,9 @@ def _remove(file_path: str) -> bool:
     :rtype: bool
     """
     try:
-        if os.path.lexists(file_path):
-            os.remove(file_path)
+        path = Path(file_path)
+        if path.is_symlink() or path.exists():
+            path.unlink()
         return True
     except OSError as e:
         logger.error("Error while deleting file %s. %s", file_path, e)
@@ -47,7 +49,7 @@ def _reserve_stage(dst_file_path: str, suffix: str) -> tuple[int, str]:
     """
     directory, name = os.path.split(dst_file_path)
     for _ in range(_STAGE_ATTEMPTS):
-        path = os.path.join(directory or ".", f".{name}.{uuid.uuid4().hex[:8]}{suffix}")
+        path = str(Path(directory or ".") / f".{name}.{uuid.uuid4().hex[:8]}{suffix}")
         try:
             handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o666)
         except FileExistsError:
@@ -76,7 +78,7 @@ def _apply_mode(handle: int, path: str, mode: int | None) -> None:
     if hasattr(os, "fchmod"):
         os.fchmod(handle, mode)
     else:  # pragma: no cover - exercised only on Windows
-        os.chmod(path, mode)
+        Path(path).chmod(mode)
 
 
 def _install_path(dst_file_path: str) -> str:
@@ -100,7 +102,7 @@ def _destination_mode(dst_file_path: str) -> int | None:
     exist yet has none to carry.
     """
     try:
-        return stat.S_IMODE(os.stat(dst_file_path).st_mode)
+        return stat.S_IMODE(Path(dst_file_path).stat().st_mode)
     except OSError:
         return None
 
@@ -115,15 +117,16 @@ def _backup_destination(dst_file_path: str) -> str | None:
     :raises IsADirectoryError: If the destination is a directory, which cannot
         be replaced by the converted file.
     """
-    if not os.path.lexists(dst_file_path):
+    dst_path = Path(dst_file_path)
+    if not (dst_path.is_symlink() or dst_path.exists()):
         return None
-    if os.path.isdir(dst_file_path):
+    if dst_path.is_dir():
         raise IsADirectoryError(
             f"The destination {dst_file_path} is a directory and cannot be replaced."
         )
     backup_file_path = _reserve_path(dst_file_path, ".bak")
     try:
-        os.replace(dst_file_path, backup_file_path)
+        Path(dst_file_path).replace(backup_file_path)
     except OSError:
         # The reserved path is not recorded anywhere yet, so the rollback in
         # ``tss2csv`` cannot know about it: it is released here instead of
@@ -149,7 +152,7 @@ def _undo_installs(installs: list[tuple[str, str | None]]) -> None:
             _remove(dst_file_path)
             continue
         try:
-            os.replace(backup_file_path, dst_file_path)
+            Path(backup_file_path).replace(dst_file_path)
         except OSError as e:
             logger.error("Error while restoring file %s. %s", dst_file_path, e)
 
@@ -187,9 +190,9 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
     if not cols_names:
         raise ValueError("The list of column names is empty.")
 
-    tss_files = [os.path.abspath(str(tss_file)) for tss_file in tss_files]
+    tss_files = [str(Path(str(tss_file)).absolute()) for tss_file in tss_files]
     for tss_file in tss_files:
-        if not os.path.isfile(tss_file):
+        if not Path(tss_file).is_file():
             raise FileNotFoundError(f"The time series file {tss_file} does not exist.")
 
     header = ["0"]
@@ -199,9 +202,9 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
     installs: list[tuple[str, str | None]] = []
     try:
         for tss_file in tss_files:
-            dst_file_path = _install_path(f"{os.path.splitext(tss_file)[0]}.csv")
+            dst_file_path = _install_path(str(Path(tss_file).with_suffix(".csv")))
 
-            with open(file=tss_file, encoding="utf8") as f:
+            with Path(tss_file).open(encoding="utf8") as f:
                 lines = f.readlines()
 
             data = [line.split() for line in lines if line.strip()]
@@ -235,7 +238,7 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
             backup_file_path = _backup_destination(dst_file_path)
             # Recorded before the install so that a failure in it is undone too.
             installs.append((dst_file_path, backup_file_path))
-            os.replace(tmp_file_path, dst_file_path)
+            Path(tmp_file_path).replace(dst_file_path)
     except Exception:
         _undo_installs(installs)
         for tmp_file_path, _ in pending:

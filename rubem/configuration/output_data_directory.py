@@ -1,5 +1,7 @@
 import logging
-import os
+from pathlib import Path
+
+from .._paths import PathInput, as_path
 
 
 class OutputDataDirectory:
@@ -12,27 +14,28 @@ class OutputDataDirectory:
 
     def __init__(
         self,
-        output_path: str | bytes | os.PathLike,
+        output_path: PathInput,
     ) -> None:
         self.logger = logging.getLogger(__name__)
-        self.path = str(output_path)
+        path = as_path(output_path)
+        self.path = str(path)
 
-        self.__validate_directories()
+        self.__validate_directories(path)
 
-        if not os.path.exists(self.path):
+        if not path.exists():
             self.logger.warning("Output directory does not exist: %s", self.path)
             try:
                 self.logger.info("Creating output directory: %s", self.path)
-                os.makedirs(self.path)
+                path.mkdir(parents=True)
             except Exception as e:
                 self.logger.error("Failed to create output directory: %s", e)
                 raise
 
-        if os.listdir(self.path):
+        if any(path.iterdir()):
             self.logger.warning("There is data in the output directory: %s", self.path)
 
-    def __validate_directories(self) -> None:
-        if os.path.isfile(self.path):
+    def __validate_directories(self, path: Path) -> None:
+        if path.is_file():
             self.logger.error("Output path is not a directory: %s", self.path)
             raise NotADirectoryError(f"{self.path} is not a directory")
 

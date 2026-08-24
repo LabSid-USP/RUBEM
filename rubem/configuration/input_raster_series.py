@@ -1,6 +1,7 @@
 import logging
-import os
+from pathlib import Path
 
+from .._paths import PathInput, as_path
 from ..configuration.data_ranges_settings import DataRangesSettings
 from ..configuration.raster_map import RasterMap
 from ..file._naming import RASTER_SERIES_BASENAME_LENGTH, raster_series_pattern
@@ -54,15 +55,15 @@ class InputRasterSeries:
 
     def __init__(
         self,
-        etp: str | bytes | os.PathLike,
+        etp: PathInput,
         etp_filename_prefix: str,
-        precipitation: str | bytes | os.PathLike,
+        precipitation: PathInput,
         precipitation_filename_prefix: str,
-        ndvi: str | bytes | os.PathLike,
+        ndvi: PathInput,
         ndvi_filename_prefix: str,
-        kp: str | bytes | os.PathLike,
+        kp: PathInput,
         kp_filename_prefix: str,
-        landuse: str | bytes | os.PathLike,
+        landuse: PathInput,
         landuse_filename_prefix: str,
         validate_input: bool = True,
     ) -> None:
@@ -71,15 +72,15 @@ class InputRasterSeries:
 
         self.problems = []
 
-        self.__etp_dir_path = etp
+        self.__etp_dir_path = as_path(etp)
         self.__etp_filename_prefix = etp_filename_prefix
-        self.__precipitation_dir_path = precipitation
+        self.__precipitation_dir_path = as_path(precipitation)
         self.__precipitation_filename_prefix = precipitation_filename_prefix
-        self.__ndvi_dir_path = ndvi
+        self.__ndvi_dir_path = as_path(ndvi)
         self.__ndvi_filename_prefix = ndvi_filename_prefix
-        self.__kp_dir_path = kp
+        self.__kp_dir_path = as_path(kp)
         self.__kp_filename_prefix = kp_filename_prefix
-        self.__landuse_dir_path = landuse
+        self.__landuse_dir_path = as_path(landuse)
         self.__landuse_filename_prefix = landuse_filename_prefix
 
         if validate_input:
@@ -87,19 +88,13 @@ class InputRasterSeries:
         else:
             self.logger.warning("Input data directories validation is disabled.")
 
-        self.etp = os.path.abspath(
-            os.path.join(str(self.__etp_dir_path), self.__etp_filename_prefix)
+        self.etp = str((self.__etp_dir_path / self.__etp_filename_prefix).absolute())
+        self.precipitation = str(
+            (self.__precipitation_dir_path / self.__precipitation_filename_prefix).absolute()
         )
-        self.precipitation = os.path.abspath(
-            os.path.join(str(self.__precipitation_dir_path), self.__precipitation_filename_prefix)
-        )
-        self.ndvi = os.path.abspath(
-            os.path.join(str(self.__ndvi_dir_path), self.__ndvi_filename_prefix)
-        )
-        self.kp = os.path.abspath(os.path.join(str(self.__kp_dir_path), self.__kp_filename_prefix))
-        self.landuse = os.path.abspath(
-            os.path.join(str(self.__landuse_dir_path), self.__landuse_filename_prefix)
-        )
+        self.ndvi = str((self.__ndvi_dir_path / self.__ndvi_filename_prefix).absolute())
+        self.kp = str((self.__kp_dir_path / self.__kp_filename_prefix).absolute())
+        self.landuse = str((self.__landuse_dir_path / self.__landuse_filename_prefix).absolute())
 
     def __validate_directories(self) -> None:
         directories = [
@@ -137,10 +132,10 @@ class InputRasterSeries:
 
         total_num_files = []
         for directory, prefix, valid_range, rules in directories:
-            if not os.path.isdir(directory):
+            if not Path(directory).is_dir():
                 raise NotADirectoryError(f"Invalid input data directory: {directory}")
 
-            if not os.listdir(directory):
+            if not any(Path(directory).iterdir()):
                 raise ValueError(f"Empty input data directory: {directory}")
 
             self.__validate_raster_series_filenames_prefixes(prefix)
@@ -159,11 +154,10 @@ class InputRasterSeries:
         compiled_pattern = raster_series_pattern(prefix)
 
         counter = 0
-        with os.scandir(directory) as it:
-            for entry in it:
-                if entry.is_file() and compiled_pattern.match(entry.name):
-                    self.__validate_raster_file(entry.path, valid_range, rules)
-                    counter += 1
+        for entry in Path(directory).iterdir():
+            if entry.is_file() and compiled_pattern.match(entry.name):
+                self.__validate_raster_file(str(entry), valid_range, rules)
+                counter += 1
 
         if counter == 0:
             self.logger.error(

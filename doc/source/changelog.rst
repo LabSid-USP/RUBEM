@@ -41,6 +41,10 @@ Unreleased
   ``soil_moisture_content_wilting_point`` and the ``rubem.file._file_conversions``
   module; the old names still work for one minor release and emit a
   ``DeprecationWarning``.
+- Moved the package to ``pathlib`` (enforced by ruff's ``PTH`` and ``UP``
+  rules); every public path parameter accepts ``str`` or ``os.PathLike``,
+  and ``bytes`` paths are deprecated (accepted with a ``DeprecationWarning``
+  for one minor release).
 
 Version 0.9.0-beta.3
 ---------------------

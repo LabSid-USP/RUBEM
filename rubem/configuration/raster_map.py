@@ -1,9 +1,10 @@
 import logging
-import os
 import re
+from pathlib import Path
 
 from osgeo import gdal
 
+from .._paths import PathInput, as_path
 from ..validation.raster_data_rules import RasterDataRules
 
 
@@ -60,11 +61,12 @@ class RasterMap:
 
     def __init__(
         self,
-        file_path: str | bytes | os.PathLike,
+        file_path: PathInput,
         valid_range: dict[str, float] | None = None,
         rules: RasterDataRules | None = None,
     ) -> None:
         self.logger = logging.getLogger(__name__)
+        file_path = as_path(file_path)
 
         gdal.UseExceptions()
         gdal.AllRegister()
@@ -74,7 +76,7 @@ class RasterMap:
         self.__validate_file(file_path)
         self.__validate_file_extension(file_path)
 
-        self.raster = gdal.OpenEx(file_path, gdal.GA_ReadOnly)
+        self.raster = gdal.OpenEx(str(file_path), gdal.GA_ReadOnly)
 
         self.valid_range = valid_range
         self.rules = rules
@@ -97,15 +99,16 @@ class RasterMap:
         self.close()
 
     def __validate_file(self, file_path):
-        if not os.path.isfile(file_path):
+        path = Path(file_path)
+        if not path.is_file():
             raise FileNotFoundError(f"Invalid raster file: {file_path}")
 
-        if os.path.getsize(file_path) <= 0:
+        if path.stat().st_size <= 0:
             raise ValueError(f"Empty raster file: {file_path}")
 
     def __validate_file_extension(self, file_path):
         if not str(file_path).endswith((".map", ".tif")) and not bool(
-            bool(re.search(r"\.[0-9]{3}$", str(os.path.splitext(file_path)[1])))
+            bool(re.search(r"\.[0-9]{3}$", Path(file_path).suffix))
         ):
             raise ValueError(f"Invalid raster file extension: {file_path}")
 
