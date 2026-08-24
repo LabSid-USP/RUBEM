@@ -12,7 +12,7 @@ regenerated once with `tests/fixtures/regenerate_golden.py`.
 
 - Base commit: `fb740f51aeaa38c45f93dd011078f954e2804bfd` (`main`)
 - Generator: the `exact` CI job on a GitHub-hosted runner of the `ubuntu-24.04`
-  image (version `20260816.277.1`), in the environment created from
+  image (version `20260816.277.1`, glibc 2.39), in the environment created from
   `ci/golden-env.lock` (conda explicit spec with MD5; linux-64, Python 3.13.7,
   pcraster 4.4.2, gdal 3.11.5, numpy 2.3.4) named `golden`, running
   `python tests/fixtures/regenerate_golden.py` from the repository checkout
@@ -35,9 +35,10 @@ regenerated once with `tests/fixtures/regenerate_golden.py`.
 - Determinism: the regeneration was executed twice on the same runner
   (regeneration step plus the byte-exact test's own rerun) and twice locally;
   each host reproduces its own bytes exactly. The promoted bytes were also
-  reproduced by the `exact` job of the next commit, which ran on a different
-  host of the same image (Azure `westus3` vs `westcentralus`), so the goldens
-  are not bound to one physical machine of the pool.
+  reproduced by the `exact` job on two further hosts of the same image, in
+  other Azure regions (`westus3` and `eastus2`, the latter an AMD EPYC 9V74
+  with glibc 2.39-0ubuntu8.8) than the generating one (`westcentralus`), so
+  the goldens are not bound to one physical machine of the pool.
 - Byte-exact reproduction is asserted by the `exact` CI job
   (`RUBEM_EXACT_GOLDEN=1 pytest -m exact`) on that environment only; every
   other environment compares semantically with `rtol=1e-5`, `atol=1e-8`.
