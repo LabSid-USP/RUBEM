@@ -1,4 +1,5 @@
 import os
+import pathlib
 
 import pytest
 
@@ -159,7 +160,10 @@ class TestTss2Csv:
         write_tss(first, [(1, 10.5)])
         write_tss(second, [(1, 20.5)])
         link = tmp_path / "tss_a.csv"
-        link.symlink_to(tmp_path / "missing_target.csv")
+        try:
+            link.symlink_to(tmp_path / "missing_target.csv")
+        except OSError:
+            pytest.skip("this platform does not allow creating symlinks")
 
         monkeypatch.setattr(os, "replace", refuse_to_install("tss_b.csv"))
 
@@ -167,7 +171,11 @@ class TestTss2Csv:
             tss2csv([first, second], ["1"])
 
         assert os.path.islink(link)
-        assert os.readlink(link) == str(tmp_path / "missing_target.csv")
+        # Windows reports the target through its extended-length form, so the
+        # name and the directory are compared instead of the literal string.
+        restored = pathlib.Path(os.readlink(link))
+        assert restored.name == "missing_target.csv"
+        assert os.path.samefile(restored.parent, tmp_path)
         assert sorted(path.name for path in tmp_path.iterdir()) == [
             "tss_a.csv",
             "tss_a.tss",
