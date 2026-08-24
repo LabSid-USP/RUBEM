@@ -12,6 +12,7 @@ from pcraster._pcraster import Field
 from .configuration.model_configuration import ModelConfiguration
 from .configuration.output_format import OutputFileFormat
 from .file._file_generators import report
+from .file._timeoutput import TimeoutputTimeseriesAdapter
 from .hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
 
 MISSING_VALUE_DEFAULT = -9999
@@ -34,7 +35,6 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.logger = logging.getLogger(__name__)
 
         self.config = config
-        os.chdir(self.config.output_directory.path)
 
         self.logger.info("Reading clone file...")
         self.__readmap_wrapper(file_path=self.config.raster_files.clone, readmap_func=pcr.setclone)
@@ -531,7 +531,10 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             if OutputFileFormat.PCRASTER in self.config.output_variables.file_formats:
                 self.report(
                     variable=output_vars_dict.get(var.get("id")),
-                    name=var.get("raster_filename_prefix"),
+                    name=os.path.join(
+                        self.config.output_directory.path,
+                        var.get("raster_filename_prefix"),
+                    ),
                 )
 
             if OutputFileFormat.GEOTIFF in self.config.output_variables.file_formats:
@@ -556,8 +559,11 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         Initialize Tss report at sample locations or pits for each enabled output variable.
         """
         for var in self.config.output_variables.get_enabled_time_series():
-            tss_file = pcrfw.TimeoutputTimeseries(
-                var.get("table_filename_prefix"),
+            tss_file = TimeoutputTimeseriesAdapter(
+                os.path.join(
+                    self.config.output_directory.path,
+                    var.get("table_filename_prefix"),
+                ),
                 self,
                 self.config.raster_files.sample_locations,
                 noHeader=True,
