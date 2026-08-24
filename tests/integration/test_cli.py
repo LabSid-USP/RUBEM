@@ -158,6 +158,26 @@ class TestCliApp:
 
     @pytest.mark.slow
     @pytest.mark.integration
+    def test_cli_app_reports_progress_on_stdout(self):
+        """The console output documented in doc/source/tutorials.rst."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, "config.json")
+            with open(file=config_path, mode="w", encoding="utf8") as f:
+                f.write(json.dumps(base_model_config(temp_dir)))
+
+            output = run_cli("-c", config_path).decode("utf8")
+
+        for expected in (
+            "Loading configuration and validating inputs...",
+            "Simulation started...",
+            "## Timestep 1 of 2",
+            "Simulation finished successfully!",
+            "Elapsed time:",
+        ):
+            assert expected in output, f"missing progress line: {expected!r}\n{output}"
+
+    @pytest.mark.slow
+    @pytest.mark.integration
     def test_cli_app_skip_input_data_validation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             self._run_and_compare(temp_dir, "-s")

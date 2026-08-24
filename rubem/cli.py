@@ -85,12 +85,29 @@ def main():
     require_runtime_deps()
 
     try:
+        import time
+
+        import humanize
+
         from .configuration.model_configuration import ModelConfiguration
         from .core import DynamicFrameworkWrapper
 
+        # The library only logs; the progress a command-line run is expected to
+        # show (see doc/source/tutorials.rst) is written here, so that an
+        # embedded run stays silent unless its host configures logging.
+        validating = " and validating inputs" if args.skip_inputs_validation else ""
+        print(f"Loading configuration{validating}...")
         model_config = ModelConfiguration(args.configfile, args.skip_inputs_validation)
         model = DynamicFrameworkWrapper.load(model_config)
-        model.run()
+
+        print("Simulation started...")
+        started = time.time()
+        try:
+            model.run()
+            print("Simulation finished successfully!")
+        finally:
+            elapsed = humanize.precisedelta(time.time() - started, minimum_unit="seconds")
+            print(f"Elapsed time: {elapsed}")
     except Exception as e:
         logger.critical("RUBEM unexpectedly quit.")
         logger.exception(e)
