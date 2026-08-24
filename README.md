@@ -56,24 +56,28 @@ To get a local copy up and running follow these simple steps.
 
 ### Prerequisites
 
-This is an example of how to list things you need to use the software and how to install them.
+RUBEM depends on [PCRaster](https://pcraster.geo.uu.nl/) and [GDAL](https://gdal.org/), which are distributed through [conda-forge](https://conda-forge.org/). You need:
 
-- [PCRaster](https://pcraster.geo.uu.nl/) and [GDAL](https://gdal.org/) come from conda-forge: create the runtime environment from the repository's `environment.yml`
-
-   ```sh
-   conda env create -f environment.yml
-   ```
-
-- Activate the new environment
-
-   ```sh
-   conda activate rubem
-   ```
+- Python 3.12 or later
+- A conda-compatible package manager (Miniconda, Miniforge or micromamba)
 
 ### Installation
 
-1. Clone the repository (or download and extract the archive of the latest release from the [releases page](https://github.com/LabSid-USP/RUBEM/releases));
-2. Install RUBEM into the active environment:
+1. Get the source code, either by cloning the repository or by downloading and extracting the archive of the latest release from the [releases page](https://github.com/LabSid-USP/RUBEM/releases):
+
+   ```sh
+   git clone https://github.com/LabSid-USP/RUBEM.git
+   cd RUBEM
+   ```
+
+2. Create and activate the runtime environment:
+
+   ```sh
+   conda env create -f environment.yml
+   conda activate rubem
+   ```
+
+3. Install RUBEM into the environment:
 
    ```sh
    pip install .
