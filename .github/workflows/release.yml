@@ -34,6 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: ci
+    outputs:
+      prerelease: ${{ steps.channel.outputs.prerelease }}
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -43,6 +45,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Assert the installed version matches the tag
+        id: version
         run: |
           python -m venv "$RUNNER_TEMP/verify"
           source "$RUNNER_TEMP/verify/bin/activate"
@@ -51,6 +54,19 @@ jobs:
           installed=$(python -c "import importlib.metadata as m; print(m.version('rubem'))")
           echo "tag=$tag installed=$installed"
           test "$tag" = "$installed"
+          echo "installed=$installed" >> "$GITHUB_OUTPUT"
+      # A separate environment keeps the verify one holding the wheel alone, so
+      # the smoke below still proves the natives are missing.
+      - name: Classify the release channel
+        id: channel
+        env:
+          INSTALLED_VERSION: ${{ steps.version.outputs.installed }}
+        run: |
+          python -m venv "$RUNNER_TEMP/channel"
+          "$RUNNER_TEMP/channel/bin/pip" install --quiet "packaging==26.3"
+          prerelease=$("$RUNNER_TEMP/channel/bin/python" -c 'import os; from packaging.version import Version; print(str(Version(os.environ["INSTALLED_VERSION"]).is_prerelease).lower())')
+          echo "installed=$INSTALLED_VERSION prerelease=$prerelease"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
       - name: Smoke test the promoted wheel without native dependencies
         run: |
           source "$RUNNER_TEMP/verify/bin/activate"
@@ -83,6 +99,6 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc') }}
+          prerelease: ${{ needs.verify.outputs.prerelease }}
           files: |
             dist/*
