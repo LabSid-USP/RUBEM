@@ -96,6 +96,18 @@ def _geotransform_atol(geotransform, fraction=GEOTRANSFORM_PIXEL_FRACTION):
     return fraction * (pixel or 1.0)
 
 
+def ensure_gdal_drivers():
+    """Re-register the GDAL drivers when the registry no longer exposes them.
+
+    Running the model in the same process imports PCRaster, whose own GDAL
+    build takes over the global driver manager and leaves the ``osgeo``
+    bindings without the drivers this module needs, so any comparison after an
+    in-process run would fail to open its files.
+    """
+    if gdal.GetDriverByName("GTiff") is None or gdal.GetDriverByName("PCRaster") is None:
+        gdal.AllRegister()
+
+
 def _require_file(path, label):
     if not path:
         raise ValueError(f"The {label} path is required.")
@@ -104,6 +116,7 @@ def _require_file(path, label):
 
 
 def _open_raster(path):
+    ensure_gdal_drivers()
     try:
         dataset = gdal.OpenEx(str(path), gdal.OF_RASTER | gdal.OF_READONLY)
     except RuntimeError as error:

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from osgeo import gdal
 
-from tests.helpers.compare import DEFAULT_RTOL, compare_rasters
+from tests.helpers.compare import DEFAULT_RTOL, compare_rasters, ensure_gdal_drivers
 
 gdal.UseExceptions()
 
@@ -15,6 +15,7 @@ VALUES = np.arange(9, dtype=np.float32).reshape(3, 3)
 
 def write_raster(path, geotransform=GEOTRANSFORM, values=VALUES):
     """Write a small single-band GeoTIFF and return its path as a string."""
+    ensure_gdal_drivers()
     driver = gdal.GetDriverByName("GTiff")
     dataset = driver.Create(str(path), values.shape[1], values.shape[0], 1, gdal.GDT_Float32)
     try:
