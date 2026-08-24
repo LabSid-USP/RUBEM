@@ -29,6 +29,11 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
+    # The supported interpreter range is a project decision and the CI matrix
+    # builds an environment per version, so a raised floor breaks every leg
+    # below it.
+    ignore:
+      - dependency-name: "python"
     groups:
       conda-packages:
         patterns:
