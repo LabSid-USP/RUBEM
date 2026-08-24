@@ -9,7 +9,9 @@ class TestSphinxDocBuild:
     @pytest.mark.integration
     def test_build_html_docs(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            src_dir = os.path.abspath("./doc/source")
+            src_dir = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "..", "..", "doc", "source")
+            )
             build_dir = os.path.join(temp_dir, "build/html")
             doctree_dir = os.path.join(temp_dir, "build/doctrees")
 
