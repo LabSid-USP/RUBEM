@@ -10,7 +10,12 @@ logger = logging.getLogger(__name__)
 
 
 class DuplicateKeyWarning:
-    """Collects the duplicate keys seen while parsing, as ``"section.key"`` paths."""
+    """Collects the names of the duplicate keys seen while parsing.
+
+    Names are unqualified: ``json``'s ``object_pairs_hook`` is called once per
+    object with no reference to its parent, so a key duplicated inside a section
+    is reported by its own name only.
+    """
 
     def __init__(self) -> None:
         self.duplicates: list[str] = []
@@ -33,7 +38,7 @@ def read_json(path: PathInput, *, on_duplicate=None) -> dict:
     still wins, as before.
 
     :param path: The JSON file.
-    :param on_duplicate: Optional callable receiving the list of duplicated keys.
+    :param on_duplicate: Optional callable receiving the list of duplicated key names.
     :raises FileNotFoundError: If the file does not exist.
     :raises json.JSONDecodeError: If the document is not valid JSON.
     """
