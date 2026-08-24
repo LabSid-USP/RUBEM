@@ -1,6 +1,7 @@
 import csv
 import logging
 import os
+import stat
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,23 @@ def _stage_path(dst_file_path: str, suffix: str) -> str:
         os.close(handle)
         return path
     raise OSError(f"Could not reserve a staging path next to {dst_file_path}.")
+
+
+def _destination_mode(dst_file_path: str) -> int | None:
+    """Return the permissions of an existing regular destination, if any.
+
+    A conversion installs a freshly created file, so the permissions the user
+    gave the previous CSV would be replaced by whatever the umask allows; they
+    are carried onto the staged file instead. A symlink carries none of its
+    own, and a destination that does not exist yet has none to carry.
+    """
+    try:
+        info = os.lstat(dst_file_path)
+    except OSError:
+        return None
+    if stat.S_ISLNK(info.st_mode):
+        return None
+    return stat.S_IMODE(info.st_mode)
 
 
 def _backup_destination(dst_file_path: str) -> str | None:
@@ -173,9 +191,12 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
                 writer.writerows(data)
 
         for tmp_file_path, dst_file_path in pending:
+            previous_mode = _destination_mode(dst_file_path)
             backup_file_path = _backup_destination(dst_file_path)
             # Recorded before the install so that a failure in it is undone too.
             installs.append((dst_file_path, backup_file_path))
+            if previous_mode is not None:
+                os.chmod(tmp_file_path, previous_mode)
             os.replace(tmp_file_path, dst_file_path)
     except Exception:
         _undo_installs(installs)

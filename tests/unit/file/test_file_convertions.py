@@ -293,3 +293,17 @@ class TestTss2Csv:
             os.umask(before)
 
         assert after == expected
+
+    @pytest.mark.unit
+    def test_overwriting_keeps_the_permissions_of_the_previous_csv(self, tmp_path):
+        """Replacing the inode must not widen the access the user had chosen."""
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5)])
+        previous = tmp_path / "tss_itp.csv"
+        previous.write_text("previous\n", encoding="utf8")
+        os.chmod(previous, 0o600)
+        expected = previous.stat().st_mode & 0o777
+
+        tss2csv([tss], ["1"])
+
+        assert (tmp_path / "tss_itp.csv").stat().st_mode & 0o777 == expected
