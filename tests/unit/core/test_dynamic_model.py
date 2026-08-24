@@ -288,3 +288,55 @@ class TestDeprecatedAttributeNames:
         model.soil_moisture_content_wilting_point = "updated"
         with pytest.warns(DeprecationWarning, match="soil_moistute_content_wilting_point"):
             assert model.soil_moistute_content_wilting_point == "updated"
+
+
+class TestSeriesResolvers:
+    @pytest.mark.unit
+    def test_the_run_reads_the_rasters_the_resolvers_answer(self, tmp_path):
+        """A monthly NDVI set pointing every month at the step-1 raster must
+        reproduce the run whose step-2 NDVI is a copy of step 1."""
+        from datetime import date
+
+        from rubem.configuration.raster_series_resolver import MonthlySeriesResolver
+
+        resolved_dir = tmp_path / "resolved"
+        duplicate_dir = tmp_path / "duplicate"
+        distinct_dir = tmp_path / "distinct"
+
+        resolved_config = write_synthetic_dataset(str(resolved_dir))
+        configuration = ModelConfiguration(resolved_config, validate_input=False)
+        first_ndvi = os.path.join(resolved_config["DIRECTORIES"]["ndvi"], series_name("ndvi", 1))
+        configuration.series_resolvers["ndvi"] = MonthlySeriesResolver(
+            "ndvi", {month: first_ndvi for month in range(1, 13)}, date(2000, 1, 1)
+        )
+        DynamicFrameworkWrapper.load(configuration).run()
+
+        duplicate_config = write_synthetic_dataset(str(duplicate_dir))
+        maps = duplicate_dir / "maps" / "ndvi"
+        shutil.copyfile(maps / series_name("ndvi", 1), maps / series_name("ndvi", 2))
+        run_model(str(duplicate_dir), config=duplicate_config)
+
+        run_model(str(distinct_dir))
+
+        for name in expected_outputs():
+            if not name.endswith(".002"):
+                continue
+            same = compare_rasters(resolved_dir / "out" / name, duplicate_dir / "out" / name)
+            assert same.equal, f"{name}:\n{same.report()}"
+        differs = compare_rasters(
+            resolved_dir / "out" / "itp00000.002", distinct_dir / "out" / "itp00000.002"
+        )
+        assert not differs.equal
+
+    @pytest.mark.unit
+    def test_a_missing_strict_step_fails_with_the_series_and_step(self, tmp_path):
+        from rubem.configuration.raster_series_resolver import DirectorySeriesResolver
+
+        config = write_synthetic_dataset(str(tmp_path))
+        configuration = ModelConfiguration(config, validate_input=False)
+        configuration.series_resolvers["kp"] = DirectorySeriesResolver(
+            "kp", str(tmp_path / "nowhere"), "kp"
+        )
+
+        with pytest.raises(RuntimeError, match="kp series has no raster for step 1"):
+            DynamicFrameworkWrapper.load(configuration).run()

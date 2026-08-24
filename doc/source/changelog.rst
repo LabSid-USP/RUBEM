@@ -89,6 +89,10 @@ Unreleased
   specifications, ``model_simulation_output`` with per-format selections) and
   its conversions from and to the legacy file. The format is not yet read by
   the loader nor exposed on the command line.
+- Resolved the raster series to one path per step through resolvers
+  (directory, dated and monthly series; ``MissingStep`` markers instead of
+  exceptions), used by the model for every series; the legacy directory
+  series resolve to the same PCRaster file names as before.
 
 Version 0.9.0-beta.3
 ---------------------

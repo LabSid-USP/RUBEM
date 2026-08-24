@@ -13,6 +13,7 @@ from pcraster._pcraster import Field
 
 from .configuration.model_configuration import ModelConfiguration
 from .configuration.output_format import OutputFileFormat
+from .configuration.raster_series_resolver import MissingStep
 from .file._file_generators import report
 from .file._timeoutput import TimeoutputTimeseriesAdapter
 from .hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
@@ -258,73 +259,16 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             "## Timestep %d of %d", current_timestep, self.config.simulation_period.last_step
         )
 
-        self.logger.debug("Reading NDVI map from '%s'...", self.config.raster_series.ndvi)
-        try:
-            current_ndvi = self.__readmap_series_wrapper(
-                files_partial_path=self.config.raster_series.ndvi,
-                dynamic_readmap_func=self.readmap,
-            )
-            self.previous_ndvi = current_ndvi
-        except RuntimeError as error:
-            if self.previous_ndvi is None:
-                raise RuntimeError(
-                    f"Could not read the NDVI raster from "
-                    f"'{self.config.raster_series.ndvi}' for timestep "
-                    f"{current_timestep}, and there is no previous raster to "
-                    "fall back to."
-                ) from error
-            self.logger.warning(
-                "There was a problem reading the NDVI raster from '%s' on timestep %d. Using the raster from the previous successful timestep...",
-                self.config.raster_series.ndvi,
-                current_timestep,
-            )
-            current_ndvi = self.previous_ndvi
-
-        self.logger.debug("Reading landuse map from '%s'...", self.config.raster_series.landuse)
-        try:
-            current_landuse = self.__readmap_series_wrapper(
-                files_partial_path=self.config.raster_series.landuse,
-                dynamic_readmap_func=self.readmap,
-            )
-            self.previous_landuse = current_landuse
-        except RuntimeError as error:
-            if self.previous_landuse is None:
-                raise RuntimeError(
-                    f"Could not read the land-use raster from "
-                    f"'{self.config.raster_series.landuse}' for timestep "
-                    f"{current_timestep}, and there is no previous raster to "
-                    "fall back to."
-                ) from error
-            self.logger.warning(
-                "There was a problem reading the LULC raster from '%s' on timestep %d. Using the raster from the previous successful timestep...",
-                self.config.raster_series.landuse,
-                current_timestep,
-            )
-            current_landuse = self.previous_landuse
-
-        self.logger.debug(
-            "Reading precipitation map from '%s'...", self.config.raster_series.precipitation
+        current_ndvi = self.__read_fallback_series("ndvi", "NDVI", current_timestep)
+        current_landuse = self.__read_fallback_series("landuse", "land-use", current_timestep)
+        current_precipitation = self.__read_series(
+            "precipitation", current_timestep, conversion_func=pcr.scalar
         )
-        current_precipitation = self.__readmap_series_wrapper(
-            files_partial_path=self.config.raster_series.precipitation,
-            dynamic_readmap_func=self.readmap,
-            conversion_func=pcr.scalar,
+        current_potential_evapotranspiration = self.__read_series(
+            "etp", current_timestep, conversion_func=pcr.scalar
         )
-
-        self.logger.debug(
-            "Reading potential evapotranspiration map from '%s'...", self.config.raster_series.etp
-        )
-        current_potential_evapotranspiration = self.__readmap_series_wrapper(
-            files_partial_path=self.config.raster_series.etp,
-            dynamic_readmap_func=self.readmap,
-            conversion_func=pcr.scalar,
-        )
-
-        self.logger.debug("Reading Kp map from '%s'...", self.config.raster_series.kp)
-        current_class_a_pan_coef = self.__readmap_series_wrapper(
-            files_partial_path=self.config.raster_series.kp,
-            dynamic_readmap_func=self.readmap,
-            conversion_func=pcr.scalar,
+        current_class_a_pan_coef = self.__read_series(
+            "kp", current_timestep, conversion_func=pcr.scalar
         )
 
         self.logger.debug(
@@ -667,6 +611,49 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         )
         sample_array = pcrfw.pcr2numpy(map=sample_map, mv=MISSING_VALUE_DEFAULT)
         return np.asarray(np.unique(sample_array))
+
+    def __read_series(
+        self, series: str, step: int, conversion_func: Callable | None = None
+    ) -> Field:
+        """Read the raster a series provides for ``step``.
+
+        :raises RuntimeError: If the series has no raster for the step, or the
+            raster cannot be read.
+        """
+        resolver = self.config.series_resolvers[series]
+        answer = resolver.path_for_step(step)
+        if isinstance(answer, MissingStep):
+            self.logger.error("%s", answer)
+            raise RuntimeError(str(answer))
+        self.logger.debug("Reading %s map from '%s'...", series, answer)
+        return self.__readmap_series_wrapper(
+            files_partial_path=answer,
+            dynamic_readmap_func=pcr.readmap,
+            conversion_func=conversion_func,
+        )
+
+    def __read_fallback_series(self, series: str, label: str, step: int) -> Field:
+        """Read a series that may reuse the previous raster on a missing step."""
+        previous_name = f"previous_{series}"
+        try:
+            current = self.__read_series(series, step)
+        except RuntimeError as error:
+            previous = getattr(self, previous_name)
+            if previous is None:
+                raise RuntimeError(
+                    f"Could not read the {label} raster from "
+                    f"'{self.config.raster_series.__getattribute__(series)}' for timestep "
+                    f"{step}, and there is no previous raster to fall back to."
+                ) from error
+            self.logger.warning(
+                "There was a problem reading the %s raster on timestep %d. "
+                "Using the raster from the previous successful timestep...",
+                label,
+                step,
+            )
+            return previous
+        setattr(self, previous_name, current)
+        return current
 
     def __readmap_series_wrapper(
         self,
