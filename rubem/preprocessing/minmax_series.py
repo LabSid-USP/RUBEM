@@ -85,8 +85,16 @@ def minmax(
 ) -> tuple[Path, Path]:
     """Write the per-cell minimum and maximum of a raster series as GeoTIFF files.
 
+    :raises PreprocessingError: If ``minimum_path`` and ``maximum_path`` resolve
+        to the same file.
     :return: The minimum and maximum files written.
     """
+    minimum_target = as_path(minimum_path).resolve()
+    maximum_target = as_path(maximum_path).resolve()
+    if minimum_target == maximum_target:
+        raise PreprocessingError(
+            f"The minimum and maximum outputs would both be written to {minimum_target}."
+        )
     minimum, maximum, valid, reference = series_extremes(inputs, georeference)
     minimum = np.where(valid, minimum, nodata).astype(np.float32)
     maximum = np.where(valid, maximum, nodata).astype(np.float32)

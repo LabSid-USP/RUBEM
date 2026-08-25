@@ -97,6 +97,23 @@ class TestMinMax:
         with pytest.raises(PreprocessingError, match="does not share the geometry"):
             minmax([tmp_path / "in"], tmp_path / "min2.tif", tmp_path / "max2.tif", other)
 
+    @pytest.mark.unit
+    def test_identical_minimum_and_maximum_paths_are_refused(self, tmp_path):
+        series(tmp_path / "in")
+
+        with pytest.raises(PreprocessingError, match="would both be written"):
+            minmax([tmp_path / "in"], tmp_path / "extreme.tif", tmp_path / "extreme.tif")
+
+        # Different spellings of the same file resolve to one path too.
+        (tmp_path / "sub").mkdir()
+        with pytest.raises(PreprocessingError, match="would both be written"):
+            minmax(
+                [tmp_path / "in"],
+                tmp_path / "sub" / ".." / "extreme.tif",
+                tmp_path / "extreme.tif",
+            )
+        assert not (tmp_path / "extreme.tif").exists()
+
 
 class TestCommand:
     @pytest.mark.unit
