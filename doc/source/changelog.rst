@@ -45,6 +45,12 @@ Unreleased
   rules); every public path parameter accepts ``str`` or ``os.PathLike``,
   and ``bytes`` paths are deprecated (accepted with a ``DeprecationWarning``
   for one minor release).
+- Rebuilt the configuration value objects (``SimulationPeriod``,
+  ``RasterGrid``, ``CalibrationParameters``, ``InitialSoilConditions``,
+  ``ModelConstants``) as frozen Pydantic models with the same keywords,
+  attributes and messages; ``pydantic`` is now a runtime dependency. New
+  checks: the grid size must be finite with a finite square, the FPAR bounds
+  must satisfy ``0 < min < max < 1`` and ``lai_max`` must be positive.
 
 Version 0.9.0-beta.3
 ---------------------

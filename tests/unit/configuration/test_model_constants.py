@@ -16,6 +16,11 @@ class TestModelConstants:
             (1.0, 1.01, 12.0, 3.0),
             (1.0, 1.0, 12.01, 3.0),
             (1.0, 1.0, 12.0, 3.01),
+            # FPAR bounds must satisfy 0 < min < max < 1 and lai_max must be positive.
+            (0.0, 0.0, 0.0, 0.0),
+            (1.0, 1.0, 12.0, 3.0),
+            (0.5, 0.5, 12.0, 3.0),
+            (0.95, 0.001, 0.0, 3.0),
         ],
     )
     def test_model_constants_constructor_bad_args(self, fpar_max, fpar_min, lai_max, imp_int):
@@ -31,8 +36,9 @@ class TestModelConstants:
     @pytest.mark.parametrize(
         "fpar_max, fpar_min, lai_max, imp_int",
         [
-            (0.0, 0.0, 0.0, 0.0),
-            (1.0, 1.0, 12.0, 3.0),
+            (0.95, 0.001, 12.0, 3.0),
+            (0.5, 0.1, 0.01, 0.0),
+            (0.999, 0.998, 1.0, 1.5),
         ],
     )
     def test_model_constants_constructor_good_args(self, fpar_max, fpar_min, lai_max, imp_int):

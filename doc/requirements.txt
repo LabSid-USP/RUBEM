@@ -3,3 +3,4 @@ sphinx-rtd-theme
 sphinxcontrib-email
 sphinxcontrib-youtube
 sphinx-autodoc-typehints
+pydantic>=2.11,<3
