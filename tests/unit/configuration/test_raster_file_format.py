@@ -89,3 +89,18 @@ class TestNoDataValue:
 
         with pytest.raises(ValueError, match="no_data_value"):
             load(config)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [3.5e38, -3.5e38, 1e40, -1e40])
+    def test_rejects_values_outside_the_float32_range(self, config, value):
+        config["RASTER_FILE_FORMAT"]["no_data_value"] = value
+
+        with pytest.raises(ValueError, match="no_data_value"):
+            load(config)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [3.4e38, -3.4e38])
+    def test_accepts_values_within_the_float32_range(self, config, value):
+        config["RASTER_FILE_FORMAT"]["no_data_value"] = value
+
+        assert load(config).output_variables.no_data_value == value

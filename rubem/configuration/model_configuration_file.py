@@ -8,15 +8,18 @@ strings. ``model_dump(by_alias=True)`` writes the canonical form back.
 
 import logging
 import math
+import os
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Self
+from typing import Annotated, Any, Self
 
+import numpy as np
 from pydantic import (
     AliasChoices,
     BaseModel,
     ConfigDict,
     Field,
+    WithJsonSchema,
     field_serializer,
     field_validator,
     model_validator,
@@ -28,6 +31,34 @@ from ._json import read_json
 logger = logging.getLogger(__name__)
 
 DATE_FORMAT = "%d/%m/%Y"
+
+_FLOAT32_MIN = float(np.finfo(np.float32).min)
+_FLOAT32_MAX = float(np.finfo(np.float32).max)
+
+_LEGACY_DATE_JSON_SCHEMA = WithJsonSchema({"type": "string", "pattern": r"^\d{2}/\d{2}/\d{4}$"})
+LegacyDate = Annotated[date, _LEGACY_DATE_JSON_SCHEMA]
+
+
+def finite_float32(value: Any, label: str) -> float:
+    """Parse ``value`` as a finite number a Float32 GDAL band can store.
+
+    :raises ValueError: If ``value`` is a bool, not numeric, non-finite, or
+        outside the range representable by a Float32 raster band.
+    """
+    if isinstance(value, bool):
+        raise ValueError(f"Invalid {label}: {value!r}")
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"Invalid {label}: {value!r}") from e
+    if not math.isfinite(number):
+        raise ValueError(f"Invalid {label}: {value!r}")
+    if not _FLOAT32_MIN <= number <= _FLOAT32_MAX:
+        raise ValueError(
+            f"Invalid {label}: {value!r} is outside the representable Float32 range "
+            f"[{_FLOAT32_MIN}, {_FLOAT32_MAX}]."
+        )
+    return number
 
 
 def str_to_bool(value) -> bool:
@@ -62,21 +93,42 @@ class _Section(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _report_unknown_keys(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            known = set()
-            for name, info in cls.model_fields.items():
-                known.add(name)
-                alias = info.validation_alias
-                if isinstance(alias, AliasChoices):
-                    known.update(choice for choice in alias.choices if isinstance(choice, str))
-                elif isinstance(alias, str):
-                    known.add(alias)
-                if info.alias:
-                    known.add(info.alias)
-            unknown = sorted(key for key in data if key not in known)
-            if unknown:
-                logger.warning("Unknown key(s) in %s ignored: %s", cls.__name__, unknown)
+    def _normalise_input(cls, data: Any) -> Any:
+        """Stringify path-like values, reject duplicated aliases, report unknown keys.
+
+        Values loaded from a Python dictionary (rather than JSON) may carry
+        :class:`os.PathLike` objects (``pathlib.Path``); the string fields of a
+        section only accept ``str``, so they are converted with
+        :func:`os.fspath` before the field validators run.
+        """
+        if not isinstance(data, dict):
+            return data
+
+        data = {
+            key: os.fspath(value) if isinstance(value, os.PathLike) else value
+            for key, value in data.items()
+        }
+
+        known = set()
+        for name, info in cls.model_fields.items():
+            spellings = {name}
+            alias = info.validation_alias
+            if isinstance(alias, AliasChoices):
+                spellings.update(choice for choice in alias.choices if isinstance(choice, str))
+            elif isinstance(alias, str):
+                spellings.add(alias)
+            if info.alias:
+                spellings.add(info.alias)
+            known.update(spellings)
+            present = sorted(spelling for spelling in spellings if spelling in data)
+            if len(present) > 1:
+                raise ValueError(
+                    f"{cls.__name__} has more than one spelling of the same field: {present}."
+                )
+
+        unknown = sorted(key for key in data if key not in known)
+        if unknown:
+            logger.warning("Unknown key(s) in %s ignored: %s", cls.__name__, unknown)
         return data
 
 
@@ -93,9 +145,9 @@ def _parse_date(value):
 
 
 class SimTime(_Section):
-    start: date
-    end: date
-    alignment: date | None = None
+    start: LegacyDate
+    end: LegacyDate
+    alignment: LegacyDate | None = None
 
     _parse = field_validator("start", "end", "alignment", mode="before")(_parse_date)
 
@@ -109,7 +161,7 @@ class Directories(_Section):
     etp: str
     prec: str = Field(validation_alias=AliasChoices("prec", "precipitation", "rain"))
     ndvi: str
-    kp: str
+    kp: str = Field(validation_alias=AliasChoices("kp", "Kp"))
     landuse: str = Field(validation_alias=AliasChoices("landuse", "lulc"))
 
 
@@ -152,8 +204,8 @@ class Tables(_Section):
     t_sat: str = Field(validation_alias=AliasChoices("t_sat", "T_sat", "Tsat"))
     t_wp: str = Field(validation_alias=AliasChoices("t_wp", "T_wp", "Tw"))
     rootzone_depth: str = Field(validation_alias=AliasChoices("rootzone_depth", "Zr"))
-    k_c_min: str = Field(validation_alias=AliasChoices("k_c_min", "kc_min", "kcmin"))
-    k_c_max: str = Field(validation_alias=AliasChoices("k_c_max", "kc_max", "kcmax"))
+    k_c_min: str = Field(validation_alias=AliasChoices("k_c_min", "kc_min", "kcmin", "K_c_min"))
+    k_c_max: str = Field(validation_alias=AliasChoices("k_c_max", "kc_max", "kcmax", "K_c_max"))
 
 
 class Grid(_Section):
@@ -187,16 +239,16 @@ class Constants(_Section):
 
 
 class GenerateFile(_Section):
-    itp: bool = False
-    bfw: bool = False
-    srn: bool = False
-    eta: bool = False
-    lfw: bool = False
-    rec: bool = False
-    smc: bool = False
-    rnf: bool = False
-    arn: bool = False
-    tss: bool = False
+    itp: bool
+    bfw: bool
+    srn: bool
+    eta: bool
+    lfw: bool
+    rec: bool
+    smc: bool
+    rnf: bool
+    arn: bool
+    tss: bool
 
     _parse = field_validator("*", mode="before")(str_to_bool)
 
@@ -214,15 +266,7 @@ class RasterFileFormat(_Section):
     @field_validator("no_data_value", mode="before")
     @classmethod
     def _finite_number(cls, value):
-        if isinstance(value, bool):
-            raise ValueError(f"Invalid RASTER_FILE_FORMAT.no_data_value: {value!r}")
-        try:
-            number = float(value)
-        except (TypeError, ValueError) as e:
-            raise ValueError(f"Invalid RASTER_FILE_FORMAT.no_data_value: {value!r}") from e
-        if not math.isfinite(number):
-            raise ValueError(f"Invalid RASTER_FILE_FORMAT.no_data_value: {value!r}")
-        return number
+        return finite_float32(value, "RASTER_FILE_FORMAT.no_data_value")
 
 
 class ModelConfigurationFile(_Section):

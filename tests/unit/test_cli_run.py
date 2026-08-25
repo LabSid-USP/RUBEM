@@ -165,6 +165,19 @@ class TestConfigSchema:
         assert set(schema["required"]) >= {"SIM_TIME", "RASTERS", "TABLES"}
 
     @pytest.mark.unit
+    def test_the_legacy_schema_dates_match_the_loader_pattern(self, capsys, restore_logging):
+        import json
+
+        main(["config", "schema", "--format", "legacy"])
+
+        schema = json.loads(capsys.readouterr().out)
+        sim_time = schema["$defs"]["SimTime"]["properties"]
+        for field in ("start", "end"):
+            assert sim_time[field]["type"] == "string"
+            assert sim_time[field]["pattern"] == r"^\d{2}/\d{2}/\d{4}$"
+            assert "format" not in sim_time[field]
+
+    @pytest.mark.unit
     def test_1_0_is_the_default_format(self, capsys, restore_logging):
         import json
 
