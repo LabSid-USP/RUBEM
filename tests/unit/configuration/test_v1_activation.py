@@ -165,6 +165,60 @@ class TestMetadataWriting:
 
         assert sentinel.read_text(encoding="utf8") == '{"sentinel": true}'
 
+    @pytest.mark.unit
+    def test_a_failing_csv_export_does_not_write_metadata(self, tmp_path, mocker):
+        document = v1_document(tmp_path, title="not written")
+        mocker.patch("rubem.core.tss2csv", side_effect=RuntimeError("boom"))
+
+        with pytest.raises(RuntimeError, match="boom"):
+            run(ModelConfiguration(document))
+
+        assert not (tmp_path / "out" / "metadata.json").exists()
+
+    @pytest.mark.unit
+    def test_metadata_is_written_after_the_csv_export(self, tmp_path, mocker):
+        """The metadata write is the last step of a successful run."""
+        from rubem import core
+
+        document = v1_document(tmp_path, title="ordered")
+        order = []
+        real_tss2csv = core.tss2csv
+        real_write_metadata = ModelConfiguration.write_metadata
+
+        def record_export(*args, **kwargs):
+            order.append("export")
+            return real_tss2csv(*args, **kwargs)
+
+        def record_metadata(self):
+            order.append("metadata")
+            return real_write_metadata(self)
+
+        mocker.patch.object(core, "tss2csv", side_effect=record_export)
+        mocker.patch.object(ModelConfiguration, "write_metadata", record_metadata)
+
+        run(ModelConfiguration(document))
+
+        assert order == ["export", "metadata"]
+
+    @pytest.mark.unit
+    def test_the_atomic_write_replaces_an_existing_file_only_on_success(self, tmp_path, mocker):
+        first = v1_document(tmp_path, title="first")
+        loaded = ModelConfiguration(first)
+        loaded.write_metadata()
+        metadata_path = Path(loaded.output_directory.path) / "metadata.json"
+        original = metadata_path.read_text(encoding="utf8")
+        assert "first" in original
+
+        second = v1_document(tmp_path, title="second")
+        loaded_again = ModelConfiguration(second)
+        mocker.patch.object(Path, "replace", side_effect=OSError("disk full"))
+
+        with pytest.raises(OSError, match="disk full"):
+            loaded_again.write_metadata()
+
+        assert metadata_path.read_text(encoding="utf8") == original
+        assert not list(Path(loaded.output_directory.path).glob(".metadata.json.*.tmp"))
+
 
 class TestOutputDiagnostics:
     """``any_enabled()`` only looks at raster series; a v1 configuration can
