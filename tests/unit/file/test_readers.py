@@ -212,6 +212,9 @@ class TestGeotiffSeriesMember:
 
     @pytest.mark.unit
     def test_finds_a_member_regardless_of_case(self, tmp_path):
+        """On a case-sensitive file system the fallback scan returns the
+        member with its on-disk case; on a case-insensitive one (Windows) the
+        exact-case candidate already resolves to it. Either way it is found."""
         from tests.helpers.synthetic import geotiff_series_name
 
         name = geotiff_series_name("prec", 1).upper()
@@ -220,7 +223,8 @@ class TestGeotiffSeriesMember:
         found = geotiff_series_member(tmp_path, "prec", 1)
 
         assert found is not None
-        assert found.name == name
+        assert found.is_file()
+        assert found.name.lower() == name.lower()
 
     @pytest.mark.unit
     def test_returns_none_when_no_member_exists(self, tmp_path):
