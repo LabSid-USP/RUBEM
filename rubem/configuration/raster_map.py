@@ -86,6 +86,17 @@ class RasterMap:
             band = RasterBand(band_index, self.raster.GetRasterBand(band_index))
             self.bands.append(band)
 
+    def close(self) -> None:
+        """Release the GDAL dataset and the band arrays."""
+        self.bands = []
+        self.raster = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
     def __validate_file(self, file_path):
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"Invalid raster file: {file_path}")

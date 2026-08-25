@@ -99,3 +99,68 @@ class TestReport:
             np.testing.assert_allclose(read_array, expected)
         finally:
             dataset = None
+
+
+class TestReportFailures:
+    @pytest.mark.unit
+    def test_an_unwritable_destination_raises_without_leaving_a_file(self, tmp_path):
+        config = write_synthetic_dataset(tmp_path)
+        base_raster_info = OutputRasterBase(config["RASTERS"]["dem"])
+        variable, _ = _build_field()
+        blocked = tmp_path / "blocked"
+        blocked.write_text("a file where the output directory should be", encoding="utf8")
+
+        with pytest.raises(RuntimeError, match="Could not write the raster"):
+            report(variable, "itp", blocked, base_raster_info, timestep=1)
+
+        assert blocked.is_file()
+
+    @pytest.mark.unit
+    def test_a_failure_after_creation_removes_the_partial_file(self, tmp_path, monkeypatch):
+        from osgeo import gdal
+
+        config = write_synthetic_dataset(tmp_path)
+        base_raster_info = OutputRasterBase(config["RASTERS"]["dem"])
+        variable, _ = _build_field()
+
+        def refuse(self, transformation):
+            raise RuntimeError("the transform cannot be written")
+
+        monkeypatch.setattr(gdal.Dataset, "SetGeoTransform", refuse)
+
+        with pytest.raises(RuntimeError, match="the transform cannot be written"):
+            report(variable, "itp", tmp_path, base_raster_info, timestep=1)
+
+        assert not (tmp_path / "itp0000001.tif").exists()
+
+    @pytest.mark.unit
+    def test_the_projection_of_the_base_raster_is_written(self, tmp_path):
+        """A local engineering CRS is used so that the test does not depend on
+        the PROJ database being available."""
+        from rubem.configuration.output_raster_base import read_raster_geometry
+
+        config = write_synthetic_dataset(tmp_path)
+        cols, rows, transformation, _ = read_raster_geometry(config["RASTERS"]["dem"])
+        ensure_gdal_drivers()
+        from osgeo import gdal
+
+        gdal.UseExceptions()
+        georeference = tmp_path / "georeference.tif"
+        dataset = gdal.GetDriverByName("GTiff").Create(
+            str(georeference), cols, rows, 1, gdal.GDT_Float32
+        )
+        dataset.SetGeoTransform(transformation)
+        dataset.SetProjection('LOCAL_CS["Engineering grid",UNIT["metre",1]]')
+        dataset = None
+        base_raster_info = OutputRasterBase(
+            config["RASTERS"]["dem"], georeference_path=georeference
+        )
+        variable, _ = _build_field()
+
+        report(variable, "itp", tmp_path, base_raster_info, timestep=1)
+
+        dataset = gdal.OpenEx(str(tmp_path / "itp0000001.tif"), gdal.GA_ReadOnly)
+        try:
+            assert "Engineering grid" in dataset.GetProjection()
+        finally:
+            dataset = None

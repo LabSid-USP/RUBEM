@@ -82,15 +82,26 @@ def __report(
     gdal.UseExceptions()
     gdal.AllRegister()
 
-    with gdal.GetDriverByName(driver_short_name).Create(
-        out_tif,
-        base_raster_info.cols,
-        base_raster_info.rows,
-        bands=1,
-        eType=gdal.GDT_Float32,
-        options=["COMPRESS=LZW"],
-    ) as dataset:
-        band = dataset.GetRasterBand(1)
-        band.SetNoDataValue(no_data_value)
-        band.WriteArray(pcr2numpy(variable, no_data_value))
-        dataset.SetGeoTransform(base_raster_info.transformation)
+    try:
+        with gdal.GetDriverByName(driver_short_name).Create(
+            out_tif,
+            base_raster_info.cols,
+            base_raster_info.rows,
+            bands=1,
+            eType=gdal.GDT_Float32,
+            options=["COMPRESS=LZW"],
+        ) as dataset:
+            band = dataset.GetRasterBand(1)
+            band.SetNoDataValue(no_data_value)
+            band.WriteArray(pcr2numpy(variable, no_data_value))
+            dataset.SetGeoTransform(base_raster_info.transformation)
+            if base_raster_info.projection:
+                dataset.SetProjection(base_raster_info.projection)
+    except Exception as e:
+        # A partially written file would pass for a result of the run.
+        if os.path.lexists(out_tif):
+            try:
+                os.remove(out_tif)
+            except OSError as removal_error:
+                logger.error("Could not remove the partial file %s: %s", out_tif, removal_error)
+        raise RuntimeError(f"Could not write the raster {out_tif}: {e}") from e

@@ -32,6 +32,11 @@ Unreleased
   rejected), added the optional ``RASTER_FILE_FORMAT.no_data_value`` for the
   GeoTIFF series (default ``-9999``), and matched raster series file names
   with the prefix taken literally.
+- Added the optional ``RASTERS.georeference`` raster whose coordinate
+  reference system is written to the GeoTIFF outputs; the clone and the
+  georeference must share the DEM geometry, rotated grids are refused when
+  PCRaster maps are written, and a GeoTIFF that cannot be written is removed
+  instead of being left half-written.
 
 Version 0.9.0-beta.3
 ---------------------

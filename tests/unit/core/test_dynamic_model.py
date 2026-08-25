@@ -225,3 +225,50 @@ class TestRasterFileFormatAtRuntime:
             dataset = None
         assert array[ROWS - 1, COLS - 1] == -1
         assert np.count_nonzero(array == -1) == 1
+
+
+class TestGeoreference:
+    @pytest.mark.unit
+    def test_the_georeference_crs_reaches_the_geotiff_outputs(self, tmp_path):
+        from rubem.configuration.output_raster_base import read_raster_geometry
+        from tests.helpers.compare import ensure_gdal_drivers
+
+        config = write_synthetic_dataset(str(tmp_path))
+        cols, rows, transformation, _ = read_raster_geometry(config["RASTERS"]["dem"])
+        georeference = tmp_path / "maps" / "georeference.tif"
+        ensure_gdal_drivers()
+        from osgeo import gdal
+
+        gdal.UseExceptions()
+        dataset = gdal.GetDriverByName("GTiff").Create(
+            str(georeference), cols, rows, 1, gdal.GDT_Float32
+        )
+        dataset.SetGeoTransform(transformation)
+        dataset.SetProjection('LOCAL_CS["Engineering grid",UNIT["metre",1]]')
+        dataset = None
+        config["RASTERS"]["georeference"] = str(georeference)
+
+        run_model(str(tmp_path), config=config)
+
+        ensure_gdal_drivers()
+        dataset = gdal.OpenEx(str(tmp_path / "out" / "itp0000001.tif"), gdal.GA_ReadOnly)
+        try:
+            assert "Engineering grid" in dataset.GetProjection()
+            assert dataset.GetGeoTransform() == pytest.approx(transformation)
+        finally:
+            dataset = None
+
+    @pytest.mark.unit
+    def test_outputs_without_a_georeference_carry_no_crs(self, tmp_path):
+        from tests.helpers.compare import ensure_gdal_drivers
+
+        run_model(str(tmp_path))
+
+        ensure_gdal_drivers()
+        from osgeo import gdal
+
+        dataset = gdal.OpenEx(str(tmp_path / "out" / "itp0000001.tif"), gdal.GA_ReadOnly)
+        try:
+            assert dataset.GetProjection() == ""
+        finally:
+            dataset = None

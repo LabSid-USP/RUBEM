@@ -158,6 +158,7 @@ class ModelConfiguration:
                 ldd=self.__get_setting("RASTERS", "ldd", optional=True),
                 sample_locations=self.__get_setting("RASTERS", "samples", optional=True),
                 validate_input=validate_input,
+                georeference=self.__get_setting("RASTERS", "georeference", optional=True),
             )
             self.lookuptable_files = InputTableFiles(
                 rainy_days=self.__get_setting("TABLES", "rainydays"),
@@ -176,7 +177,12 @@ class ModelConfiguration:
                 kc_max=self.__get_setting("TABLES", "k_c_max"),
                 validate_input=validate_input,
             )
-            self.output_raster_base = OutputRasterBase(base_raster_path=self.raster_files.dem)
+            self.output_raster_base = OutputRasterBase(
+                base_raster_path=self.raster_files.dem,
+                georeference_path=self.raster_files.georeference,
+                must_match=[("clone", self.raster_files.clone)],
+                allow_rotation=OutputFileFormat.PCRASTER not in output_formats,
+            )
         except Exception as e:
             self.logger.error("Failed to load configuration: %s", e)
             raise
