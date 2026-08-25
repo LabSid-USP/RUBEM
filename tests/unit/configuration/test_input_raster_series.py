@@ -195,3 +195,21 @@ class TestInputRasterSeriesProblems:
             p for p in series.problems if p.blocking and "same series step" in p.description
         ]
         assert blocking, series.problems
+
+    @pytest.mark.unit
+    def test_two_case_variant_members_outside_the_window_are_left_alone(self, tmp_path):
+        import shutil
+
+        from tests.helpers.synthetic import geotiff_series_name, write_synthetic_dataset
+
+        config = write_synthetic_dataset(str(tmp_path), raster_format="tif")
+        prec_dir = Path(config["DIRECTORIES"]["prec"])
+        name = geotiff_series_name("prec", 2)
+        try:
+            shutil.copyfile(prec_dir / name, prec_dir / name.upper())
+        except shutil.SameFileError:
+            pytest.skip("the file system is case-insensitive; both names collapse into one file")
+
+        series = _series(config, validate_input=True, required_steps=(1, 1))
+
+        assert not any("same series step" in p.description for p in series.problems)

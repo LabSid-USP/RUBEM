@@ -284,7 +284,10 @@ class InputRasterSeries(BaseModel):
                 f"prefix '{prefix}'."
             )
         for step, names in step_files.items():
-            if len(names) > 1:
+            # Like the content rules above, an ambiguity outside the simulated
+            # window cannot affect the run and is left alone.
+            in_window = required_steps is None or required_steps[0] <= step <= required_steps[1]
+            if len(names) > 1 and in_window:
                 problems.append(
                     Problem(
                         description="Two files match the same series step.",
