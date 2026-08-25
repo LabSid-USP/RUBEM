@@ -71,6 +71,15 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.initial_soil_moist_content = None
         self.soil_moistute_content_wilting_point = None
         self.soil_moisture_content_field_capacity = None
+        # Fluxes of the current step: computed, reported and then released.
+        self.current_interception = None
+        self.current_total_real_evapotranspiration = None
+        self.current_surface_runoff = None
+        self.current_lateral_flow = None
+        self.current_recharge = None
+        self.current_cell_total_discharge = None
+        self.accumulated_cell_total_discharge = None
+        self.current_runoff = None
 
     def initial(self):
         """Contains the initialization of variables used in the model.
@@ -188,6 +197,22 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.current_baseflow = self.initial_baseflow
         self.initial_cell_total_flow = pcrfw.scalar(0)
         self.previous_cell_total_flow = pcrfw.scalar(0)
+
+        self.__release_initial_state()
+
+    def __release_initial_state(self):
+        """Drop the rasters the dynamic section never reads again.
+
+        A PCRaster field is freed when its last Python reference goes. The DEM
+        only feeds the LDD and the slope, and the initial conditions have been
+        copied into the previous-step state, so keeping them on the model
+        would hold full-grid rasters for the whole run.
+        """
+        self.dem = None
+        self.initial_soil_moist_content = None
+        self.initial_baseflow = None
+        self.initial_soil_sat_zone_storage = None
+        self.initial_cell_total_flow = None
 
     def dynamic(self):
         """Contains the implementation of the dynamic section of the model.
@@ -529,6 +554,25 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         self.logger.debug("Exporting variables to files")
         self.__current_step_report()
+        self.__release_step_state()
+
+    def __release_step_state(self):
+        """Drop the fluxes of the step that has just been reported.
+
+        Only the storages and the routed flow carry over to the next step
+        (``previous_*`` and the ``current_*`` storages assigned from them).
+        Every other per-step field would otherwise stay referenced until the
+        same attribute is assigned again, so the next step would hold two
+        full-grid rasters per flux at its peak.
+        """
+        self.current_interception = None
+        self.current_total_real_evapotranspiration = None
+        self.current_surface_runoff = None
+        self.current_lateral_flow = None
+        self.current_recharge = None
+        self.current_cell_total_discharge = None
+        self.accumulated_cell_total_discharge = None
+        self.current_runoff = None
 
     def __current_step_report(self):
         output_vars_dict = {
