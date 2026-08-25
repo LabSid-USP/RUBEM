@@ -53,6 +53,11 @@ class TestReadLookupTable:
             ("1\n", "no value column"),
             ("1 abc\n", "non-numeric value"),
             ("x 1\n", "invalid key"),
+            ("1 2 0.5\n", "more than one key column"),
+            ("1 2 3 0.5\n", "more than one key column"),
+            ("[foo,bar] 0.5\n", "invalid bounds"),
+            ("[,] 0.5\n", "invalid bounds"),
+            ("[1,bar] 0.5\n", "invalid bounds"),
         ],
     )
     def test_rejects_malformed_tables(self, tmp_path, text, message):
@@ -61,6 +66,14 @@ class TestReadLookupTable:
 
         with pytest.raises(LookupTableError, match=message):
             read_lookup_table(table)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("key", ["[1,3]", "<1,3]", "[1,>", "<,3]"])
+    def test_accepts_one_sided_and_two_sided_numeric_intervals(self, tmp_path, key):
+        table = tmp_path / "t.txt"
+        table.write_text(f"{key} 0.5\n", encoding="utf8")
+
+        assert read_lookup_table(table) == [((key,), 0.5)]
 
 
 class TestCheckLookupTables:
