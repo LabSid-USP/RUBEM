@@ -72,6 +72,9 @@ class DynamicFrameworkWrapper:
                 humanize.precisedelta(exec_time, minimum_unit="seconds"),
             )
 
+        # Reached only when the run above did not raise: metadata.json must
+        # not be written (or overwritten) on a failed run.
+        self.config.write_metadata()
         self.__export_tables_as_csv()
 
     @classmethod
