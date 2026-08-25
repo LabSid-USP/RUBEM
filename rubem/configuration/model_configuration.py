@@ -18,6 +18,7 @@ from ..configuration.output_format import OutputFileFormat
 from ..configuration.output_raster_base import OutputRasterBase
 from ..configuration.output_variables import OutputVariables
 from ..configuration.raster_grid_area import RasterGrid
+from ..configuration.raster_series_resolver import resolvers_from_legacy
 from ..configuration.simulation_period import SimulationPeriod
 from ..validation.lookup_tables import check_lookup_tables
 
@@ -177,6 +178,7 @@ class ModelConfiguration:
                 kc_max=file.tables.k_c_max,
                 validate_input=validate_input,
             )
+            self.series_resolvers = resolvers_from_legacy(self.raster_series)
             self.output_raster_base = OutputRasterBase.from_file(
                 base_raster_path=self.raster_files.dem,
                 georeference_path=self.raster_files.georeference,

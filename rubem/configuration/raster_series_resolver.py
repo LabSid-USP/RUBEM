@@ -1,0 +1,222 @@
+"""Resolution of the raster series to one file path per simulated step.
+
+A resolver answers "which raster does step ``n`` read?" for one series. The
+legacy configuration only has directory series (one 8.3-named file per step);
+format 1.0 adds dated entries and monthly sets. A step without a raster is
+answered with a :class:`MissingStep` marker rather than an exception, so that
+the run can decide: the NDVI and land use series fall back to the previous
+raster, the precipitation, ETP and Kp series cannot.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
+
+from dateutil.relativedelta import relativedelta
+
+from .._paths import PathInput, as_path
+from ..file._naming import get_raster_series_filepath
+from ._problems import Problem
+
+SERIES_NAMES = ("precipitation", "etp", "kp", "ndvi", "landuse")
+STRICT_SERIES = frozenset({"precipitation", "etp", "kp"})
+FALLBACK_SERIES = frozenset({"ndvi", "landuse"})
+
+
+@dataclass(frozen=True)
+class MissingStep:
+    """A step the series has no raster for."""
+
+    series: str
+    step: int
+    reason: str
+
+    def __str__(self) -> str:
+        return f"{self.series} series has no raster for step {self.step}: {self.reason}"
+
+
+def step_to_date(step: int, alignment: date) -> date:
+    """The first day of the month simulated at ``step`` (step 1 is the alignment month)."""
+    if step < 1:
+        raise ValueError(f"steps start at 1, got {step}.")
+    return date(alignment.year, alignment.month, 1) + relativedelta(months=step - 1)
+
+
+def date_to_step(day: date, alignment: date) -> int:
+    """The step whose month contains ``day``."""
+    return (day.year - alignment.year) * 12 + (day.month - alignment.month) + 1
+
+
+class DirectorySeriesResolver:
+    """One raster per step named ``<prefix>`` plus the PCRaster 8.3 suffix."""
+
+    def __init__(self, series: str, directory: PathInput, prefix: str) -> None:
+        self.series = series
+        self.directory = str(as_path(directory))
+        self.prefix = prefix
+
+    def path_for_step(self, step: int) -> str | MissingStep:
+        path = get_raster_series_filepath(self.directory, self.prefix, step)
+        if not Path(path).is_file():
+            return MissingStep(self.series, step, f"{path} does not exist")
+        return path
+
+    def __repr__(self) -> str:
+        return f"DirectorySeriesResolver({self.series!r}, {self.directory!r}, {self.prefix!r})"
+
+
+class DatedSeriesResolver:
+    """Rasters valid over date ranges (both bounds inclusive, whole months)."""
+
+    def __init__(
+        self,
+        series: str,
+        entries: list[tuple[str, date, date]],
+        alignment: date,
+    ) -> None:
+        self.series = series
+        self.alignment = alignment
+        self.entries = []
+        for path, start, end in entries:
+            if start > end:
+                raise ValueError(
+                    f"{series} series entry {path} has from ({start}) after to ({end})."
+                )
+            self.entries.append((str(as_path(path)), start, end))
+        for (_, _, end), (path, start, _) in zip(self.entries, self.entries[1:]):
+            if start <= end:
+                raise ValueError(
+                    f"{series} series entries overlap: {path} starts on {start}, before the "
+                    f"previous entry ends ({end})."
+                )
+
+    def path_for_step(self, step: int) -> str | MissingStep:
+        day = step_to_date(step, self.alignment)
+        for path, start, end in self.entries:
+            if date(start.year, start.month, 1) <= day <= date(end.year, end.month, 1):
+                return path
+        return MissingStep(self.series, step, f"no entry covers {day:%Y-%m}")
+
+
+class MonthlySeriesResolver:
+    """Twelve rasters repeated every year, optionally replaced from a year on."""
+
+    def __init__(
+        self,
+        series: str,
+        monthly: dict[int, str],
+        alignment: date,
+        yearly_from: int | None = None,
+        yearly_file_path: PathInput | None = None,
+    ) -> None:
+        if sorted(monthly) != list(range(1, 13)):
+            raise ValueError(f"{series} series needs the twelve months, got {sorted(monthly)}.")
+        if (yearly_from is None) != (yearly_file_path is None):
+            raise ValueError(f"{series} series needs yearly_from and yearly_file_path together.")
+        self.series = series
+        self.alignment = alignment
+        self.monthly = {month: str(as_path(path)) for month, path in monthly.items()}
+        self.yearly_from = yearly_from
+        self.yearly_file_path = str(as_path(yearly_file_path)) if yearly_file_path else None
+
+    def path_for_step(self, step: int) -> str | MissingStep:
+        day = step_to_date(step, self.alignment)
+        if self.yearly_from is not None and day.year >= self.yearly_from:
+            return self.yearly_file_path
+        return self.monthly[day.month]
+
+
+def check_coverage(
+    resolvers: dict[str, DirectorySeriesResolver | DatedSeriesResolver | MonthlySeriesResolver],
+    first_step: int,
+    last_step: int,
+) -> list[Problem]:
+    """Report the steps each series cannot provide within the simulated window.
+
+    Precipitation, ETP and Kp gaps are blocking; NDVI and land use need the
+    first step (blocking) and later gaps are reported (the run reuses the
+    previous raster). Paths returned by dated and monthly resolvers must exist.
+    """
+    problems: list[Problem] = []
+    for name, resolver in resolvers.items():
+        missing = []
+        for step in range(first_step, last_step + 1):
+            answer = resolver.path_for_step(step)
+            if isinstance(answer, MissingStep) or not Path(answer).is_file():
+                missing.append(step)
+        if not missing:
+            continue
+        if name in STRICT_SERIES:
+            problems.append(
+                Problem(
+                    description=f"The {name} raster series is incomplete.",
+                    reason=f"Missing steps {missing} of the required {first_step}-{last_step}.",
+                    implication="The simulation cannot run without these rasters.",
+                    blocking=True,
+                )
+            )
+            continue
+        if first_step in missing:
+            problems.append(
+                Problem(
+                    description=f"The {name} raster series lacks the first step.",
+                    reason=f"Step {first_step} is missing.",
+                    implication="The simulation cannot start without it.",
+                    blocking=True,
+                )
+            )
+        later = [step for step in missing if step != first_step]
+        if later:
+            problems.append(
+                Problem(
+                    description=f"The {name} raster series has gaps.",
+                    reason=f"Missing steps {later} of the required {first_step}-{last_step}.",
+                    implication="The run reuses the previous raster for each missing step.",
+                )
+            )
+    return problems
+
+
+def resolvers_from_legacy(raster_series) -> dict[str, DirectorySeriesResolver]:
+    """Directory resolvers for a legacy :class:`InputRasterSeries`."""
+    return {
+        name: DirectorySeriesResolver(
+            name,
+            getattr(raster_series, f"{name}_directory"),
+            getattr(raster_series, f"{name}_filename_prefix"),
+        )
+        for name in SERIES_NAMES
+    }
+
+
+def resolvers_from_v1(file) -> dict:
+    """Resolvers for a :class:`ModelConfigurationFileV1`, one per series."""
+    from .model_configuration_file_v1 import DirectoryRasterSeries, MonthlyRasterSeries
+
+    period = file.simulation_period
+    alignment = period.alignment or period.start
+    resolvers = {}
+    for name in SERIES_NAMES:
+        spec = getattr(file.raster_series, name)
+        if isinstance(spec, DirectoryRasterSeries):
+            resolvers[name] = DirectorySeriesResolver(name, spec.dir_path, spec.files_prefix)
+        elif isinstance(spec, MonthlyRasterSeries):
+            resolvers[name] = MonthlySeriesResolver(
+                name,
+                {entry.month: entry.file_path for entry in spec.monthly},
+                alignment,
+                spec.yearly_from,
+                spec.yearly_file_path,
+            )
+        else:
+            resolvers[name] = DatedSeriesResolver(
+                name,
+                [
+                    (entry.file_path, file.resolve_date(entry.from_), file.resolve_date(entry.to))
+                    for entry in spec
+                ],
+                alignment,
+            )
+    return resolvers
