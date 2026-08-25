@@ -10,6 +10,8 @@ The contracts every tool follows:
   map onto the same output name, and every raster of a series must share the
   geometry of the first one;
 * an all-no-data raster is handled according to an explicit policy;
+* a valid cell may never equal the chosen no-data value, or it would read
+  back as missing;
 * when a tool writes a directory of outputs, ``manifest.csv`` (source, target)
   is written last, so its presence means the run completed.
 """
@@ -147,7 +149,11 @@ def read_raster(path: PathInput, band: int = 1) -> RasterData:
 
 
 def check_same_geometry(reference: RasterData, other: RasterData, label: str) -> None:
-    """Raise :class:`PreprocessingError` unless both rasters share size and transform."""
+    """Raise :class:`PreprocessingError` unless both rasters share size, transform and CRS.
+
+    The coordinate reference system is only compared when both rasters carry
+    one; a raster with no CRS at all never conflicts with one that has it.
+    """
     same_size = reference.array.shape == other.array.shape
     same_transform = all(
         abs(a - b) <= 1e-9 * max(1.0, abs(a))
@@ -159,6 +165,33 @@ def check_same_geometry(reference: RasterData, other: RasterData, label: str) ->
             f"transform {other.geotransform}) does not share the geometry of "
             f"{reference.source or 'the reference'} ({reference.cols}x{reference.rows}, "
             f"transform {reference.geotransform})."
+        )
+    if reference.projection and other.projection:
+        from ..configuration.output_raster_base import same_crs
+
+        if not same_crs(reference.projection, other.projection):
+            raise PreprocessingError(
+                f"{label}: {other.source or 'raster'} and {reference.source or 'the reference'} "
+                "have different coordinate reference systems."
+            )
+
+
+def check_nodata_collision(
+    array: np.ndarray, valid_mask: np.ndarray, nodata: float | None, label: str
+) -> None:
+    """Raise :class:`PreprocessingError` if a valid cell already equals ``nodata``.
+
+    Writing ``nodata`` as the missing-value sentinel while a valid cell holds
+    that exact value would make the valid cell indistinguishable from a
+    missing one on read, silently erasing it. Call this before writing.
+    """
+    if nodata is None:
+        return
+    colliding = int(np.count_nonzero(np.asarray(valid_mask) & (np.asarray(array) == nodata)))
+    if colliding:
+        raise PreprocessingError(
+            f"{label}: {colliding} valid cell(s) already equal the no-data value {nodata}; "
+            "they would be read back as missing. Choose a different no-data value."
         )
 
 
@@ -292,14 +325,21 @@ def write_pcraster_map(
 ) -> Path:
     """Write a PCRaster map atomically from an array, on the given north-up geometry.
 
-    PCRaster maps are north-up only; a rotated or sheared transform is refused.
-    Cells equal to ``nodata`` (or not finite) become missing values.
+    PCRaster maps are north-up only, with axes that increase east and north
+    (``cell_x > 0``, ``cell_y < 0``); a rotated, sheared, south-up or mirrored
+    transform is refused. Cells equal to ``nodata`` (or not finite) become
+    missing values.
     """
     import pcraster as pcr
 
     west, cell, rotation_x, north, rotation_y, cell_y = (float(v) for v in geotransform)
     if rotation_x != 0 or rotation_y != 0:
         raise PreprocessingError("PCRaster maps are north-up only; the geometry is rotated.")
+    if cell <= 0 or cell_y >= 0:
+        raise PreprocessingError(
+            "PCRaster maps need a north-up, non-mirrored geometry: cell_x > 0 and cell_y < 0, "
+            f"got cell_x={cell} and cell_y={cell_y}."
+        )
     if abs(abs(cell_y) - cell) > 1e-9 * max(1.0, cell):
         raise PreprocessingError("PCRaster maps need square cells.")
     scale = {
@@ -312,8 +352,9 @@ def write_pcraster_map(
     }[value_scale]
     rows, cols = array.shape
     pcr.setclone(rows, cols, cell, west, north)
-    data = np.array(array, dtype=np.float64 if value_scale is ValueScale.SCALAR else np.int32)
-    missing = -9999.0 if value_scale is ValueScale.SCALAR else -9999
+    floating = value_scale in (ValueScale.SCALAR, ValueScale.DIRECTIONAL)
+    data = np.array(array, dtype=np.float64 if floating else np.int32)
+    missing = -9999.0 if floating else -9999
     invalid = ~np.isfinite(np.asarray(array, dtype=float))
     if nodata is not None:
         invalid |= np.asarray(array) == nodata

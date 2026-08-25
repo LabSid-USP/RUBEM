@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -22,7 +23,14 @@ import numpy as np
 
 from .._paths import PathInput, as_path
 from ..file._naming import get_raster_series_filepath
-from ._io import PreprocessingError, ValueScale, read_raster, write_manifest, write_pcraster_map
+from ._io import (
+    PreprocessingError,
+    ValueScale,
+    check_nodata_collision,
+    read_raster,
+    write_manifest,
+    write_pcraster_map,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +56,22 @@ class StationsFormat(StrEnum):
     LONG = "long"
 
 
+class VariogramModel(StrEnum):
+    """Variogram models both scikit-gstat and PyKrige fit with three parameters.
+
+    scikit-gstat fits the empirical variogram (``psill``, ``range``, ``nugget``
+    in that order); PyKrige's ``OrdinaryKriging`` accepts the same three for
+    these models, in ``[psill, range, nugget]`` order. Other models either
+    library offers (``linear``, ``power``, ``cubic``, ``stable``, ``matern``,
+    ``hole-effect``, ...) are not supported by both with the same parameter
+    count, so they are excluded here.
+    """
+
+    SPHERICAL = "spherical"
+    EXPONENTIAL = "exponential"
+    GAUSSIAN = "gaussian"
+
+
 @dataclass(frozen=True)
 class Stations:
     """Station coordinates and their values per step (``values[step_index, station]``)."""
@@ -71,9 +95,12 @@ def read_stations_matrix(path: PathInput, delimiter: str = ";") -> Stations:
         if len(row) < 3:
             raise PreprocessingError(f"{file}: line {number} needs x, y and at least one value.")
         try:
-            parsed.append([float(cell) for cell in row])
+            values_row = [float(cell) for cell in row]
         except ValueError as e:
             raise PreprocessingError(f"{file}: line {number} has a non-numeric cell.") from e
+        if not all(math.isfinite(v) for v in values_row):
+            raise PreprocessingError(f"{file}: line {number} has a non-finite value.")
+        parsed.append(values_row)
     widths = {len(row) for row in parsed}
     if len(widths) != 1:
         raise PreprocessingError(
@@ -114,6 +141,8 @@ def read_stations_long(path: PathInput, delimiter: str = ";") -> Stations:
             x, y, value = float(row[2]), float(row[3]), float(row[4])
         except ValueError as e:
             raise PreprocessingError(f"{file}: line {number} has a non-numeric cell.") from e
+        if not (math.isfinite(x) and math.isfinite(y) and math.isfinite(value)):
+            raise PreprocessingError(f"{file}: line {number} has a non-finite value.")
         if step < 1:
             raise PreprocessingError(f"{file}: line {number}: steps start at 1.")
         known = coordinates.setdefault(station, (x, y))
@@ -153,6 +182,28 @@ def _read_rows(file: Path, delimiter: str) -> list[tuple[int, list[str]]]:
         ]
 
 
+def _duplicate_station_coordinates(stations: Stations) -> str | None:
+    """Describe every coordinate shared by more than one station, or ``None``.
+
+    Two stations at the same coordinate make the kriging matrix singular as
+    soon as a step has non-constant values (``OrdinaryKriging`` inverts it
+    with ``pseudo_inv=False`` by default), so this must be checked before any
+    step is interpolated, not just when it happens to be reached.
+    """
+    stations_by_coordinate: dict[tuple[float, float], list[str]] = {}
+    for station_id, x, y in zip(stations.ids, stations.x, stations.y):
+        stations_by_coordinate.setdefault((float(x), float(y)), []).append(station_id)
+    duplicated = {
+        coordinate: ids for coordinate, ids in stations_by_coordinate.items() if len(ids) > 1
+    }
+    if not duplicated:
+        return None
+    return "; ".join(
+        f"stations {', '.join(ids)} share coordinate {coordinate}"
+        for coordinate, ids in duplicated.items()
+    )
+
+
 def coordinates_type_for(projection: str) -> CoordinatesType:
     """The kriging metric implied by a CRS (geographic when the raster has none)."""
     if not projection:
@@ -162,6 +213,21 @@ def coordinates_type_for(projection: str) -> CoordinatesType:
     reference = osr.SpatialReference()
     reference.ImportFromWkt(projection)
     return CoordinatesType.GEOGRAPHIC if reference.IsGeographic() else CoordinatesType.EUCLIDEAN
+
+
+def _great_circle_dist_func(u: np.ndarray, v: np.ndarray) -> float:
+    """Angular great-circle distance (degrees) between two ``(x, y)`` points.
+
+    Matches :func:`pykrige.core.great_circle_distance` (``x`` as longitude,
+    ``y`` as latitude, both in degrees), so a variogram fitted with this
+    function as ``dist_func`` uses the same metric ``OrdinaryKriging`` uses
+    internally for ``coordinates_type="geographic"``. Suitable as the
+    ``metric`` callable of :func:`scipy.spatial.distance.pdist`, which is how
+    :class:`skgstat.Variogram` uses a ``dist_func`` that is not a string.
+    """
+    from pykrige.core import great_circle_distance
+
+    return float(great_circle_distance(u[0], u[1], v[0], v[1]))
 
 
 def apply_negative_policy(values: np.ndarray, policy: NegativePolicy, label: str) -> np.ndarray:
@@ -180,7 +246,7 @@ def krige_step(
     gridx: np.ndarray,
     gridy: np.ndarray,
     coordinates_type: CoordinatesType,
-    variogram_model: str = "spherical",
+    variogram_model: str = VariogramModel.SPHERICAL,
     n_lags: int = 25,
 ) -> np.ndarray:
     """Interpolate one step onto the grid (rows north to south, like the raster)."""
@@ -190,12 +256,22 @@ def krige_step(
     import skgstat as skg
     from pykrige.ok import OrdinaryKriging
 
+    # Fit the empirical variogram with the same distance metric PyKrige uses
+    # to build the kriging system below, so the fitted range is expressed in
+    # the same units PyKrige will interpret it with: geographic coordinates
+    # are compared with the angular great-circle distance (in degrees), not
+    # the Euclidean distance between raw longitude/latitude numbers, which
+    # distorts distances away from the equator.
+    dist_func = (
+        _great_circle_dist_func if coordinates_type is CoordinatesType.GEOGRAPHIC else "euclidean"
+    )
     variogram = skg.Variogram(
         coordinates=np.column_stack([stations.x, stations.y]),
         values=values,
         model=variogram_model,
         bin_func="uniform",
         n_lags=n_lags,
+        dist_func=dist_func,
     )
     variogram_range, sill, nugget = variogram.parameters[:3]
     kriging = OrdinaryKriging(
@@ -223,7 +299,7 @@ def krige_series(
     first_step: int = 1,
     negative_policy: NegativePolicy = NegativePolicy.CLAMP,
     coordinates_type: CoordinatesType = CoordinatesType.AUTO,
-    variogram_model: str = "spherical",
+    variogram_model: str = VariogramModel.SPHERICAL,
     n_lags: int = 25,
     seed: int | None = None,
     nodata: float = -9999.0,
@@ -231,13 +307,28 @@ def krige_series(
     """Write one PCRaster map per step of the station series on the clone grid.
 
     :param steps: How many steps to interpolate (default: all in the file).
-    :raises PreprocessingError: With fewer than three stations, more steps than
-        the file carries, or a geometry the maps cannot express.
+    :raises PreprocessingError: With fewer than three stations, two stations
+        sharing a coordinate, an unsupported variogram model, more steps than
+        the file carries, a clone geometry the maps cannot express (rotated
+        or south-up), or a step whose interpolated grid already has a valid
+        cell equal to ``nodata``.
     """
     if len(stations.ids) < MINIMUM_STATIONS:
         raise PreprocessingError(
             f"Kriging needs at least {MINIMUM_STATIONS} stations, got {len(stations.ids)}."
         )
+    duplicated_coordinates = _duplicate_station_coordinates(stations)
+    if duplicated_coordinates:
+        raise PreprocessingError(
+            f"Kriging needs distinct station coordinates: {duplicated_coordinates}."
+        )
+    try:
+        variogram_model = VariogramModel(variogram_model)
+    except ValueError as e:
+        supported = ", ".join(model.value for model in VariogramModel)
+        raise PreprocessingError(
+            f"Unsupported variogram model {variogram_model!r}; choose one of: {supported}."
+        ) from e
     count = stations.steps if steps is None else steps
     if count < 1 or count > stations.steps:
         raise PreprocessingError(
@@ -246,6 +337,8 @@ def krige_series(
     reference = read_raster(clone)
     if reference.is_rotated:
         raise PreprocessingError("The clone geometry is rotated; PCRaster maps are north-up only.")
+    if reference.geotransform[5] >= 0:
+        raise PreprocessingError("The clone geometry is south-up; PCRaster maps are north-up only.")
     west, cell, _, north, _, cell_y = reference.geotransform
     gridx = west + cell * (np.arange(reference.cols) + 0.5)
     gridy = north + cell_y * (np.arange(reference.rows) + 0.5)
@@ -274,6 +367,7 @@ def krige_series(
         label = f"{prefix} step {step}"
         grid = krige_step(stations, index, gridx, gridy, metric, variogram_model, n_lags)
         grid = apply_negative_policy(grid, negative_policy, label)
+        check_nodata_collision(grid, np.isfinite(grid), nodata, label)
         target = get_raster_series_filepath(destination, prefix, step)
         write_pcraster_map(target, grid, ValueScale.SCALAR, reference.geotransform, nodata)
         logger.info("Wrote %s", target)

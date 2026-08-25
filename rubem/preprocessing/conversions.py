@@ -6,15 +6,19 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
+import numpy as np
+
 from .._paths import PathInput, as_path
 from ..file._naming import get_raster_series_filepath, output_raster_filename, raster_series_pattern
 from ._io import (
+    MANIFEST_NAME,
     AllNoDataPolicy,
     PreprocessingError,
     RasterData,
     ValueScale,
     apply_all_nodata_policy,
     check_no_collisions,
+    check_nodata_collision,
     check_same_geometry,
     natural_sorted,
     read_raster,
@@ -26,6 +30,37 @@ from ._io import (
 logger = logging.getLogger(__name__)
 
 TIFF_SUFFIXES = (".tif", ".tiff")
+
+
+def _dtype_for_nodata(dtype: np.dtype, nodata: float) -> np.dtype:
+    """The smallest dtype no narrower than ``dtype`` that can also hold ``nodata``.
+
+    :raises PreprocessingError: If ``nodata`` has a fractional part and
+        ``dtype`` is an integer dtype (a Boolean, Nominal, Ordinal or LDD
+        value scale cannot represent it).
+    """
+    if dtype.kind in "iu":
+        if float(nodata) != int(nodata):
+            raise PreprocessingError(
+                f"No-data value {nodata} is fractional; {dtype} is an integer value scale."
+            )
+        return np.promote_types(dtype, np.min_scalar_type(int(nodata)))
+    # A floating value scale: min_scalar_type is not used here, as it favors
+    # float16 for any value inside its exponent range regardless of whether
+    # the mantissa can represent it exactly (-9999.0 would round to -10000.0).
+    # The round trip is compared as plain Python floats, not as a numpy array
+    # against a Python scalar: NEP 50 casts the scalar down to the array's
+    # dtype for that comparison, which would call an overflowed inf "equal"
+    # to the finite value that produced it.
+    if float(dtype.type(nodata)) == float(nodata):
+        return dtype
+    return np.promote_types(dtype, np.float64)
+
+
+def _remove_stale_manifest(directory: Path) -> None:
+    """Delete a leftover ``manifest.csv`` so its presence implies a completed run."""
+    manifest = directory / MANIFEST_NAME
+    manifest.unlink(missing_ok=True)
 
 
 def _tiff_files(inputs: Sequence[PathInput]) -> list[Path]:
@@ -95,7 +130,9 @@ def tif2mapseries(
     PCRaster 8.3 step suffix, starting at ``first_step``. Every file must share
     the geometry of the first one (or of ``clone`` when given). A skipped
     all-no-data raster still consumes its step, so the numbering follows the
-    file order. ``manifest.csv`` is written last.
+    file order, but no map is left at its target. ``manifest.csv`` is written
+    last, after removing any leftover from an earlier run, so its presence
+    means the run completed.
 
     :return: The maps written, in order.
     """
@@ -107,6 +144,7 @@ def tif2mapseries(
         for index, file in enumerate(files)
     ]
     check_no_collisions(targets)
+    _remove_stale_manifest(destination)
     written: list[Path] = []
     manifest: list[tuple[str, str]] = []
     for source, target in targets:
@@ -116,6 +154,7 @@ def tif2mapseries(
         else:
             check_same_geometry(reference, data, "tif2mapseries")
         if not apply_all_nodata_policy(data, all_nodata, "tif2mapseries"):
+            target.unlink(missing_ok=True)
             continue
         write_pcraster_map(target, data.array, value_scale, data.geotransform, data.nodata)
         logger.info("Wrote %s", target)
@@ -137,8 +176,15 @@ def mapseries2tif(
     The members of the series (``<prefix>`` plus the 8.3 step suffix) become
     ``<prefix><step>.tif`` files, named like the model outputs, in
     ``output_dir`` (default: the input directory). ``georeference`` lends its
-    coordinate reference system; it must share the series geometry.
-    ``manifest.csv`` is written last.
+    coordinate reference system; it must share the series geometry. Without a
+    ``georeference``, every member must still share the geometry of the first
+    one, but the GeoTIFF files carry no projection. A source value that the
+    GeoTIFF band cannot represent (an integer type too narrow for ``nodata``,
+    or a fractional ``nodata`` on an integer value scale) promotes the band
+    to a type that can. A member is rejected if a valid cell already equals
+    ``nodata``, which would make it unreadable as data. ``manifest.csv`` is
+    written last, after removing any leftover from an earlier run, so its
+    presence means the run completed.
 
     :return: The GeoTIFF files written, in order.
     """
@@ -159,16 +205,26 @@ def mapseries2tif(
         digits = member.name[len(prefix) :].replace(".", "")
         targets.append((member, destination / output_raster_filename(prefix, int(digits), "tif")))
     check_no_collisions(targets)
+    _remove_stale_manifest(destination)
     written: list[Path] = []
     manifest: list[tuple[str, str]] = []
     for source, target in targets:
         data = read_raster(source)
-        if reference is not None:
+        if reference is None:
+            reference = data
+        else:
             check_same_geometry(reference, data, "mapseries2tif")
         array = data.array
-        if data.nodata is not None and data.nodata != nodata:
+        target_dtype = _dtype_for_nodata(array.dtype, nodata)
+        valid = data.mask()
+        check_nodata_collision(array, valid, nodata, "mapseries2tif")
+        remap = data.nodata is not None and data.nodata != nodata
+        if target_dtype != array.dtype:
+            array = array.astype(target_dtype)
+        elif remap:
             array = array.copy()
-            array[~data.mask()] = nodata
+        if remap:
+            array[~valid] = nodata
         write_geotiff(target, array, data.geotransform, projection, nodata)
         logger.info("Wrote %s", target)
         written.append(target)

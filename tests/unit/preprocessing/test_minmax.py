@@ -97,6 +97,43 @@ class TestMinMax:
         with pytest.raises(PreprocessingError, match="does not share the geometry"):
             minmax([tmp_path / "in"], tmp_path / "min2.tif", tmp_path / "max2.tif", other)
 
+    @pytest.mark.unit
+    def test_identical_minimum_and_maximum_paths_are_refused(self, tmp_path):
+        series(tmp_path / "in")
+
+        with pytest.raises(PreprocessingError, match="would both be written"):
+            minmax([tmp_path / "in"], tmp_path / "extreme.tif", tmp_path / "extreme.tif")
+
+        # Different spellings of the same file resolve to one path too.
+        (tmp_path / "sub").mkdir()
+        with pytest.raises(PreprocessingError, match="would both be written"):
+            minmax(
+                [tmp_path / "in"],
+                tmp_path / "sub" / ".." / "extreme.tif",
+                tmp_path / "extreme.tif",
+            )
+        assert not (tmp_path / "extreme.tif").exists()
+
+    @pytest.mark.unit
+    def test_a_valid_zero_refuses_no_data_zero(self, tmp_path):
+        ensure_gdal_drivers()
+        directory = tmp_path / "in"
+        directory.mkdir()
+        layers = [
+            np.array([[0.0, 5.0]], dtype=np.float32),
+            np.array([[0.0, 9.0]], dtype=np.float32),
+        ]
+        for i, layer in enumerate(layers, 1):
+            write_geotiff(directory / f"ndvi{i}.tif", layer, TRANSFORM, nodata=-9999.0)
+
+        # The per-cell minimum of (0.0, 5.0) is 0.0, a genuine valid value.
+        with pytest.raises(PreprocessingError, match="valid cell"):
+            minmax([directory], tmp_path / "min.tif", tmp_path / "max.tif", nodata=0.0)
+
+        # The default sentinel does not collide with any valid cell.
+        written_min, _ = minmax([directory], tmp_path / "min.tif", tmp_path / "max.tif")
+        assert read_raster(written_min).array.tolist() == [[0.0, 5.0]]
+
 
 class TestCommand:
     @pytest.mark.unit

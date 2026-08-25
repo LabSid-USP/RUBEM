@@ -12,6 +12,7 @@ from rubem.preprocessing._io import (
     ValueScale,
     apply_all_nodata_policy,
     check_no_collisions,
+    check_nodata_collision,
     check_same_geometry,
     natural_sorted,
     read_raster,
@@ -23,6 +24,10 @@ from tests.helpers.compare import ensure_gdal_drivers
 from tests.helpers.synthetic import write_synthetic_dataset
 
 TRANSFORM = (0.0, 500.0, 0.0, 1500.0, 0.0, -500.0)
+LOCAL_CRS = 'LOCAL_CS["Engineering grid",UNIT["metre",1]]'
+# A different unit, not just a different name: osr.SpatialReference.IsSame()
+# ignores the LOCAL_CS name, so this is what makes the two CRSs actually differ.
+OTHER_LOCAL_CRS = 'LOCAL_CS["Engineering grid",UNIT["US survey foot",0.304800609601219]]'
 
 
 def sample(nodata=-9999.0):
@@ -101,6 +106,30 @@ class TestReadWrite:
             )
 
     @pytest.mark.unit
+    def test_pcraster_map_refuses_south_up_and_mirrored_geometries(self, tmp_path):
+        with pytest.raises(PreprocessingError, match="cell_x > 0 and cell_y < 0"):
+            write_pcraster_map(
+                tmp_path / "south.map", np.ones((2, 2)), ValueScale.SCALAR, (0, 1, 0, 2, 0, 1)
+            )
+        with pytest.raises(PreprocessingError, match="cell_x > 0 and cell_y < 0"):
+            write_pcraster_map(
+                tmp_path / "mirrored.map", np.ones((2, 2)), ValueScale.SCALAR, (0, -1, 0, 2, 0, -1)
+            )
+
+    @pytest.mark.unit
+    def test_directional_maps_keep_fractional_values(self, tmp_path):
+        ensure_gdal_drivers()
+        array = np.array([[1.75, 90.0], [180.0, -9999.0]])
+
+        written = write_pcraster_map(
+            tmp_path / "aspect.map", array, ValueScale.DIRECTIONAL, TRANSFORM, nodata=-9999.0
+        )
+        data = read_raster(written)
+
+        assert data.mask().sum() == 3
+        np.testing.assert_allclose(data.array[data.mask()], [1.75, 90.0, 180.0])
+
+    @pytest.mark.unit
     def test_reading_errors_are_explicit(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             read_raster(tmp_path / "absent.tif")
@@ -170,6 +199,19 @@ class TestContracts:
             check_same_geometry(reference, bigger, "series")
 
     @pytest.mark.unit
+    def test_geometry_equality_compares_the_crs_when_both_carry_one(self):
+        reference = RasterData(np.ones((2, 2)), None, TRANSFORM, LOCAL_CRS, "ref")
+        same_crs_raster = RasterData(np.zeros((2, 2)), None, TRANSFORM, LOCAL_CRS, "same-crs")
+        other_crs = RasterData(np.zeros((2, 2)), None, TRANSFORM, OTHER_LOCAL_CRS, "other-crs")
+        no_crs = RasterData(np.zeros((2, 2)), None, TRANSFORM, "", "no-crs")
+
+        check_same_geometry(reference, same_crs_raster, "series")
+        check_same_geometry(reference, no_crs, "series")
+        check_same_geometry(no_crs, same_crs_raster, "series")
+        with pytest.raises(PreprocessingError, match="coordinate reference systems"):
+            check_same_geometry(reference, other_crs, "series")
+
+    @pytest.mark.unit
     def test_all_nodata_policy(self, caplog):
         empty = RasterData(np.full((2, 2), -9999.0), -9999.0, TRANSFORM, "", "empty.tif")
         full = RasterData(np.ones((2, 2)), -9999.0, TRANSFORM, "", "full.tif")
@@ -181,6 +223,19 @@ class TestContracts:
             assert apply_all_nodata_policy(empty, AllNoDataPolicy.WARN, "series")
             assert not apply_all_nodata_policy(empty, AllNoDataPolicy.SKIP, "series")
         assert caplog.text.count("every cell") == 2 and "Skipped." in caplog.text
+
+    @pytest.mark.unit
+    def test_nodata_collision_is_rejected_only_on_valid_cells(self):
+        array = np.array([[0.0, 1.0], [2.0, -9999.0]])
+        valid = np.array([[True, True], [True, False]])
+
+        # The default sentinel never collides with these valid cells.
+        check_nodata_collision(array, valid, -9999.0, "series")
+        # A valid cell (0.0) coincides with the requested no-data value.
+        with pytest.raises(PreprocessingError, match="1 valid cell"):
+            check_nodata_collision(array, valid, 0.0, "series")
+        # nodata=None means "no sentinel"; nothing can collide with it.
+        check_nodata_collision(array, valid, None, "series")
 
     @pytest.mark.unit
     def test_nan_cells_count_as_missing_in_float_rasters(self):

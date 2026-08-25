@@ -12,6 +12,7 @@ from rubem.preprocessing._io import (
     ValueScale,
     read_raster,
     write_geotiff,
+    write_pcraster_map,
 )
 from rubem.preprocessing.conversions import mapseries2tif, tif2map, tif2mapseries
 from tests.helpers.compare import ensure_gdal_drivers
@@ -149,6 +150,40 @@ class TestTif2MapSeries:
         with pytest.raises(ValueError, match="shorter than 8"):
             tif2mapseries(tmp_path / "in", "prefix08", tmp_path / "out")
 
+    @pytest.mark.unit
+    def test_a_stale_manifest_does_not_survive_a_failing_run(self, tmp_path):
+        geotiffs(tmp_path / "in", count=2)
+        ensure_gdal_drivers()
+        shifted = (1.0,) + TRANSFORM[1:]
+        write_geotiff(tmp_path / "in" / "etp3.tif", np.ones((3, 3), np.float32), shifted)
+        (tmp_path / "out").mkdir()
+        (tmp_path / "out" / "manifest.csv").write_text("source,target\nstale,stale\n", "utf8")
+
+        with pytest.raises(PreprocessingError, match="does not share the geometry"):
+            tif2mapseries(tmp_path / "in", "etp", tmp_path / "out")
+
+        assert not (tmp_path / "out" / "manifest.csv").exists()
+
+    @pytest.mark.unit
+    def test_skipping_a_raster_removes_a_stale_target(self, tmp_path):
+        geotiffs(tmp_path / "in", count=1)
+        write_geotiff(
+            tmp_path / "in" / "etp2.tif",
+            np.full((3, 3), -9999.0, np.float32),
+            TRANSFORM,
+            nodata=-9999.0,
+        )
+        stale_target = tmp_path / "out" / series_name("etp", 2)
+        stale_target.parent.mkdir(parents=True)
+        stale_target.write_bytes(b"leftover from an earlier run")
+
+        written = tif2mapseries(
+            tmp_path / "in", "etp", tmp_path / "out", all_nodata=AllNoDataPolicy.SKIP
+        )
+
+        assert [p.name for p in written] == [series_name("etp", 1)]
+        assert not stale_target.exists()
+
 
 class TestMapSeries2Tif:
     @pytest.mark.unit
@@ -186,7 +221,6 @@ class TestMapSeries2Tif:
     def test_the_no_data_value_is_remapped(self, tmp_path):
         ensure_gdal_drivers()
         (tmp_path / "series").mkdir()
-        from rubem.preprocessing._io import write_pcraster_map
 
         array = np.array([[1.0, -9999.0], [2.0, 3.0]])
         write_pcraster_map(
@@ -201,6 +235,143 @@ class TestMapSeries2Tif:
 
         data = read_raster(written[0])
         assert data.nodata == -1.0 and data.array[0, 1] == -1.0 and data.mask().sum() == 3
+
+    @pytest.mark.unit
+    def test_the_first_member_is_the_geometry_reference_without_a_georeference(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "series").mkdir()
+        write_pcraster_map(
+            tmp_path / "series" / series_name("v", 1),
+            np.array([[1.0, 2.0], [3.0, 4.0]]),
+            ValueScale.SCALAR,
+            TRANSFORM,
+        )
+        write_pcraster_map(
+            tmp_path / "series" / series_name("v", 2),
+            np.array([[1.0, 2.0], [3.0, 4.0]]),
+            ValueScale.SCALAR,
+            (1.0,) + TRANSFORM[1:],
+        )
+
+        with pytest.raises(PreprocessingError, match="does not share the geometry"):
+            mapseries2tif(tmp_path / "series", "v")
+
+    @pytest.mark.unit
+    def test_no_georeference_leaves_the_projection_empty(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "series").mkdir()
+        write_pcraster_map(
+            tmp_path / "series" / series_name("v", 1),
+            np.array([[1.0, 2.0], [3.0, 4.0]]),
+            ValueScale.SCALAR,
+            TRANSFORM,
+        )
+
+        written = mapseries2tif(tmp_path / "series", "v")
+
+        assert read_raster(written[0]).projection == ""
+
+    @pytest.mark.unit
+    def test_a_no_data_value_the_source_type_cannot_hold_promotes_the_band(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "series").mkdir()
+        write_pcraster_map(
+            tmp_path / "series" / series_name("b", 1),
+            np.array([[1.0, 0.0], [1.0, np.nan]]),
+            ValueScale.BOOLEAN,
+            TRANSFORM,
+        )
+
+        written = mapseries2tif(tmp_path / "series", "b")
+
+        data = read_raster(written[0])
+        assert data.array.dtype == np.int16
+        assert data.nodata == -9999.0
+        assert data.array[data.mask()].tolist() == [1, 0, 1]
+        assert data.array[~data.mask()].tolist() == [-9999]
+
+    @pytest.mark.unit
+    def test_a_no_data_value_float32_cannot_hold_exactly_promotes_to_float64(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "series").mkdir()
+        write_pcraster_map(
+            tmp_path / "series" / series_name("v", 1),
+            np.array([[1.0, 2.0], [3.0, 4.0]]),
+            ValueScale.SCALAR,
+            TRANSFORM,
+        )
+
+        # 1e40 overflows float32 to inf; a naive round-trip comparison of the
+        # overflowed inf against the original value would wrongly call them
+        # equal (NEP 50 casts the Python scalar down to the array's dtype for
+        # the comparison), so this also guards against that pitfall.
+        written = mapseries2tif(tmp_path / "series", "v", nodata=1e40)
+
+        data = read_raster(written[0])
+        assert data.array.dtype == np.float64
+        assert data.nodata == pytest.approx(1e40)
+
+    @pytest.mark.unit
+    def test_a_fractional_no_data_value_is_refused_on_an_integer_value_scale(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "series").mkdir()
+        write_pcraster_map(
+            tmp_path / "series" / series_name("b", 1),
+            np.array([[1.0, 0.0], [1.0, np.nan]]),
+            ValueScale.BOOLEAN,
+            TRANSFORM,
+        )
+
+        with pytest.raises(PreprocessingError, match="fractional"):
+            mapseries2tif(tmp_path / "series", "b", nodata=-9999.5)
+
+    @pytest.mark.unit
+    def test_a_stale_manifest_does_not_survive_a_failing_run(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        ensure_gdal_drivers()
+        other = write_geotiff(tmp_path / "other.tif", np.ones((4, 4), np.float32), TRANSFORM)
+        (tmp_path / "tif").mkdir()
+        (tmp_path / "tif" / "manifest.csv").write_text("source,target\nstale,stale\n", "utf8")
+
+        with pytest.raises(PreprocessingError, match="does not share the geometry"):
+            mapseries2tif(config["DIRECTORIES"]["prec"], "prec", tmp_path / "tif", other)
+
+        assert not (tmp_path / "tif" / "manifest.csv").exists()
+
+    @pytest.mark.unit
+    def test_an_integer_source_with_a_valid_zero_refuses_no_data_zero(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "series").mkdir()
+        write_pcraster_map(
+            tmp_path / "series" / series_name("b", 1),
+            np.array([[0.0, 1.0], [1.0, np.nan]]),
+            ValueScale.BOOLEAN,
+            TRANSFORM,
+        )
+
+        with pytest.raises(PreprocessingError, match="valid cell"):
+            mapseries2tif(tmp_path / "series", "b", nodata=0)
+
+        # The default sentinel does not collide with any valid cell.
+        written = mapseries2tif(tmp_path / "series", "b")
+        assert read_raster(written[0]).nodata == -9999.0
+
+    @pytest.mark.unit
+    def test_a_floating_source_with_a_valid_zero_refuses_no_data_zero(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "series").mkdir()
+        write_pcraster_map(
+            tmp_path / "series" / series_name("v", 1),
+            np.array([[0.0, 1.5], [2.5, np.nan]]),
+            ValueScale.SCALAR,
+            TRANSFORM,
+        )
+
+        with pytest.raises(PreprocessingError, match="valid cell"):
+            mapseries2tif(tmp_path / "series", "v", nodata=0.0)
+
+        written = mapseries2tif(tmp_path / "series", "v")
+        assert read_raster(written[0]).nodata == -9999.0
 
 
 class TestCommands:
