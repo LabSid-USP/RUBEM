@@ -12,7 +12,7 @@ repos:
       - id: trailing-whitespace
         exclude: ^tests/fixtures/base/
       - id: check-added-large-files
-        args: ["--maxkb=1024"]
+        args: ["--maxkb=1024", "--enforce-all"]
       - id: check-merge-conflict
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.4
