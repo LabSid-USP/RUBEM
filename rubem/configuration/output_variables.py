@@ -95,6 +95,9 @@ class OutputVariables(BaseModel):
 
     :param time_series_formats: File formats of the time series at the sample locations. Defaults to CSV only (the legacy behaviour: the ``.tss`` files are converted and removed).
     :type time_series_formats: TimeSeriesFileFormat, optional
+
+    :param aggregation: Spatial aggregation of the time series: ``point`` (cells sharing a sample id), ``subcatchment`` or ``zones``. Defaults to ``point``.
+    :type aggregation: str, optional
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -112,6 +115,7 @@ class OutputVariables(BaseModel):
     output_formats: OutputFileFormat = OutputFileFormat.PCRASTER
     no_data_value: float = NO_DATA_VALUE_DEFAULT
     time_series_formats: TimeSeriesFileFormat = TimeSeriesFileFormat.CSV
+    aggregation: str = "point"
 
     @model_validator(mode="before")
     @classmethod

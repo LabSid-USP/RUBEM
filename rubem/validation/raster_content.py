@@ -106,3 +106,21 @@ def check_sample_ids(values, no_data_value, file) -> Problem | None:
             file,
         )
     return None
+
+
+def check_zone_ids(values, no_data_value, file) -> Problem | None:
+    """Zone identifiers must be positive integers; at least one cell must belong to a zone.
+
+    Gaps between identifiers are allowed: the run remaps them to ``1..N``.
+    """
+    valid = _valid(values, no_data_value)
+    ids = valid[valid != 0]
+    if ids.size == 0:
+        return _blocking("Zones raster has no zone.", "Every cell is 0 or missing.", file)
+    if not np.all(np.equal(np.mod(ids, 1), 0)) or (ids < 0).any():
+        return _blocking(
+            "Zone identifiers must be positive integers.",
+            f"Offending values: {sorted(set(ids[(ids < 0) | (np.mod(ids, 1) != 0)].tolist()))[:10]}.",
+            file,
+        )
+    return None

@@ -126,6 +126,12 @@ Unreleased
   through its geometry, GeoTIFF series members are named like the model
   outputs, sample locations may be a GeoTIFF, and every input raster must
   share the clone geometry and coordinate reference system.
+- Added the spatial aggregation of the time series in configuration format
+  1.0 (``time_series_samples.aggregation``): ``point`` (as before),
+  ``subcatchment`` (the catchment upstream of each sample over the LDD) and
+  ``zones`` (a ``rasters.zones`` raster, ids remapped to ``1..N`` and
+  recorded in ``zones_mapping.csv``); non-point tables are named
+  ``tss_<variable>_<aggregation>``.
 
 Version 0.9.0-beta.3
 ---------------------
