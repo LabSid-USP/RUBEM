@@ -102,10 +102,7 @@ class DynamicFrameworkWrapper:
             self.logger.info("Exporting tables as CSV...")
             cols = [str(n) for n in self.dynamic_model_concept.sample_vals[1:]]
             tss_files = [
-                str(
-                    Path(self.config.output_directory.path)
-                    / f"{var.get('table_filename_prefix')}.tss"
-                )
+                str(Path(self.config.output_directory.path) / f"{var.table_filename_prefix}.tss")
                 for var in enabled_time_series
             ]
             # The export now runs only after a successful run, so every enabled

@@ -51,6 +51,11 @@ Unreleased
   attributes and messages; ``pydantic`` is now a runtime dependency. New
   checks: the grid size must be finite with a finite square, the FPAR bounds
   must satisfy ``0 < min < max < 1`` and ``lai_max`` must be positive.
+- Rebuilt the output configuration objects as Pydantic models:
+  ``OutputVariables`` holds ``OutputVariable`` objects (attribute access; the
+  dictionary-style ``get()`` is deprecated), ``OutputDataDirectory`` creates
+  the directory in ``ensure_exists()`` rather than on construction, and
+  ``OutputRasterBase.from_file()`` reads the geometry.
 
 Version 0.9.0-beta.3
 ---------------------

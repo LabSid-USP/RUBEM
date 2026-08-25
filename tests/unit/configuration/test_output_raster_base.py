@@ -234,3 +234,35 @@ class TestReadRasterGeometry:
 
         with pytest.raises(RuntimeError):
             read_raster_geometry(broken)
+
+
+class TestModelBehaviour:
+    @pytest.mark.unit
+    def test_from_file_equals_the_positional_construction(self, tmp_path):
+        config = write_synthetic_dataset(tmp_path)
+
+        from_file = OutputRasterBase.from_file(config["RASTERS"]["dem"])
+        positional = OutputRasterBase(config["RASTERS"]["dem"])
+
+        assert from_file == positional
+        assert from_file.base_raster == str(Path(config["RASTERS"]["dem"]))
+
+    @pytest.mark.unit
+    def test_is_frozen_and_round_trips(self, tmp_path):
+        from pydantic import ValidationError
+
+        config = write_synthetic_dataset(tmp_path)
+        base_raster = OutputRasterBase.from_file(config["RASTERS"]["dem"])
+
+        with pytest.raises(ValidationError):
+            base_raster.cols = 1
+        assert OutputRasterBase.model_validate(base_raster.model_dump()) == base_raster
+
+    @pytest.mark.unit
+    def test_field_construction_validates_the_geometry(self):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            OutputRasterBase(cols=0, rows=3, transformation=(0, 1, 0, 0, 0, -1))
+        with pytest.raises(ValidationError):
+            OutputRasterBase(cols=3, rows=3, transformation=(0, 1, 0))

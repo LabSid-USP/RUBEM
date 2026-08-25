@@ -110,7 +110,9 @@ class ModelConfiguration:
                 leaf_area_interception_max=float(self.__get_setting("CONSTANTS", "lai_max")),
                 impervious_area_interception=float(self.__get_setting("CONSTANTS", "i_imp")),
             )
-            self.output_directory = OutputDataDirectory(self.__get_setting("DIRECTORIES", "output"))
+            self.output_directory = OutputDataDirectory(
+                self.__get_setting("DIRECTORIES", "output")
+            ).ensure_exists()
 
             output_formats = OutputFileFormat(0)
             if self.__get_flag("RASTER_FILE_FORMAT", "map_raster_series", default=True):
@@ -177,7 +179,7 @@ class ModelConfiguration:
                 kc_max=self.__get_setting("TABLES", "k_c_max"),
                 validate_input=validate_input,
             )
-            self.output_raster_base = OutputRasterBase(
+            self.output_raster_base = OutputRasterBase.from_file(
                 base_raster_path=self.raster_files.dem,
                 georeference_path=self.raster_files.georeference,
                 must_match=[("clone", self.raster_files.clone)],
