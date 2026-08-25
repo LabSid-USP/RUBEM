@@ -101,13 +101,16 @@ jobs:
         with:
           python-version: "3.13"
       # The SBOM describes the wheel that is published: it is installed alone
-      # in a clean environment and the environment is inventoried.
+      # in a clean environment, which a separate environment holding only the
+      # generator inventories, so cyclonedx-bom and its own dependencies never
+      # appear in the report as though they shipped with RUBEM.
       - name: Build the software bill of materials
         run: |
-          python -m venv "$RUNNER_TEMP/sbom"
-          "$RUNNER_TEMP/sbom/bin/pip" install --quiet dist/*.whl
-          "$RUNNER_TEMP/sbom/bin/pip" install --quiet "cyclonedx-bom==7.0.0"
-          "$RUNNER_TEMP/sbom/bin/cyclonedx-py" environment "$RUNNER_TEMP/sbom" \
+          python -m venv "$RUNNER_TEMP/wheel"
+          "$RUNNER_TEMP/wheel/bin/pip" install --quiet dist/*.whl
+          python -m venv "$RUNNER_TEMP/cyclonedx"
+          "$RUNNER_TEMP/cyclonedx/bin/pip" install --quiet "cyclonedx-bom==7.0.0"
+          "$RUNNER_TEMP/cyclonedx/bin/cyclonedx-py" environment "$RUNNER_TEMP/wheel" \
             --output-format JSON --output-file dist/sbom.cdx.json
           python3 ci/conda_inventory.py ci/golden-env.lock dist/conda-inventory.json
       - name: Compute checksums
