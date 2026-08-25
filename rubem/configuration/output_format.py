@@ -8,3 +8,12 @@ class OutputFileFormat(Flag):
 
     PCRASTER = auto()
     GEOTIFF = auto()
+
+
+class TimeSeriesFileFormat(Flag):
+    """
+    Enum class representing the time series file format options.
+    """
+
+    CSV = auto()
+    PCRASTER_TSS = auto()

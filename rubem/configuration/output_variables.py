@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from ..configuration.output_format import OutputFileFormat
+from ..configuration.output_format import OutputFileFormat, TimeSeriesFileFormat
 
 NO_DATA_VALUE_DEFAULT = -9999
 
@@ -92,6 +92,9 @@ class OutputVariables(BaseModel):
 
     :param no_data_value: No-data value written to the GeoTIFF raster series. Defaults to ``-9999``.
     :type no_data_value: float, optional
+
+    :param time_series_formats: File formats of the time series at the sample locations. Defaults to CSV only (the legacy behaviour: the ``.tss`` files are converted and removed).
+    :type time_series_formats: TimeSeriesFileFormat, optional
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -108,6 +111,7 @@ class OutputVariables(BaseModel):
     tss: bool = False
     output_formats: OutputFileFormat = OutputFileFormat.PCRASTER
     no_data_value: float = NO_DATA_VALUE_DEFAULT
+    time_series_formats: TimeSeriesFileFormat = TimeSeriesFileFormat.CSV
 
     @model_validator(mode="before")
     @classmethod
@@ -116,6 +120,20 @@ class OutputVariables(BaseModel):
         if not isinstance(data, dict):
             return data
         expanded = dict(data)
+        objects = [
+            expanded[variable_id]
+            for variable_id in VARIABLE_IDS
+            if isinstance(expanded.get(variable_id), (OutputVariable, dict))
+        ]
+        if objects and "tss" not in expanded:
+            # Variables given as objects carry their own time-series flag; the
+            # run writes time series when any of them asks for one.
+            expanded["tss"] = any(
+                o.is_time_series_enabled
+                if isinstance(o, OutputVariable)
+                else o.get("is_time_series_enabled", False)
+                for o in objects
+            )
         tss = bool(expanded.get("tss", False))
         for variable_id in VARIABLE_IDS:
             value = expanded.get(variable_id, False)
@@ -186,4 +204,5 @@ class OutputVariables(BaseModel):
             f"Create time output time series (TSS): {'Enabled' if self.tss else 'Disabled'}"
         )
         lines.append(f"Output format: {self.output_formats}")
+        lines.append(f"Time series format: {self.time_series_formats}")
         return "\n".join(lines)

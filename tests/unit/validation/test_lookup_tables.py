@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from rubem.configuration.input_table_files import InputTableFiles
@@ -124,3 +126,52 @@ class TestCheckLookupTables:
         problems = check_lookup_tables(tables_of(config))
 
         assert any(p.blocking and "between 0 and 1" in p.description for p in problems)
+
+
+class TestKeySpellings:
+    """Keys are compared numerically: ``1``, ``01`` and ``1.0`` are one class."""
+
+    @pytest.mark.unit
+    def test_zero_padded_and_decimal_months_cover_the_year(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        rewrite(config["TABLES"]["rainydays"], "".join(f"{m:02d} 5\n" for m in range(1, 13)))
+        assert check_lookup_tables(tables_of(config)) == []
+
+        rewrite(config["TABLES"]["rainydays"], "".join(f"{m}.0 5\n" for m in range(1, 13)))
+        assert check_lookup_tables(tables_of(config)) == []
+
+    @pytest.mark.unit
+    def test_interval_keys_cover_the_months_they_span(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        rewrite(config["TABLES"]["rainydays"], "[1,6] 3\n<6,12] 9\n")
+        assert check_lookup_tables(tables_of(config)) == []
+
+        rewrite(config["TABLES"]["rainydays"], "[1,6] 3\n<6,11] 9\n")
+        problems = check_lookup_tables(tables_of(config))
+        assert any("Missing months: [12]" in p.reason for p in problems)
+
+    @pytest.mark.unit
+    def test_paired_tables_match_equivalent_spellings(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        rewrite(config["TABLES"]["t_fcap"], "1.0 0.26\n")
+        rewrite(config["TABLES"]["t_wp"], "01 0.12\n")
+
+        assert check_lookup_tables(tables_of(config)) == []
+
+        rewrite(config["TABLES"]["t_wp"], "01 0.30\n")
+        problems = check_lookup_tables(tables_of(config))
+        assert any("Tcc > Tw" in p.description and p.blocking for p in problems)
+
+    @pytest.mark.unit
+    def test_an_unreadable_fraction_table_names_its_path(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        rewrite(config["TABLES"]["a_o"], "3 nope\n")
+
+        problems = check_lookup_tables(tables_of(config))
+
+        fraction_problems = [
+            p for p in problems if "Area fraction lookup table cannot be read" in p.description
+        ]
+        assert fraction_problems and Path(fraction_problems[0].file) == Path(
+            config["TABLES"]["a_o"]
+        )

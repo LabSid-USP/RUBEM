@@ -165,12 +165,12 @@ class TestConfigSchema:
         assert set(schema["required"]) >= {"SIM_TIME", "RASTERS", "TABLES"}
 
     @pytest.mark.unit
-    def test_legacy_is_the_default_format(self, capsys, restore_logging):
+    def test_1_0_is_the_default_format(self, capsys, restore_logging):
         import json
 
         main(["config", "schema"])
 
-        assert "SIM_TIME" in json.loads(capsys.readouterr().out)["properties"]
+        assert "simulation_period" in json.loads(capsys.readouterr().out)["properties"]
 
     @pytest.mark.unit
     def test_an_unknown_format_is_rejected(self, capsys, restore_logging):

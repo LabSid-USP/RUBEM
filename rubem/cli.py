@@ -64,6 +64,7 @@ app.add_typer(config_app, name="config")
 class SchemaFormat(StrEnum):
     """Configuration file formats whose schema can be printed."""
 
+    v1 = "v1"
     legacy = "legacy"
 
 
@@ -167,15 +168,47 @@ def run(
 def config_schema(
     schema_format: Annotated[
         SchemaFormat,
-        typer.Option("--format", help="Configuration file format."),
-    ] = SchemaFormat.legacy,
+        typer.Option("--format", help="Configuration file format (1.0 by default)."),
+    ] = SchemaFormat.v1,
 ) -> None:
     """Print the JSON Schema of the configuration file."""
-    from .configuration.model_configuration_file import ModelConfigurationFile
-
     if schema_format is SchemaFormat.legacy:
+        from .configuration.model_configuration_file import ModelConfigurationFile
+
         schema = ModelConfigurationFile.model_json_schema(by_alias=True)
+    else:
+        from .configuration.model_configuration_file_v1 import ModelConfigurationFileV1
+
+        schema = ModelConfigurationFileV1.model_json_schema(by_alias=True)
     print(json.dumps(schema, indent=2))
+
+
+@config_app.command("migrate")
+def config_migrate(
+    configfile: Annotated[
+        Path,
+        typer.Option("-c", "--configfile", callback=_configfile_callback, help="Legacy file."),
+    ],
+    output: Annotated[
+        Path | None,
+        typer.Option("-o", "--output", help="Destination (default: <name>-v1.json alongside)."),
+    ] = None,
+    force: Annotated[
+        bool, typer.Option("--force", help="Overwrite the destination if it exists.")
+    ] = False,
+) -> None:
+    """Convert a legacy configuration file to format 1.0."""
+    from .configuration.migrate import migrate_legacy_file
+
+    try:
+        written = migrate_legacy_file(configfile, output, force=force)
+    except FileExistsError as e:
+        logger.critical("%s", e)
+        raise typer.Exit(code=1) from e
+    except (ValidationError, ValueError) as e:
+        logger.critical("Invalid configuration: %s", e)
+        raise typer.Exit(code=1) from e
+    print(f"Wrote {written}")
 
 
 def _configure_process() -> None:

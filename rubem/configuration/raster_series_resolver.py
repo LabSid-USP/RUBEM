@@ -92,6 +92,9 @@ class DatedSeriesResolver:
                     f"previous entry ends ({end})."
                 )
 
+    def __repr__(self) -> str:
+        return f"DatedSeriesResolver({self.series!r}, {len(self.entries)} entries)"
+
     def path_for_step(self, step: int) -> str | MissingStep:
         day = step_to_date(step, self.alignment)
         for path, start, end in self.entries:
@@ -120,6 +123,11 @@ class MonthlySeriesResolver:
         self.monthly = {month: str(as_path(path)) for month, path in monthly.items()}
         self.yearly_from = yearly_from
         self.yearly_file_path = str(as_path(yearly_file_path)) if yearly_file_path else None
+
+    def __repr__(self) -> str:
+        return (
+            f"MonthlySeriesResolver({self.series!r}, 12 rasters, yearly_from={self.yearly_from!r})"
+        )
 
     def path_for_step(self, step: int) -> str | MissingStep:
         day = step_to_date(step, self.alignment)
@@ -220,3 +228,60 @@ def resolvers_from_v1(file) -> dict:
                 alignment,
             )
     return resolvers
+
+
+def validate_resolved_series(resolvers: dict, first_step: int, last_step: int) -> list[Problem]:
+    """Validate the rasters the resolvers answer over the simulated window.
+
+    Every distinct file is opened once and checked with the data rules and
+    the content rules of its series (``kp`` positive, NDVI below one), on top
+    of the coverage report of :func:`check_coverage`.
+    """
+    from ..validation.raster_content import check_below_one, check_positive
+    from ..validation.raster_data_rules import RasterDataRules
+    from ..validation.raster_map_validator import RasterMapValidator
+    from ._ranges import raster_ranges
+    from .raster_map import RasterMap
+
+    problems = check_coverage(resolvers, first_step, last_step)
+    ranges = raster_ranges()
+    rules = {
+        "etp": RasterDataRules.FORBID_NO_DATA,
+        "precipitation": RasterDataRules.FORBID_NO_DATA,
+        "ndvi": RasterDataRules.FORBID_NO_DATA,
+        "kp": RasterDataRules.FORBID_NO_DATA,
+        "landuse": RasterDataRules.FORBID_NO_DATA | RasterDataRules.FORBID_ALL_ZEROES,
+    }
+    content_rules = {
+        "kp": lambda values, no_data, file: check_positive(
+            values, no_data, file, "Class A pan coefficient (Kp)"
+        ),
+        "ndvi": lambda values, no_data, file: check_below_one(values, no_data, file, "NDVI"),
+    }
+    for name, resolver in resolvers.items():
+        files = []
+        for step in range(first_step, last_step + 1):
+            answer = resolver.path_for_step(step)
+            if not isinstance(answer, MissingStep) and answer not in files:
+                files.append(answer)
+        for file in files:
+            if not Path(file).is_file():
+                continue  # Already reported by the coverage check.
+            with RasterMap(file, ranges[name], rules[name]) as raster:
+                valid, errors = RasterMapValidator().validate(raster)
+                rule = content_rules.get(name)
+                if rule is not None:
+                    band = raster.bands[0]
+                    problem = rule(band.data_array, band.no_data_value, file)
+                    if problem is not None:
+                        problems.append(problem)
+            if not valid:
+                problems.append(
+                    Problem(
+                        description="Raster file data validation failed.",
+                        reason=f"Data rules violation(s): {[str(error) for error in errors]}",
+                        implication="This may lead to unexpected results.",
+                        file=file,
+                    )
+                )
+    return problems

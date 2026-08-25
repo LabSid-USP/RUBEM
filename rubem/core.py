@@ -7,6 +7,7 @@ from pcraster.framework import DynamicFramework
 
 from ._dynamic_model import RainfallRunoffBalanceEnhancedModel
 from .configuration.model_configuration import ModelConfiguration
+from .configuration.output_format import TimeSeriesFileFormat
 from .file._file_conversions import tss2csv
 
 
@@ -92,8 +93,18 @@ class DynamicFrameworkWrapper:
             raise ValueError("Unsupported model configuration format", type(data))
 
     def __export_tables_as_csv(self) -> None:
-        """Converts PCRaster TSS files to Comma-Separated Values (CSV) files."""
+        """Converts PCRaster TSS files to Comma-Separated Values (CSV) files.
+
+        The conversion follows the configured time series formats: CSV only
+        converts and removes the ``.tss`` files (the legacy behaviour),
+        PCRaster TSS only keeps them untouched, both converts and keeps.
+        """
         enabled_time_series = self.config.output_variables.get_enabled_time_series()
+        formats = self.config.output_variables.time_series_formats
+        if TimeSeriesFileFormat.CSV not in formats:
+            if enabled_time_series:
+                self.logger.info("Time series kept as PCRaster TSS files.")
+            return
         if (
             self.config.raster_files.sample_locations
             and enabled_time_series
@@ -109,7 +120,11 @@ class DynamicFrameworkWrapper:
             # writer must have produced its file: the complete list is passed
             # and ``tss2csv`` refuses to install anything if one is missing,
             # instead of mixing fresh CSV files with those of an earlier run.
-            tss2csv(tss_files, cols)
+            tss2csv(
+                tss_files,
+                cols,
+                should_delete_src_tss=TimeSeriesFileFormat.PCRASTER_TSS not in formats,
+            )
         else:
             self.logger.warning(
                 "Generation of time series was not configured to export time series files."

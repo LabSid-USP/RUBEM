@@ -51,8 +51,37 @@ def read_lookup_table(path) -> list[tuple[tuple[str, ...], float]]:
     return rows
 
 
+def _in_interval(value: float, interval: str) -> bool:
+    """Whether ``value`` lies in a PCRaster key interval such as ``[1,3]`` or ``<1,>``."""
+    low_text, high_text = interval[1:-1].split(",")
+    low_ok = (
+        True
+        if not low_text.strip()
+        else (value >= float(low_text) if interval[0] == "[" else value > float(low_text))
+    )
+    high_ok = (
+        True
+        if not high_text.strip()
+        else (value <= float(high_text) if interval[-1] == "]" else value < float(high_text))
+    )
+    return low_ok and high_ok
+
+
+def _canonical(key: str) -> str:
+    """Canonical spelling of a key, so that ``1``, ``01`` and ``1.0`` are one class.
+
+    Interval keys are returned unchanged.
+    """
+    if not _NUMBER.match(key):
+        return key
+    number = float(key)
+    return str(int(number)) if number.is_integer() else repr(number)
+
+
 def _values_by_key(path) -> dict[tuple[str, ...], float]:
-    return dict(read_lookup_table(path))
+    return {
+        tuple(_canonical(key) for key in keys): value for keys, value in read_lookup_table(path)
+    }
 
 
 def _problem(description: str, reason: str, path, blocking: bool) -> Problem:
@@ -139,9 +168,17 @@ def check_lookup_tables(tables) -> list[Problem]:
 
     rainy_days = _check_positive("Rainy days", tables.rainy_days, problems)
     if rainy_days is not None:
-        months = {str(month) for month in range(1, 13)}
-        keys = {" ".join(k) for k in rainy_days}
-        missing = sorted(months - keys, key=int)
+        months = set(range(1, 13))
+        covered: set[float] = set()
+        for key in rainy_days:
+            if len(key) != 1:
+                continue
+            (item,) = key
+            if _NUMBER.match(item):
+                covered.add(float(item))
+            elif _INTERVAL.match(item):
+                covered.update(month for month in months if _in_interval(month, item))
+        missing = sorted(months - covered)
         if missing:
             problems.append(
                 _problem(
@@ -211,15 +248,16 @@ def _check_readable(label: str, path, problems: list[Problem]) -> None:
 
 
 def _check_fractions(paths: Iterable, problems: list[Problem]) -> None:
-    try:
-        tables = [_values_by_key(path) for path in paths]
-    except (OSError, LookupTableError) as e:
-        problems.append(
-            _problem(
-                "Area fraction lookup table cannot be read.", str(e), str(e).split(":")[0], True
+    paths = list(paths)
+    tables = []
+    for path in paths:
+        try:
+            tables.append(_values_by_key(path))
+        except (OSError, LookupTableError) as e:
+            problems.append(
+                _problem("Area fraction lookup table cannot be read.", str(e), path, True)
             )
-        )
-        return
+            return
     keys = set().union(*tables)
     for key in sorted(keys):
         values = [table.get(key) for table in tables]
