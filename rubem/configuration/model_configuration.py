@@ -1,28 +1,25 @@
 import json
 import logging
-import math
 import os
 import textwrap
-from datetime import datetime
-from pathlib import Path
 
 from .._paths import PathInput, as_path
+from ..configuration._json import read_json
 from ..configuration._problems import ConfigurationError, Problem
 from ..configuration.calibration_parameters import CalibrationParameters
 from ..configuration.initial_soil_conditions import InitialSoilConditions
 from ..configuration.input_raster_files import InputRasterFiles
 from ..configuration.input_raster_series import InputRasterSeries
 from ..configuration.input_table_files import InputTableFiles
+from ..configuration.model_configuration_file import ModelConfigurationFile
 from ..configuration.model_constants import ModelConstants
 from ..configuration.output_data_directory import OutputDataDirectory
 from ..configuration.output_format import OutputFileFormat
 from ..configuration.output_raster_base import OutputRasterBase
-from ..configuration.output_variables import NO_DATA_VALUE_DEFAULT, OutputVariables
+from ..configuration.output_variables import OutputVariables
 from ..configuration.raster_grid_area import RasterGrid
 from ..configuration.simulation_period import SimulationPeriod
 from ..validation.lookup_tables import check_lookup_tables
-
-_ABSENT = object()
 
 
 class ModelConfiguration:
@@ -31,20 +28,26 @@ class ModelConfiguration:
     The `ModelConfiguration` class is responsible for loading and storing the configuration settings
     required for running the model. It supports loading configuration from either a dictionary or a JSON file.
 
-    :param config_input: The configuration input. It can be a dictionary containing the configuration
-        settings, a file path to a JSON file, or a file-like object.
-
-    :param validate_input: Whether to validate the input. Defaults to `True`.
+    :param config_input: The configuration input: a dictionary with the legacy sections, or the
+        path of a legacy JSON file.
+    :param validate_input: Whether to validate the input files and their content. Defaults to `True`.
     :type validate_input: bool, optional
+    :param base_dir: Directory the relative paths of the configuration are anchored on. Defaults to
+        the directory of the JSON file, or to ``None`` (paths kept as given) for a dictionary.
 
     :raises FileNotFoundError: If the specified config file is not found.
-    :raises ValueError: If the config file type is not supported.
+    :raises ValueError: If the config file type is not supported, or a setting is missing or invalid
+        (``pydantic.ValidationError`` is a ``ValueError``).
     :raises json.JSONDecodeError: If the JSON file is not valid.
-    :raises KeyError: If a required setting is missing.
-    :raises ValueError: If a setting value is invalid.
+    :raises ConfigurationError: If the inputs carry blocking problems.
     """
 
-    def __init__(self, config_input: dict | PathInput, validate_input: bool = True):
+    def __init__(
+        self,
+        config_input: dict | PathInput,
+        validate_input: bool = True,
+        base_dir: PathInput | None = None,
+    ):
         self.logger = logging.getLogger(__name__)
         self.problems = []
 
@@ -55,6 +58,7 @@ class ModelConfiguration:
             if isinstance(config_input, dict):
                 self.logger.debug("Reading configuration from dictionary")
                 self.config = config_input
+                self.file = ModelConfigurationFile.model_validate(config_input)
             elif isinstance(config_input, (str, bytes, os.PathLike)):
                 config_input_path = as_path(config_input)
                 config_input_str = str(config_input_path)
@@ -67,90 +71,78 @@ class ModelConfiguration:
                 else:
                     self.logger.error("Unsupported file type: %s", config_input_str)
                     raise ValueError("Unsupported file type")
+                self.file = ModelConfigurationFile.model_validate(self.config)
+                if base_dir is None:
+                    base_dir = config_input_path.absolute().parent
+            else:
+                raise TypeError(f"Unsupported configuration input: {type(config_input).__name__}")
+            self.file = self.file.resolve_paths(base_dir)
+            self.base_dir = str(as_path(base_dir)) if base_dir is not None else None
 
             self.logger.debug("Loading configuration...")
+            file = self.file
             self.simulation_period = SimulationPeriod(
-                start=datetime.strptime(self.__get_setting("SIM_TIME", "start"), "%d/%m/%Y"),
-                end=datetime.strptime(self.__get_setting("SIM_TIME", "end"), "%d/%m/%Y"),
-                alignment=(
-                    datetime.strptime(
-                        self.__get_setting("SIM_TIME", "alignment", optional=True), "%d/%m/%Y"
-                    )
-                    if self.__get_setting("SIM_TIME", "alignment", optional=True)
-                    else None
-                ),
+                start=file.sim_time.start,
+                end=file.sim_time.end,
+                alignment=file.sim_time.alignment,
             )
-            self.grid = RasterGrid(float(self.__get_setting("GRID", "grid")))
+            self.grid = RasterGrid(file.grid.grid)
             self.calibration_parameters = CalibrationParameters(
-                alpha=float(self.__get_setting("CALIBRATION", "alpha")),
-                beta=float(self.__get_setting("CALIBRATION", "b")),
-                w_1=float(self.__get_setting("CALIBRATION", "w_1")),
-                w_2=float(self.__get_setting("CALIBRATION", "w_2")),
-                w_3=float(self.__get_setting("CALIBRATION", "w_3")),
-                rcd=float(self.__get_setting("CALIBRATION", "rcd")),
-                f=float(self.__get_setting("CALIBRATION", "f")),
-                alpha_gw=float(self.__get_setting("CALIBRATION", "alpha_gw")),
-                x=float(self.__get_setting("CALIBRATION", "x")),
+                alpha=file.calibration.alpha,
+                beta=file.calibration.b,
+                w_1=file.calibration.w_1,
+                w_2=file.calibration.w_2,
+                w_3=file.calibration.w_3,
+                rcd=file.calibration.rcd,
+                f=file.calibration.f,
+                alpha_gw=file.calibration.alpha_gw,
+                x=file.calibration.x,
             )
             self.initial_soil_conditions = InitialSoilConditions(
-                initial_soil_moisture_content=float(
-                    self.__get_setting("INITIAL_SOIL_CONDITIONS", "t_ini")
-                ),
-                initial_baseflow=float(self.__get_setting("INITIAL_SOIL_CONDITIONS", "bfw_ini")),
-                baseflow_limit=float(self.__get_setting("INITIAL_SOIL_CONDITIONS", "bfw_lim")),
-                initial_saturated_zone_storage=float(
-                    self.__get_setting("INITIAL_SOIL_CONDITIONS", "s_sat_ini")
-                ),
+                initial_soil_moisture_content=file.initial_soil_conditions.t_ini,
+                initial_baseflow=file.initial_soil_conditions.bfw_ini,
+                baseflow_limit=file.initial_soil_conditions.bfw_lim,
+                initial_saturated_zone_storage=file.initial_soil_conditions.s_sat_ini,
             )
             self.constants = ModelConstants(
-                fraction_photo_active_radiation_max=float(
-                    self.__get_setting("CONSTANTS", "fpar_max")
-                ),
-                fraction_photo_active_radiation_min=float(
-                    self.__get_setting("CONSTANTS", "fpar_min")
-                ),
-                leaf_area_interception_max=float(self.__get_setting("CONSTANTS", "lai_max")),
-                impervious_area_interception=float(self.__get_setting("CONSTANTS", "i_imp")),
+                fraction_photo_active_radiation_max=file.constants.fpar_max,
+                fraction_photo_active_radiation_min=file.constants.fpar_min,
+                leaf_area_interception_max=file.constants.lai_max,
+                impervious_area_interception=file.constants.i_imp,
             )
-            self.output_directory = OutputDataDirectory(
-                self.__get_setting("DIRECTORIES", "output")
-            ).ensure_exists()
+            self.output_directory = OutputDataDirectory(file.directories.output).ensure_exists()
 
             output_formats = OutputFileFormat(0)
-            if self.__get_flag("RASTER_FILE_FORMAT", "map_raster_series", default=True):
+            if file.raster_file_format.map_raster_series:
                 output_formats |= OutputFileFormat.PCRASTER
-            if self.__get_flag("RASTER_FILE_FORMAT", "tiff_raster_series", default=False):
+            if file.raster_file_format.tiff_raster_series:
                 output_formats |= OutputFileFormat.GEOTIFF
-            no_data_value = self.__get_no_data_value()
 
             self.output_variables = OutputVariables(
-                itp=str_to_bool(self.__get_setting("GENERATE_FILE", "itp")),
-                bfw=str_to_bool(self.__get_setting("GENERATE_FILE", "bfw")),
-                srn=str_to_bool(self.__get_setting("GENERATE_FILE", "srn")),
-                eta=str_to_bool(self.__get_setting("GENERATE_FILE", "eta")),
-                lfw=str_to_bool(self.__get_setting("GENERATE_FILE", "lfw")),
-                rec=str_to_bool(self.__get_setting("GENERATE_FILE", "rec")),
-                smc=str_to_bool(self.__get_setting("GENERATE_FILE", "smc")),
-                rnf=str_to_bool(self.__get_setting("GENERATE_FILE", "rnf")),
-                arn=str_to_bool(self.__get_setting("GENERATE_FILE", "arn")),
-                tss=str_to_bool(self.__get_setting("GENERATE_FILE", "tss")),
+                itp=file.generate_file.itp,
+                bfw=file.generate_file.bfw,
+                srn=file.generate_file.srn,
+                eta=file.generate_file.eta,
+                lfw=file.generate_file.lfw,
+                rec=file.generate_file.rec,
+                smc=file.generate_file.smc,
+                rnf=file.generate_file.rnf,
+                arn=file.generate_file.arn,
+                tss=file.generate_file.tss,
                 output_formats=output_formats,
-                no_data_value=no_data_value,
+                no_data_value=file.raster_file_format.no_data_value,
             )
-
             self.raster_series = InputRasterSeries(
-                etp=self.__get_setting("DIRECTORIES", "etp"),
-                etp_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "etp_prefix"),
-                precipitation=self.__get_setting("DIRECTORIES", "prec"),
-                precipitation_filename_prefix=self.__get_setting(
-                    "FILENAME_PREFIXES", "prec_prefix"
-                ),
-                ndvi=self.__get_setting("DIRECTORIES", "ndvi"),
-                ndvi_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "ndvi_prefix"),
-                kp=self.__get_setting("DIRECTORIES", "kp"),
-                kp_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "kp_prefix"),
-                landuse=self.__get_setting("DIRECTORIES", "landuse"),
-                landuse_filename_prefix=self.__get_setting("FILENAME_PREFIXES", "landuse_prefix"),
+                etp=file.directories.etp,
+                etp_filename_prefix=file.filename_prefixes.etp_prefix,
+                precipitation=file.directories.prec,
+                precipitation_filename_prefix=file.filename_prefixes.prec_prefix,
+                ndvi=file.directories.ndvi,
+                ndvi_filename_prefix=file.filename_prefixes.ndvi_prefix,
+                kp=file.directories.kp,
+                kp_filename_prefix=file.filename_prefixes.kp_prefix,
+                landuse=file.directories.landuse,
+                landuse_filename_prefix=file.filename_prefixes.landuse_prefix,
                 validate_input=validate_input,
                 required_steps=(
                     self.simulation_period.first_step,
@@ -158,31 +150,31 @@ class ModelConfiguration:
                 ),
             )
             self.raster_files = InputRasterFiles(
-                dem=self.__get_setting("RASTERS", "dem"),
-                clone=self.__get_setting("RASTERS", "clone"),
-                ndvi_max=self.__get_setting("RASTERS", "ndvi_max"),
-                ndvi_min=self.__get_setting("RASTERS", "ndvi_min"),
-                soil=self.__get_setting("RASTERS", "soil"),
-                ldd=self.__get_setting("RASTERS", "ldd", optional=True),
-                sample_locations=self.__get_setting("RASTERS", "samples", optional=True),
+                dem=file.rasters.dem,
+                clone=file.rasters.clone,
+                ndvi_max=file.rasters.ndvi_max,
+                ndvi_min=file.rasters.ndvi_min,
+                soil=file.rasters.soil,
+                ldd=file.rasters.ldd,
+                sample_locations=file.rasters.samples,
                 validate_input=validate_input,
-                georeference=self.__get_setting("RASTERS", "georeference", optional=True),
+                georeference=file.rasters.georeference,
             )
             self.lookuptable_files = InputTableFiles(
-                rainy_days=self.__get_setting("TABLES", "rainydays"),
-                a_i=self.__get_setting("TABLES", "a_i"),
-                a_o=self.__get_setting("TABLES", "a_o"),
-                a_s=self.__get_setting("TABLES", "a_s"),
-                a_v=self.__get_setting("TABLES", "a_v"),
-                manning=self.__get_setting("TABLES", "manning"),
-                bulk_density=self.__get_setting("TABLES", "bulk_density"),
-                k_sat=self.__get_setting("TABLES", "k_sat"),
-                t_fcap=self.__get_setting("TABLES", "t_fcap"),
-                t_sat=self.__get_setting("TABLES", "t_sat"),
-                t_wp=self.__get_setting("TABLES", "t_wp"),
-                rootzone_depth=self.__get_setting("TABLES", "rootzone_depth"),
-                kc_min=self.__get_setting("TABLES", "k_c_min"),
-                kc_max=self.__get_setting("TABLES", "k_c_max"),
+                rainy_days=file.tables.rainydays,
+                a_i=file.tables.a_i,
+                a_o=file.tables.a_o,
+                a_s=file.tables.a_s,
+                a_v=file.tables.a_v,
+                manning=file.tables.manning,
+                bulk_density=file.tables.bulk_density,
+                k_sat=file.tables.k_sat,
+                t_fcap=file.tables.t_fcap,
+                t_sat=file.tables.t_sat,
+                t_wp=file.tables.t_wp,
+                rootzone_depth=file.tables.rootzone_depth,
+                kc_min=file.tables.k_c_min,
+                kc_max=file.tables.k_c_max,
                 validate_input=validate_input,
             )
             self.output_raster_base = OutputRasterBase.from_file(
@@ -200,6 +192,21 @@ class ModelConfiguration:
         if validate_input:
             self.problems.extend(check_lookup_tables(self.lookuptable_files))
         self.__check_inconsistencies()
+
+    @classmethod
+    def load(
+        cls,
+        config_input: dict | PathInput,
+        validate_input: bool = True,
+        base_dir: PathInput | None = None,
+    ) -> "ModelConfiguration":
+        """Load a legacy configuration from a dictionary or a JSON file.
+
+        Relative paths are anchored on the directory of the JSON file, or on
+        ``base_dir`` when given (a dictionary has no anchor unless ``base_dir``
+        is passed).
+        """
+        return cls(config_input, validate_input=validate_input, base_dir=base_dir)
 
     def __check_inconsistencies(self):
         if self.output_variables.any_enabled() and not self.output_variables.file_formats:
@@ -255,56 +262,10 @@ class ModelConfiguration:
     def __read_json(self, file_path: PathInput):
         self.logger.debug("Reading JSON file: %s", file_path)
         try:
-            with Path(file_path).open(encoding="utf-8") as f:
-                return json.load(f)
+            return read_json(file_path)
         except json.JSONDecodeError as e:
             self.logger.error("Error parsing JSON file: %s", e)
             raise
-
-    def __get_optional(self, section, setting):
-        """Return the setting, or ``_ABSENT`` when the section or the key is missing.
-
-        Unlike ``__get_setting(optional=True)``, an explicit empty value is
-        returned as such, so it can be rejected instead of silently defaulted.
-        """
-        try:
-            return self.config[section][setting]
-        except (KeyError, TypeError):
-            self.logger.debug("Optional setting not found: %s in section: %s", setting, section)
-            return _ABSENT
-
-    def __get_flag(self, section, setting, default: bool) -> bool:
-        """Read an optional boolean setting, falling back to ``default`` when absent."""
-        value = self.__get_optional(section, setting)
-        if value is _ABSENT:
-            return default
-        return str_to_bool(value)
-
-    def __get_no_data_value(self) -> float:
-        """Read ``RASTER_FILE_FORMAT.no_data_value``; ``-9999`` when absent."""
-        value = self.__get_optional("RASTER_FILE_FORMAT", "no_data_value")
-        if value is _ABSENT:
-            return NO_DATA_VALUE_DEFAULT
-        if isinstance(value, bool):
-            raise ValueError(f"Invalid RASTER_FILE_FORMAT.no_data_value: {value!r}")
-        try:
-            no_data_value = float(value)
-        except (TypeError, ValueError) as e:
-            raise ValueError(f"Invalid RASTER_FILE_FORMAT.no_data_value: {value!r}") from e
-        if not math.isfinite(no_data_value):
-            raise ValueError(f"Invalid RASTER_FILE_FORMAT.no_data_value: {value!r}")
-        return no_data_value
-
-    def __get_setting(self, section, setting, optional=False):
-        try:
-            return self.config[section][setting]
-        except KeyError as e:
-            if not optional:
-                self.logger.error("Missing setting: %s in section: %s", setting, section)
-                raise ValueError(f"Missing setting: {setting} in section: {section}") from e
-
-            self.logger.debug("Optional setting not found: %s in section: %s", setting, section)
-            return ""
 
     def __str__(self):
         # Workaround for "Escape sequence (backslash) not allowed in expression portion of f-string prior to Python 3.12"
@@ -321,22 +282,3 @@ class ModelConfiguration:
             f"Output directory: {self.output_directory}\n"
             f"Output Raster Series:\n{textwrap.indent(str(self.output_variables), tab)}"
         )
-
-
-def str_to_bool(value: str) -> bool:
-    """
-    Converts a string value to a boolean.
-
-    :param value: The string value to be converted.
-    :type value: str
-
-    :return: The boolean representation of the string value.
-    :rtype: bool
-    """
-    if isinstance(value, bool):
-        return value
-
-    if isinstance(value, str):
-        return value.lower() in ("yes", "true", "t", "1")
-
-    raise ValueError(f"Invalid value for boolean conversion: {type(value)}")

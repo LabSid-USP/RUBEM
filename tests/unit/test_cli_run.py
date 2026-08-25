@@ -118,7 +118,8 @@ class TestCliRun:
 
         captured = capsys.readouterr().err
         assert error.value.code == 1
-        assert "Invalid configuration: Missing setting: start in section: SIM_TIME" in captured
+        assert "Invalid configuration:" in captured
+        assert "SIM_TIME" in captured and "Field required" in captured
         assert "Traceback" not in captured
 
     @pytest.mark.unit

@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -260,15 +261,17 @@ class TestModelConfiguration:
         band_mock = MagicMock(spec=RasterBand)
         band_mock.no_data_value = -9999
         band_mock.data_array = np.ones((3, 3))
-        fs.create_file(
-            "/test_path/config.json",
-            contents=self.valid_config_json_content,
-        )
+        # The relative paths of the JSON content are anchored on the directory
+        # of the file, so it lives at the root of the fake file system.
+        fs.create_file("/config.json", contents=self.valid_config_json_content)
         mocker.patch("osgeo.gdal.OpenEx")
         mocker.patch("osgeo.gdal.GetDataTypeName")
         mocker.patch("os.path.getsize", return_value=100)
         mocker.patch("rubem.configuration.raster_map.RasterBand", return_value=band_mock)
-        _ = ModelConfiguration("/test_path/config.json")
+        loaded = ModelConfiguration("/config.json")
+
+        assert Path(loaded.base_dir) == Path("/config.json").absolute().parent
+        assert Path(loaded.raster_files.dem) == Path("/test_path/test_file.map").absolute()
 
     @pytest.mark.unit
     def test_init_with_not_existent_json_file(self):

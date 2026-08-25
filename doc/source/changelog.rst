@@ -73,6 +73,12 @@ Unreleased
   (``AppSettings.default()`` selects the ``PYTHON_ENVIRONMENT`` file at call
   time; the ranges singleton is gone) and made the command line report an
   invalid configuration with its message instead of a traceback.
+- Added ``ModelConfigurationFile``, the legacy JSON file as a validated
+  model: the spellings found in circulating files are accepted as aliases
+  (``K_sat``, ``T_ini``, ``w1``, ``kcmin``, ...), unknown keys are reported and
+  ignored, duplicated keys are reported (the last value still wins), and
+  relative paths are anchored on the directory of the JSON file
+  (``ModelConfiguration.load(path)``) or on an explicit ``base_dir``.
 
 Version 0.9.0-beta.3
 ---------------------
