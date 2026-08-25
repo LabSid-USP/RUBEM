@@ -169,6 +169,39 @@ def mapseries2tif_command(
         print(path)
 
 
+@app.command("minmax")
+def minmax_command(
+    inputs: Annotated[
+        list[Path],
+        typer.Argument(
+            exists=True, help="GeoTIFF files or directories of GeoTIFF files (the series)."
+        ),
+    ],
+    minimum: Annotated[Path, typer.Option("--min", help="Minimum GeoTIFF to write.")],
+    maximum: Annotated[Path, typer.Option("--max", help="Maximum GeoTIFF to write.")],
+    georeference: Annotated[
+        Path | None,
+        typer.Option(
+            "--georeference",
+            exists=True,
+            dir_okay=False,
+            help="Raster whose geometry and CRS the outputs follow.",
+        ),
+    ] = None,
+    nodata: Annotated[
+        float, typer.Option("--nodata", help="No-data value of the outputs.")
+    ] = -9999.0,
+) -> None:
+    """Write the per-cell minimum and maximum of a raster series (for NDVI extremes)."""
+    from .._deps import require_runtime_deps
+
+    require_runtime_deps()
+    from .minmax_series import minmax
+
+    for path in _run(lambda: minmax(inputs, minimum, maximum, georeference, nodata)):
+        print(path)
+
+
 def _run(operation):
     """Run a tool, turning its input errors into a clean exit."""
     import logging
