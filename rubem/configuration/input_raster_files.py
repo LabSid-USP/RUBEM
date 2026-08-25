@@ -7,14 +7,14 @@ from .._paths import as_path
 from ..configuration._problems import Problem
 from ..configuration._ranges import raster_ranges
 from ..configuration.raster_map import RasterMap
-from ..validation.raster_content import check_extremes, check_sample_ids
+from ..validation.raster_content import check_extremes, check_sample_ids, check_zone_ids
 from ..validation.raster_data_rules import RasterDataRules
 from ..validation.raster_map_validator import RasterMapValidator
 
 logger = logging.getLogger(__name__)
 
 REQUIRED_RASTERS = ("dem", "clone", "ndvi_max", "ndvi_min", "soil")
-OPTIONAL_RASTERS = ("sample_locations", "ldd", "georeference")
+OPTIONAL_RASTERS = ("sample_locations", "ldd", "georeference", "zones")
 
 
 class InputRasterFiles(BaseModel):
@@ -29,6 +29,7 @@ class InputRasterFiles(BaseModel):
     :param sample_locations: Path to the stations locations (samples) file. Specifies a nominal map with unique IDs for which sampling point(s) the time series(s) are required. Defaults to ``None``.
     :param ldd: Path to the Local Drain Direction (LDD) raster file. Defaults to ``None``.
     :param georeference: Path to a raster whose coordinate reference system is written to the output GeoTIFF series. Must share the DEM geometry. Defaults to ``None``.
+    :param zones: Path to a nominal raster of zones the time series may be averaged over. Defaults to ``None``.
     :param validate_input: If ``True``, validates the content of the input raster files. Defaults to ``True``.
 
     :raises FileNotFoundError: If any of the input raster files does not exist.
@@ -45,6 +46,7 @@ class InputRasterFiles(BaseModel):
     sample_locations: str | None = None
     ldd: str | None = None
     georeference: str | None = None
+    zones: str | None = None
     validate_input: bool = Field(default=True, exclude=True, repr=False)
 
     _problems: list[Problem] = PrivateAttr(default_factory=list)
@@ -107,6 +109,10 @@ class InputRasterFiles(BaseModel):
                     RasterDataRules.FORBID_NO_DATA | RasterDataRules.FORBID_ALL_ONES,
                 )
             )
+        if self.zones:
+            files.append(
+                (self.zones, ranges["sample_locations"], RasterDataRules.FORBID_ALL_ZEROES)
+            )
 
         problems = []
         bands = {}
@@ -114,7 +120,7 @@ class InputRasterFiles(BaseModel):
             with RasterMap(file, valid_range, rules) as raster:
                 logger.debug(str(raster).replace("\n", ", "))
                 valid, errors = RasterMapValidator().validate(raster)
-                if file in (self.ndvi_min, self.ndvi_max, self.sample_locations):
+                if file in (self.ndvi_min, self.ndvi_max, self.sample_locations, self.zones):
                     band = raster.bands[0]
                     bands[file] = (band.data_array.copy(), band.no_data_value)
             if not valid:
@@ -136,6 +142,11 @@ class InputRasterFiles(BaseModel):
         if self.sample_locations:
             values, no_data = bands[self.sample_locations]
             problem = check_sample_ids(values, no_data, self.sample_locations)
+            if problem is not None:
+                problems.append(problem)
+        if self.zones:
+            values, no_data = bands[self.zones]
+            problem = check_zone_ids(values, no_data, self.zones)
             if problem is not None:
                 problems.append(problem)
 
@@ -187,5 +198,6 @@ class InputRasterFiles(BaseModel):
             f"NDVI Max.: {self.ndvi_max}\n"
             f"NDVI Min.: {self.ndvi_min}\n"
             f"Soil: {self.soil}\n"
-            f"Stations Locations (Samples): {self.sample_locations if self.sample_locations else 'Not specified.'}"
+            f"Stations Locations (Samples): {self.sample_locations if self.sample_locations else 'Not specified.'}\n"
+            f"Zones: {self.zones if self.zones else 'Not specified.'}"
         )

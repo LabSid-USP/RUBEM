@@ -283,13 +283,15 @@ class ModelConfiguration:
             time_series_formats |= TimeSeriesFileFormat.CSV
         if TimeSeriesFormat.PCRASTER_TSS in output.time_series_samples.formats:
             time_series_formats |= TimeSeriesFileFormat.PCRASTER_TSS
+        aggregation = output.time_series_samples.aggregation.value
+        table_suffix = "" if aggregation == "point" else f"_{aggregation}"
         variables = {
             name: OutputVariable(
                 id=name,
                 is_raster_series_enabled=getattr(output.raster_series, name),
                 is_time_series_enabled=getattr(output.time_series_samples, name),
                 raster_filename_prefix=name,
-                table_filename_prefix=f"tss_{name}",
+                table_filename_prefix=f"tss_{name}{table_suffix}",
             )
             for name in VARIABLE_IDS
         }
@@ -298,6 +300,7 @@ class ModelConfiguration:
             output_formats=output_formats,
             no_data_value=output.raster_series.no_data_value,
             time_series_formats=time_series_formats,
+            aggregation=aggregation,
         )
         rasters = file.rasters
         self.raster_files = InputRasterFiles(
@@ -310,6 +313,7 @@ class ModelConfiguration:
             sample_locations=rasters.samples,
             validate_input=validate_input,
             georeference=rasters.georeference,
+            zones=rasters.zones,
         )
         tables = file.lookup_tables
         self.lookuptable_files = InputTableFiles(
@@ -410,7 +414,11 @@ class ModelConfiguration:
                 )
             )
 
-        if self.output_variables.tss and not self.raster_files.sample_locations:
+        if (
+            self.output_variables.tss
+            and self.output_variables.aggregation != "zones"
+            and not self.raster_files.sample_locations
+        ):
             self.problems.append(
                 Problem(
                     description="Simulation will not produce any Time Series tables.",

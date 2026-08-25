@@ -29,9 +29,14 @@ class RasterBand:
 
         self.index = index
         self.band = band
-        self.band.ComputeStatistics(0)
         self.no_data_value = self.band.GetNoDataValue()
-        self.min, self.max, self.mean, self.std_dev = self.band.GetStatistics(True, True)
+        try:
+            self.band.ComputeStatistics(0)
+            self.min, self.max, self.mean, self.std_dev = self.band.GetStatistics(True, True)
+        except RuntimeError:
+            # A band without a single valid pixel has no statistics; the data
+            # rules report it, so the object must still be built.
+            self.min = self.max = self.mean = self.std_dev = float("nan")
         self.data_type = gdal.GetDataTypeName(self.band.DataType)
         self.data_array = self.band.ReadAsArray()
 

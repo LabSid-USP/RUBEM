@@ -105,13 +105,9 @@ class DynamicFrameworkWrapper:
             if enabled_time_series:
                 self.logger.info("Time series kept as PCRaster TSS files.")
             return
-        if (
-            self.config.raster_files.sample_locations
-            and enabled_time_series
-            and self.dynamic_model_concept.sample_vals is not None
-        ):
+        if enabled_time_series and self.dynamic_model_concept.sample_vals is not None:
             self.logger.info("Exporting tables as CSV...")
-            cols = [str(n) for n in self.dynamic_model_concept.sample_vals[1:]]
+            cols = [str(n) for n in self.dynamic_model_concept.sample_vals]
             tss_files = [
                 str(Path(self.config.output_directory.path) / f"{var.table_filename_prefix}.tss")
                 for var in enabled_time_series

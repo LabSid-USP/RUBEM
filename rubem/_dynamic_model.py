@@ -131,7 +131,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.logger.info("Creating slope map based on DEM...")
         self.slope = pcrfw.slope(self.dem)
 
-        if self.config.raster_files.sample_locations and self.config.output_variables.tss:
+        if self.__time_series_requested():
             self.logger.info("Setting up TSS output files...")
             self.sample_vals = self.__initial_setup_sample_locations()
             self.__initial_setup_timeoutput_timeseries()
@@ -553,7 +553,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         self.__report_raster_series(output_vars_dict)
 
-        if self.config.raster_files.sample_locations:
+        if self.__time_series_requested():
             self.__report_time_series(output_vars_dict)
 
     def __report_raster_series(self, output_vars_dict):
@@ -581,7 +581,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             sample_func = self.sample_time_series_dict.get(var.id)
             if sample_func is None:
                 raise RuntimeError(
-                    f"No time-series writer was set up for the enabled variable '{var.get('id')}'."
+                    f"No time-series writer was set up for the enabled variable '{var.id}'."
                 )
             sample_func(output_vars_dict.get(var.id))
 
@@ -591,11 +591,10 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         Initialize Tss report at sample locations or pits for each enabled output variable.
         """
         for var in self.config.output_variables.get_enabled_time_series():
-            id_map = (
-                self.sample_map
-                if is_geotiff(self.config.raster_files.sample_locations)
-                else self.config.raster_files.sample_locations
+            point_map = self.config.output_variables.aggregation == "point" and not is_geotiff(
+                self.config.raster_files.sample_locations
             )
+            id_map = self.config.raster_files.sample_locations if point_map else self.sample_map
             tss_file = TimeoutputTimeseriesAdapter(
                 str(Path(self.config.output_directory.path) / var.table_filename_prefix),
                 self,
@@ -604,16 +603,56 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             )
             self.sample_time_series_dict[var.id] = tss_file.sample
 
-    def __initial_setup_sample_locations(self) -> np.ndarray:
-        """Initial setup of sample locations.
+    def __time_series_requested(self) -> bool:
+        """Whether the run writes time series: enabled, with the raster its aggregation needs."""
+        if not self.config.output_variables.tss:
+            return False
+        if self.config.output_variables.aggregation == "zones":
+            return bool(self.config.raster_files.zones)
+        return bool(self.config.raster_files.sample_locations)
 
-        Read the sample locations from the file and create a 1D array with unique locations values.
+    def __initial_setup_sample_locations(self) -> np.ndarray:
+        """Build the id map the time series are averaged over.
+
+        ``point``: the sample locations raster; ``subcatchment``: the catchment
+        upstream of each sample over the LDD; ``zones``: the zones raster with
+        its ids remapped to ``1..N`` (the mapping is written to
+        ``zones_mapping.csv``). Returns the unique ids, missing value first.
         """
-        self.sample_map = pcrfw.nominal(
-            self.__read_raster(self.config.raster_files.sample_locations, FieldScale.NOMINAL)
-        )
+        aggregation = self.config.output_variables.aggregation
+        if aggregation == "zones":
+            zones = self.__read_raster(self.config.raster_files.zones, FieldScale.NOMINAL)
+            self.sample_map = self.__remap_zones(pcrfw.nominal(zones))
+        else:
+            samples = pcrfw.nominal(
+                self.__read_raster(self.config.raster_files.sample_locations, FieldScale.NOMINAL)
+            )
+            if aggregation == "subcatchment":
+                self.logger.info("Delineating the subcatchment of each sample location...")
+                catchments = pcrfw.subcatchment(self.ldd, samples)
+                # Cells upstream of no sample get 0, which would become a column.
+                self.sample_map = pcrfw.ifthen(catchments != 0, catchments)
+            else:
+                self.sample_map = samples
         sample_array = pcrfw.pcr2numpy(map=self.sample_map, mv=MISSING_VALUE_DEFAULT)
-        return np.asarray(np.unique(sample_array))
+        # The ids in the map, without the missing value: one table column each.
+        return np.asarray(np.unique(sample_array[sample_array != MISSING_VALUE_DEFAULT]))
+
+    def __remap_zones(self, zones):
+        """Renumber the zone ids to ``1..N`` and record the correspondence."""
+        array = pcrfw.pcr2numpy(map=zones, mv=MISSING_VALUE_DEFAULT)
+        ids = sorted(int(v) for v in np.unique(array) if v != MISSING_VALUE_DEFAULT and v != 0)
+        mapping = {zone: column for column, zone in enumerate(ids, start=1)}
+        remapped = np.full(array.shape, MISSING_VALUE_DEFAULT, dtype=np.int32)
+        for zone, column in mapping.items():
+            remapped[array == zone] = column
+        target = Path(self.config.output_directory.path) / "zones_mapping.csv"
+        with target.open("w", encoding="utf-8", newline="") as handle:
+            handle.write("column,zone\n")
+            for zone, column in mapping.items():
+                handle.write(f"{column},{zone}\n")
+        self.logger.info("Wrote %s (%d zones)", target, len(mapping))
+        return pcr.numpy2pcr(pcr.Nominal, remapped, MISSING_VALUE_DEFAULT)
 
     def __read_series(
         self, series: str, step: int, conversion_func: Callable | None = None

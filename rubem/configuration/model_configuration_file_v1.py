@@ -149,6 +149,7 @@ class Rasters(_Strict):
     ldd: str | None = None
     samples: str | None = None
     georeference: str | None = None
+    zones: str | None = None
 
 
 class LookupTables(_Strict):
@@ -245,8 +246,26 @@ class RasterSeriesOutput(_VariableSelection):
         return self
 
 
+class Aggregation(StrEnum):
+    """How the time series values are aggregated in space."""
+
+    POINT = "point"
+    SUBCATCHMENT = "subcatchment"
+    ZONES = "zones"
+
+
 class TimeSeriesOutput(_VariableSelection):
+    """Time series selection.
+
+    ``aggregation`` chooses the areas the values are averaged over: ``point``
+    (the cells sharing each sample id, as before), ``subcatchment`` (the
+    catchment upstream of each sample over the LDD) or ``zones`` (the areas
+    of the ``rasters.zones`` raster, whose ids are remapped to ``1..N`` and
+    recorded in ``zones_mapping.csv``).
+    """
+
     formats: list[TimeSeriesFormat] = []
+    aggregation: Aggregation = Aggregation.POINT
 
     _unique = field_validator("formats")(_unique)
 
@@ -277,6 +296,19 @@ class ModelConfigurationFileV1(_Strict):
     model_initial_soil_conditions: InitialSoilConditions
     model_constants: Constants
     model_simulation_output: SimulationOutput
+
+    @model_validator(mode="after")
+    def _check_aggregation_inputs(self) -> Self:
+        samples = self.model_simulation_output.time_series_samples
+        if not samples.enabled():
+            return self
+        if samples.aggregation is Aggregation.ZONES and not self.rasters.zones:
+            raise ValueError("time_series_samples.aggregation 'zones' needs rasters.zones.")
+        if samples.aggregation is not Aggregation.ZONES and not self.rasters.samples:
+            raise ValueError(
+                f"time_series_samples.aggregation '{samples.aggregation.value}' needs rasters.samples."
+            )
+        return self
 
     @classmethod
     def from_json(cls, path: PathInput) -> Self:
@@ -458,6 +490,10 @@ class ModelConfigurationFileV1(_Strict):
             )
         if out.time_series_samples.formats not in ([], [TimeSeriesFormat.CSV]):
             raise ValueError("the legacy format only writes CSV time series.")
+        if out.time_series_samples.aggregation is not Aggregation.POINT:
+            raise ValueError("the legacy format only samples the time series at points.")
+        if self.rasters.zones:
+            raise ValueError("the legacy format has no zones raster.")
         tss = any(tss_flags.values())
         if tss and any(raster_flags[name] and not tss_flags[name] for name in VARIABLE_IDS):
             raise ValueError(
@@ -488,7 +524,7 @@ class ModelConfigurationFileV1(_Strict):
                 "kp_prefix": series["kp"].files_prefix,
                 "landuse_prefix": series["landuse"].files_prefix,
             },
-            "RASTERS": self.rasters.model_dump(),
+            "RASTERS": self.rasters.model_dump(exclude={"zones"}),
             "TABLES": {
                 "rainydays": self.lookup_tables.rainy_days,
                 "a_i": self.lookup_tables.a_i,
