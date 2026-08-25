@@ -3,7 +3,15 @@ import pathlib
 
 import pytest
 
-from rubem.file._file_convertions import tss2csv
+from rubem.file import _file_convertions
+from rubem.file._file_convertions import _reserve_stage, tss2csv
+
+
+class FakeUUID:
+    """A stand-in for ``uuid.uuid4()`` results with a fixed ``hex`` value."""
+
+    def __init__(self, hex_value):
+        self.hex = hex_value
 
 
 def write_tss(path, rows):
@@ -335,3 +343,77 @@ class TestTss2Csv:
         assert target.read_text(encoding="utf8").splitlines() == ["0;1", "1;10.5"]
         assert sorted(path.name for path in outputs.iterdir()) == ["tss_itp.csv"]
         assert sorted(path.name for path in shared.iterdir()) == ["results.csv"]
+
+    @pytest.mark.unit
+    def test_reserve_stage_retries_after_a_name_collision(self, tmp_path, monkeypatch):
+        dst = tmp_path / "tss_itp.csv"
+        taken_path = tmp_path / f".{dst.name}.aaaaaaaa.tmp"
+        taken_path.write_text("taken", encoding="utf8")
+
+        hexes = iter(["aaaaaaaa", "bbbbbbbb"])
+        monkeypatch.setattr(_file_convertions.uuid, "uuid4", lambda: FakeUUID(next(hexes)))
+
+        handle, path = _reserve_stage(str(dst), ".tmp")
+        os.close(handle)
+
+        assert path == str(tmp_path / f".{dst.name}.bbbbbbbb.tmp")
+
+    @pytest.mark.unit
+    def test_reserve_stage_raises_after_exhausting_every_attempt(self, tmp_path, monkeypatch):
+        dst = tmp_path / "tss_itp.csv"
+        taken_path = tmp_path / f".{dst.name}.cccccccc.tmp"
+        taken_path.write_text("taken", encoding="utf8")
+
+        monkeypatch.setattr(_file_convertions.uuid, "uuid4", lambda: FakeUUID("cccccccc"))
+
+        with pytest.raises(OSError, match=str(dst).replace("\\", "\\\\")):
+            _reserve_stage(str(dst), ".tmp")
+
+    @pytest.mark.unit
+    def test_reserve_stage_exhaustion_surfaces_through_tss2csv(self, tmp_path, monkeypatch):
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5)])
+        (tmp_path / "tss_itp.csv").write_text("previous\n", encoding="utf8")
+        taken_path = tmp_path / ".tss_itp.csv.dddddddd.tmp"
+        taken_path.write_text("taken", encoding="utf8")
+
+        monkeypatch.setattr(_file_convertions.uuid, "uuid4", lambda: FakeUUID("dddddddd"))
+
+        with pytest.raises(OSError, match="Could not reserve a staging path"):
+            tss2csv([tss], ["1"])
+
+        assert tss.exists()
+        assert (tmp_path / "tss_itp.csv").read_text(encoding="utf8") == "previous\n"
+        assert list(tmp_path.glob("*.tmp")) == [taken_path]
+
+    @pytest.mark.unit
+    def test_rollback_logs_when_restoring_a_backup_fails(self, tmp_path, monkeypatch, caplog):
+        """A failed restore must not mask the original error that triggered it."""
+        first = tmp_path / "tss_a.tss"
+        second = tmp_path / "tss_b.tss"
+        write_tss(first, [(1, 10.5)])
+        write_tss(second, [(1, 20.5)])
+        (tmp_path / "tss_a.csv").write_text("previous a\n", encoding="utf8")
+
+        install_refuser = refuse_to_install("tss_b.csv")
+
+        def replace(src, dst):
+            if os.path.basename(str(dst)) == "tss_a.csv" and str(src).endswith(".bak"):
+                raise PermissionError(f"{src} cannot be restored as {dst}")
+            return install_refuser(src, dst)
+
+        monkeypatch.setattr(os, "replace", replace)
+
+        with caplog.at_level("ERROR"):
+            with pytest.raises(PermissionError, match="tss_b.csv"):
+                tss2csv([first, second], ["1"])
+
+        assert "Error while restoring file" in caplog.text
+        assert first.exists()
+        assert second.exists()
+        assert not list(tmp_path.glob("*.tmp"))
+        backups = list(tmp_path.glob("*.bak"))
+        assert len(backups) == 1
+        assert backups[0].read_text(encoding="utf8") == "previous a\n"
+        assert (tmp_path / "tss_a.csv").exists()
+        assert not (tmp_path / "tss_b.csv").exists()

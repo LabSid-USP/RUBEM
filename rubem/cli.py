@@ -2,7 +2,7 @@ import argparse
 import logging
 import logging.config
 import logging.handlers
-from typing import Optional
+from typing import Optional, Sequence
 
 from . import __release__
 from ._deps import require_runtime_deps
@@ -20,14 +20,20 @@ logging.addLevelName(logging.ERROR, "ERR")
 logging.addLevelName(logging.FATAL, "FTL")
 
 
-def main():
-    """Main function of the RUBEM CLI.
+def main(argv: Optional[Sequence[str]] = None) -> None:
+    """Run the RUBEM command line.
 
-    This function is called when the user runs the RUBEM command.
+    This is the console script entry point; it returns normally when the
+    simulation finishes successfully.
 
-    :raises SystemExit(0): If the program finishes successfully.
-    :raises SystemExit(1): If the program exits with an error.
-    :raises SystemExit(2): If the program is interrupted by the user.
+    :param argv: Command line arguments, without the program name. Defaults to
+        ``None``, which reads ``sys.argv``.
+    :type argv: Sequence[str], optional
+
+    :raises SystemExit(0): After ``--version`` or ``--help``.
+    :raises SystemExit(1): If the simulation fails.
+    :raises SystemExit(2): If the arguments are invalid or the program is
+        interrupted by the user.
     """
     setup_logging()
     app_settings = AppSettings()
@@ -80,7 +86,7 @@ def main():
         required=False,
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     require_runtime_deps()
 

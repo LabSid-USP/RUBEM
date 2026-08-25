@@ -31,7 +31,7 @@ def test_exact_golden_reproduction(tmp_path):
     config_path.write_text(json.dumps(base_model_config(str(tmp_path))))
 
     subprocess.check_output(
-        [sys.executable, os.path.join(REPO_ROOT, "rubem"), "-c", str(config_path)],
+        [sys.executable, "-m", "rubem", "-c", str(config_path)],
         cwd=REPO_ROOT,
     )
 

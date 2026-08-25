@@ -499,11 +499,11 @@ The complete project configuration file should look like this:
         },
     }
 
-In a proper Conda environment, run the following command:
+In the Conda environment where RUBEM is installed, run the following command:
 
 .. code-block:: console
 
-    $ python rubem -c Iguazu.json
+    $ rubem -c Iguazu.json
 
 If all the project's configuration file is specified correctly, the user should be faced with the following:
 

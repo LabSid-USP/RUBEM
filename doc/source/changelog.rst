@@ -16,6 +16,17 @@ Unreleased
   the release pipeline.
 - Rebuilt the CI (lint, OS/Python matrix, documentation build, packaging
   smokes) and updated the documentation build mechanics.
+- Stopped changing the process working directory during a run; time series
+  and raster outputs are addressed by absolute paths.
+- Enabled time series per output variable and made the CSV conversion
+  transactional over the run's own ``.tss`` files.
+- Exported time series only after a successful run, replaced library
+  ``print()`` calls with log records, and fixed the output summary flags.
+- Failed clearly when the first NDVI or land-use raster cannot be read.
+- Gave ``rubem.cli.main`` an argument list parameter, removed the PyInstaller
+  launcher module, and made the GeoTIFF writer reject unsupported formats.
+  Run the model with ``rubem`` or ``python -m rubem``; executing the package
+  directory as a script (``python rubem``) is no longer supported.
 
 Version 0.9.0-beta.3
 ---------------------

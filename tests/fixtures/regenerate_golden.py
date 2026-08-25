@@ -38,7 +38,7 @@ def main():
             json.dump(base_model_config(temp_dir), config_file)
 
         subprocess.check_call(
-            [sys.executable, os.path.join(REPO_ROOT, "rubem"), "-c", config_path],
+            [sys.executable, "-m", "rubem", "-c", config_path],
             cwd=REPO_ROOT,
         )
 

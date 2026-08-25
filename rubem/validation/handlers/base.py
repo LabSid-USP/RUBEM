@@ -8,12 +8,10 @@ class Handler(ABC):
     @abstractmethod
     def set_next(self, handler):
         """Set the next handler in the chain."""
-        pass
 
     @abstractmethod
     def handle(self, request, errors):
         """Handle the request."""
-        pass
 
 
 class BaseValidatorHandler(Handler):
