@@ -101,8 +101,10 @@ Optional, if enabled, export time series data of selected output variables (comm
    both define one, its coordinate reference system; their no-data cells are
    read as missing values. GeoTIFF series members are named like the model's
    GeoTIFF outputs (``<prefix>`` followed by the step zero-padded to ten
-   characters, e.g. :file:`prec000001.tif`); a directory may not mix the two
-   formats for one prefix.
+   characters, e.g. :file:`prec000001.tif`, matched regardless of case); a
+   directory may not mix the two formats for one prefix. When the clone
+   itself is a GeoTIFF, it must be north-up and unmirrored (positive cell
+   size in x, negative in y), on top of being square and unrotated.
 
 Georeference
 ''''''''''''
