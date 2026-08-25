@@ -1,180 +1,169 @@
-import importlib
 import json
 import os
-import pathlib
-import re
+import sys
 
 import pytest
+from pydantic import ValidationError
 
-import rubem.configuration.app_settings as app_settings_module
-from rubem.configuration.app_settings import AppSettings
-
-# The module builds its default path with ``os.path.abspath``, which keeps
-# symbolic links; the expectations are built the same way.
-PACKAGE_DIR = pathlib.Path(os.path.abspath(app_settings_module.__file__)).parent.parent
-DEFAULT_APPSETTINGS_FILE = PACKAGE_DIR / "appsettings.json"
-
-
-@pytest.fixture
-def env_reload(monkeypatch):
-    """Set PYTHON_ENVIRONMENT/cwd, reload the module, then restore both and reload again.
-
-    The env/cwd are undone immediately in the finalizer (rather than left to monkeypatch's
-    own teardown) so the module is reloaded back to its default state before the test ends,
-    and the finalizer checks that the reload really landed on the packaged file.
-    """
-
-    def _set(env_value=None, cwd=None):
-        if cwd is not None:
-            monkeypatch.chdir(cwd)
-        if env_value is None:
-            monkeypatch.delenv("PYTHON_ENVIRONMENT", raising=False)
-        else:
-            monkeypatch.setenv("PYTHON_ENVIRONMENT", env_value)
-        return importlib.reload(app_settings_module)
-
-    yield _set
-
-    monkeypatch.undo()
-    reloaded = importlib.reload(app_settings_module)
-    assert reloaded.AppSettings._AppSettings__default_appsettings_file == str(
-        DEFAULT_APPSETTINGS_FILE
-    )
+from rubem.configuration.app_settings import (
+    DEFAULT_SETTINGS_FILE,
+    PACKAGE_DIR,
+    AppSettings,
+    ValueRange,
+    ValueRanges,
+)
 
 
-@pytest.fixture
-def restore_default_settings():
-    yield
-    AppSettings().load()
+def packaged_settings():
+    with open(DEFAULT_SETTINGS_FILE, encoding="utf8") as file:
+        return json.load(file)
 
 
-class TestSingleton:
+class TestValueRange:
     @pytest.mark.unit
-    def test_two_constructions_return_the_same_instance(self):
-        assert AppSettings() is AppSettings()
+    def test_infinities_become_the_largest_finite_floats(self):
+        valid_range = ValueRange(min="-Infinity", max="Infinity")
+
+        assert valid_range.min == -sys.float_info.max
+        assert valid_range.max == sys.float_info.max
 
     @pytest.mark.unit
-    def test_a_class_captured_before_a_reload_still_constructs(self, env_reload):
-        """``rubem.cli`` and other modules import the class once; reloading the
-        module must not break the instances they build later."""
-        captured = AppSettings
-        captured._AppSettings__instance = None
-        try:
-            env_reload("Development")
-
-            assert captured().get_setting("value_ranges") is not None
-        finally:
-            captured._AppSettings__instance = None
-            captured()
+    @pytest.mark.parametrize("payload", [{"min": 1, "max": 1}, {"min": 2, "max": 1}])
+    def test_max_must_exceed_min(self, payload):
+        with pytest.raises(ValidationError, match="greater than 'min'"):
+            ValueRange(**payload)
 
     @pytest.mark.unit
-    def test_second_construction_does_not_reload_settings(self, restore_default_settings):
-        first = AppSettings()
-        first.settings = {"marker": "sentinel"}
-
-        second = AppSettings()
-
-        assert second is first
-        assert second.settings == {"marker": "sentinel"}
-
-
-class TestDefaultFile:
-    @pytest.mark.unit
-    def test_default_file_is_the_packaged_appsettings_json(self):
-        assert AppSettings._AppSettings__default_appsettings_file == str(DEFAULT_APPSETTINGS_FILE)
+    @pytest.mark.parametrize("value", ["nan", "inf", "one", True, None])
+    def test_rejects_non_numeric_bounds(self, value):
+        with pytest.raises(ValidationError):
+            ValueRange(min=value, max=1.0)
 
     @pytest.mark.unit
-    def test_default_settings_match_the_packaged_file(self):
-        with open(DEFAULT_APPSETTINGS_FILE, encoding="utf8") as file:
-            expected = json.load(file)
+    def test_ranges_are_frozen_and_reject_unknown_keys(self):
+        with pytest.raises(ValidationError):
+            ValueRange(min=0, max=1, mean=0.5)
+        with pytest.raises(ValidationError):
+            ValueRanges(rasters={}, variables={}, other={})
 
-        assert AppSettings().get_setting("value_ranges") == expected["value_ranges"]
+
+class TestDefaultSettings:
+    @pytest.mark.unit
+    def test_the_packaged_file_is_the_default(self, monkeypatch):
+        monkeypatch.delenv("PYTHON_ENVIRONMENT", raising=False)
+
+        assert AppSettings.default_file() == DEFAULT_SETTINGS_FILE.absolute()
+
+    @pytest.mark.unit
+    def test_default_settings_match_the_packaged_file(self, monkeypatch):
+        monkeypatch.delenv("PYTHON_ENVIRONMENT", raising=False)
+        expected = packaged_settings()
+
+        settings = AppSettings.default()
+
+        assert (
+            settings.get_setting("value_ranges")
+            == ValueRanges.model_validate(expected["value_ranges"]).model_dump()
+        )
+        assert settings.i18n.language == expected["i18n"]["language"]
+        assert settings.logging == expected["logging"]
+
+    @pytest.mark.unit
+    def test_default_is_read_once_per_file(self, monkeypatch):
+        monkeypatch.delenv("PYTHON_ENVIRONMENT", raising=False)
+
+        assert AppSettings.default() is AppSettings.default()
+
+    @pytest.mark.unit
+    def test_get_setting_returns_none_for_unknown_keys(self):
+        assert AppSettings.default().get_setting("this_key_does_not_exist") is None
 
 
 class TestLoad:
     @pytest.mark.unit
-    def test_load_explicit_file_replaces_settings(self, tmp_path, restore_default_settings):
-        custom_file = tmp_path / "custom_appsettings.json"
-        custom_file.write_text(json.dumps({"value_ranges": {"custom": 1}}), encoding="utf8")
+    def test_loads_an_explicit_file(self, tmp_path):
+        custom = tmp_path / "custom.json"
+        payload = packaged_settings()
+        payload["i18n"] = {"language": "pt_BR"}
+        custom.write_text(json.dumps(payload), encoding="utf8")
 
-        AppSettings().load(str(custom_file))
+        settings = AppSettings.load(custom)
 
-        assert AppSettings().get_setting("value_ranges") == {"custom": 1}
-
-    @pytest.mark.unit
-    def test_load_accepts_a_pathlib_path(self, tmp_path, restore_default_settings):
-        custom_file = tmp_path / "custom_appsettings.json"
-        custom_file.write_text(json.dumps({"value_ranges": {"from_path": True}}), encoding="utf8")
-
-        AppSettings().load(custom_file)
-
-        assert AppSettings().get_setting("value_ranges") == {"from_path": True}
+        assert settings.i18n.language == "pt_BR"
+        assert settings.value_ranges.variables["alpha"].max == 10.0
 
     @pytest.mark.unit
-    def test_load_missing_file_raises_with_the_absolute_path(self, tmp_path):
-        missing_file = tmp_path / "absent.json"
+    def test_a_missing_file_names_its_absolute_path(self, tmp_path):
+        missing = tmp_path / "absent.json"
 
-        with pytest.raises(FileNotFoundError, match=re.escape(str(missing_file))):
-            AppSettings().load(missing_file)
+        with pytest.raises(FileNotFoundError, match="absent.json"):
+            AppSettings.load(missing)
 
-
-class TestGetSetting:
     @pytest.mark.unit
-    def test_unknown_key_returns_none(self):
-        assert AppSettings().get_setting("this_key_does_not_exist") is None
+    def test_unknown_top_level_keys_are_ignored_and_ranges_are_required(self, tmp_path):
+        custom = tmp_path / "custom.json"
+        custom.write_text(json.dumps({"value_ranges": {"rasters": {}, "variables": {}}, "x": 1}))
+        assert AppSettings.load(custom).get_setting("x") is None
+
+        custom.write_text(json.dumps({"i18n": {"language": "en_US"}}))
+        with pytest.raises(ValidationError, match="value_ranges"):
+            AppSettings.load(custom)
+
+    @pytest.mark.unit
+    def test_settings_are_frozen(self):
+        settings = AppSettings.default()
+
+        with pytest.raises(ValidationError):
+            settings.logging = {"version": 1}
 
 
 class TestEnvironmentSelection:
     @pytest.mark.unit
-    def test_development_environment_selects_the_packaged_development_file(self, env_reload):
-        module = env_reload("Development")
-        expected_file = PACKAGE_DIR / "appsettings.Development.json"
+    def test_the_packaged_environment_file_is_selected(self, monkeypatch):
+        monkeypatch.setenv("PYTHON_ENVIRONMENT", "Development")
 
-        assert module.AppSettings._AppSettings__default_appsettings_file == str(expected_file)
-        with open(expected_file, encoding="utf8") as file:
-            expected_settings = json.load(file)
-        assert module.AppSettings().get_setting("value_ranges") == expected_settings["value_ranges"]
-
-    @pytest.mark.unit
-    def test_environment_file_only_present_in_the_working_directory_is_selected(
-        self, env_reload, tmp_path
-    ):
-        custom_file = tmp_path / "appsettings.CustomEnv.json"
-        custom_file.write_text(json.dumps({"value_ranges": {"cwd_only": True}}), encoding="utf8")
-
-        module = env_reload("CustomEnv", cwd=tmp_path)
-
-        selected = pathlib.Path(module.AppSettings._AppSettings__default_appsettings_file)
-        assert selected.resolve() == custom_file.resolve()
-        assert module.AppSettings().get_setting("value_ranges") == {"cwd_only": True}
-
-    @pytest.mark.unit
-    def test_environment_missing_everywhere_falls_back_to_the_default_file(
-        self, env_reload, tmp_path
-    ):
-        module = env_reload("NoSuchEnvironment", cwd=tmp_path)
-
-        assert module.AppSettings._AppSettings__default_appsettings_file == str(
-            DEFAULT_APPSETTINGS_FILE
+        assert (
+            AppSettings.default_file() == (PACKAGE_DIR / "appsettings.Development.json").absolute()
         )
+        with open(PACKAGE_DIR / "appsettings.Development.json", encoding="utf8") as file:
+            expected = json.load(file)
+        assert AppSettings.default().logging == expected["logging"]
 
     @pytest.mark.unit
-    def test_environment_file_present_but_empty_falls_back_to_the_default_file(
-        self, env_reload, tmp_path
+    def test_a_file_in_the_working_directory_is_selected(self, monkeypatch, tmp_path):
+        payload = packaged_settings()
+        payload["i18n"] = {"language": "pt_BR"}
+        (tmp_path / "appsettings.CustomEnv.json").write_text(json.dumps(payload), encoding="utf8")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("PYTHON_ENVIRONMENT", "CustomEnv")
+
+        assert AppSettings.default_file() == (tmp_path / "appsettings.CustomEnv.json").absolute()
+        assert AppSettings.default().i18n.language == "pt_BR"
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("environment", ["NoSuchEnvironment", ""])
+    def test_missing_or_empty_environments_fall_back_to_the_packaged_file(
+        self, monkeypatch, tmp_path, environment
     ):
-        empty_file = tmp_path / "appsettings.EmptyEnv.json"
-        empty_file.write_text("", encoding="utf8")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("PYTHON_ENVIRONMENT", environment)
 
-        module = env_reload("EmptyEnv", cwd=tmp_path)
-
-        assert module.AppSettings._AppSettings__default_appsettings_file == str(
-            DEFAULT_APPSETTINGS_FILE
-        )
+        assert AppSettings.default_file() == DEFAULT_SETTINGS_FILE.absolute()
 
     @pytest.mark.unit
-    def test_empty_environment_variable_falls_back_to_the_default_file(self, env_reload):
-        module = env_reload("")
+    def test_an_empty_environment_file_is_skipped(self, monkeypatch, tmp_path):
+        (tmp_path / "appsettings.EmptyEnv.json").write_text("", encoding="utf8")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("PYTHON_ENVIRONMENT", "EmptyEnv")
 
-        assert module.AppSettings._AppSettings__default_appsettings_file == str(
-            DEFAULT_APPSETTINGS_FILE
-        )
+        assert AppSettings.default_file() == DEFAULT_SETTINGS_FILE.absolute()
+
+    @pytest.mark.unit
+    def test_the_selection_happens_at_call_time(self, monkeypatch, tmp_path):
+        """No module reload is needed: the environment is read on every call."""
+        monkeypatch.delenv("PYTHON_ENVIRONMENT", raising=False)
+        before = AppSettings.default_file()
+        monkeypatch.setenv("PYTHON_ENVIRONMENT", "Development")
+
+        assert AppSettings.default_file() != before
+        assert os.path.basename(AppSettings.default_file()) == "appsettings.Development.json"

@@ -14,7 +14,7 @@ from pydantic import (
 
 from .._paths import as_path
 from ..configuration._problems import Problem
-from ..configuration.data_ranges_settings import DataRangesSettings
+from ..configuration._ranges import raster_ranges
 from ..configuration.raster_map import RasterMap
 from ..file._naming import RASTER_SERIES_BASENAME_LENGTH, raster_series_pattern
 from ..validation.raster_content import check_below_one, check_positive
@@ -142,7 +142,7 @@ class InputRasterSeries(BaseModel):
             logger.warning("Input data directories validation is disabled.")
             return self
 
-        ranges = DataRangesSettings().rasters
+        ranges = raster_ranges()
         rules = {
             "etp": RasterDataRules.FORBID_NO_DATA,
             "precipitation": RasterDataRules.FORBID_NO_DATA,

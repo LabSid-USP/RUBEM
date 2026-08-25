@@ -4,10 +4,12 @@ import logging.config
 import logging.handlers
 from collections.abc import Sequence
 
+from pydantic import ValidationError
+
 from . import __release__
 from ._deps import require_runtime_deps
+from .configuration._problems import ConfigurationError
 from .configuration.app_settings import AppSettings
-from .configuration.data_ranges_settings import DataRangesSettings
 from .validation.cli_validators import file_path_cli_arg_validator
 
 logger = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         interrupted by the user.
     """
     setup_logging()
-    app_settings = AppSettings()
+    app_settings = AppSettings.default()
     custom_logging_config = app_settings.get_setting("logging")
     if custom_logging_config:
         setup_logging(custom_logging_config)
@@ -50,8 +52,6 @@ def main(argv: Sequence[str] | None = None) -> None:
             humanize.i18n.activate(language)
     except Exception as e:
         logger.error("Failed to set language: %s, using 'en_US' as default language", e)
-
-    _ = DataRangesSettings(app_settings.get_setting("value_ranges"))
 
     # Configure CLI
     parser = argparse.ArgumentParser(
@@ -114,6 +114,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         finally:
             elapsed = humanize.precisedelta(time.time() - started, minimum_unit="seconds")
             print(f"Elapsed time: {elapsed}", flush=True)
+    except (ConfigurationError, ValidationError, ValueError) as e:
+        # A configuration the user can fix: no traceback, the message says what.
+        logger.critical("Invalid configuration: %s", e)
+        raise SystemExit(1) from e
     except Exception as e:
         logger.critical("RUBEM unexpectedly quit.")
         logger.exception(e)

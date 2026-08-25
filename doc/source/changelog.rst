@@ -69,6 +69,10 @@ Unreleased
   NDVI and land use series the first one. Blocking problems raise
   ``ConfigurationError``; ``kc_max < kc_min``, later NDVI/land use gaps and
   area fractions not adding up to 1 are reported as warnings.
+- Rebuilt the application settings as a plain Pydantic model
+  (``AppSettings.default()`` selects the ``PYTHON_ENVIRONMENT`` file at call
+  time; the ranges singleton is gone) and made the command line report an
+  invalid configuration with its message instead of a traceback.
 
 Version 0.9.0-beta.3
 ---------------------
