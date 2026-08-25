@@ -23,7 +23,14 @@ import numpy as np
 
 from .._paths import PathInput, as_path
 from ..file._naming import get_raster_series_filepath
-from ._io import PreprocessingError, ValueScale, read_raster, write_manifest, write_pcraster_map
+from ._io import (
+    PreprocessingError,
+    ValueScale,
+    check_nodata_collision,
+    read_raster,
+    write_manifest,
+    write_pcraster_map,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +182,28 @@ def _read_rows(file: Path, delimiter: str) -> list[tuple[int, list[str]]]:
         ]
 
 
+def _duplicate_station_coordinates(stations: Stations) -> str | None:
+    """Describe every coordinate shared by more than one station, or ``None``.
+
+    Two stations at the same coordinate make the kriging matrix singular as
+    soon as a step has non-constant values (``OrdinaryKriging`` inverts it
+    with ``pseudo_inv=False`` by default), so this must be checked before any
+    step is interpolated, not just when it happens to be reached.
+    """
+    stations_by_coordinate: dict[tuple[float, float], list[str]] = {}
+    for station_id, x, y in zip(stations.ids, stations.x, stations.y):
+        stations_by_coordinate.setdefault((float(x), float(y)), []).append(station_id)
+    duplicated = {
+        coordinate: ids for coordinate, ids in stations_by_coordinate.items() if len(ids) > 1
+    }
+    if not duplicated:
+        return None
+    return "; ".join(
+        f"stations {', '.join(ids)} share coordinate {coordinate}"
+        for coordinate, ids in duplicated.items()
+    )
+
+
 def coordinates_type_for(projection: str) -> CoordinatesType:
     """The kriging metric implied by a CRS (geographic when the raster has none)."""
     if not projection:
@@ -278,20 +307,20 @@ def krige_series(
     """Write one PCRaster map per step of the station series on the clone grid.
 
     :param steps: How many steps to interpolate (default: all in the file).
-    :raises PreprocessingError: With fewer than three stations, fewer than
-        three stations at distinct coordinates, an unsupported variogram
-        model, more steps than the file carries, or a clone geometry the maps
-        cannot express (rotated or south-up).
+    :raises PreprocessingError: With fewer than three stations, two stations
+        sharing a coordinate, an unsupported variogram model, more steps than
+        the file carries, a clone geometry the maps cannot express (rotated
+        or south-up), or a step whose interpolated grid already has a valid
+        cell equal to ``nodata``.
     """
     if len(stations.ids) < MINIMUM_STATIONS:
         raise PreprocessingError(
             f"Kriging needs at least {MINIMUM_STATIONS} stations, got {len(stations.ids)}."
         )
-    unique_coordinates = {(float(x), float(y)) for x, y in zip(stations.x, stations.y)}
-    if len(unique_coordinates) < MINIMUM_STATIONS:
+    duplicated_coordinates = _duplicate_station_coordinates(stations)
+    if duplicated_coordinates:
         raise PreprocessingError(
-            f"Kriging needs at least {MINIMUM_STATIONS} stations at distinct coordinates; "
-            f"{len(stations.ids)} station(s) share only {len(unique_coordinates)} coordinate(s)."
+            f"Kriging needs distinct station coordinates: {duplicated_coordinates}."
         )
     try:
         variogram_model = VariogramModel(variogram_model)
@@ -338,6 +367,7 @@ def krige_series(
         label = f"{prefix} step {step}"
         grid = krige_step(stations, index, gridx, gridy, metric, variogram_model, n_lags)
         grid = apply_negative_policy(grid, negative_policy, label)
+        check_nodata_collision(grid, np.isfinite(grid), nodata, label)
         target = get_raster_series_filepath(destination, prefix, step)
         write_pcraster_map(target, grid, ValueScale.SCALAR, reference.geotransform, nodata)
         logger.info("Wrote %s", target)

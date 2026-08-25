@@ -15,6 +15,7 @@ from rubem.preprocessing.kriging_series import (
     _great_circle_dist_func,
     apply_negative_policy,
     coordinates_type_for,
+    krige_file,
     krige_series,
     krige_step,
     read_stations,
@@ -175,6 +176,28 @@ class TestKrigeSeries:
         assert (tmp_path / "out" / "manifest.csv").is_file()
 
     @pytest.mark.unit
+    def test_an_interpolated_value_equal_to_no_data_is_refused(self, tmp_path, kriging_deps):
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((3, 3), np.float32), TRANSFORM)
+        # Station "a" sits exactly on a grid cell center with a negative
+        # value; ordinary kriging is an exact interpolator, so that cell
+        # comes back as -50.0 and the clamp policy turns it into exactly
+        # 0.0, a genuine (if clamped) interpolated value.
+        stations = Stations(
+            x=np.array([250.0, 1250.0, 250.0]),
+            y=np.array([1250.0, 1250.0, 250.0]),
+            values=np.array([[-50.0, 100.0, 80.0]]),
+            ids=("a", "b", "c"),
+        )
+
+        with pytest.raises(PreprocessingError, match="valid cell"):
+            krige_series(stations, clone, tmp_path / "out", "prec", nodata=0.0)
+
+        # The default sentinel does not collide with any interpolated cell.
+        written = krige_series(stations, clone, tmp_path / "out", "prec")
+        assert read_raster(written[0]).array[0, 0] == pytest.approx(0.0)
+
+    @pytest.mark.unit
     def test_station_and_step_limits(self, tmp_path, kriging_deps):
         ensure_gdal_drivers()
         clone = write_geotiff(tmp_path / "clone.tif", np.ones((2, 2), np.float32), TRANSFORM)
@@ -224,8 +247,93 @@ class TestKrigeSeries:
             ("a", "b", "c"),
         )
 
-        with pytest.raises(PreprocessingError, match="distinct coordinates"):
+        with pytest.raises(PreprocessingError, match="distinct station coordinates"):
             krige_series(duplicated, clone, tmp_path / "out", "prec")
+
+    @pytest.mark.unit
+    def test_the_duplicate_coordinate_error_names_the_stations_and_coordinate(
+        self, tmp_path, kriging_deps
+    ):
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((2, 2), np.float32), TRANSFORM)
+        duplicated = Stations(
+            np.array([250.0, 250.0, 1250.0]),
+            np.array([1250.0, 1250.0, 250.0]),
+            np.array([[1.0, 2.0, 3.0]]),
+            ("a", "b", "c"),
+        )
+
+        with pytest.raises(PreprocessingError, match=r"a, b share coordinate \(250.0, 1250.0\)"):
+            krige_series(duplicated, clone, tmp_path / "out", "prec")
+
+    @pytest.mark.unit
+    def test_four_stations_with_three_unique_coordinates_are_refused_up_front(
+        self, tmp_path, kriging_deps
+    ):
+        # Exactly three unique coordinates satisfies the minimum-station
+        # count but still leaves two stations ("a" and its duplicate "d") at
+        # the same point, which makes OrdinaryKriging's matrix singular on a
+        # non-constant step; this must be caught before any map is written,
+        # not partway through the series.
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((2, 2), np.float32), TRANSFORM)
+        stations = Stations(
+            np.array([250.0, 1250.0, 750.0, 250.0]),
+            np.array([1250.0, 1250.0, 250.0, 1250.0]),
+            np.array([[1.0, 2.0, 3.0, 1.0], [4.0, 3.0, 2.0, 4.0]]),
+            ("a", "b", "c", "d"),
+        )
+
+        with pytest.raises(PreprocessingError, match="distinct station coordinates"):
+            krige_series(stations, clone, tmp_path / "out", "prec")
+
+        assert not (tmp_path / "out").exists()
+
+    @pytest.mark.unit
+    def test_a_matrix_file_with_three_unique_coordinates_is_refused_up_front(
+        self, tmp_path, kriging_deps
+    ):
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((2, 2), np.float32), TRANSFORM)
+        stations = matrix_file(
+            tmp_path / "stations.csv",
+            [
+                [250, 1250, 1.0, 4.0],
+                [1250, 1250, 2.0, 3.0],
+                [750, 250, 3.0, 2.0],
+                [250, 1250, 1.0, 4.0],
+            ],
+        )
+
+        with pytest.raises(PreprocessingError, match="distinct station coordinates"):
+            krige_file(stations, clone, tmp_path / "out", "prec")
+
+        assert not (tmp_path / "out").exists()
+
+    @pytest.mark.unit
+    def test_a_long_format_file_with_three_unique_coordinates_is_refused_up_front(
+        self, tmp_path, kriging_deps
+    ):
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((2, 2), np.float32), TRANSFORM)
+        file = tmp_path / "long.csv"
+        file.write_text(
+            "step;id;x;y;value\n"
+            "1;a;250;1250;1.0\n"
+            "1;b;1250;1250;2.0\n"
+            "1;c;750;250;3.0\n"
+            "1;d;250;1250;4.0\n"
+            "2;a;250;1250;5.0\n"
+            "2;b;1250;1250;6.0\n"
+            "2;c;750;250;7.0\n"
+            "2;d;250;1250;8.0\n",
+            encoding="utf8",
+        )
+
+        with pytest.raises(PreprocessingError, match="distinct station coordinates"):
+            krige_file(file, clone, tmp_path / "out", "prec", layout=StationsFormat.LONG)
+
+        assert not (tmp_path / "out").exists()
 
     @pytest.mark.unit
     def test_unsupported_variogram_models_are_refused(self, tmp_path, kriging_deps):
