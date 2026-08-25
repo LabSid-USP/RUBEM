@@ -92,7 +92,7 @@ class Soil:
         :param water_cont_sat_zone: Water content at saturated zone [mm]
         :type water_cont_sat_zone: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
-        :param threshold_for_baseflow_ocurrence: Threshold for baseflow ocurrence [mm]
+        :param threshold_for_baseflow_ocurrence: Threshold for baseflow occurrence [mm]
         :type threshold_for_baseflow_ocurrence: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Monthly Baseflow [mm]
@@ -163,7 +163,7 @@ class Soil:
             - recharge
             - actual_evapotranspiration
         )
-        # condition for positivie balance
+        # condition for positive balance
         cond_positive_balance = pcr.scalar(balance > 0)
         # if balance is negative TUR = 0, + if pixel is water, TUR = TUsat
         partial_soil_moist_cont = (

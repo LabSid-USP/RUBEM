@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 from calendar import monthrange
 from typing import Callable, Optional, Union
 
@@ -69,7 +70,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.soil_rootzone_depth = None
         self.soil_moist_content_sat_point = None
         self.initial_soil_moist_content = None
-        self.soil_moistute_content_wilting_point = None
+        self.soil_moisture_content_wilting_point = None
         self.soil_moisture_content_field_capacity = None
         # Fluxes of the current step: computed, reported and then released.
         self.current_interception = None
@@ -80,6 +81,27 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.current_cell_total_discharge = None
         self.accumulated_cell_total_discharge = None
         self.current_runoff = None
+
+    @property
+    def soil_moistute_content_wilting_point(self):
+        """Deprecated spelling of :attr:`soil_moisture_content_wilting_point`."""
+        warnings.warn(
+            "soil_moistute_content_wilting_point is deprecated; "
+            "use soil_moisture_content_wilting_point.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.soil_moisture_content_wilting_point
+
+    @soil_moistute_content_wilting_point.setter
+    def soil_moistute_content_wilting_point(self, value):
+        warnings.warn(
+            "soil_moistute_content_wilting_point is deprecated; "
+            "use soil_moisture_content_wilting_point.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.soil_moisture_content_wilting_point = value
 
     def initial(self):
         """Contains the initialization of variables used in the model.
@@ -118,10 +140,10 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.ndvi_min = self.__readmap_wrapper(self.config.raster_files.ndvi_min)
 
         self.logger.info("Computing min. and max. Reflectances Simple Ratio (SR)")
-        self.min_reflectances_simple_ratio = Interception.get_reflectances_simple_ration(
+        self.min_reflectances_simple_ratio = Interception.get_reflectances_simple_ratio(
             self.ndvi_min
         )
-        self.max_reflectances_simple_ratio = Interception.get_reflectances_simple_ration(
+        self.max_reflectances_simple_ratio = Interception.get_reflectances_simple_ratio(
             self.ndvi_max
         )
 
@@ -169,7 +191,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             lookup_value=soil,
             lookup_func=pcrfw.lookupscalar,
         )
-        self.soil_moistute_content_wilting_point = (
+        self.soil_moisture_content_wilting_point = (
             tuw_partial * self.soil_bulk_density * self.soil_rootzone_depth * 10
         )
 
@@ -363,9 +385,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         )
 
         self.logger.debug("Interception")
-        current_reflectances_simple_ratio = Interception.get_reflectances_simple_ration(
-            current_ndvi
-        )
+        current_reflectances_simple_ratio = Interception.get_reflectances_simple_ratio(current_ndvi)
         current_fpar = Interception.get_fpar(
             self.config.constants.fraction_photo_active_radiation_min,
             self.config.constants.fraction_photo_active_radiation_max,
@@ -401,7 +421,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         water_stress_coef = pcr.scalar(
             Evapotranspiration.get_water_stress_coef_et_vegetated_area(
                 self.current_soil_moist_content,
-                self.soil_moistute_content_wilting_point,
+                self.soil_moisture_content_wilting_point,
                 self.soil_moisture_content_field_capacity,
             )
         )
@@ -447,7 +467,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.config.calibration_parameters.beta,
         )
         pot_runoff_coef_permeable_areas = SurfaceRunoff.get_runoff_coef_permeable_areas(
-            self.soil_moistute_content_wilting_point,
+            self.soil_moisture_content_wilting_point,
             self.soil_bulk_density,
             self.soil_rootzone_depth,
             self.slope,
@@ -658,7 +678,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         files_partial_path: Union[str, bytes, os.PathLike],
         dynamic_readmap_func: Callable,
         conversion_func: Optional[Callable] = None,
-        supress_errors: bool = False,
+        suppress_errors: bool = False,
     ) -> Field:
         """Read a map from a raster series for a given step from a specified location.
 
@@ -671,8 +691,8 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         :param conversion_func: Function to convert the read map to the desired data type. Default is ``None``.
         :type conversion_func: Optional[Callable]
 
-        :param supress_errors: If ``True``, suppresses errors and returns ``None``. Default is ``False``.
-        :type supress_errors: Optional[bool]
+        :param suppress_errors: If ``True``, suppresses errors and returns ``None``. Default is ``False``.
+        :type suppress_errors: Optional[bool]
 
         :return: The data map read from the file.
         :rtype: Field
@@ -688,7 +708,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.logger.debug("Reading map from '%s'...", files_partial_path)
             return dynamic_readmap_func(files_partial_path)
         except RuntimeError:
-            if not supress_errors:
+            if not suppress_errors:
                 self.logger.error("Error reading map from '%s'", files_partial_path)
             raise
 

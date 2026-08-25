@@ -1,3 +1,5 @@
+import warnings
+
 import pcraster as pcr
 from pcraster._pcraster import Field
 
@@ -11,7 +13,7 @@ class Interception:
     """
 
     @staticmethod
-    def get_reflectances_simple_ration(ndvi: Field) -> Field:
+    def get_reflectances_simple_ratio(ndvi: Field) -> Field:
         """Return Reflectances Simple Ratio (SR).
 
         :param ndvi: Normalized Difference Vegetation Index (NDVI) at the pixel
@@ -21,6 +23,16 @@ class Interception:
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         return (1 + ndvi) / (1 - ndvi)
+
+    @staticmethod
+    def get_reflectances_simple_ration(ndvi: Field) -> Field:
+        """Deprecated spelling of :meth:`get_reflectances_simple_ratio`."""
+        warnings.warn(
+            "get_reflectances_simple_ration is deprecated; use get_reflectances_simple_ratio.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return Interception.get_reflectances_simple_ratio(ndvi)
 
     @staticmethod
     def get_crop_coef(
@@ -73,7 +85,7 @@ class Interception:
         :param reflectances_simple_ratio: Reflectances Simple Ratio [-]
         :type reflectances_simple_ratio: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
-        :param reflectances_simple_ratio_min: Mimimum Reflectances Simple Ratio [-]
+        :param reflectances_simple_ratio_min: Minimum Reflectances Simple Ratio [-]
         :type reflectances_simple_ratio_min: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param reflectances_simple_ratio_max: Maximum Reflectances Simple Ratio [-]
