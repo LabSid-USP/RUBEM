@@ -114,6 +114,26 @@ class TestMinMax:
             )
         assert not (tmp_path / "extreme.tif").exists()
 
+    @pytest.mark.unit
+    def test_a_valid_zero_refuses_no_data_zero(self, tmp_path):
+        ensure_gdal_drivers()
+        directory = tmp_path / "in"
+        directory.mkdir()
+        layers = [
+            np.array([[0.0, 5.0]], dtype=np.float32),
+            np.array([[0.0, 9.0]], dtype=np.float32),
+        ]
+        for i, layer in enumerate(layers, 1):
+            write_geotiff(directory / f"ndvi{i}.tif", layer, TRANSFORM, nodata=-9999.0)
+
+        # The per-cell minimum of (0.0, 5.0) is 0.0, a genuine valid value.
+        with pytest.raises(PreprocessingError, match="valid cell"):
+            minmax([directory], tmp_path / "min.tif", tmp_path / "max.tif", nodata=0.0)
+
+        # The default sentinel does not collide with any valid cell.
+        written_min, _ = minmax([directory], tmp_path / "min.tif", tmp_path / "max.tif")
+        assert read_raster(written_min).array.tolist() == [[0.0, 5.0]]
+
 
 class TestCommand:
     @pytest.mark.unit

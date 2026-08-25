@@ -12,6 +12,7 @@ from .._paths import PathInput, as_path
 from ._io import (
     PreprocessingError,
     RasterData,
+    check_nodata_collision,
     check_same_geometry,
     natural_sorted,
     read_raster,
@@ -86,7 +87,8 @@ def minmax(
     """Write the per-cell minimum and maximum of a raster series as GeoTIFF files.
 
     :raises PreprocessingError: If ``minimum_path`` and ``maximum_path`` resolve
-        to the same file.
+        to the same file, or if a cell with at least one valid value already
+        equals ``nodata`` in the minimum or the maximum.
     :return: The minimum and maximum files written.
     """
     minimum_target = as_path(minimum_path).resolve()
@@ -98,6 +100,8 @@ def minmax(
     minimum, maximum, valid, reference = series_extremes(inputs, georeference)
     minimum = np.where(valid, minimum, nodata).astype(np.float32)
     maximum = np.where(valid, maximum, nodata).astype(np.float32)
+    check_nodata_collision(minimum, valid, nodata, "minmax minimum")
+    check_nodata_collision(maximum, valid, nodata, "minmax maximum")
     written_min = write_geotiff(
         minimum_path, minimum, reference.geotransform, reference.projection, nodata
     )

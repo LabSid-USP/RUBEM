@@ -338,6 +338,41 @@ class TestMapSeries2Tif:
 
         assert not (tmp_path / "tif" / "manifest.csv").exists()
 
+    @pytest.mark.unit
+    def test_an_integer_source_with_a_valid_zero_refuses_no_data_zero(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "series").mkdir()
+        write_pcraster_map(
+            tmp_path / "series" / series_name("b", 1),
+            np.array([[0.0, 1.0], [1.0, np.nan]]),
+            ValueScale.BOOLEAN,
+            TRANSFORM,
+        )
+
+        with pytest.raises(PreprocessingError, match="valid cell"):
+            mapseries2tif(tmp_path / "series", "b", nodata=0)
+
+        # The default sentinel does not collide with any valid cell.
+        written = mapseries2tif(tmp_path / "series", "b")
+        assert read_raster(written[0]).nodata == -9999.0
+
+    @pytest.mark.unit
+    def test_a_floating_source_with_a_valid_zero_refuses_no_data_zero(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "series").mkdir()
+        write_pcraster_map(
+            tmp_path / "series" / series_name("v", 1),
+            np.array([[0.0, 1.5], [2.5, np.nan]]),
+            ValueScale.SCALAR,
+            TRANSFORM,
+        )
+
+        with pytest.raises(PreprocessingError, match="valid cell"):
+            mapseries2tif(tmp_path / "series", "v", nodata=0.0)
+
+        written = mapseries2tif(tmp_path / "series", "v")
+        assert read_raster(written[0]).nodata == -9999.0
+
 
 class TestCommands:
     @pytest.mark.unit

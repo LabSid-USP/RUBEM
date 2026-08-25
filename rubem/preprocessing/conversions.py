@@ -18,6 +18,7 @@ from ._io import (
     ValueScale,
     apply_all_nodata_policy,
     check_no_collisions,
+    check_nodata_collision,
     check_same_geometry,
     natural_sorted,
     read_raster,
@@ -180,8 +181,10 @@ def mapseries2tif(
     one, but the GeoTIFF files carry no projection. A source value that the
     GeoTIFF band cannot represent (an integer type too narrow for ``nodata``,
     or a fractional ``nodata`` on an integer value scale) promotes the band
-    to a type that can. ``manifest.csv`` is written last, after removing any
-    leftover from an earlier run, so its presence means the run completed.
+    to a type that can. A member is rejected if a valid cell already equals
+    ``nodata``, which would make it unreadable as data. ``manifest.csv`` is
+    written last, after removing any leftover from an earlier run, so its
+    presence means the run completed.
 
     :return: The GeoTIFF files written, in order.
     """
@@ -213,13 +216,15 @@ def mapseries2tif(
             check_same_geometry(reference, data, "mapseries2tif")
         array = data.array
         target_dtype = _dtype_for_nodata(array.dtype, nodata)
+        valid = data.mask()
+        check_nodata_collision(array, valid, nodata, "mapseries2tif")
         remap = data.nodata is not None and data.nodata != nodata
         if target_dtype != array.dtype:
             array = array.astype(target_dtype)
         elif remap:
             array = array.copy()
         if remap:
-            array[~data.mask()] = nodata
+            array[~valid] = nodata
         write_geotiff(target, array, data.geotransform, projection, nodata)
         logger.info("Wrote %s", target)
         written.append(target)

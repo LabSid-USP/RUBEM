@@ -10,6 +10,8 @@ The contracts every tool follows:
   map onto the same output name, and every raster of a series must share the
   geometry of the first one;
 * an all-no-data raster is handled according to an explicit policy;
+* a valid cell may never equal the chosen no-data value, or it would read
+  back as missing;
 * when a tool writes a directory of outputs, ``manifest.csv`` (source, target)
   is written last, so its presence means the run completed.
 """
@@ -172,6 +174,25 @@ def check_same_geometry(reference: RasterData, other: RasterData, label: str) ->
                 f"{label}: {other.source or 'raster'} and {reference.source or 'the reference'} "
                 "have different coordinate reference systems."
             )
+
+
+def check_nodata_collision(
+    array: np.ndarray, valid_mask: np.ndarray, nodata: float | None, label: str
+) -> None:
+    """Raise :class:`PreprocessingError` if a valid cell already equals ``nodata``.
+
+    Writing ``nodata`` as the missing-value sentinel while a valid cell holds
+    that exact value would make the valid cell indistinguishable from a
+    missing one on read, silently erasing it. Call this before writing.
+    """
+    if nodata is None:
+        return
+    colliding = int(np.count_nonzero(np.asarray(valid_mask) & (np.asarray(array) == nodata)))
+    if colliding:
+        raise PreprocessingError(
+            f"{label}: {colliding} valid cell(s) already equal the no-data value {nodata}; "
+            "they would be read back as missing. Choose a different no-data value."
+        )
 
 
 def apply_all_nodata_policy(raster: RasterData, policy: AllNoDataPolicy, label: str) -> bool:

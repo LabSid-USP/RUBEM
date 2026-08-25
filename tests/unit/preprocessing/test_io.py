@@ -12,6 +12,7 @@ from rubem.preprocessing._io import (
     ValueScale,
     apply_all_nodata_policy,
     check_no_collisions,
+    check_nodata_collision,
     check_same_geometry,
     natural_sorted,
     read_raster,
@@ -222,6 +223,19 @@ class TestContracts:
             assert apply_all_nodata_policy(empty, AllNoDataPolicy.WARN, "series")
             assert not apply_all_nodata_policy(empty, AllNoDataPolicy.SKIP, "series")
         assert caplog.text.count("every cell") == 2 and "Skipped." in caplog.text
+
+    @pytest.mark.unit
+    def test_nodata_collision_is_rejected_only_on_valid_cells(self):
+        array = np.array([[0.0, 1.0], [2.0, -9999.0]])
+        valid = np.array([[True, True], [True, False]])
+
+        # The default sentinel never collides with these valid cells.
+        check_nodata_collision(array, valid, -9999.0, "series")
+        # A valid cell (0.0) coincides with the requested no-data value.
+        with pytest.raises(PreprocessingError, match="1 valid cell"):
+            check_nodata_collision(array, valid, 0.0, "series")
+        # nodata=None means "no sentinel"; nothing can collide with it.
+        check_nodata_collision(array, valid, None, "series")
 
     @pytest.mark.unit
     def test_nan_cells_count_as_missing_in_float_rasters(self):
