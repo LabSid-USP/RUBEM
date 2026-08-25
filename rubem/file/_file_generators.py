@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Optional, Union
+from pathlib import Path
 
 from osgeo import gdal
 from pcraster._pcraster import Field
@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 def report(
     variable: Field,
     name: str,
-    outpath: Union[str, bytes, os.PathLike],
+    outpath: str | bytes | os.PathLike,
     base_raster_info: OutputRasterBase,
-    timestep: Optional[int] = None,
+    timestep: int | None = None,
     file_format: OutputFileFormat = OutputFileFormat.GEOTIFF,
     no_data_value: float = -9999,
 ):
@@ -65,19 +65,19 @@ def report(
 
 def __report(
     variable: Field,
-    outpath: Union[str, bytes, os.PathLike],
+    outpath: str | bytes | os.PathLike,
     name: str,
     driver_short_name: str,
     extension: str,
     base_raster_info: OutputRasterBase,
-    timestep: Optional[int] = None,
+    timestep: int | None = None,
     no_data_value: float = -9999,
 ):
     if timestep:
         filename = output_raster_filename(name, timestep, extension)
     else:
         filename = f"{name}.{extension}"
-    out_tif = os.path.abspath(os.path.join(os.fsdecode(outpath), filename))
+    out_tif = str((Path(os.fsdecode(outpath)) / filename).absolute())
 
     gdal.UseExceptions()
     gdal.AllRegister()
@@ -99,9 +99,10 @@ def __report(
                 dataset.SetProjection(base_raster_info.projection)
     except Exception as e:
         # A partially written file would pass for a result of the run.
-        if os.path.lexists(out_tif):
+        out_tif_path = Path(out_tif)
+        if out_tif_path.is_symlink() or out_tif_path.exists():
             try:
-                os.remove(out_tif)
+                out_tif_path.unlink()
             except OSError as removal_error:
                 logger.error("Could not remove the partial file %s: %s", out_tif, removal_error)
         raise RuntimeError(f"Could not write the raster {out_tif}: {e}") from e

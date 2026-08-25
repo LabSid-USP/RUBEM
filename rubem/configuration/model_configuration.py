@@ -4,8 +4,9 @@ import math
 import os
 import textwrap
 from datetime import datetime
-from typing import Union
+from pathlib import Path
 
+from .._paths import PathInput, as_path
 from ..configuration.calibration_parameters import CalibrationParameters
 from ..configuration.initial_soil_conditions import InitialSoilConditions
 from ..configuration.input_raster_files import InputRasterFiles
@@ -41,9 +42,7 @@ class ModelConfiguration:
     :raises ValueError: If a setting value is invalid.
     """
 
-    def __init__(
-        self, config_input: Union[dict, str, bytes, os.PathLike], validate_input: bool = True
-    ):
+    def __init__(self, config_input: dict | PathInput, validate_input: bool = True):
         self.logger = logging.getLogger(__name__)
         self.problems = []
 
@@ -55,8 +54,9 @@ class ModelConfiguration:
                 self.logger.debug("Reading configuration from dictionary")
                 self.config = config_input
             elif isinstance(config_input, (str, bytes, os.PathLike)):
-                config_input_str = str(config_input)
-                if not os.path.exists(config_input_str) or not os.path.isfile(config_input_str):
+                config_input_path = as_path(config_input)
+                config_input_str = str(config_input_path)
+                if not config_input_path.exists() or not config_input_path.is_file():
                     self.logger.error("Config file not found: %s", config_input_str)
                     raise FileNotFoundError(f"Config file not found: {config_input_str}")
 
@@ -245,10 +245,10 @@ class ModelConfiguration:
                 message = f"{problem.get('description')}: {problem.get('reason')} {problem.get('implication', '')} {problem.get('file', '')}"
                 self.logger.warning("Configuration problem: %s", message)
 
-    def __read_json(self, file_path: Union[str, bytes, os.PathLike]):
+    def __read_json(self, file_path: PathInput):
         self.logger.debug("Reading JSON file: %s", file_path)
         try:
-            with open(file=file_path, mode="r", encoding="utf-8") as f:
+            with Path(file_path).open(encoding="utf-8") as f:
                 return json.load(f)
         except json.JSONDecodeError as e:
             self.logger.error("Error parsing JSON file: %s", e)

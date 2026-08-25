@@ -1,6 +1,7 @@
 import logging
-import os
-from typing import Union
+from pathlib import Path
+
+from .._paths import PathInput, as_path
 
 
 class InputTableFiles:
@@ -62,38 +63,38 @@ class InputTableFiles:
 
     def __init__(
         self,
-        rainy_days: Union[str, bytes, os.PathLike],
-        a_i: Union[str, bytes, os.PathLike],
-        a_o: Union[str, bytes, os.PathLike],
-        a_s: Union[str, bytes, os.PathLike],
-        a_v: Union[str, bytes, os.PathLike],
-        manning: Union[str, bytes, os.PathLike],
-        bulk_density: Union[str, bytes, os.PathLike],
-        k_sat: Union[str, bytes, os.PathLike],
-        t_fcap: Union[str, bytes, os.PathLike],
-        t_sat: Union[str, bytes, os.PathLike],
-        t_wp: Union[str, bytes, os.PathLike],
-        rootzone_depth: Union[str, bytes, os.PathLike],
-        kc_min: Union[str, bytes, os.PathLike],
-        kc_max: Union[str, bytes, os.PathLike],
+        rainy_days: PathInput,
+        a_i: PathInput,
+        a_o: PathInput,
+        a_s: PathInput,
+        a_v: PathInput,
+        manning: PathInput,
+        bulk_density: PathInput,
+        k_sat: PathInput,
+        t_fcap: PathInput,
+        t_sat: PathInput,
+        t_wp: PathInput,
+        rootzone_depth: PathInput,
+        kc_min: PathInput,
+        kc_max: PathInput,
         validate_input: bool = True,
     ) -> None:
         self.logger = logging.getLogger(__name__)
 
-        self.rainy_days = rainy_days
-        self.a_i = a_i
-        self.a_o = a_o
-        self.a_s = a_s
-        self.a_v = a_v
-        self.manning = manning
-        self.bulk_density = bulk_density
-        self.k_sat = k_sat
-        self.t_fcap = t_fcap
-        self.t_sat = t_sat
-        self.t_wp = t_wp
-        self.rootzone_depth = rootzone_depth
-        self.kc_min = kc_min
-        self.kc_max = kc_max
+        self.rainy_days = str(as_path(rainy_days))
+        self.a_i = str(as_path(a_i))
+        self.a_o = str(as_path(a_o))
+        self.a_s = str(as_path(a_s))
+        self.a_v = str(as_path(a_v))
+        self.manning = str(as_path(manning))
+        self.bulk_density = str(as_path(bulk_density))
+        self.k_sat = str(as_path(k_sat))
+        self.t_fcap = str(as_path(t_fcap))
+        self.t_sat = str(as_path(t_sat))
+        self.t_wp = str(as_path(t_wp))
+        self.rootzone_depth = str(as_path(rootzone_depth))
+        self.kc_min = str(as_path(kc_min))
+        self.kc_max = str(as_path(kc_max))
 
         if validate_input:
             self.__validate_files()
@@ -119,10 +120,10 @@ class InputTableFiles:
         ]
 
         for file in files:
-            if not os.path.isfile(file):
+            if not Path(file).is_file():
                 raise FileNotFoundError(f"Invalid input lookuptable file: {file}")
 
-            if os.path.getsize(file) <= 0:
+            if Path(file).stat().st_size <= 0:
                 raise ValueError(f"Empty input lookuptable file: {file}")
 
     def __str__(self) -> str:

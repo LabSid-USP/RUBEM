@@ -2,7 +2,8 @@ import logging
 import os
 import warnings
 from calendar import monthrange
-from typing import Callable, Optional, Union
+from collections.abc import Callable
+from pathlib import Path
 
 import numpy as np
 import pcraster as pcr
@@ -617,9 +618,8 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             if OutputFileFormat.PCRASTER in self.config.output_variables.file_formats:
                 self.report(
                     variable=output_vars_dict.get(var.get("id")),
-                    name=os.path.join(
-                        self.config.output_directory.path,
-                        var.get("raster_filename_prefix"),
+                    name=str(
+                        Path(self.config.output_directory.path) / var.get("raster_filename_prefix")
                     ),
                 )
 
@@ -651,10 +651,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         """
         for var in self.config.output_variables.get_enabled_time_series():
             tss_file = TimeoutputTimeseriesAdapter(
-                os.path.join(
-                    self.config.output_directory.path,
-                    var.get("table_filename_prefix"),
-                ),
+                str(Path(self.config.output_directory.path) / var.get("table_filename_prefix")),
                 self,
                 self.config.raster_files.sample_locations,
                 noHeader=True,
@@ -675,9 +672,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
     def __readmap_series_wrapper(
         self,
-        files_partial_path: Union[str, bytes, os.PathLike],
+        files_partial_path: str | bytes | os.PathLike,
         dynamic_readmap_func: Callable,
-        conversion_func: Optional[Callable] = None,
+        conversion_func: Callable | None = None,
         suppress_errors: bool = False,
     ) -> Field:
         """Read a map from a raster series for a given step from a specified location.
@@ -714,9 +711,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
     def __readmap_wrapper(
         self,
-        file_path: Union[str, bytes, os.PathLike],
+        file_path: str | bytes | os.PathLike,
         readmap_func: Callable = pcrfw.readmap,
-        conversion_func: Optional[Callable] = None,
+        conversion_func: Callable | None = None,
     ) -> Field:
         """Read a data map for a given data type from a specified location.
 
@@ -748,7 +745,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
     def __lookup_wrapper(
         self,
-        file_path: Union[str, bytes, os.PathLike],
+        file_path: str | bytes | os.PathLike,
         lookup_value,
         lookup_func: Callable,
     ) -> Field:

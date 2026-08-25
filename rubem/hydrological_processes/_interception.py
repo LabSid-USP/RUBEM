@@ -152,8 +152,8 @@ class Interception:
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         # condition of precipitation, to divide by non zero number (missing value)
-        cond_non_zero_prec = pcr.scalar((precipitation != 0))
-        cond_zero_prec = pcr.scalar((precipitation == 0))
+        cond_non_zero_prec = pcr.scalar(precipitation != 0)
+        cond_zero_prec = pcr.scalar(precipitation == 0)
         prec = precipitation * cond_non_zero_prec + (precipitation * cond_zero_prec + 0.00001)
 
         partial_den = 1 + (

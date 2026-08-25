@@ -2,7 +2,7 @@ import argparse
 import logging
 import logging.config
 import logging.handlers
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from . import __release__
 from ._deps import require_runtime_deps
@@ -20,7 +20,7 @@ logging.addLevelName(logging.ERROR, "ERR")
 logging.addLevelName(logging.FATAL, "FTL")
 
 
-def main(argv: Optional[Sequence[str]] = None) -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     """Run the RUBEM command line.
 
     This is the console script entry point; it returns normally when the
@@ -125,7 +125,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     logger.info("RUBEM successfully finished!")
 
 
-def setup_logging(custom_logging_config: Optional[dict] = None):
+def setup_logging(custom_logging_config: dict | None = None):
     log_format = "%(asctime)s.%(msecs)03d [%(levelname)s] %(name)s: %(message)s"
     console_handler_config = {
         "class": "logging.StreamHandler",

@@ -1,6 +1,5 @@
 import logging
 from datetime import date, datetime
-from typing import Optional, Union
 
 DATE_FORMAT = "%d/%m/%Y"
 
@@ -23,9 +22,9 @@ class SimulationPeriod:
 
     def __init__(
         self,
-        start: Union[date, datetime],
-        end: Union[date, datetime],
-        alignment: Optional[Union[date, datetime]] = None,
+        start: date | datetime,
+        end: date | datetime,
+        alignment: date | datetime | None = None,
     ):
         self.logger = logging.getLogger(__name__)
 

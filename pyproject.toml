@@ -103,14 +103,19 @@ select = [
   "E4", "E7", "E9",  # pycodestyle errors
   "F",               # pyflakes
   "I",               # isort
+  "PTH",             # pathlib instead of os.path
+  "UP",              # pyupgrade (Python 3.12 idioms)
   "W",               # pycodestyle warnings
 ]
 
 [tool.ruff.lint.per-file-ignores]
 # Legacy re-export and preprocessing modules keep their star imports until the
-# preprocessing overhaul rewrites them.
+# preprocessing overhaul rewrites them; the tests move to pathlib with the
+# coverage hardening pass.
 "rubem/**/__init__.py" = ["F401", "F403"]
-"rubem/preprocessing/*" = ["E402", "F401", "F403", "F405"]
+"rubem/preprocessing/*" = ["E402", "F401", "F403", "F405", "PTH", "UP"]
+"tests/**" = ["PTH", "UP"]
+"doc/**" = ["PTH", "UP"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["rubem", "tests"]

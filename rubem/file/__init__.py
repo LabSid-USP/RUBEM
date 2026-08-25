@@ -1,4 +1,3 @@
-# coding=utf-8
 # RUBEM is a distributed hydrological model to calculate monthly
 # flows with changes in land use over time.
 # Copyright (C) 2020-2024 LabSid PHA EPUSP

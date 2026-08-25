@@ -1,6 +1,6 @@
 import logging
-import os
 import time
+from pathlib import Path
 
 import humanize
 from pcraster.framework import DynamicFramework
@@ -102,9 +102,9 @@ class DynamicFrameworkWrapper:
             self.logger.info("Exporting tables as CSV...")
             cols = [str(n) for n in self.dynamic_model_concept.sample_vals[1:]]
             tss_files = [
-                os.path.join(
-                    self.config.output_directory.path,
-                    f"{var.get('table_filename_prefix')}.tss",
+                str(
+                    Path(self.config.output_directory.path)
+                    / f"{var.get('table_filename_prefix')}.tss"
                 )
                 for var in enabled_time_series
             ]

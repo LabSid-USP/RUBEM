@@ -214,14 +214,14 @@ class TestTss2Csv:
         second = tmp_path / "tss_b.tss"
         write_tss(first, [(1, 10.5)])
         write_tss(second, [(1, 20.5)])
-        real_remove = os.remove
+        real_unlink = os.unlink
 
-        def refuse_second(path):
+        def refuse_second(path, *args, **kwargs):
             if os.path.basename(str(path)) == "tss_b.tss":
                 raise PermissionError(f"{path} cannot be deleted")
-            return real_remove(path)
+            return real_unlink(path, *args, **kwargs)
 
-        monkeypatch.setattr(os, "remove", refuse_second)
+        monkeypatch.setattr(os, "unlink", refuse_second)
 
         with caplog.at_level("WARNING"):
             tss2csv([first, second], ["1"])
