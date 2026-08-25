@@ -132,6 +132,12 @@ Unreleased
   ``zones`` (a ``rasters.zones`` raster, ids remapped to ``1..N`` and
   recorded in ``zones_mapping.csv``); non-point tables are named
   ``tss_<variable>_<aggregation>``.
+- Hardened the supply chain: every GitHub Action is pinned to a commit SHA
+  and checked by a blocking ``workflow-lint`` job (actionlint, zizmor, pin
+  check); checkouts no longer persist credentials; an OpenSSF Scorecard
+  workflow publishes its results; releases are signed with Sigstore, carry a
+  build provenance attestation, a CycloneDX SBOM of the published wheel and
+  the conda inventory of the byte-exact environment.
 
 Version 0.9.0-beta.3
 ---------------------

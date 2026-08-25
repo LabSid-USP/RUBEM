@@ -15,9 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Assert the tag points at main history
         run: |
           git fetch origin main
@@ -37,11 +38,11 @@ jobs:
     outputs:
       prerelease: ${{ steps.channel.outputs.prerelease }}
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: dist
           path: dist
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
       - name: Assert the installed version matches the tag
@@ -82,21 +83,52 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     needs: verify
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: dist
           path: dist
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+      # The SBOM describes the wheel that is published: it is installed alone
+      # in a clean environment and the environment is inventoried.
+      - name: Build the software bill of materials
+        run: |
+          python -m venv "$RUNNER_TEMP/sbom"
+          "$RUNNER_TEMP/sbom/bin/pip" install --quiet dist/*.whl
+          "$RUNNER_TEMP/sbom/bin/pip" install --quiet "cyclonedx-bom==7.0.0"
+          "$RUNNER_TEMP/sbom/bin/cyclonedx-py" environment "$RUNNER_TEMP/sbom" \
+            --output-format JSON --output-file dist/sbom.cdx.json
+          python3 ci/conda_inventory.py ci/golden-env.lock dist/conda-inventory.json
       - name: Compute checksums
         run: |
           cd dist
-          sha256sum * > SHA256SUMS.txt
+          sha256sum -- *.whl *.tar.gz sbom.cdx.json conda-inventory.json > SHA256SUMS.txt
+      - name: Sign the distributions with Sigstore
+        uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
+        with:
+          inputs: |
+            dist/*.whl
+            dist/*.tar.gz
+          release-signing-artifacts: false
+      - name: Attest the build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
       - name: Create the GitHub release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
           generate_release_notes: true
           prerelease: ${{ needs.verify.outputs.prerelease }}
