@@ -246,7 +246,14 @@ def krige_command(
         ),
     ] = "auto",
     variogram_model: Annotated[
-        str, typer.Option("--variogram-model", help="PyKrige variogram model.")
+        str,
+        typer.Option(
+            "--variogram-model",
+            help=(
+                "Variogram model fitted by scikit-gstat and interpolated by PyKrige: "
+                "spherical, exponential or gaussian."
+            ),
+        ),
     ] = "spherical",
     n_lags: Annotated[
         int, typer.Option("--n-lags", min=2, help="Number of lags of the empirical variogram.")
