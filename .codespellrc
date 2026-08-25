@@ -1,0 +1,3 @@
+[codespell]
+skip = .git,.conda,*.json,*.001,*.002,*.map,*.tif,*.tiff,*.png,*.pdf,*.lock,doc/source/generated,doc/source/_static,doc/_build,tests/fixtures/base
+ignore-words-list = pervious,tese,hims,fo

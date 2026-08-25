@@ -38,6 +38,8 @@ pip install -e '.[dev]'
   first, and reference it from the pull request (`Resolve #N`);
 - Keep pull requests small and focused; stacked pull requests are welcome
   when a change builds on another one (name the base branch in the PR);
+- Install the pre-commit hooks once (`pip install pre-commit && pre-commit install`);
+  they run ruff, codespell and the file checks the CI lint job runs.
 - Follow the existing code style. `ruff check .` and `ruff format .` must be
   clean; CI enforces both at a pinned version;
 - Add or update tests for every change. Markers: `unit`, `integration`,

@@ -8,81 +8,31 @@ For a list of known issues and their fixes, visit the `Github issues page <https
 Unreleased
 ----------
 
-- Fixed the regression test oracle (corrected fixture inputs, structured
-  comparators, byte-exact reproduction on a frozen environment).
-- Packaged RUBEM with ``pyproject.toml``: ``pip install`` support, the
-  ``rubem`` console script and a single PEP 440 version source.
-- Replaced the PyInstaller bundles with sdist/wheel distributions verified by
-  the release pipeline.
-- Rebuilt the CI (lint, OS/Python matrix, documentation build, packaging
-  smokes) and updated the documentation build mechanics.
-- Stopped changing the process working directory during a run; time series
-  and raster outputs are addressed by absolute paths.
-- Enabled time series per output variable and made the CSV conversion
-  transactional over the run's own ``.tss`` files.
-- Exported time series only after a successful run, replaced library
-  ``print()`` calls with log records, and fixed the output summary flags.
-- Failed clearly when the first NDVI or land-use raster cannot be read.
-- Gave ``rubem.cli.main`` an argument list parameter, removed the PyInstaller
-  launcher module, and made the GeoTIFF writer reject unsupported formats.
-  Run the model with ``rubem`` or ``python -m rubem``; executing the package
-  directory as a script (``python rubem``) is no longer supported.
-- Honoured ``RASTER_FILE_FORMAT.map_raster_series`` (PCRaster maps can now be
-  disabled; a configuration with output variables but no raster format is
-  rejected), added the optional ``RASTER_FILE_FORMAT.no_data_value`` for the
-  GeoTIFF series (default ``-9999``), and matched raster series file names
-  with the prefix taken literally.
+The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
+
+Added
+`````
+
 - Added the optional ``RASTERS.georeference`` raster whose coordinate
   reference system is written to the GeoTIFF outputs; the clone and the
   georeference must share the DEM geometry, rotated grids are refused when
   PCRaster maps are written, and a GeoTIFF that cannot be written is removed
   instead of being left half-written.
-- Corrected the spelling of ``Interception.get_reflectances_simple_ratio``,
-  ``soil_moisture_content_wilting_point`` and the ``rubem.file._file_conversions``
-  module; the old names still work for one minor release and emit a
-  ``DeprecationWarning``.
-- Moved the package to ``pathlib`` (enforced by ruff's ``PTH`` and ``UP``
-  rules); every public path parameter accepts ``str`` or ``os.PathLike``,
-  and ``bytes`` paths are deprecated (accepted with a ``DeprecationWarning``
-  for one minor release).
-- Rebuilt the configuration value objects (``SimulationPeriod``,
-  ``RasterGrid``, ``CalibrationParameters``, ``InitialSoilConditions``,
-  ``ModelConstants``) as frozen Pydantic models with the same keywords,
-  attributes and messages; ``pydantic`` is now a runtime dependency. New
-  checks: the grid size must be finite with a finite square, the FPAR bounds
-  must satisfy ``0 < min < max < 1`` and ``lai_max`` must be positive.
-- Rebuilt the output configuration objects as Pydantic models:
-  ``OutputVariables`` holds ``OutputVariable`` objects (attribute access; the
-  dictionary-style ``get()`` is deprecated), ``OutputDataDirectory`` creates
-  the directory in ``ensure_exists()`` rather than on construction, and
-  ``OutputRasterBase.from_file()`` reads the geometry.
-- Rebuilt the input file objects (``InputRasterFiles``, ``InputRasterSeries``,
-  ``InputTableFiles``) as frozen Pydantic models with the same keywords,
-  attributes and exceptions; validation problems are ``Problem`` objects and
-  ``ConfigurationError`` carries the blocking ones.
 - Added content validation of the inputs (skipped with ``-s``): lookup tables
-  must parse, ``dg``, ``Zr``, ``Tsat``, ``manning`` and the rainy days must be
-  positive, the rainy days must cover the twelve months, ``Tcc > Tw`` for
+  must parse, ``dg``, ``Zr``, ``Tsat``, ``manning`` and the rainy days must
+  be positive, the rainy days must cover the twelve months, ``Tcc > Tw`` for
   every class; ``kp`` must be positive and NDVI below 1 in every cell,
   ``ndvi_max > ndvi_min`` per cell, sample identifiers contiguous from 1; the
   precipitation, ETP and Kp series must cover every simulated step and the
   NDVI and land use series the first one. Blocking problems raise
   ``ConfigurationError``; ``kc_max < kc_min``, later NDVI/land use gaps and
   area fractions not adding up to 1 are reported as warnings.
-- Rebuilt the application settings as a plain Pydantic model
-  (``AppSettings.default()`` selects the ``PYTHON_ENVIRONMENT`` file at call
-  time; the ranges singleton is gone) and made the command line report an
-  invalid configuration with its message instead of a traceback.
 - Added ``ModelConfigurationFile``, the legacy JSON file as a validated
   model: the spellings found in circulating files are accepted as aliases
-  (``K_sat``, ``T_ini``, ``w1``, ``kcmin``, ...), unknown keys are reported and
-  ignored, duplicated keys are reported (the last value still wins), and
+  (``K_sat``, ``T_ini``, ``w1``, ``kcmin``, ...), unknown keys are reported
+  and ignored, duplicated keys are reported (the last value still wins), and
   relative paths are anchored on the directory of the JSON file
   (``ModelConfiguration.load(path)``) or on an explicit ``base_dir``.
-- Moved the command line to Typer: ``rubem run -c <config> [-s]`` runs a
-  simulation and ``rubem config schema --format legacy`` prints the JSON
-  Schema of the configuration file; ``rubem -c <config>`` still works for one
-  minor release with a deprecation warning. ``typer`` is a runtime dependency.
 - Added the model of configuration file format 1.0
   (``ModelConfigurationFileV1``: strict keys, ``version``, ``metadata``, ISO
   ``simulation_period``, the dated, monthly and directory raster series
@@ -93,13 +43,13 @@ Unreleased
   (directory, dated and monthly series; ``MissingStep`` markers instead of
   exceptions), used by the model for every series; the legacy directory
   series resolve to the same PCRaster file names as before.
-- Activated configuration format 1.0: a file with ``version`` is read as
-  such (strict keys, duplicated keys rejected), raster series and time series
-  are selected independently with their formats (CSV converts the ``.tss``
-  files, PCRasterTSS keeps them, both do both), ``metadata.json`` is written
-  next to the outputs, ``rubem config schema`` prints the 1.0 schema by
-  default and ``rubem config migrate`` converts a legacy file (paths rebased
-  onto the destination, atomic write, ``--force`` to overwrite).
+- Activated configuration format 1.0: a file with ``version`` is read as such
+  (strict keys, duplicated keys rejected), raster series and time series are
+  selected independently with their formats (CSV converts the ``.tss`` files,
+  PCRasterTSS keeps them, both do both), ``metadata.json`` is written next to
+  the outputs, ``rubem config schema`` prints the 1.0 schema by default and
+  ``rubem config migrate`` converts a legacy file (paths rebased onto the
+  destination, atomic write, ``--force`` to overwrite).
 - Started the preprocessing overhaul: ``rubem preprocess`` sub-command
   (``info`` describes a raster), shared raster I/O with explicit contracts
   (atomic writes, natural ordering, geometry checks, collision detection,
@@ -121,8 +71,8 @@ Unreleased
   policy (clamp by default), the kriging metric derived from the clone's
   coordinate reference system, the variogram settings and a seed; the legacy
   ``kriging`` module is deprecated.
-- Accepted GeoTIFF input rasters and series (``.tif``/``.tiff``): rasters
-  are read through GDAL onto the clone grid, a GeoTIFF clone sets the grid
+- Accepted GeoTIFF input rasters and series (``.tif``/``.tiff``): rasters are
+  read through GDAL onto the clone grid, a GeoTIFF clone sets the grid
   through its geometry, GeoTIFF series members are named like the model
   outputs, sample locations may be a GeoTIFF, and every input raster must
   share the clone geometry and coordinate reference system.
@@ -132,12 +82,80 @@ Unreleased
   ``zones`` (a ``rasters.zones`` raster, ids remapped to ``1..N`` and
   recorded in ``zones_mapping.csv``); non-point tables are named
   ``tss_<variable>_<aggregation>``.
+
+Changed
+```````
+
+- Packaged RUBEM with ``pyproject.toml``: ``pip install`` support, the
+  ``rubem`` console script and a single PEP 440 version source.
+- Rebuilt the CI (lint, OS/Python matrix, documentation build, packaging
+  smokes) and updated the documentation build mechanics.
+- Enabled time series per output variable and made the CSV conversion
+  transactional over the run's own ``.tss`` files.
+- Gave ``rubem.cli.main`` an argument list parameter, removed the PyInstaller
+  launcher module, and made the GeoTIFF writer reject unsupported formats.
+  Run the model with ``rubem`` or ``python -m rubem``; executing the package
+  directory as a script (``python rubem``) is no longer supported.
+- Moved the package to ``pathlib`` (enforced by ruff's ``PTH`` and ``UP``
+  rules); every public path parameter accepts ``str`` or ``os.PathLike``, and
+  ``bytes`` paths are deprecated (accepted with a ``DeprecationWarning`` for
+  one minor release).
+- Rebuilt the configuration value objects (``SimulationPeriod``,
+  ``RasterGrid``, ``CalibrationParameters``, ``InitialSoilConditions``,
+  ``ModelConstants``) as frozen Pydantic models with the same keywords,
+  attributes and messages; ``pydantic`` is now a runtime dependency. New
+  checks: the grid size must be finite with a finite square, the FPAR bounds
+  must satisfy ``0 < min < max < 1`` and ``lai_max`` must be positive.
+- Rebuilt the output configuration objects as Pydantic models:
+  ``OutputVariables`` holds ``OutputVariable`` objects (attribute access; the
+  dictionary-style ``get()`` is deprecated), ``OutputDataDirectory`` creates
+  the directory in ``ensure_exists()`` rather than on construction, and
+  ``OutputRasterBase.from_file()`` reads the geometry.
+- Rebuilt the input file objects (``InputRasterFiles``,
+  ``InputRasterSeries``, ``InputTableFiles``) as frozen Pydantic models with
+  the same keywords, attributes and exceptions; validation problems are
+  ``Problem`` objects and ``ConfigurationError`` carries the blocking ones.
+- Rebuilt the application settings as a plain Pydantic model
+  (``AppSettings.default()`` selects the ``PYTHON_ENVIRONMENT`` file at call
+  time; the ranges singleton is gone) and made the command line report an
+  invalid configuration with its message instead of a traceback.
+- Moved the command line to Typer: ``rubem run -c <config> [-s]`` runs a
+  simulation and ``rubem config schema --format legacy`` prints the JSON
+  Schema of the configuration file; ``rubem -c <config>`` still works for one
+  minor release with a deprecation warning. ``typer`` is a runtime
+  dependency.
 - Hardened the supply chain: every GitHub Action is pinned to a commit SHA
   and checked by a blocking ``workflow-lint`` job (actionlint, zizmor, pin
   check); checkouts no longer persist credentials; an OpenSSF Scorecard
   workflow publishes its results; releases are signed with Sigstore, carry a
   build provenance attestation, a CycloneDX SBOM of the published wheel and
   the conda inventory of the byte-exact environment.
+
+Fixed
+`````
+
+- Fixed the regression test oracle (corrected fixture inputs, structured
+  comparators, byte-exact reproduction on a frozen environment).
+- Stopped changing the process working directory during a run; time series
+  and raster outputs are addressed by absolute paths.
+- Exported time series only after a successful run, replaced library
+  ``print()`` calls with log records, and fixed the output summary flags.
+- Failed clearly when the first NDVI or land-use raster cannot be read.
+- Honoured ``RASTER_FILE_FORMAT.map_raster_series`` (PCRaster maps can now be
+  disabled; a configuration with output variables but no raster format is
+  rejected), added the optional ``RASTER_FILE_FORMAT.no_data_value`` for the
+  GeoTIFF series (default ``-9999``), and matched raster series file names
+  with the prefix taken literally.
+- Corrected the spelling of ``Interception.get_reflectances_simple_ratio``,
+  ``soil_moisture_content_wilting_point`` and the
+  ``rubem.file._file_conversions`` module; the old names still work for one
+  minor release and emit a ``DeprecationWarning``.
+
+Removed
+```````
+
+- Replaced the PyInstaller bundles with sdist/wheel distributions verified by
+  the release pipeline.
 
 Version 0.9.0-beta.3
 ---------------------

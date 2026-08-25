@@ -398,7 +398,7 @@ Values in this tab correspond to calibrated parameters in the basin. For the dat
 Model Execution Settings
 ````````````````````````
 
-Within this section it's necessary to specify for each variable if you want this to be reported as model output ``True`` or ``False``. The ``Generate Files`` Section contais a list with all the variables that can be reported as model output.
+Within this section it's necessary to specify for each variable if you want this to be reported as model output ``True`` or ``False``. The ``Generate Files`` Section contains a list with all the variables that can be reported as model output.
 
 In the example below  it can be seen that ``Recharge``, ``Accumulated Total Runoff`` and ``Total Interception`` are checked to be reported. If ``Export Results to stations locations (tss)``  was defined as ``True``, time-series for the selected variables will be generated.
 
@@ -514,7 +514,7 @@ If all the project's configuration file is specified correctly, the user should 
     .## Timestep 1 of 120
     .## Timestep 2 of 120
 
-    -- Omited for brevity --
+    -- Omitted for brevity --
 
     .## Timestep 120 of 120
     Simulation finished successfully!

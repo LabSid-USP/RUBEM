@@ -63,7 +63,7 @@ Call the function as shown:
 TIFF/GeoTIFF to PCRaster Tss File Format
 ````````````````````````````````````````
 
-The function of the script allows to convert a serie of :file:`.tif` to pcraster map-series at format :file:`*.001`, :file:`*.002` .... These maps represent the meteorological forcing map-series, that are series of input maps with the time step indicated in each filename. The filenames have a strict format with 8 characters before a dot (.), and three characters after the dot.
+The function of the script allows to convert a series of :file:`.tif` to pcraster map-series at format :file:`*.001`, :file:`*.002` .... These maps represent the meteorological forcing map-series, that are series of input maps with the time step indicated in each filename. The filenames have a strict format with 8 characters before a dot (.), and three characters after the dot.
 
 Call the function as shown:
 
@@ -97,7 +97,7 @@ Third argument must be a file in format ``VS_BOOLEAN`` :file:`.map` and ``nrOfTi
 PCRaster Tss File Format to TIFF/GeoTIFF
 ````````````````````````````````````````
 
-The function of the script allows to convert a serie of pcraster map-series at format :file:`*.001`, :file:`*.002` ... to :file:`*.tif` file format.
+The function of the script allows to convert a series of pcraster map-series at format :file:`*.001`, :file:`*.002` ... to :file:`*.tif` file format.
 
 Call the function as shown:
 
@@ -120,14 +120,14 @@ Second argument corresponds to the Digital Elevation Model in :file:`*.tif` form
 Get Maximum and Minimum Value Map
 ``````````````````````````````````
 
-This script allows you to get a map for variables as Minimum NDVI and Maximum NDVI from an historical series of files in :file:`*.tif` format. To run the script, the following variables must be setted:
+This script allows you to get a map for variables as Minimum NDVI and Maximum NDVI from an historical series of files in :file:`*.tif` format. To run the script, the following variables must be set:
 
 .. code-block:: python
     
     Input_path =  'Directory containing the files'
     dem_source = 'Path to Digital Elevation Model (DEM) with same resolution and size that input_path files'
     outpath_min = 'Path and name minimum output file, example=/path/ndvi_min.tif'
-    outpath_max = 'Path and name maximum output file, example=/paht/ndvi_max.tif'
+    outpath_max = 'Path and name maximum output file, example=/path/ndvi_max.tif'
  
 ``Input_path`` folder must have an structure as follows:
 
