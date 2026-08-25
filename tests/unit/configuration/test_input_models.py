@@ -145,9 +145,12 @@ class TestInputRasterFiles:
 
         config = write_synthetic_dataset(str(tmp_path))
         pcr.setclone(config["RASTERS"]["clone"])
+        # -1.5 is out of the declared [-1, 1] range (a non-blocking problem)
+        # but stays below 1 and below the default ndvi_max (0.9), so it does
+        # not also trip the blocking below-one or extremes rules.
         pcr.report(
-            pcr.numpy2pcr(pcr.Scalar, np.full((3, 3), 1.5, dtype=np.float32), -9999.0),
-            config["RASTERS"]["ndvi_max"],
+            pcr.numpy2pcr(pcr.Scalar, np.full((3, 3), -1.5, dtype=np.float32), -9999.0),
+            config["RASTERS"]["ndvi_min"],
         )
 
         files = raster_files(config)
@@ -155,7 +158,25 @@ class TestInputRasterFiles:
         assert files.problems
         assert all(isinstance(problem, Problem) for problem in files.problems)
         assert not any(problem.blocking for problem in files.problems)
-        assert Path(files.problems[0].file) == Path(config["RASTERS"]["ndvi_max"])
+        assert Path(files.problems[0].file) == Path(config["RASTERS"]["ndvi_min"])
+
+    @pytest.mark.unit
+    def test_ndvi_max_cells_equal_to_one_are_blocking(self, tmp_path):
+        import numpy as np
+        import pcraster as pcr
+
+        config = write_synthetic_dataset(str(tmp_path))
+        pcr.setclone(config["RASTERS"]["clone"])
+        pcr.report(
+            pcr.numpy2pcr(pcr.Scalar, np.full((3, 3), 1.0, dtype=np.float32), -9999.0),
+            config["RASTERS"]["ndvi_max"],
+        )
+
+        files = raster_files(config)
+
+        assert any(
+            problem.blocking and "NDVI maximum" in problem.description for problem in files.problems
+        )
 
     @pytest.mark.unit
     def test_validation_can_be_skipped(self, tmp_path):
