@@ -59,7 +59,9 @@ class DirectorySeriesResolver:
 
     def __init__(self, series: str, directory: PathInput, prefix: str) -> None:
         self.series = series
-        self.directory = str(as_path(directory))
+        # Absolutised once, here: a later change of the working directory must
+        # not move where a relative directory resolves to.
+        self.directory = str(as_path(directory).absolute())
         self.prefix = prefix
         self.format = self.__detect_format()
 
@@ -113,19 +115,28 @@ class DatedSeriesResolver:
     ) -> None:
         self.series = series
         self.alignment = alignment
-        self.entries = []
+        # Bounds are resolved by month (path_for_step below), so they are
+        # normalised to the first of the month before the inversion and
+        # overlap checks: two entries sharing a month must collide even when
+        # their raw dates do not, and the entries are sorted by start so that
+        # disjoint entries given out of order are not mistaken for overlapping.
+        normalised = []
         for path, start, end in entries:
+            start = date(start.year, start.month, 1)
+            end = date(end.year, end.month, 1)
             if start > end:
                 raise ValueError(
                     f"{series} series entry {path} has from ({start}) after to ({end})."
                 )
-            self.entries.append((str(as_path(path)), start, end))
-        for (_, _, end), (path, start, _) in zip(self.entries, self.entries[1:]):
+            normalised.append((str(as_path(path)), start, end))
+        normalised.sort(key=lambda entry: entry[1])
+        for (_, _, end), (path, start, _) in zip(normalised, normalised[1:]):
             if start <= end:
                 raise ValueError(
                     f"{series} series entries overlap: {path} starts on {start}, before the "
                     f"previous entry ends ({end})."
                 )
+        self.entries = normalised
 
     def __repr__(self) -> str:
         return f"DatedSeriesResolver({self.series!r}, {len(self.entries)} entries)"
@@ -133,7 +144,7 @@ class DatedSeriesResolver:
     def path_for_step(self, step: int) -> str | MissingStep:
         day = step_to_date(step, self.alignment)
         for path, start, end in self.entries:
-            if date(start.year, start.month, 1) <= day <= date(end.year, end.month, 1):
+            if start <= day <= end:
                 return path
         return MissingStep(self.series, step, f"no entry covers {day:%Y-%m}")
 

@@ -100,7 +100,9 @@ class InputRasterSeries(BaseModel):
     @field_validator(*(f"{name}_directory" for name in SERIES), mode="before")
     @classmethod
     def _normalise(cls, value):
-        return str(as_path(value))
+        # Absolutised once, here: a later change of the working directory must
+        # not move where a relative series directory resolves to.
+        return str(as_path(value).absolute())
 
     @field_validator(*(f"{name}_filename_prefix" for name in SERIES))
     @classmethod
@@ -182,6 +184,7 @@ class InputRasterSeries(BaseModel):
                 rules[name],
                 content_rules.get(name),
                 problems,
+                self.required_steps,
                 self.clone_projection,
             )
             total_num_files.append(len(steps))
@@ -238,7 +241,14 @@ class InputRasterSeries(BaseModel):
 
     @staticmethod
     def __validate_files_with_prefix(
-        directory, prefix, valid_range, rules, content_rule, problems, clone_projection=None
+        directory,
+        prefix,
+        valid_range,
+        rules,
+        content_rule,
+        problems,
+        required_steps=None,
+        clone_projection=None,
     ) -> set[int]:
         map_pattern = raster_series_pattern(prefix)
         geotiff_pattern = geotiff_series_pattern(prefix)
@@ -256,10 +266,15 @@ class InputRasterSeries(BaseModel):
                 digits = entry.stem[len(prefix) :]
             else:
                 continue
-            InputRasterSeries.__validate_raster_file(
-                str(entry), valid_range, rules, content_rule, problems, clone_projection
-            )
-            steps.add(int(digits))
+            step = int(digits)
+            # A file outside the simulated window (an archived step) is not
+            # read at run time; it stays allowed and unchecked so it cannot
+            # block a run on data the simulation never touches.
+            if required_steps is None or required_steps[0] <= step <= required_steps[1]:
+                InputRasterSeries.__validate_raster_file(
+                    str(entry), valid_range, rules, content_rule, problems, clone_projection
+                )
+            steps.add(step)
         if len(formats) > 1:
             raise ValueError(
                 f"The series in {directory} mixes PCRaster maps and GeoTIFF files for the "
