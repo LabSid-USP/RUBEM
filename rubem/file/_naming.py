@@ -109,3 +109,20 @@ def _validate_prefix(prefix: str) -> None:
         raise ValueError(
             f"Raster series prefix '{prefix}' must not contain a dot or a path separator."
         )
+
+
+def geotiff_series_pattern(prefix: str) -> re.Pattern:
+    """Return the pattern that matches GeoTIFF members of an input series.
+
+    Members are named like the model outputs: the prefix followed by the step
+    zero-padded to ten characters in total, with a ``.tif`` or ``.tiff`` suffix.
+    """
+    if not prefix or len(prefix) >= OUTPUT_RASTER_NAME_LENGTH:
+        raise ValueError(
+            f"Output prefix '{prefix}' must have between 1 and "
+            f"{OUTPUT_RASTER_NAME_LENGTH - 1} characters."
+        )
+    return re.compile(
+        rf"^{re.escape(prefix)}[0-9]{{{OUTPUT_RASTER_NAME_LENGTH - len(prefix)}}}\.tiff?$",
+        re.IGNORECASE,
+    )

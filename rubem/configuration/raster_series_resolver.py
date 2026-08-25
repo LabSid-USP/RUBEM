@@ -50,14 +50,49 @@ def date_to_step(day: date, alignment: date) -> int:
 
 
 class DirectorySeriesResolver:
-    """One raster per step named ``<prefix>`` plus the PCRaster 8.3 suffix."""
+    """One raster per step in a directory: PCRaster 8.3 names or GeoTIFF files.
+
+    The format is detected from the files present (``<prefix>`` plus the 8.3
+    step suffix, or the GeoTIFF names of the model outputs); a directory that
+    mixes both formats for the same prefix is refused.
+    """
 
     def __init__(self, series: str, directory: PathInput, prefix: str) -> None:
         self.series = series
         self.directory = str(as_path(directory))
         self.prefix = prefix
+        self.format = self.__detect_format()
+
+    def __detect_format(self) -> str:
+        from ..file._naming import geotiff_series_pattern, raster_series_pattern
+
+        base = Path(self.directory)
+        if not base.is_dir():
+            return "map"
+        names = [entry.name for entry in base.iterdir() if entry.is_file()]
+        maps = any(raster_series_pattern(self.prefix).match(name) for name in names)
+        geotiffs = (
+            any(geotiff_series_pattern(self.prefix).match(name) for name in names)
+            if len(self.prefix) < 10
+            else False
+        )
+        if maps and geotiffs:
+            raise ValueError(
+                f"The {self.series} series in {base} mixes PCRaster maps and GeoTIFF files "
+                f"for the prefix '{self.prefix}'."
+            )
+        return "geotiff" if geotiffs else "map"
 
     def path_for_step(self, step: int) -> str | MissingStep:
+        if self.format == "geotiff":
+            from ..file._readers import geotiff_series_member
+
+            member = geotiff_series_member(self.directory, self.prefix, step)
+            if member is None:
+                return MissingStep(
+                    self.series, step, f"no GeoTIFF for step {step} in {self.directory}"
+                )
+            return str(member)
         path = get_raster_series_filepath(self.directory, self.prefix, step)
         if not Path(path).is_file():
             return MissingStep(self.series, step, f"{path} does not exist")

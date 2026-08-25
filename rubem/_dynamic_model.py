@@ -15,6 +15,7 @@ from .configuration.model_configuration import ModelConfiguration
 from .configuration.output_format import OutputFileFormat
 from .configuration.raster_series_resolver import MissingStep
 from .file._file_generators import report
+from .file._readers import FieldScale, is_geotiff, read_field, set_clone
 from .file._timeoutput import TimeoutputTimeseriesAdapter
 from .hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
 
@@ -43,10 +44,11 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.config = config
 
         self.logger.info("Reading clone file...")
-        self.__readmap_wrapper(file_path=self.config.raster_files.clone, readmap_func=pcr.setclone)
+        set_clone(self.config.raster_files.clone)
 
         self.sample_time_series_dict = {}
         self.sample_vals = None
+        self.sample_map = None
         self.dem = None
         self.ldd = None
         self.slope = None
@@ -115,14 +117,11 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.logger.info("Setting up model initial parameters...")
 
         self.logger.debug("Reading DEM file...")
-        self.dem = self.__readmap_wrapper(self.config.raster_files.dem)
+        self.dem = self.__read_raster(self.config.raster_files.dem, FieldScale.SCALAR)
 
         if self.config.raster_files.ldd:
             self.logger.info("Reading Local Drain Direction (LDD) file...")
-            self.ldd = self.__readmap_wrapper(
-                file_path=self.config.raster_files.ldd,
-                conversion_func=pcr.ldd,
-            )
+            self.ldd = self.__read_raster(self.config.raster_files.ldd, FieldScale.LDD)
         else:
             self.logger.info(
                 "Local Drain Direction (LDD) raster map not specified, generating one based on DEM..."
@@ -138,8 +137,8 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.__initial_setup_timeoutput_timeseries()
 
         self.logger.info("Reading min. and max. NDVI rasters...")
-        self.ndvi_max = self.__readmap_wrapper(self.config.raster_files.ndvi_max)
-        self.ndvi_min = self.__readmap_wrapper(self.config.raster_files.ndvi_min)
+        self.ndvi_max = self.__read_raster(self.config.raster_files.ndvi_max, FieldScale.SCALAR)
+        self.ndvi_min = self.__read_raster(self.config.raster_files.ndvi_min, FieldScale.SCALAR)
 
         self.logger.info("Computing min. and max. Reflectances Simple Ratio (SR)")
         self.min_reflectances_simple_ratio = Interception.get_reflectances_simple_ratio(
@@ -150,7 +149,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         )
 
         self.logger.info("Reading soil attributes...")
-        soil = self.__readmap_wrapper(self.config.raster_files.soil)
+        soil = self.__read_raster(self.config.raster_files.soil, FieldScale.NOMINAL)
 
         self.logger.info("Reading hydraulic conductivity coefficient...")
         self.soil_hydraulic_conductivity_coef = self.__lookup_wrapper(
@@ -592,10 +591,15 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         Initialize Tss report at sample locations or pits for each enabled output variable.
         """
         for var in self.config.output_variables.get_enabled_time_series():
+            id_map = (
+                self.sample_map
+                if is_geotiff(self.config.raster_files.sample_locations)
+                else self.config.raster_files.sample_locations
+            )
             tss_file = TimeoutputTimeseriesAdapter(
                 str(Path(self.config.output_directory.path) / var.table_filename_prefix),
                 self,
-                self.config.raster_files.sample_locations,
+                id_map,
                 noHeader=True,
             )
             self.sample_time_series_dict[var.id] = tss_file.sample
@@ -605,11 +609,10 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         Read the sample locations from the file and create a 1D array with unique locations values.
         """
-        sample_map = self.__readmap_wrapper(
-            file_path=self.config.raster_files.sample_locations,
-            readmap_func=pcrfw.nominal,
+        self.sample_map = pcrfw.nominal(
+            self.__read_raster(self.config.raster_files.sample_locations, FieldScale.NOMINAL)
         )
-        sample_array = pcrfw.pcr2numpy(map=sample_map, mv=MISSING_VALUE_DEFAULT)
+        sample_array = pcrfw.pcr2numpy(map=self.sample_map, mv=MISSING_VALUE_DEFAULT)
         return np.asarray(np.unique(sample_array))
 
     def __read_series(
@@ -626,9 +629,10 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.logger.error("%s", answer)
             raise RuntimeError(str(answer))
         self.logger.debug("Reading %s map from '%s'...", series, answer)
+        scale = FieldScale.NOMINAL if series == "landuse" else FieldScale.SCALAR
         return self.__readmap_series_wrapper(
             files_partial_path=answer,
-            dynamic_readmap_func=pcr.readmap,
+            dynamic_readmap_func=lambda path: read_field(path, scale),
             conversion_func=conversion_func,
         )
 
@@ -694,37 +698,12 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                 self.logger.error("Error reading map from '%s'", files_partial_path)
             raise
 
-    def __readmap_wrapper(
-        self,
-        file_path: str | bytes | os.PathLike,
-        readmap_func: Callable = pcrfw.readmap,
-        conversion_func: Callable | None = None,
-    ) -> Field:
-        """Read a data map for a given data type from a specified location.
-
-        :param file_path: The path where the data map is located.
-        :type file_path: Union[str, bytes, os.PathLike]
-
-        :param readmap_func: Function to read the map file. Default is ``pcrfw.readmap``.
-        :type readmap_func: Callable
-
-        :param conversion_func: Function to convert the read map to the desired data type. Default is ``None``.
-        :type conversion_func: Optional[Callable]
-
-        :return: The data map read from the file.
-        :rtype: Field
-
-        :raises RuntimeError: The specified data map was not loaded correctly.
-        """
-
+    def __read_raster(self, file_path, scale: FieldScale) -> Field:
+        """Read an input raster (PCRaster map or GeoTIFF) as a field on the clone."""
         try:
-            if conversion_func:
-                self.logger.debug("Reading and converting map from '%s'...", file_path)
-                return conversion_func(readmap_func(file_path))
-
-            self.logger.debug("Reading map from '%s'...", file_path)
-            return readmap_func(file_path)
-        except RuntimeError:
+            self.logger.debug("Reading %s raster from '%s'...", scale.value, file_path)
+            return read_field(file_path, scale)
+        except (RuntimeError, ValueError):
             self.logger.error("Error reading map from '%s'", file_path)
             raise
 

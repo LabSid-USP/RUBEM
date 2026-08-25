@@ -126,6 +126,8 @@ class InputRasterFiles(BaseModel):
                         file=file,
                     )
                 )
+        problems.extend(self.__check_geometry(files))
+
         minimum, minimum_no_data = bands[self.ndvi_min]
         maximum, maximum_no_data = bands[self.ndvi_max]
         problem = check_extremes(minimum, minimum_no_data, maximum, maximum_no_data, self.ndvi_max)
@@ -139,6 +141,42 @@ class InputRasterFiles(BaseModel):
 
         self._problems = problems
         return self
+
+    def __check_geometry(self, files) -> list[Problem]:
+        """Every input raster must share the clone's size, transform and CRS."""
+        from .output_raster_base import read_raster_geometry, same_crs
+
+        problems = []
+        clone_cols, clone_rows, clone_transform, clone_projection = read_raster_geometry(self.clone)
+        for file, _, _ in files:
+            if file == self.clone:
+                continue
+            cols, rows, transform, projection = read_raster_geometry(file)
+            same_geometry = (cols, rows) == (clone_cols, clone_rows) and all(
+                abs(a - b) <= 1e-9 * max(1.0, abs(a)) for a, b in zip(transform, clone_transform)
+            )
+            if not same_geometry:
+                problems.append(
+                    Problem(
+                        description="Input raster does not share the clone geometry.",
+                        reason=f"{cols}x{rows} cells with transform {transform}; the clone "
+                        f"{self.clone} has {clone_cols}x{clone_rows} with {clone_transform}.",
+                        implication="The simulation cannot run with this raster.",
+                        file=file,
+                        blocking=True,
+                    )
+                )
+            elif projection and clone_projection and not same_crs(projection, clone_projection):
+                problems.append(
+                    Problem(
+                        description="Input raster has another coordinate reference system.",
+                        reason=f"The clone {self.clone} defines a different one.",
+                        implication="The simulation cannot run with this raster.",
+                        file=file,
+                        blocking=True,
+                    )
+                )
+        return problems
 
     def __str__(self) -> str:
         return (

@@ -121,6 +121,11 @@ Unreleased
   policy (clamp by default), the kriging metric derived from the clone's
   coordinate reference system, the variogram settings and a seed; the legacy
   ``kriging`` module is deprecated.
+- Accepted GeoTIFF input rasters and series (``.tif``/``.tiff``): rasters
+  are read through GDAL onto the clone grid, a GeoTIFF clone sets the grid
+  through its geometry, GeoTIFF series members are named like the model
+  outputs, sample locations may be a GeoTIFF, and every input raster must
+  share the clone geometry and coordinate reference system.
 
 Version 0.9.0-beta.3
 ---------------------

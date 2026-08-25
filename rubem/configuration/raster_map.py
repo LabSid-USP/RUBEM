@@ -107,7 +107,7 @@ class RasterMap:
             raise ValueError(f"Empty raster file: {file_path}")
 
     def __validate_file_extension(self, file_path):
-        if not str(file_path).endswith((".map", ".tif")) and not bool(
+        if not str(file_path).lower().endswith((".map", ".tif", ".tiff")) and not bool(
             bool(re.search(r"\.[0-9]{3}$", Path(file_path).suffix))
         ):
             raise ValueError(f"Invalid raster file extension: {file_path}")

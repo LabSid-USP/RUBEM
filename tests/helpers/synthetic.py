@@ -50,6 +50,38 @@ _SOIL_TABLES = {
 }
 
 
+def _as_tif(path):
+    return os.path.splitext(path)[0] + ".tif"
+
+
+def _write_geotiff(path, array, scale, pcr):
+    """Write ``array`` as a GeoTIFF on the synthetic geometry (no CRS)."""
+    from osgeo import gdal
+
+    gdal.UseExceptions()
+    gdal.AllRegister()
+    if scale is pcr.Scalar:
+        gdal_type, nodata, data = gdal.GDT_Float32, MISSING, np.asarray(array, dtype=np.float32)
+    elif scale is pcr.Boolean:
+        gdal_type, nodata, data = gdal.GDT_Byte, 255, np.asarray(array, dtype=np.uint8)
+    else:
+        gdal_type, nodata, data = gdal.GDT_Int32, int(MISSING), np.asarray(array, dtype=np.int32)
+    dataset = gdal.GetDriverByName("GTiff").Create(path, COLS, ROWS, 1, gdal_type)
+    try:
+        band = dataset.GetRasterBand(1)
+        band.SetNoDataValue(float(nodata))
+        band.WriteArray(data)
+        dataset.SetGeoTransform((WEST, CELL_SIZE, 0.0, NORTH, 0.0, -CELL_SIZE))
+        dataset.FlushCache()
+    finally:
+        dataset = None
+
+
+def geotiff_series_name(prefix, step):
+    """File name of a GeoTIFF series member, as the model writes its outputs."""
+    return f"{prefix}{str(step).zfill(10 - len(prefix))}.tif"
+
+
 def series_name(prefix, step):
     """Return the PCRaster map-series name of ``prefix`` at ``step``.
 
@@ -69,16 +101,23 @@ def _end_date(timesteps):
     return date(_START_DATE.year + months // 12, months % 12 + 1, _START_DATE.day)
 
 
-def write_synthetic_dataset(base_dir, timesteps=2):
+def write_synthetic_dataset(base_dir, timesteps=2, raster_format="map"):
     """Write the dataset under ``base_dir`` and return its configuration dict.
 
     :param base_dir: Directory that receives ``maps/``, ``txt/`` and ``out/``.
     :param timesteps: Number of monthly steps starting at 01/01/2000. Must be at
         least 2, since :class:`SimulationPeriod` requires the start date to
         precede the end date.
+    :param raster_format: ``"map"`` writes PCRaster maps (the default), ``"tif"``
+        writes every raster and series member as a GeoTIFF (series members named
+        like the model outputs, ``<prefix><step>.tif``).
     :raises ValueError: If ``timesteps`` is smaller than 2.
     """
     import pcraster as pcr
+
+    if raster_format not in ("map", "tif"):
+        raise ValueError(f"raster_format must be 'map' or 'tif', got {raster_format!r}.")
+    suffix = raster_format
 
     if timesteps < 2:
         raise ValueError(
@@ -93,6 +132,10 @@ def write_synthetic_dataset(base_dir, timesteps=2):
         path = os.path.join(base_dir, "maps", rel_path)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         array = np.asarray(values, dtype=dtype).reshape(ROWS, COLS)
+        if suffix == "tif":
+            path = _as_tif(path)
+            _write_geotiff(path, array, scale, pcr)
+            return path
         pcr.report(pcr.numpy2pcr(scale, array, MISSING), path)
         return path
 
@@ -108,7 +151,11 @@ def write_synthetic_dataset(base_dir, timesteps=2):
     )
     ldd_path = os.path.join(base_dir, "maps", "ldd", "ldd.map")
     os.makedirs(os.path.dirname(ldd_path), exist_ok=True)
-    pcr.report(ldd_field, ldd_path)
+    if suffix == "tif":
+        ldd_path = _as_tif(ldd_path)
+        _write_geotiff(ldd_path, pcr.pcr2numpy(ldd_field, 0).astype(np.int32), pcr.Nominal, pcr)
+    else:
+        pcr.report(ldd_field, ldd_path)
     write_map("soil/soil.map", np.full(ROWS * COLS, _SOIL_CLASS), pcr.Nominal, np.int32)
     samples = np.full(ROWS * COLS, MISSING)
     samples[0] = 1
@@ -117,34 +164,37 @@ def write_synthetic_dataset(base_dir, timesteps=2):
     write_map("ndvi/ndvi_min.map", np.full(ROWS * COLS, 0.2), pcr.Scalar, np.float32)
     write_map("ndvi/ndvi_max.map", np.full(ROWS * COLS, 0.9), pcr.Scalar, np.float32)
 
+    def member(prefix, step):
+        return geotiff_series_name(prefix, step) if suffix == "tif" else series_name(prefix, step)
+
     for step in range(1, timesteps + 1):
         cycle = (step - 1) % _SERIES_CYCLE + 1
         write_map(
-            f"ndvi/{series_name('ndvi', step)}",
+            f"ndvi/{member('ndvi', step)}",
             np.full(ROWS * COLS, 0.5 + 0.05 * cycle),
             pcr.Scalar,
             np.float32,
         )
         write_map(
-            f"etp/{series_name('etp', step)}",
+            f"etp/{member('etp', step)}",
             np.full(ROWS * COLS, 80.0 + 5.0 * cycle),
             pcr.Scalar,
             np.float32,
         )
         write_map(
-            f"rain/{series_name('prec', step)}",
+            f"rain/{member('prec', step)}",
             np.full(ROWS * COLS, 120.0 - 10.0 * cycle),
             pcr.Scalar,
             np.float32,
         )
         write_map(
-            f"kp/{series_name('kp', step)}",
+            f"kp/{member('kp', step)}",
             np.full(ROWS * COLS, 0.8),
             pcr.Scalar,
             np.float32,
         )
         write_map(
-            f"lulc/{series_name('cob', step)}",
+            f"lulc/{member('cob', step)}",
             np.full(ROWS * COLS, _LULC_CLASSES[(step - 1) % len(_LULC_CLASSES)]),
             pcr.Nominal,
             np.int32,
@@ -188,13 +238,13 @@ def write_synthetic_dataset(base_dir, timesteps=2):
             "landuse_prefix": "cob",
         },
         "RASTERS": {
-            "dem": os.path.join(maps, "dem/dem.map"),
-            "clone": os.path.join(maps, "clone/clone.map"),
-            "ldd": os.path.join(maps, "ldd/ldd.map"),
-            "ndvi_max": os.path.join(maps, "ndvi/ndvi_max.map"),
-            "ndvi_min": os.path.join(maps, "ndvi/ndvi_min.map"),
-            "soil": os.path.join(maps, "soil/soil.map"),
-            "samples": os.path.join(maps, "samples/samples.map"),
+            "dem": os.path.join(maps, f"dem/dem.{suffix}"),
+            "clone": os.path.join(maps, f"clone/clone.{suffix}"),
+            "ldd": os.path.join(maps, f"ldd/ldd.{suffix}"),
+            "ndvi_max": os.path.join(maps, f"ndvi/ndvi_max.{suffix}"),
+            "ndvi_min": os.path.join(maps, f"ndvi/ndvi_min.{suffix}"),
+            "soil": os.path.join(maps, f"soil/soil.{suffix}"),
+            "samples": os.path.join(maps, f"samples/samples.{suffix}"),
         },
         "TABLES": {
             "rainydays": os.path.join(txt_dir, "rainydays.txt"),
