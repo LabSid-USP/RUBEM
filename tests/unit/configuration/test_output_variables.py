@@ -130,3 +130,64 @@ class TestOutputVariableObjects:
 
         assert rebuilt == variables
         assert rebuilt.itp.is_time_series_enabled
+
+
+class TestTssBoolSemantics:
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "value, expected", [("false", False), ("0", False), ("true", True), (1, True)]
+    )
+    def test_tss_uses_pydantic_bool_semantics_not_pythons(self, value, expected):
+        variables = OutputVariables(itp=True, tss=value)
+
+        assert variables.tss is expected
+        assert variables.itp.is_time_series_enabled is expected
+
+    @pytest.mark.unit
+    def test_an_unparsable_tss_string_is_rejected(self):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            OutputVariables(itp=True, tss="not-a-boolean")
+
+
+class TestNestedObjectConsistency:
+    @pytest.mark.unit
+    def test_an_explicit_tss_false_overrides_nested_objects_and_dicts(self):
+        variables = OutputVariables(
+            itp=OutputVariable(
+                id="itp",
+                is_raster_series_enabled=True,
+                is_time_series_enabled=True,
+                raster_filename_prefix="itp",
+                table_filename_prefix="tss_itp",
+            ),
+            bfw={
+                "id": "bfw",
+                "is_raster_series_enabled": True,
+                "is_time_series_enabled": True,
+                "raster_filename_prefix": "bfw",
+                "table_filename_prefix": "tss_bfw",
+            },
+            tss=False,
+        )
+
+        assert variables.tss is False
+        assert variables.itp.is_raster_series_enabled
+        assert not variables.itp.is_time_series_enabled
+        assert not variables.bfw.is_time_series_enabled
+
+    @pytest.mark.unit
+    def test_nested_ids_must_match_their_field_name(self):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="mismatched"):
+            OutputVariables(
+                bfw=OutputVariable(
+                    id="itp",
+                    is_raster_series_enabled=True,
+                    is_time_series_enabled=False,
+                    raster_filename_prefix="bfw",
+                    table_filename_prefix="tss_bfw",
+                )
+            )
