@@ -76,8 +76,10 @@ class Tif2pcrTss(DynamicModel):
         self.report(pcr_file, self.file_name)
 
 
-# Number of timesteps must match to number of files
-nrOfTimeSteps = 8
-myModel = Tif2pcrTss("/path/to/files/to/be/converted", "prefix", "/path/to/clone.map")
-dynamicModel = DynamicFramework(myModel, nrOfTimeSteps)
-dynamicModel.run()
+if __name__ == "__main__":
+    # Example invocation; edit the paths before running the module directly.
+    # Number of timesteps must match to number of files
+    nrOfTimeSteps = 8
+    myModel = Tif2pcrTss("/path/to/files/to/be/converted", "prefix", "/path/to/clone.map")
+    dynamicModel = DynamicFramework(myModel, nrOfTimeSteps)
+    dynamicModel.run()

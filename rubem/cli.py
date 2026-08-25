@@ -24,6 +24,7 @@ from . import __release__
 from ._deps import require_runtime_deps
 from .configuration._problems import ConfigurationError
 from .configuration.app_settings import AppSettings
+from .preprocessing.cli import app as preprocess_app
 from .validation.cli_validators import file_path_cli_arg_validator
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ config_app = typer.Typer(
     context_settings=_CONTEXT,
 )
 app.add_typer(config_app, name="config")
+app.add_typer(preprocess_app, name="preprocess")
 
 
 class SchemaFormat(StrEnum):

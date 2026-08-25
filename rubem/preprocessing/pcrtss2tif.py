@@ -83,4 +83,6 @@ def pcrTss2Tif(inputFolder, demSrc):
         numpy2tif(src, outfile, npFile)
 
 
-pcrTss2Tif("/path/to/files/to/be/converted", "/path/to/DEM.tif")
+if __name__ == "__main__":
+    # Example invocation; edit the paths before running the module directly.
+    pcrTss2Tif("/path/to/files/to/be/converted", "/path/to/DEM.tif")

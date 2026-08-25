@@ -63,4 +63,6 @@ def tif2map(Tifs_Dir):
     return out_map
 
 
-tif2map("/path/to/files/to/be/converted")
+if __name__ == "__main__":
+    # Example invocation; edit the paths before running the module directly.
+    tif2map("/path/to/files/to/be/converted")

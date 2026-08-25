@@ -28,9 +28,6 @@ dem_source = ""
 outpath_min = ""
 outpath_max = ""
 
-# files
-Raster_files = glob.glob(os.path.join(Input_path, "*.tif"))
-
 
 def readfile(file):
     """Read file usins Gdal.
@@ -81,16 +78,19 @@ def numpy2tif(sourceTif, outpath, numpy_array):
     return ()
 
 
-# apply function, and convert type list to type array
-dataset = np.asarray([readfile(x) for x in Raster_files])
+if __name__ == "__main__":
+    # Edit the paths above before running the module directly.
+    Raster_files = glob.glob(os.path.join(Input_path, "*.tif"))
+    # apply function, and convert type list to type array
+    dataset = np.asarray([readfile(x) for x in Raster_files])
 
-# lenght of list has to be the number of files on the given path
-print(len(dataset))
+    # lenght of list has to be the number of files on the given path
+    print(len(dataset))
 
-# converts the input (list) to an array before finding the minimum along that axis 0
-min_data = dataset.min(0)
-numpy2tif(dem_source, outpath_min, min_data)
+    # converts the input (list) to an array before finding the minimum along that axis 0
+    min_data = dataset.min(0)
+    numpy2tif(dem_source, outpath_min, min_data)
 
-# converts the input to an array before finding the minimum along that axis 0
-max_data = dataset.max(0)
-numpy2tif(dem_source, outpath_max, max_data)
+    # converts the input to an array before finding the minimum along that axis 0
+    max_data = dataset.max(0)
+    numpy2tif(dem_source, outpath_max, max_data)
