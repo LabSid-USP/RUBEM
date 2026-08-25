@@ -132,7 +132,9 @@ Second argument corresponds to the Digital Elevation Model in :file:`*.tif` form
     (for example, the default ``-9999`` on a Boolean or LDD map), the output
     band is promoted to the smallest type that holds both the data and the
     no-data value; a fractional no-data value is rejected on an integer
-    value scale. As above, a pre-existing :file:`manifest.csv` is removed
+    value scale. A member is also rejected if a valid cell already equals
+    the no-data value, which would otherwise make it unreadable as data on
+    the next read. As above, a pre-existing :file:`manifest.csv` is removed
     before any file is written.
 
 Get Maximum and Minimum Value Map
@@ -156,6 +158,13 @@ This script allows you to get a map for variables as Minimum NDVI and Maximum ND
     |   etp2.tif
     |   etp3.tif
     ...
+
+.. note::
+
+    ``outpath_min`` and ``outpath_max`` must not resolve to the same file, or
+    the maximum would silently overwrite the minimum. The computed minimum
+    and maximum are also rejected if a cell with at least one valid value in
+    the series already equals the requested no-data value.
 
 Kriging Method
 ``````````````
@@ -181,8 +190,10 @@ The third argument must be a file in format :file:`*.csv`, each row corresponds 
 
 To use this script, the following conditions must be met:
 
-- A minimum of 3 stations data is mandatory, at 3 distinct coordinates (three
-  stations sharing a coordinate do not count as 3);
+- A minimum of 3 stations data is mandatory, and every station must have its
+  own coordinate: two stations sharing a coordinate are rejected even when 3
+  or more stations are present, because ordinary kriging cannot invert a
+  system with two identical points;
 - No value data is not allowed; station coordinates and values must also be
   finite (no ``nan``/``inf``);
 - Projection of station coordinates must correspond to DEM projection;
@@ -194,4 +205,6 @@ To use this script, the following conditions must be met:
   interpolation library support with the same three parameters
   (``psill``, ``range``, ``nugget``); for a geographic (longitude/latitude)
   coordinate reference system the variogram is fit with the same
-  great-circle distance the interpolation uses.
+  great-circle distance the interpolation uses;
+- No interpolated cell may equal the requested no-data value (after the
+  negative-value policy is applied), or it would be read back as missing.
