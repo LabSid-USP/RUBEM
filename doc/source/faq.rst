@@ -15,7 +15,7 @@ What does "RUBEM" mean?
 ````````````````````````````````````
 
 RUBEM means the "Rainfall-Runoff Balance Enhanced Model". Also is a homage in memory of the Professor Rubem La Laina Porto, who has made significant contributions to teach, research, and for the entire water resource brazilian community.
- 
+
 Who's behind this?
 ``````````````````
 
@@ -44,7 +44,7 @@ How do I cite RUBEM?
 How do I cite the dataset?
 ```````````````````````````
 
-Please consider citing the datasets when using them: 
+Please consider citing the datasets when using them:
 
     `Méllo, A. V., L. M. O. Olivos, C. Billerbeck, S. S. Marcellini, W. D. Vichete, D. M. Pasetti, L. M. d. Silva, G. A. d. S. Soares, J. R. B. Tercini (2021). Rainfall-Runoff Balance Enhanced Model Applied to Tropical Hydrology, HydroShare, http://www.hydroshare.org/resource/6f3670b8cd944e7ea72e03d1b9ca928f`
 
@@ -92,10 +92,10 @@ Where can I go to get help?
 
 You can get help by hitting the help button in the plugin window. You might also find the answers you are looking for in our documentation guides and tutorials. These provide step-by-step solutions to common user requirements. Check if anyone else had the same question/problem in `our repository issues <https://github.com/LabSid-USP/RUBEM/issues>`__.
 
-If you still have questions, fill out the `support form <https://forms.gle/JmxWKoXh4C29V2rD8>`__ or `sending us an email <mailto:rubem.hydrological+support@labsid.eng.br>`__ 
+If you still have questions, fill out the `support form <https://forms.gle/JmxWKoXh4C29V2rD8>`__ or `sending us an email <mailto:rubem.hydrological+support@labsid.eng.br>`__
 
 .. note::
-    
+
     In any of our communication channels please abide by the :doc:`Code of Conduct </code-of-conduct>`. In summary, being friendly and patient, considerate, respectful, and careful in your choice of words.
 
 I think I've found a bug! What should I do?

@@ -6,13 +6,13 @@ Alto Iguaçu River Basin Minimal Example
 
 In this section an example of application of the model in the Brazilian basin of the Alto Iguaçu river is presented. For this case study you need to download the respective required dataset which is available on the :doc:`datasets page </datasets>`.
 
-For this example, we will set up the RUBEM model for ten years: 2000 to 2009. For this period, we will set up a 500 x 500 m spatial resolution (grid cell size). All maps used in this tutorial are in the WGS 84 ESPG 2346 projection. In this tutorial, each step to set up the model is discussed. 
+For this example, we will set up the RUBEM model for ten years: 2000 to 2009. For this period, we will set up a 500 x 500 m spatial resolution (grid cell size). All maps used in this tutorial are in the WGS 84 ESPG 2346 projection. In this tutorial, each step to set up the model is discussed.
 
 Create a new project
 `````````````````````
 
-Create a new project in the downloaded dataset directory named :file:`Iguazu.json` or another appropriate filename. 
- 
+Create a new project in the downloaded dataset directory named :file:`Iguazu.json` or another appropriate filename.
+
 .. _initial-settings:
 
 Initial Settings
@@ -32,7 +32,7 @@ Enable ``Export results to station locations (tss)`` option to export of results
 
 .. code-block:: json
 
-    {    
+    {
         "GENERATE_FILE": {
             "tss": true,
         },
@@ -81,9 +81,9 @@ In the part ``Grid`` set 500.000 m as size value and in the part Simulation Peri
 Soil settings
 ``````````````
 
-In the Soil Parameters input maps and tables need to be provided for different physical soil parameters. Soil raster data are located at :file:`/input/maps/soil/`. Define ``soil`` as :file:`/input/maps/soil/soil.map`. This map has the soil types in the basin. The numerical values in this map correspond to the categorized soil types defined from the Brazilian Soil Classification System. 
+In the Soil Parameters input maps and tables need to be provided for different physical soil parameters. Soil raster data are located at :file:`/input/maps/soil/`. Define ``soil`` as :file:`/input/maps/soil/soil.map`. This map has the soil types in the basin. The numerical values in this map correspond to the categorized soil types defined from the Brazilian Soil Classification System.
 
-The folder :file:`/input/txt/soil` contains tables with the values of the soil parameters coupled to each soil type. Select the corresponding table at each field (e.g. :file:`/input/txt/soil/Ksat.txt` in Saturated Hydraulic Conductivity). 
+The folder :file:`/input/txt/soil` contains tables with the values of the soil parameters coupled to each soil type. Select the corresponding table at each field (e.g. :file:`/input/txt/soil/Ksat.txt` in Saturated Hydraulic Conductivity).
 
 Set the following values for ``Initial Soil Conditions`` fields:
 
@@ -139,12 +139,12 @@ Set the following values for ``Initial Soil Conditions`` fields:
 
 Land Use settings
 ``````````````````
- 
+
 Land Use data are located at :file:`/input/maps/landuse/` and :file:`/input/maps/ndvi/` directories. These directories contain input maps (map-series) for landuse and NDVI. The filenames in :file:`ndvi` folder have a strict numbering format: :file:`ndvi0000.001` until :file:`ndvi0000.228` in a monthly base. In folder :file:`landuse`, files correspond to annual maps, :file:`cov00000.001` – :file:`cov00000.013`. For landuse, RUBEM use the prior map when map correspond to current timestep (1 - Jan/2000 to 132-Dec/2010) is this example) does not exist in the directory.
- 
-Select :file:`cov00000.001` as ``Land Use map series``, :file:`ndvi0000.001` for ``Normalized Difference Vegetation Index`` and the corresponds :file:`.map` for maximum and minimum NDVI. 
- 
-Similar to the soil tab, the folder :file:`/input/txt/landuse` contains tables with the values of the land use parameters coupled to each cover type, select the corresponding table at each field (e.g. :file:`/input/txt/landuse/manning.txt` in Manning file). 
+
+Select :file:`cov00000.001` as ``Land Use map series``, :file:`ndvi0000.001` for ``Normalized Difference Vegetation Index`` and the corresponds :file:`.map` for maximum and minimum NDVI.
+
+Similar to the soil tab, the folder :file:`/input/txt/landuse` contains tables with the values of the land use parameters coupled to each cover type, select the corresponding table at each field (e.g. :file:`/input/txt/landuse/manning.txt` in Manning file).
 
 Use the default values for ``FPAR``, ``LAI`` and ``Impervious Area Interception``.
 
@@ -221,7 +221,7 @@ Use the default values for ``FPAR``, ``LAI`` and ``Impervious Area Interception`
 
 Climate settings
 `````````````````
- 
+
 In the ``Climate`` section define the appropriate map-series from :file:`/input/maps/prec/` for ``Precipitation [mm/month]``, :file:`/input/maps/etp/` for ``Potential Evapotranspiration [mm/month]``, and :file:`/input/maps/kp/` for ``Class A Pan Coefficient [-]``. In the ``Rainy days`` section select the appropriate file from :file:`/input/txt/`. It should be noted that the start date always has to correspond with the first climate forcing file (:file:`*.001`).
 
 .. code-block:: json
@@ -293,7 +293,7 @@ In the ``Climate`` section define the appropriate map-series from :file:`/input/
 Parameters Settings
 ````````````````````
 
-Values in this tab correspond to calibrated parameters in the basin. For the dataset, the figure below shows the values. The model calibration requires a trial and error approach when RUBEM Hydrological (plugin) is the only tool used. It is possible to adapt RUBEM (code) for using optimization tools for calibration e.g. `Scipy library algorithms <https://scipy.org>`__. 
+Values in this tab correspond to calibrated parameters in the basin. For the dataset, the figure below shows the values. The model calibration requires a trial and error approach when RUBEM Hydrological (plugin) is the only tool used. It is possible to adapt RUBEM (code) for using optimization tools for calibration e.g. `Scipy library algorithms <https://scipy.org>`__.
 
 +-------------------------------------------+-----------+
 | Parameter                                 | Value     |

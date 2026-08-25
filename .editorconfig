@@ -21,8 +21,9 @@ indent_size = 3
 [Makefile]
 indent_style = tab
 
-# Binary fixtures and rasters are never touched by editors.
-[*.{map,tif,tiff,png,pdf}]
+# Binary fixtures and rasters are never touched by editors; PCRaster series
+# members and goldens (*.NNN, e.g. etp00000.001) are binary too.
+[{*.map,*.tif,*.tiff,*.png,*.pdf,*.[0-9][0-9][0-9]}]
 charset = unset
 end_of_line = unset
 insert_final_newline = unset

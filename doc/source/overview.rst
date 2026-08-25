@@ -8,7 +8,7 @@ Overview
 
 The model is written in the Python and uses the PCRaster framework [KARSSENBERG2010]_. A graphical user interface, called **RUBEM Hydrological**, that aims to facilitate configuration, execution and visualization of the results of this model  `is available as a plug-in for QGIS <https://github.com/LabSid-USP/RUBEMHydrological#readme>`_.
 
-The following figure shows the main relevant hydrological processes present in the model. 
+The following figure shows the main relevant hydrological processes present in the model.
 
 .. _rubem-schema:
 .. figure:: _static/rubem-schema.png
@@ -40,12 +40,12 @@ RUBEM is a spatially distributed hydrological model that integrates classical ra
 Interception
 `````````````
 
-Interception is the fraction of precipitation which is retained by the vegetated area canopy. Therefore, its calculation is based on the vegetation cover characteristics, incorporated into the equations through the indexes Fraction of Absorbed Photosynthetically Active Radiation (FPAR), Normalized Difference Vegetation Index (NDVI), and Leaf Area (LAI). Equation :eq:`interception` shows the interception calculation. 
+Interception is the fraction of precipitation which is retained by the vegetated area canopy. Therefore, its calculation is based on the vegetation cover characteristics, incorporated into the equations through the indexes Fraction of Absorbed Photosynthetically Active Radiation (FPAR), Normalized Difference Vegetation Index (NDVI), and Leaf Area (LAI). Equation :eq:`interception` shows the interception calculation.
 
 .. math::
    :label: interception
    :nowrap:
-    
+
     \[I = \alpha_V \cdot I_V\]
 
 where:
@@ -58,39 +58,39 @@ where:
 
 
 .. math::
-   :label: interception-v   
+   :label: interception-v
    :nowrap:
-    
+
     \[I_V = P_m \cdot I_R\]
 
 .. math::
    :label: interception-r
    :nowrap:
-    
+
     \[I_R = 1 - \exp{\left( -\frac{I_D \cdot d_p}{P_m} \right)}\]
 
 .. math::
    :label: interception-d
    :nowrap:
-    
+
     \[I_D = \alpha \cdot LAI \cdot \exp{\left( 1 - \frac{1}{1 + \frac{P_m \cdot [1 - \exp{(-0.463 \cdot LAI)}]}{\alpha \cdot LAI}} \right)}\]
 
 .. math::
    :label: lai
    :nowrap:
-    
+
     \[LAI = LAI_{max} \cdot \frac{\log{(1-FPAR)}}{\log{(1-FPAR_{max})}} \]
 
 .. math::
    :label: fpar
    :nowrap:
-    
+
     \[FPAR = \min{\left[ \frac{(SR-SR_{min})(FPAR_{max}-FPAR_{min})}{SR_{max}-SR_{min}} + FPAR_{min}, \: 0.95\right]} \]
 
 .. math::
    :label: sr
    :nowrap:
-    
+
     \[SR = \frac{1 + NDVI}{1 - NDVI} \]
 
 where:
@@ -104,7 +104,7 @@ where:
 - :math:`FPAR` - Fraction Photosynthetically Active Radiation (-);
 - :math:`FPAR_{min}`, :math:`FPAR_{max}` - minimum and maximum values for FPAR (0.001 and 0.95, respectively), corresponding to the minimum and maximum values for LAI for a particular vegetation class.
 
-.. note:: 
+.. note::
 
    If :math:`P_m = 0` then :math:`I_R = 0`.
 
@@ -118,7 +118,7 @@ Evapotranspiration refers to the transfer of water from the soil-plant system to
 .. math::
    :label: etreal
    :nowrap:
-    
+
     \[ET_{REAL} = \alpha_V \cdot ET_{R,V} + \alpha_{SN} \cdot ET_{R,S} + \alpha_A \cdot ET_{R,A} + \alpha_I \cdot ET_{R,I}\]
 
 where:
@@ -133,7 +133,7 @@ where:
 - :math:`\alpha_A` – Water area fraction (%);
 - :math:`\alpha_I` – Impervious area fraction (%).
 
-.. note:: 
+.. note::
 
    If :math:`\alpha_A = 1` and :math:`ET_{R,A} > P_m` then :math:`ET_{R,A} = P_m`.
 
@@ -144,13 +144,13 @@ Vegetated Area Fraction
 .. math::
    :label: etrv
    :nowrap:
-    
+
    \[ET_{R,V} = ET_p \cdot kc \cdot ks\]
 
 .. math::
-   :label: kc    
+   :label: kc
    :nowrap:
-    
+
    \[kc = kc_{min} + (kc_{max} - kc_{min}) \cdot \left( \frac{NDVI-NDVI_{min}}{NDVI_{max}-NDVI_{min}} \right)\]
 
 where:
@@ -169,15 +169,15 @@ Bare Soil Area Fraction
 ''''''''''''''''''''''''
 
 .. math::
-   :label: etrs    
+   :label: etrs
    :nowrap:
-    
+
     \[ET_{R,S} = ET_p \cdot kc_{min} \cdot ks\]
 
 .. math::
-   :label: ks    
+   :label: ks
    :nowrap:
-    
+
     \[ks = \frac{\ln{(TU_R - TU_{PM} + 1)}}{\ln{(TU_{CC} - TU_{PM} + 1)}} \]
 
 where:
@@ -185,7 +185,7 @@ where:
 - :math:`ET_p` – Potential evapotranspiration (mm);
 - :math:`kc` – Crop coefficient (-);
 - :math:`ks` – Soil moisture reduction coefficient (-);
-- :math:`TU_{PM}` – Moisture content of the soil at the wilting point (mm);	
+- :math:`TU_{PM}` – Moisture content of the soil at the wilting point (mm);
 - :math:`TU_{CC}` – Moisture content of the soil at field capacity (mm);
 - :math:`TU_R` – Actual moisture content of the soil (mm).
 
@@ -198,15 +198,15 @@ Water Area Fraction
 ''''''''''''''''''''
 
 .. math::
-   :label: etra    
+   :label: etra
    :nowrap:
-    
+
     \[ET_{R,A} = \frac{ET_p}{kp}\]
 
 .. math::
-   :label: kp    
+   :label: kp
    :nowrap:
-    
+
     \[kp = 0.482 + 0.024 \cdot \ln{(B)} - 0.000376 \cdot U_2 + 0.0045 \cdot UR \]
 
 where:
@@ -218,9 +218,9 @@ Impervious Area Fraction
 ''''''''''''''''''''''''
 
 .. math::
-   :label: etri    
+   :label: etri
    :nowrap:
-    
+
     \[ET_{R,I} = I_I\]
 
 where:
@@ -233,9 +233,9 @@ Surface Runoff
 Surface runoff refers to the water that flows on the cell surface. The monthly calculation of surface runoff is based on the rational method, considering two flow coefficients, as shown in equation :eq:`surfacerunoff` [ABDOLLAHI2017]_.
 
 .. math::
-   :label: surfacerunoff    
+   :label: surfacerunoff
    :nowrap:
-    
+
     \[SR = C_{SR} \cdot C_h \cdot (P_m - I) \]
 
 where:
@@ -250,45 +250,45 @@ where:
 
 
 .. math::
-   :label: csr       
+   :label: csr
    :nowrap:
-    
+
     \[C_{SR} = \frac{C_{wp} \cdot \overline{P}_{MD}}{C_{wp} \cdot \overline{P}_{24} - RCD \times C_{wp} + RCD} \]
 
 .. math::
-   :label: cwp    
+   :label: cwp
    :nowrap:
-    
+
     \[C_{wp} = (1 - A_{imp}) \cdot C_{per} + A_{imp} \cdot C_{imp} \]
 
 .. math::
-   :label: cimp    
+   :label: cimp
    :nowrap:
-    
+
     \[C_{imp} = 0.09 \cdot \exp{(2.4 \cdot A_{imp})} \]
 
 .. math::
-   :label: aimp    
+   :label: aimp
    :nowrap:
-    
+
     \[A_{imp} = \alpha_O + \alpha_I \]
 
 .. math::
-   :label: cper    
+   :label: cper
    :nowrap:
-    
+
     \[C_{per} = w_1 \left(\frac{0.02}{n} \right) + w_2\left(\frac{\theta_{PM}}{1-\theta_{PM}} \right) + w_3\left(\frac{S}{10+S} \right) \]
 
 .. math::
-   :label: ch    
+   :label: ch
    :nowrap:
-    
+
     \[C_h = \left(\frac{\theta_{TUR}}{\theta_{POR}} \right)^b \]
 
 .. math::
-   :label: thetatur    
+   :label: thetatur
    :nowrap:
-    
+
     \[\theta_{TUR} = \frac{TU_R}{d_g \cdot Z_r \cdot 10}\]
 
 
@@ -316,9 +316,9 @@ where:
 - :math:`d_g` – overall soil density in the root layer (:raw-html:`g cm<sup>3</sup>`);
 - :math:`Z_r` – root layer thickness (cm).
 
-.. note:: 
+.. note::
 
-   If :math:`\theta_{TUR} > \theta_{POR}` then :math:`\theta_{TUR} = \theta_{POR}`. 
+   If :math:`\theta_{TUR} > \theta_{POR}` then :math:`\theta_{TUR} = \theta_{POR}`.
 
 .. note::
 
@@ -331,9 +331,9 @@ Lateral Flow
 Lateral flow occurs in the unsaturated layer under the surface of the soil. The groundwater recharge is the downflow from the surface to the water aquifer by infiltration and deep percolation. Lateral flow and groundwater recharge (equations below) are calculated by values of root zone moisture, hydraulic conductivity, and a calibrated partitioning coefficient, which controls horizontal and vertical flow [YATES2005]_.
 
 .. math::
-   :label: lateralflow     
+   :label: lateralflow
    :nowrap:
-    
+
     \[LF = f \cdot K_R \cdot \left( \frac{TU_R}{TU_{SAT}} \right)^2 \]
 
 where:
@@ -350,9 +350,9 @@ Aquifer Recharge
 Groundwater recharge is complementary to lateral flow, and is calculated as follows :eq:`recharge`:
 
 .. math::
-   :label: recharge    
+   :label: recharge
    :nowrap:
-    
+
     \[REC = (1-f) \cdot K_R \cdot \left( \frac{TU_R}{TU_{SAT}} \right)^2 \]
 
 where:
@@ -371,16 +371,16 @@ Baseflow
 The basic flow is the one that occurs in the saturated soil layer. The base flow is determined by [TERINK2015]_ by groundwater recharge and the recession coefficient. It is calculated only if the moisture content in the saturated zone exceeds a specified threshold.
 
 .. math::
-   :label: baseflow      
+   :label: baseflow
    :nowrap:
-    
+
     \[
     BF = \left\{
             \begin{array}{ll}
             0,  & \mbox{if } TU_S \leq BF_{thresh} \\
             BF_{T-1} \cdot e^{-\alpha_{GW}} + (1-e^{-\alpha_{GW}}) \cdot REC,  & \mbox{if } TU_S > BF_{thresh} \\
             \end{array}
-    \right. 
+    \right.
     \]
 
 where:
@@ -399,9 +399,9 @@ RUBEM is governed by the mass balance for the water in the soil layer. Soil mois
 
 
 .. math::
-   :label: pe     
+   :label: pe
    :nowrap:
-    
+
     \[P_E = P_m - I\]
 
 where:
@@ -409,11 +409,11 @@ where:
 - :math:`P_E` – Effective precipitation (mm);
 - :math:`P_m` – Total Monthly precipitation (mm);
 - :math:`I` – Total interception (mm).
-  
+
 .. math::
-   :label: tus     
+   :label: tus
    :nowrap:
-    
+
     \[TU_S = TU_{S,T-1} - BF + REC \]
 
 where:
@@ -423,9 +423,9 @@ where:
 - :math:`BF` – Baseflow (mm).
 
 .. math::
-   :label: tur     
+   :label: tur
    :nowrap:
-    
+
     \[TU_R = TU_{R,T-1} + P_E - SR - LF - REC - ET_{REAL} \]
 
 where:
@@ -437,7 +437,7 @@ where:
 - :math:`REC` – Recharge (mm);
 - :math:`ET_{REAL}` – Total real evapotranspiration (mm).
 
-.. note:: 
+.. note::
 
    If :math:`\alpha_A = 1` then :math:`TU_R = TU_{SAT}`.
 
@@ -452,15 +452,15 @@ Total superficial discharge, Equation :eq:`qtot`, is the sum of flow components:
 
 
 .. math::
-   :label: qtot    
+   :label: qtot
    :nowrap:
-    
+
     \[Q_{Tot} = SR + LF + BF \]
 
 .. math::
-   :label: qt    
+   :label: qt
    :nowrap:
-    
+
     \[Q_t = x \cdot Q_{t-1} + \frac{0.001 \cdot (1 - x) \cdot A \cdot Q_{Tot}}{days \cdot 24 \cdot 3600} \]
 
 where:
@@ -480,48 +480,48 @@ The model operates on a monthly basis and calculates the water balance cell-by-c
 .. ``````````````
 
 .. .. math::
-..    :label: y    
+..    :label: y
 ..    :nowrap:
-    
+
 ..     \[Y = a + b_1 \cdot X_1 + b_2 \cdot X_2 + \dots + b_n \cdot X_n \]
 
 .. .. math::
-..    :label: a    
+..    :label: a
 ..    :nowrap:
-    
+
 ..     \[a = \frac{\sum{Y} \cdot \sum{X^2} - \sum{X} \cdot \sum{XY}}{N \cdot \sum{X^2}-(\sum{X})^2}\]
 
 .. .. math::
-..    :label: b    
+..    :label: b
 ..    :nowrap:
-    
+
 ..     \[b = \frac{N\sum{XY} - \sum{X} \cdot \sum{Y}}{N \cdot \sum{X^2}-(\sum{X})^2}\]
 
 .. Streamflow Data
 .. ````````````````
 
 .. .. math::
-..    :label: qy    
+..    :label: qy
 ..    :nowrap:
-    
+
 ..     \[Q_Y = Q_X \cdot \left(\frac{A_Y}{A_X} \right)^m \cdot \left( \frac{P_Y}{P_X} \right)^n\]
 
 .. .. math::
-..    :label: fo    
+..    :label: fo
 ..    :nowrap:
-    
+
 ..     \[F.O. =  \min{\left[\sum{(Q_{Y_{obs}}-Q_{Y_{est}})^2} \right]}\]
 
 .. .. math::
-..    :label: qya    
+..    :label: qya
 ..    :nowrap:
-    
+
 ..     \[Q_Y = a \cdot Q_X\]
 
 .. .. math::
-..    :label: r    
+..    :label: r
 ..    :nowrap:
-    
+
 ..     \[r = \frac{\sum{(Q_X - \overline{Q_X}) \cdot (Q_Y-\overline{Q_Y})}}{\sqrt{\sum{(Q_X - \overline{Q_X})^2} \cdot \sum{(Q_Y-\overline{Q_Y})^2}}}\]
 
 Calibration and Validation
@@ -589,14 +589,14 @@ RUBEM calibration is based on 9 parameters as described in the table below. Thei
 
 For calibration purposes, the Differential Evolution algorithm [STORN1997]_ can be used. The method executes three operations for candidate choice, mutation, crossing and selection. For each basin, spatialized distributed stream gauges have to be considered. The choice criteria must include series with few flaws, location in the basin, LULC, and rainfall regimes.
 
-Traditional indexes and statistics can be used to evaluate the accuracy of the results. Root Mean Square Error – RMSE and Nash-Sutcliffe Efficiency – NSE are examples. 
+Traditional indexes and statistics can be used to evaluate the accuracy of the results. Root Mean Square Error – RMSE and Nash-Sutcliffe Efficiency – NSE are examples.
 
 .. The best group of parameters is revealed through 3 objective functions: Pearson coefficient, Root Mean Square Error (RMSE) and Nash-Sutcliffe Efficiency (NSE). They are calculated as following:
 
 .. .. math::
-..    :label: rpearsoncoef    
+..    :label: rpearsoncoef
 ..    :nowrap:
-    
+
 ..     \[R = \frac{\sum_{1}^{n}{(Q_O - \overline{Q_O}) \cdot (Q_S-\overline{Q_S})}}{\sqrt{\sum_{1}^{n}{(Q_O - \overline{Q_O})^2} \cdot \sum{(Q_S-\overline{Q_S})^2}}}\]
 
 .. where:
@@ -608,9 +608,9 @@ Traditional indexes and statistics can be used to evaluate the accuracy of the r
 .. - :math:`\overline{y}`– Mean of the values of the :math:`y` variable.
 
 .. .. math::
-..    :label: rmse   
+..    :label: rmse
 ..    :nowrap:
-    
+
 ..     \[RMSE = \sqrt{\frac{\sum_{1}^{n}{(Q_S - Q_O)^2}}{N}} \]
 
 .. where:
@@ -621,9 +621,9 @@ Traditional indexes and statistics can be used to evaluate the accuracy of the r
 .. - :math:`n` – Number of values.
 
 .. .. math::
-..    :label: nse   
+..    :label: nse
 ..    :nowrap:
-    
+
 ..     \[NSE = 1 - \frac{\sum_{1}^{n}{(Q_O - Q_S)^2}}{\sum_{1}^{n}{(Q_O - \overline{Q_O})^2}} \]
 
 .. where:
@@ -635,22 +635,22 @@ Traditional indexes and statistics can be used to evaluate the accuracy of the r
 
 .. .. math::
 ..    :nowrap:
-    
+
 ..     \[\overline{e} = \frac{\sum_{1}^{n}{(Q_S - Q_O)}}{N} \]
 
 .. .. math::
 ..    :nowrap:
-    
+
 ..     \[r_v = \frac{\overline{e}}{\overline{Q_O}} \]
 
 .. .. math::
 ..    :nowrap:
-    
+
 ..     \[F_{ij} = \frac{z_{ij}-z_{i_{pior}}}{z_{i_{melhor}}-z_{i_{pior}}} \]
 
 .. .. math::
 ..    :nowrap:
-    
+
 ..     \[GF = \sqrt[n]{F_1 \cdot F_2 \cdot \: \dots \: \cdot F_n} \]
 
 

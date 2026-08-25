@@ -3,7 +3,7 @@ Data Pre-processing
 
 RUBEM model applications require data input at a specific format and quantity. This manual provides the steps for using the preprocessing scripts to prepare model data for the RUBEM model. The scripts described here are available in the `RUBEM repository on GitHub <https://github.com/LabSid-USP/RUBEM>`__. We recommend that you use a specific Conda environment for this step.
 
-Conda Environment 
+Conda Environment
 ------------------
 
 A conda environment is used to run the scripts available for preprocessing. A :file:`conda_env.yml` file is available for creating the environment with necessary libraries and packages for running all scripts. For more details see the `related documentation. <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#creating-an-environment-from-an-environment-yml-file>`__
@@ -16,7 +16,7 @@ Use the terminal or an Anaconda Prompt for the following steps:
 
     conda env create -f conda_env.yml
 
-Activate the new environment: 
+Activate the new environment:
 
 .. code-block:: console
 
@@ -37,8 +37,8 @@ TIFF/GeoTIFF to PCRaster Map File Format
 The function of the script allows to convert a file in format :file:`.tif` to a :file:`.map` file.
 
 .. note::
-    
-    The model requires input rasters to be in PCRaster map format, each file also has to match the appropriate PCRaster value format, see :doc:`File Formats </fileformats>` for more information. 
+
+    The model requires input rasters to be in PCRaster map format, each file also has to match the appropriate PCRaster value format, see :doc:`File Formats </fileformats>` for more information.
 
 For correct output file format code, change the line 55 (``outputType``) from :file:`preprocessing/tif2map.py` must be modified according to table follows:
 
@@ -57,7 +57,7 @@ For correct output file format code, change the line 55 (``outputType``) from :f
 Call the function as shown:
 
 .. code-block:: python
-    
+
     tif2map('/path/to/files/to/be/converted')
 
 TIFF/GeoTIFF to PCRaster Tss File Format
@@ -68,14 +68,14 @@ The function of the script allows to convert a series of :file:`.tif` to pcraste
 Call the function as shown:
 
 .. code-block:: python
-    
+
     myModel= tif2pcrTss('/path/to/tiff/series','run','/path/to/clone.map')
 
 First argument folder must have an structure as follows:
 
 .. code-block:: console
 
-    +---series      
+    +---series
     |   etp1.tif
     |   etp2.tif
     |   etp3.tif
@@ -84,8 +84,8 @@ First argument folder must have an structure as follows:
 Define second argument as "run" output files look like follow:
 
 .. code-block:: console
-    
-    +---series      
+
+    +---series
     |   run00000.001
     |   run00000.001
     |   run00000.001
@@ -102,14 +102,14 @@ The function of the script allows to convert a series of pcraster map-series at 
 Call the function as shown:
 
 .. code-block:: python
-    
+
     pcrTss2Tif('/path/to/files/to/be/converted', '/path/to/DEM.tif')
 
 First argument folder must have an structure as follows:
 
 .. code-block:: console
-    
-    +---series      
+
+    +---series
     |   run00000.001
     |   run00000.001
     |   run00000.001
@@ -123,17 +123,17 @@ Get Maximum and Minimum Value Map
 This script allows you to get a map for variables as Minimum NDVI and Maximum NDVI from an historical series of files in :file:`*.tif` format. To run the script, the following variables must be set:
 
 .. code-block:: python
-    
+
     Input_path =  'Directory containing the files'
     dem_source = 'Path to Digital Elevation Model (DEM) with same resolution and size that input_path files'
     outpath_min = 'Path and name minimum output file, example=/path/ndvi_min.tif'
     outpath_max = 'Path and name maximum output file, example=/path/ndvi_max.tif'
- 
+
 ``Input_path`` folder must have an structure as follows:
 
 .. code-block:: console
-    
-    +---series      
+
+    +---series
     |   etp1.tif
     |   etp2.tif
     |   etp3.tif
@@ -147,7 +147,7 @@ The RUBEM model uses meteorological forcing variables as precipitation and evapo
 Call the function as shown:
 
 .. code-block:: python
-    
+
     Krige_Interpolation('/path/for/output/files/','/path/and/filename/dem.map','/path/and/filename/CSV/file/data.csv')
 
 The first argument corresponds to the folder to store the maps generated. The second argument corresponds to the Digital Elevation Model in :file:`*.tif` format used to get mask coordinates, projection and resolution for the files created.
@@ -166,4 +166,4 @@ To use this script, the following conditions must be met:
 - A minimum of 3 stations data is mandatory;
 - No value data is not allowed;
 - Projection of station coordinates must correspond to DEM projection;
-- ``nrOfTimeSteps`` must be minor or equal to the number of columns data. 
+- ``nrOfTimeSteps`` must be minor or equal to the number of columns data.
