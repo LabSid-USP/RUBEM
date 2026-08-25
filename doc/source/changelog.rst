@@ -114,6 +114,13 @@ Unreleased
   per-cell minimum and maximum of a raster series ignoring missing cells,
   with the geometry checked across the series; the legacy ``minmax`` module
   is deprecated.
+- Added ``rubem preprocess krige`` (``rubem.preprocessing.kriging_series``,
+  optional ``rubem[preprocessing]`` extra): ordinary kriging of station
+  series onto the clone grid, one map per step, reading the legacy matrix
+  layout or a long ``step;id;x;y;value`` layout, with the negative-value
+  policy (clamp by default), the kriging metric derived from the clone's
+  coordinate reference system, the variogram settings and a seed; the legacy
+  ``kriging`` module is deprecated.
 
 Version 0.9.0-beta.3
 ---------------------

@@ -202,6 +202,91 @@ def minmax_command(
         print(path)
 
 
+@app.command("krige")
+def krige_command(
+    stations: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Station file (CSV).")
+    ],
+    clone: Annotated[
+        Path,
+        typer.Option(
+            "--clone", exists=True, dir_okay=False, help="Raster whose grid the maps follow."
+        ),
+    ],
+    output_dir: Annotated[
+        Path, typer.Option("-o", "--output-dir", help="Where to write the map series.")
+    ],
+    prefix: Annotated[str, typer.Option("--prefix", help="Series prefix (at most 7 characters).")],
+    stations_format: Annotated[
+        str,
+        typer.Option(
+            "--stations-format", help="matrix (x;y;v1;v2;...) or long (step;id;x;y;value)."
+        ),
+    ] = "matrix",
+    delimiter: Annotated[
+        str, typer.Option("--delimiter", help="Column delimiter of the station file.")
+    ] = ";",
+    steps: Annotated[
+        int | None, typer.Option("--steps", min=1, help="Steps to interpolate (default: all).")
+    ] = None,
+    first_step: Annotated[
+        int, typer.Option("--first-step", min=1, help="Step number of the first map.")
+    ] = 1,
+    negative_policy: Annotated[
+        str,
+        typer.Option(
+            "--negative-policy", help="Negative interpolated values: clamp, keep or error."
+        ),
+    ] = "clamp",
+    coordinates_type: Annotated[
+        str,
+        typer.Option(
+            "--coordinates-type",
+            help="Kriging metric: auto (from the clone CRS), geographic or euclidean.",
+        ),
+    ] = "auto",
+    variogram_model: Annotated[
+        str, typer.Option("--variogram-model", help="PyKrige variogram model.")
+    ] = "spherical",
+    n_lags: Annotated[
+        int, typer.Option("--n-lags", min=2, help="Number of lags of the empirical variogram.")
+    ] = 25,
+    seed: Annotated[
+        int | None, typer.Option("--seed", help="Random seed for reproducible variogram fits.")
+    ] = None,
+    nodata: Annotated[
+        float, typer.Option("--nodata", help="Missing value written to the maps.")
+    ] = -9999.0,
+) -> None:
+    """Interpolate station series onto the clone grid with ordinary kriging."""
+    from .._deps import require_preprocessing_deps, require_runtime_deps
+
+    require_runtime_deps()
+    require_preprocessing_deps()
+    from .kriging_series import CoordinatesType, NegativePolicy, StationsFormat, krige_file
+
+    def operation():
+        return krige_file(
+            stations,
+            clone,
+            output_dir,
+            prefix,
+            StationsFormat(stations_format),
+            delimiter,
+            steps=steps,
+            first_step=first_step,
+            negative_policy=NegativePolicy(negative_policy),
+            coordinates_type=CoordinatesType(coordinates_type),
+            variogram_model=variogram_model,
+            n_lags=n_lags,
+            seed=seed,
+            nodata=nodata,
+        )
+
+    for path in _run(operation):
+        print(path)
+
+
 def _run(operation):
     """Run a tool, turning its input errors into a clean exit."""
     import logging

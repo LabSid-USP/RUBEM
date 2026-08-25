@@ -62,8 +62,12 @@ docs = [
   "sphinxcontrib-email",
   "sphinxcontrib-youtube",
 ]
+preprocessing = [
+  "pykrige>=1.7",
+  "scikit-gstat>=1.0",
+]
 dev = [
-  "rubem[test,docs]",
+  "rubem[test,docs,preprocessing]",
   "build",
   "codespell",
   "pre-commit",

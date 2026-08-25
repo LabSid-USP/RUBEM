@@ -18,7 +18,19 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Interpolation method for generated metereological forcing maps series."""
+"""Interpolation method for generated meteorological forcing maps series.
+
+Deprecated: use ``rubem preprocess krige`` or :mod:`rubem.preprocessing.kriging_series`.
+This module is kept for one minor release.
+"""
+
+import warnings
+
+warnings.warn(
+    "rubem.preprocessing.kriging is deprecated; use rubem.preprocessing.kriging_series.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 import os
 import time
