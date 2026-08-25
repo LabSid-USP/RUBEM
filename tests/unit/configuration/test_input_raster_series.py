@@ -1,5 +1,6 @@
 import pytest
 
+from rubem.configuration._problems import Problem
 from rubem.configuration.input_raster_series import InputRasterSeries
 
 
@@ -37,4 +38,4 @@ class TestInputRasterSeriesProblems:
         )
 
         assert series.problems, "the out-of-range NDVI raster must be reported"
-        assert all(isinstance(problem, dict) for problem in series.problems)
+        assert all(isinstance(problem, Problem) for problem in series.problems)

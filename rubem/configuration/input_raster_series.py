@@ -1,7 +1,19 @@
 import logging
 from pathlib import Path
+from typing import Self
 
-from .._paths import PathInput, as_path
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    PrivateAttr,
+    field_validator,
+    model_validator,
+)
+
+from .._paths import as_path
+from ..configuration._problems import Problem
 from ..configuration.data_ranges_settings import DataRangesSettings
 from ..configuration.raster_map import RasterMap
 from ..file._naming import RASTER_SERIES_BASENAME_LENGTH, raster_series_pattern
@@ -10,198 +22,180 @@ from ..validation.raster_map_validator import RasterMapValidator
 
 RASTER_SERIES_FILENAME_MAX_CHARS = RASTER_SERIES_BASENAME_LENGTH
 
+logger = logging.getLogger(__name__)
 
-class InputRasterSeries:
+SERIES = ("etp", "precipitation", "ndvi", "kp", "landuse")
+
+
+class InputRasterSeries(BaseModel):
     """
     Represents a set of input data directories and their corresponding filenames prefixes for raster files from its series.
 
+    The directories are given with the series names (``etp``, ``precipitation``,
+    ``ndvi``, ``kp``, ``landuse``); the attributes of the same names hold the
+    absolute directory-plus-prefix paths the model reads its series from.
+
     :param etp: Path to the directory containing ETP (Evapotranspiration) data.
-    :type etp: Union[str, bytes, os.PathLike]
-
     :param etp_filename_prefix: Prefix for the ETP (Evapotranspiration) data filenames.
-    :type etp_filename_prefix: str
-
     :param precipitation: Path to the directory containing precipitation data.
-    :type precipitation: Union[str, bytes, os.PathLike]
-
     :param precipitation_filename_prefix: Prefix for the precipitation data filenames.
-    :type precipitation_filename_prefix: str
-
     :param ndvi: Path to the directory containing NDVI (Normalized Difference Vegetation Index) data.
-    :type ndvi: Union[str, bytes, os.PathLike]
-
     :param ndvi_filename_prefix: Prefix for the NDVI (Normalized Difference Vegetation Index) data filenames.
-    :type ndvi_filename_prefix: str
-
     :param kp: Path to the directory containing KP (Crop Coefficient) data.
-    :type kp: Union[str, bytes, os.PathLike]
-
     :param kp_filename_prefix: Prefix for the KP (Crop Coefficient) data filenames.
-    :type kp_filename_prefix: str
-
     :param landuse: Path to the directory containing land use data.
-    :type landuse: Union[str, bytes, os.PathLike]
-
     :param landuse_filename_prefix: Prefix for the land use data filenames.
-    :type landuse_filename_prefix: str
-
-    :param validate_input: If True, validates the input data directories and their corresponding filenames prefixes for raster files from its series. Defaults to `True`.
-    :type validate_input: bool, optional
+    :param validate_input: If ``True``, validates the directories and the content of their raster files. Defaults to ``True``.
 
     :raises NotADirectoryError: If any of the input data directories does not exist.
-    :raises ValueError: If any of the input data directories is empty or if any of the input data directories contains files with invalid extensions.
+    :raises ValueError: If any of the input data directories is empty, or a prefix is too long.
     :raises FileNotFoundError: If any of the input data directories does not contain files with the specified prefix.
     """
 
-    def __init__(
-        self,
-        etp: PathInput,
-        etp_filename_prefix: str,
-        precipitation: PathInput,
-        precipitation_filename_prefix: str,
-        ndvi: PathInput,
-        ndvi_filename_prefix: str,
-        kp: PathInput,
-        kp_filename_prefix: str,
-        landuse: PathInput,
-        landuse_filename_prefix: str,
-        validate_input: bool = True,
-    ) -> None:
-        self.logger = logging.getLogger(__name__)
-        self.__ranges = DataRangesSettings()
+    model_config = ConfigDict(
+        frozen=True, extra="forbid", validate_by_name=True, validate_by_alias=True
+    )
 
-        self.problems = []
+    etp_directory: str = Field(validation_alias=AliasChoices("etp", "etp_directory"))
+    etp_filename_prefix: str
+    precipitation_directory: str = Field(
+        validation_alias=AliasChoices("precipitation", "precipitation_directory")
+    )
+    precipitation_filename_prefix: str
+    ndvi_directory: str = Field(validation_alias=AliasChoices("ndvi", "ndvi_directory"))
+    ndvi_filename_prefix: str
+    kp_directory: str = Field(validation_alias=AliasChoices("kp", "kp_directory"))
+    kp_filename_prefix: str
+    landuse_directory: str = Field(validation_alias=AliasChoices("landuse", "landuse_directory"))
+    landuse_filename_prefix: str
+    validate_input: bool = Field(default=True, exclude=True, repr=False)
 
-        self.__etp_dir_path = as_path(etp)
-        self.__etp_filename_prefix = etp_filename_prefix
-        self.__precipitation_dir_path = as_path(precipitation)
-        self.__precipitation_filename_prefix = precipitation_filename_prefix
-        self.__ndvi_dir_path = as_path(ndvi)
-        self.__ndvi_filename_prefix = ndvi_filename_prefix
-        self.__kp_dir_path = as_path(kp)
-        self.__kp_filename_prefix = kp_filename_prefix
-        self.__landuse_dir_path = as_path(landuse)
-        self.__landuse_filename_prefix = landuse_filename_prefix
+    _problems: list[Problem] = PrivateAttr(default_factory=list)
 
-        if validate_input:
-            self.__validate_directories()
-        else:
-            self.logger.warning("Input data directories validation is disabled.")
+    @field_validator(*(f"{name}_directory" for name in SERIES), mode="before")
+    @classmethod
+    def _normalise(cls, value):
+        return str(as_path(value))
 
-        self.etp = str((self.__etp_dir_path / self.__etp_filename_prefix).absolute())
-        self.precipitation = str(
-            (self.__precipitation_dir_path / self.__precipitation_filename_prefix).absolute()
-        )
-        self.ndvi = str((self.__ndvi_dir_path / self.__ndvi_filename_prefix).absolute())
-        self.kp = str((self.__kp_dir_path / self.__kp_filename_prefix).absolute())
-        self.landuse = str((self.__landuse_dir_path / self.__landuse_filename_prefix).absolute())
+    @field_validator(*(f"{name}_filename_prefix" for name in SERIES))
+    @classmethod
+    def _check_prefix(cls, value: str) -> str:
+        if RASTER_SERIES_FILENAME_MAX_CHARS - len(value) <= 0:
+            raise ValueError("Prefix too long. Must be less than 8 characters.")
+        return value
 
-    def __validate_directories(self) -> None:
-        directories = [
-            (
-                self.__etp_dir_path,
-                self.__etp_filename_prefix,
-                self.__ranges.rasters["etp"],
-                RasterDataRules.FORBID_NO_DATA,
-            ),
-            (
-                self.__precipitation_dir_path,
-                self.__precipitation_filename_prefix,
-                self.__ranges.rasters["precipitation"],
-                RasterDataRules.FORBID_NO_DATA,
-            ),
-            (
-                self.__ndvi_dir_path,
-                self.__ndvi_filename_prefix,
-                self.__ranges.rasters["ndvi"],
-                RasterDataRules.FORBID_NO_DATA,
-            ),
-            (
-                self.__kp_dir_path,
-                self.__kp_filename_prefix,
-                self.__ranges.rasters["kp"],
-                RasterDataRules.FORBID_NO_DATA,
-            ),
-            (
-                self.__landuse_dir_path,
-                self.__landuse_filename_prefix,
-                self.__ranges.rasters["landuse"],
-                RasterDataRules.FORBID_NO_DATA | RasterDataRules.FORBID_ALL_ZEROES,
-            ),
-        ]
+    @property
+    def problems(self) -> list[Problem]:
+        """Non-blocking data problems found while validating the series."""
+        return self._problems
 
+    def __series_path(self, name: str) -> str:
+        directory = getattr(self, f"{name}_directory")
+        prefix = getattr(self, f"{name}_filename_prefix")
+        return str((Path(directory) / prefix).absolute())
+
+    @property
+    def etp(self) -> str:
+        """Absolute path of the ETP series (directory joined with the prefix)."""
+        return self.__series_path("etp")
+
+    @property
+    def precipitation(self) -> str:
+        """Absolute path of the precipitation series."""
+        return self.__series_path("precipitation")
+
+    @property
+    def ndvi(self) -> str:
+        """Absolute path of the NDVI series."""
+        return self.__series_path("ndvi")
+
+    @property
+    def kp(self) -> str:
+        """Absolute path of the Kp series."""
+        return self.__series_path("kp")
+
+    @property
+    def landuse(self) -> str:
+        """Absolute path of the land use series."""
+        return self.__series_path("landuse")
+
+    @model_validator(mode="after")
+    def _validate_directories(self) -> Self:
+        if not self.validate_input:
+            logger.warning("Input data directories validation is disabled.")
+            return self
+
+        ranges = DataRangesSettings().rasters
+        rules = {
+            "etp": RasterDataRules.FORBID_NO_DATA,
+            "precipitation": RasterDataRules.FORBID_NO_DATA,
+            "ndvi": RasterDataRules.FORBID_NO_DATA,
+            "kp": RasterDataRules.FORBID_NO_DATA,
+            "landuse": RasterDataRules.FORBID_NO_DATA | RasterDataRules.FORBID_ALL_ZEROES,
+        }
+
+        problems = []
         total_num_files = []
-        for directory, prefix, valid_range, rules in directories:
-            if not Path(directory).is_dir():
+        for name in SERIES:
+            directory = Path(getattr(self, f"{name}_directory"))
+            prefix = getattr(self, f"{name}_filename_prefix")
+            if not directory.is_dir():
                 raise NotADirectoryError(f"Invalid input data directory: {directory}")
-
-            if not any(Path(directory).iterdir()):
+            if not any(directory.iterdir()):
                 raise ValueError(f"Empty input data directory: {directory}")
-
-            self.__validate_raster_series_filenames_prefixes(prefix)
             total_num_files.append(
-                self.__validate_files_with_prefix(directory, prefix, valid_range, rules)
+                self.__validate_files_with_prefix(
+                    directory, prefix, ranges[name], rules[name], problems
+                )
             )
 
-        common_total_num_files = set(total_num_files)
-        if len(common_total_num_files) > 1:
-            self.logger.warning(
+        if len(set(total_num_files)) > 1:
+            logger.warning(
                 "Number of files in one or more input data directories is different. "
                 "This may lead to unexpected results."
             )
+        self._problems = problems
+        return self
 
-    def __validate_files_with_prefix(self, directory, prefix, valid_range, rules) -> int:
+    @staticmethod
+    def __validate_files_with_prefix(directory, prefix, valid_range, rules, problems) -> int:
         compiled_pattern = raster_series_pattern(prefix)
 
         counter = 0
-        for entry in Path(directory).iterdir():
+        for entry in directory.iterdir():
             if entry.is_file() and compiled_pattern.match(entry.name):
-                self.__validate_raster_file(str(entry), valid_range, rules)
+                InputRasterSeries.__validate_raster_file(str(entry), valid_range, rules, problems)
                 counter += 1
 
         if counter == 0:
-            self.logger.error(
-                "No files found with prefix '%s' in directory '%s'", prefix, directory
-            )
+            logger.error("No files found with prefix '%s' in directory '%s'", prefix, directory)
             raise FileNotFoundError(
                 f"No files found with prefix '{prefix}' in directory '{directory}'"
             )
 
-        self.logger.info(
-            "Found %d files with prefix '%s' in directory '%s'",
-            counter,
-            prefix,
-            directory,
-        )
-
+        logger.info("Found %d files with prefix '%s' in directory '%s'", counter, prefix, directory)
         return counter
 
-    def __validate_raster_file(self, file, valid_range, rules) -> None:
+    @staticmethod
+    def __validate_raster_file(file, valid_range, rules, problems) -> None:
         with RasterMap(file, valid_range, rules) as raster:
-            self.logger.debug(str(raster).replace("\n", ", "))
-            validator = RasterMapValidator()
-            valid, errors = validator.validate(raster)
+            logger.debug(str(raster).replace("\n", ", "))
+            valid, errors = RasterMapValidator().validate(raster)
         if not valid:
-            self.problems.append(
-                {
-                    "description": "Raster file data validation failed.",
-                    "reason": f"Data rules violation(s): {[str(error) for error in errors]}",
-                    "implication": "This may lead to unexpected results.",
-                    "file": file,
-                    "blocking": False,
-                }
+            problems.append(
+                Problem(
+                    description="Raster file data validation failed.",
+                    reason=f"Data rules violation(s): {[str(error) for error in errors]}",
+                    implication="This may lead to unexpected results.",
+                    file=file,
+                )
             )
-
-    def __validate_raster_series_filenames_prefixes(self, prefix):
-        num_digits = RASTER_SERIES_FILENAME_MAX_CHARS - len(prefix)
-        if num_digits <= 0:
-            raise ValueError("Prefix too long. Must be less than 8 characters.")
 
     def __str__(self) -> str:
         return (
-            f"Potential Evapotranspiration (ETP): {self.__etp_dir_path} ({self.__etp_filename_prefix})\n"
-            f"Rainfall: {self.__precipitation_dir_path} ({self.__precipitation_filename_prefix})\n"
-            f"NDVI: {self.__ndvi_dir_path} ({self.__ndvi_filename_prefix})\n"
-            f"Class A Pan Coefficient (Kp): {self.__kp_dir_path} ({self.__kp_filename_prefix})\n"
-            f"Land Use: {self.__landuse_dir_path} ({self.__landuse_filename_prefix})"
+            f"Potential Evapotranspiration (ETP): {self.etp_directory} ({self.etp_filename_prefix})\n"
+            f"Rainfall: {self.precipitation_directory} ({self.precipitation_filename_prefix})\n"
+            f"NDVI: {self.ndvi_directory} ({self.ndvi_filename_prefix})\n"
+            f"Class A Pan Coefficient (Kp): {self.kp_directory} ({self.kp_filename_prefix})\n"
+            f"Land Use: {self.landuse_directory} ({self.landuse_filename_prefix})"
         )
