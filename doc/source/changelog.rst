@@ -244,7 +244,7 @@ Version 0.1.0-alpha
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Add usage of configuration file via CLI (`#6 <https://github.com/LabSid-USP/RUBEM/pull/6>`__);
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Add reportMapSeries function (`#29 <https://github.com/LabSid-USP/RUBEM/pull/29>`__);
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Add user help documentation (`#60 <https://github.com/LabSid-USP/RUBEM/pull/60>`__);
-- `@soaressgabriel <https://github.com/soaressgabriel>`__: Add bug issue, feature request issue and pull request templates (`#67 <https://github.com/LabSid-USP/RUBEM/pull/67>`__); 
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Add bug issue, feature request issue and pull request templates (`#67 <https://github.com/LabSid-USP/RUBEM/pull/67>`__);
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Add export format configuration (`#31 <https://github.com/LabSid-USP/RUBEM/pull/31>`__);
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Add dynamic readout of land use map-series files (`#30 <https://github.com/LabSid-USP/RUBEM/pull/30>`__);
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Add check if genTss files is enabled (`#50 <https://github.com/LabSid-USP/RUBEM/pull/50>`__);
@@ -260,6 +260,5 @@ Version 0.1.0-alpha
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Remove white background from favicon from user help page (`#70 <https://github.com/LabSid-USP/RUBEM/pull/70>`__);
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Refactoring unit tests (`#77 <https://github.com/LabSid-USP/RUBEM/pull/77>`__);
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Refactoring of core module (`#76 <https://github.com/LabSid-USP/RUBEM/pull/76>`__);
-- `@soaressgabriel <https://github.com/soaressgabriel>`__: Review of the source code base (`#5 <https://github.com/LabSid-USP/RUBEM/pull/4 and https://github.com/LabSid-USP/RUBEM/pull/5>`__); 
+- `@soaressgabriel <https://github.com/soaressgabriel>`__: Review of the source code base (`#5 <https://github.com/LabSid-USP/RUBEM/pull/4 and https://github.com/LabSid-USP/RUBEM/pull/5>`__);
 - `@soaressgabriel <https://github.com/soaressgabriel>`__: Clean up the source code base (`#18 <https://github.com/LabSid-USP/RUBEM/pull/18>`__);
-

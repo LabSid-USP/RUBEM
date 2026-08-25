@@ -8,9 +8,9 @@ repos:
       - id: check-json
         exclude: ^rubem/appsettings.*\.json$
       - id: end-of-file-fixer
-        exclude: ^(tests/fixtures/base/|doc/source/changelog\.rst$)
+        exclude: ^tests/fixtures/base/
       - id: trailing-whitespace
-        exclude: ^(tests/fixtures/base/|doc/source/changelog\.rst$)
+        exclude: ^tests/fixtures/base/
       - id: check-added-large-files
         args: ["--maxkb=1024"]
       - id: check-merge-conflict
