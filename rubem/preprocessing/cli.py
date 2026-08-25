@@ -27,19 +27,22 @@ def info(
     require_runtime_deps()
     from ._io import read_raster
 
-    data = read_raster(raster)
-    valid = data.mask()
-    print(f"File: {data.source}")
-    print(f"Size: {data.cols} columns x {data.rows} rows")
-    print(f"Cell: {data.cell_size} (west {data.west}, north {data.north})")
-    print(f"Rotated: {'yes' if data.is_rotated else 'no'}")
-    print(f"Type: {data.array.dtype}")
-    print(f"No-data value: {data.nodata}")
-    print(f"Valid cells: {int(valid.sum())} of {valid.size}")
-    if valid.any():
-        values = data.array[valid]
-        print(f"Range: {values.min()} to {values.max()}")
-    print(f"Projection: {data.projection or 'none'}")
+    def operation():
+        data = read_raster(raster)
+        valid = data.mask()
+        print(f"File: {data.source}")
+        print(f"Size: {data.cols} columns x {data.rows} rows")
+        print(f"Cell: {data.cell_size} (west {data.west}, north {data.north})")
+        print(f"Rotated: {'yes' if data.is_rotated else 'no'}")
+        print(f"Type: {data.array.dtype}")
+        print(f"No-data value: {data.nodata}")
+        print(f"Valid cells: {int(valid.sum())} of {valid.size}")
+        if valid.any():
+            values = data.array[valid]
+            print(f"Range: {values.min()} to {values.max()}")
+        print(f"Projection: {data.projection or 'none'}")
+
+    _run(operation)
 
 
 @app.command("tif2map")

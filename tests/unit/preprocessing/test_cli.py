@@ -54,3 +54,19 @@ class TestPreprocessCommand:
             main(["preprocess", "info", str(tmp_path / "absent.tif")])
 
         assert error.value.code == 2
+
+    @pytest.mark.unit
+    def test_info_reports_an_unreadable_raster_without_a_traceback(
+        self, tmp_path, capsys, restore_logging
+    ):
+        """An existing file GDAL cannot open goes through ``_run``, like every other tool."""
+        broken = tmp_path / "broken.tif"
+        broken.write_text("not a raster", encoding="utf8")
+
+        with pytest.raises(SystemExit) as error:
+            main(["preprocess", "info", str(broken)])
+
+        captured = capsys.readouterr()
+        assert error.value.code == 1
+        assert "cannot be opened as a raster" in captured.err
+        assert "Traceback" not in captured.err

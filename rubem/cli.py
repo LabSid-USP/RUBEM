@@ -142,7 +142,23 @@ def run(
         print(f"Loading configuration{validating}...", flush=True)
         model_config = ModelConfiguration(configfile, validate_input)
         model = DynamicFrameworkWrapper.load(model_config)
+    except (ConfigurationError, ValidationError, ValueError) as e:
+        # A configuration the user can fix: no traceback, the message says what.
+        logger.critical("Invalid configuration: %s", e)
+        raise typer.Exit(code=1) from e
+    except KeyboardInterrupt as e:
+        logger.critical("RUBEM was interrupted by the user.")
+        raise typer.Exit(code=2) from e
+    except Exception as e:
+        logger.critical("RUBEM unexpectedly quit.")
+        logger.exception(e)
+        raise typer.Exit(code=1) from e
 
+    # Once the configuration has loaded and the model is built, a failure is no
+    # longer something the user can fix by editing the configuration file: even
+    # a ``ValueError`` here (from the run itself or from exporting its tables)
+    # is an unexpected crash and gets the traceback.
+    try:
         print("Simulation started...", flush=True)
         started = time.time()
         try:
@@ -151,10 +167,6 @@ def run(
         finally:
             elapsed = humanize.precisedelta(time.time() - started, minimum_unit="seconds")
             print(f"Elapsed time: {elapsed}", flush=True)
-    except (ConfigurationError, ValidationError, ValueError) as e:
-        # A configuration the user can fix: no traceback, the message says what.
-        logger.critical("Invalid configuration: %s", e)
-        raise typer.Exit(code=1) from e
     except KeyboardInterrupt as e:
         logger.critical("RUBEM was interrupted by the user.")
         raise typer.Exit(code=2) from e

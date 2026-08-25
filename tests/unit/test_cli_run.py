@@ -123,6 +123,49 @@ class TestCliRun:
         assert "Traceback" not in captured
 
     @pytest.mark.unit
+    def test_a_value_error_from_the_run_is_not_an_invalid_configuration(
+        self, config_path, monkeypatch, capsys, restore_logging
+    ):
+        """A ``ValueError`` raised once the model is running is a crash, not a bad config."""
+        from pcraster.framework import DynamicFramework
+
+        def fail(self):
+            raise ValueError("the framework failed")
+
+        monkeypatch.setattr(DynamicFramework, "run", fail)
+
+        with pytest.raises(SystemExit) as error:
+            main(["run", "-c", str(config_path)])
+
+        captured = capsys.readouterr()
+        assert error.value.code == 1
+        assert "RUBEM unexpectedly quit." in captured.err
+        assert "Traceback (most recent call last)" in captured.err
+        assert "Invalid configuration" not in captured.err
+
+    @pytest.mark.unit
+    def test_a_value_error_from_the_csv_export_is_not_an_invalid_configuration(
+        self, config_path, monkeypatch, capsys, restore_logging
+    ):
+        """A ``ValueError`` from the post-run CSV export happens after a successful run."""
+
+        def fail(*args, **kwargs):
+            raise ValueError("cannot export the tables")
+
+        monkeypatch.setattr("rubem.core.tss2csv", fail)
+
+        with pytest.raises(SystemExit) as error:
+            main(["run", "-c", str(config_path)])
+
+        captured = capsys.readouterr()
+        assert error.value.code == 1
+        # The framework run itself succeeded; only the export afterwards failed.
+        assert "Elapsed time:" in captured.out
+        assert "RUBEM unexpectedly quit." in captured.err
+        assert "Traceback (most recent call last)" in captured.err
+        assert "Invalid configuration" not in captured.err
+
+    @pytest.mark.unit
     def test_an_interrupted_run_exits_with_two(
         self, config_path, monkeypatch, capsys, restore_logging
     ):

@@ -81,6 +81,23 @@ class TestTss2Csv:
             tss2csv([tmp_path / "absent.tss"], ["1"])
 
     @pytest.mark.unit
+    def test_bytes_paths_are_normalised_with_a_deprecation_warning(self, tmp_path):
+        """A ``bytes`` path must be decoded, not stringified into ``b'...'``."""
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5)])
+
+        with pytest.warns(DeprecationWarning, match="bytes paths are deprecated"):
+            tss2csv([os.fsencode(str(tss))], ["1"])
+
+        assert not tss.exists()
+        names = sorted(path.name for path in tmp_path.iterdir())
+        assert names == ["tss_itp.csv"]
+        assert (tmp_path / "tss_itp.csv").read_text(encoding="utf8").splitlines() == [
+            "0;1",
+            "1;10.5",
+        ]
+
+    @pytest.mark.unit
     def test_empty_column_names_raise(self, tmp_path):
         with pytest.raises(ValueError):
             tss2csv([], [])
