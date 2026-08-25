@@ -1,11 +1,13 @@
 import warnings
-from typing import Any
+from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, TypeAdapter, model_validator
 
 from ..configuration.output_format import OutputFileFormat, TimeSeriesFileFormat
 
 NO_DATA_VALUE_DEFAULT = -9999
+
+_BOOL_ADAPTER = TypeAdapter(bool)
 
 VARIABLE_IDS = ("itp", "bfw", "srn", "eta", "lfw", "rec", "smc", "rnf", "arn")
 
@@ -138,10 +140,21 @@ class OutputVariables(BaseModel):
                 else o.get("is_time_series_enabled", False)
                 for o in objects
             )
-        tss = bool(expanded.get("tss", False))
+        # Pydantic's own bool semantics ("false"/"0"/... parse as False), not
+        # Python's bool() (any non-empty string, including "false", is truthy).
+        tss = _BOOL_ADAPTER.validate_python(expanded.get("tss", False))
         for variable_id in VARIABLE_IDS:
             value = expanded.get(variable_id, False)
             if isinstance(value, (OutputVariable, dict)):
+                if not tss:
+                    # An explicit tss=False overrides whatever a nested object
+                    # or dict carried, so the two never disagree.
+                    if isinstance(value, OutputVariable):
+                        expanded[variable_id] = value.model_copy(
+                            update={"is_time_series_enabled": False}
+                        )
+                    else:
+                        expanded[variable_id] = {**value, "is_time_series_enabled": False}
                 continue
             enabled = bool(value)
             expanded[variable_id] = OutputVariable(
@@ -152,6 +165,24 @@ class OutputVariables(BaseModel):
                 table_filename_prefix=f"tss_{variable_id}",
             )
         return expanded
+
+    @model_validator(mode="after")
+    def _check_variable_identity(self) -> Self:
+        """Each nested variable's ``id`` must match the field it is stored under.
+
+        Since the nine field names are themselves distinct, this also rules
+        out two variables sharing the same ``id``.
+        """
+        mismatched = [
+            variable_id
+            for variable_id in VARIABLE_IDS
+            if getattr(self, variable_id).id != variable_id
+        ]
+        if mismatched:
+            raise ValueError(
+                f"nested variable id must match its field name; mismatched field(s): {mismatched}."
+            )
+        return self
 
     @property
     def file_formats(self) -> OutputFileFormat:
@@ -189,6 +220,19 @@ class OutputVariables(BaseModel):
         :rtype: bool
         """
         return any(v.is_raster_series_enabled for v in self.variables)
+
+    def any_output_enabled(self) -> bool:
+        """
+        Returns ``True`` if any variable writes its raster series or its time series.
+
+        Unlike :meth:`any_enabled`, this also counts a variable enabled only as
+        a time series (a format 1.0 configuration may select time series
+        without their raster series): a run producing time series only is not
+        producing "no output".
+
+        :rtype: bool
+        """
+        return any(v.is_raster_series_enabled or v.is_time_series_enabled for v in self.variables)
 
     def all_enabled(self) -> bool:
         """

@@ -55,7 +55,7 @@ class TestLoaderDetection:
         assert not any(problem.blocking for problem in loaded.problems)
 
     @pytest.mark.unit
-    def test_a_json_file_anchors_relative_paths_and_writes_metadata(self, tmp_path):
+    def test_a_json_file_anchors_relative_paths(self, tmp_path):
         document = v1_document(tmp_path, title="anchored", authors=["A"])
         for section in ("rasters", "lookup_tables"):
             document[section] = {
@@ -70,14 +70,9 @@ class TestLoaderDetection:
 
         assert Path(loaded.raster_files.dem) == tmp_path / "maps" / "dem" / "dem.map"
         assert Path(loaded.output_directory.path) == tmp_path / "out"
-        metadata = json.loads((tmp_path / "out" / "metadata.json").read_text(encoding="utf8"))
-        assert metadata == {
-            "version": "1.0",
-            "title": "anchored",
-            "keywords": [],
-            "authors": ["A"],
-            "contact": [],
-        }
+        # Loading (and validating) the configuration must not write metadata.json:
+        # it is written only once the run has finished successfully.
+        assert not (tmp_path / "out" / "metadata.json").exists()
 
     @pytest.mark.unit
     def test_duplicated_keys_block_a_1_0_file(self, tmp_path):
@@ -127,6 +122,158 @@ class TestLoaderDetection:
         document["raster_series"]["ndvi"]["monthly"][0]["file_path"] = str(tmp_path / "absent.map")
         with pytest.raises(ConfigurationError, match="lacks the first step"):
             ModelConfiguration(document)
+
+
+class TestMetadataWriting:
+    @pytest.mark.unit
+    def test_metadata_is_written_after_a_successful_run(self, tmp_path):
+        document = v1_document(tmp_path, title="written", authors=["A"])
+
+        run(ModelConfiguration(document))
+
+        metadata = json.loads((tmp_path / "out" / "metadata.json").read_text(encoding="utf8"))
+        assert metadata == {
+            "version": "1.0",
+            "title": "written",
+            "keywords": [],
+            "authors": ["A"],
+            "contact": [],
+        }
+
+    @pytest.mark.unit
+    def test_a_failing_validation_does_not_touch_an_existing_metadata_json(self, tmp_path):
+        from rubem.configuration._problems import ConfigurationError
+
+        document = v1_document(tmp_path)
+        # The first month's NDVI raster is missing: this fails deep inside
+        # __build_from_v1 (validate_resolved_series) and is only turned into a
+        # blocking ConfigurationError at the very end of __init__, after the
+        # output directory has already been created -- exactly the point
+        # where the old code wrote metadata.json unconditionally.
+        document["raster_series"]["ndvi"] = {
+            "monthly": [
+                {"month": m, "file_path": str(tmp_path / "absent.map")} for m in range(1, 13)
+            ]
+        }
+        out_dir = Path(document["model_simulation_output"]["dir_path"])
+        out_dir.mkdir(parents=True, exist_ok=True)
+        sentinel = out_dir / "metadata.json"
+        sentinel.write_text('{"sentinel": true}', encoding="utf8")
+
+        with pytest.raises(ConfigurationError, match="lacks the first step"):
+            ModelConfiguration(document)
+
+        assert sentinel.read_text(encoding="utf8") == '{"sentinel": true}'
+
+    @pytest.mark.unit
+    def test_a_failing_csv_export_does_not_write_metadata(self, tmp_path, mocker):
+        document = v1_document(tmp_path, title="not written")
+        mocker.patch("rubem.core.tss2csv", side_effect=RuntimeError("boom"))
+
+        with pytest.raises(RuntimeError, match="boom"):
+            run(ModelConfiguration(document))
+
+        assert not (tmp_path / "out" / "metadata.json").exists()
+
+    @pytest.mark.unit
+    def test_metadata_is_written_after_the_csv_export(self, tmp_path, mocker):
+        """The metadata write is the last step of a successful run."""
+        from rubem import core
+
+        document = v1_document(tmp_path, title="ordered")
+        order = []
+        real_tss2csv = core.tss2csv
+        real_write_metadata = ModelConfiguration.write_metadata
+
+        def record_export(*args, **kwargs):
+            order.append("export")
+            return real_tss2csv(*args, **kwargs)
+
+        def record_metadata(self):
+            order.append("metadata")
+            return real_write_metadata(self)
+
+        mocker.patch.object(core, "tss2csv", side_effect=record_export)
+        mocker.patch.object(ModelConfiguration, "write_metadata", record_metadata)
+
+        run(ModelConfiguration(document))
+
+        assert order == ["export", "metadata"]
+
+    @pytest.mark.unit
+    def test_the_atomic_write_replaces_an_existing_file_only_on_success(self, tmp_path, mocker):
+        first = v1_document(tmp_path, title="first")
+        loaded = ModelConfiguration(first)
+        loaded.write_metadata()
+        metadata_path = Path(loaded.output_directory.path) / "metadata.json"
+        original = metadata_path.read_text(encoding="utf8")
+        assert "first" in original
+
+        second = v1_document(tmp_path, title="second")
+        loaded_again = ModelConfiguration(second)
+        mocker.patch.object(Path, "replace", side_effect=OSError("disk full"))
+
+        with pytest.raises(OSError, match="disk full"):
+            loaded_again.write_metadata()
+
+        assert metadata_path.read_text(encoding="utf8") == original
+        assert not list(Path(loaded.output_directory.path).glob(".metadata.json.*.tmp"))
+
+
+class TestOutputDiagnostics:
+    """``any_enabled()`` only looks at raster series; a v1 configuration can
+
+    select time series without their raster series, so the "no output"
+    diagnostic must also look at time series, and must never be reported
+    twice for the same root cause.
+    """
+
+    @pytest.mark.unit
+    def test_a_time_series_only_configuration_is_not_reported_as_no_output(self, tmp_path):
+        document = v1_document(tmp_path)
+        document["model_simulation_output"]["raster_series"] = {}
+
+        loaded = ModelConfiguration(document)
+
+        assert loaded.output_variables.any_output_enabled()
+        assert not any(
+            p.description == "Simulation will not produce any output." for p in loaded.problems
+        )
+
+    @pytest.mark.unit
+    def test_no_output_at_all_is_reported_exactly_once(self, tmp_path):
+        document = v1_document(tmp_path)
+        document["model_simulation_output"]["raster_series"] = {}
+        document["model_simulation_output"]["time_series_samples"] = {}
+
+        loaded = ModelConfiguration(document)
+
+        no_output = [
+            p for p in loaded.problems if p.description == "Simulation will not produce any output."
+        ]
+        assert len(no_output) == 1
+        assert no_output[0].reason == "No Output Variables were selected."
+
+    @pytest.mark.unit
+    def test_sample_locations_and_tss_enabled_with_no_variables_reports_no_output_once(
+        self, tmp_path
+    ):
+        legacy_config = write_synthetic_dataset(str(tmp_path))
+        legacy_config["GENERATE_FILE"] = {
+            **{key: False for key in legacy_config["GENERATE_FILE"]},
+            "tss": True,
+        }
+
+        loaded = ModelConfiguration(legacy_config, validate_input=False)
+
+        no_output = [
+            p for p in loaded.problems if p.description == "Simulation will not produce any output."
+        ]
+        assert len(no_output) == 1
+        assert no_output[0].reason == (
+            "Sample Locations raster and Time Series generation were enabled but no "
+            "Output Variables were selected."
+        )
 
 
 class TestResultsSpecification:

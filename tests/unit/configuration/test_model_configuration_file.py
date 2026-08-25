@@ -115,11 +115,9 @@ class TestModelConfigurationFile:
             "x": calibration["x"],
         }
         soil = config["INITIAL_SOIL_CONDITIONS"]
-        config["INITIAL_SOIL_CONDITIONS"] = {
-            **soil,
-            "T_ini": soil.pop("t_ini"),
-            "S_sat_ini": soil.pop("s_sat_ini"),
-        }
+        t_ini = soil.pop("t_ini")
+        s_sat_ini = soil.pop("s_sat_ini")
+        config["INITIAL_SOIL_CONDITIONS"] = {**soil, "T_ini": t_ini, "S_sat_ini": s_sat_ini}
 
         canonical = ModelConfigurationFile.model_validate(config).to_dict()
 
@@ -229,6 +227,51 @@ class TestModelConfigurationFile:
         assert ModelConfigurationFile.from_json(path) == ModelConfigurationFile.model_validate(
             config
         )
+
+    @pytest.mark.unit
+    def test_path_like_values_are_accepted_when_loading_from_a_dictionary(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        expected_output = config["DIRECTORIES"]["output"]
+        expected_dem = config["RASTERS"]["dem"]
+        config["DIRECTORIES"] = {k: Path(v) for k, v in config["DIRECTORIES"].items()}
+        config["RASTERS"] = {k: (Path(v) if v else v) for k, v in config["RASTERS"].items()}
+
+        file = ModelConfigurationFile.model_validate(config)
+
+        assert isinstance(file.directories.output, str)
+        assert Path(file.directories.output) == Path(expected_output)
+        assert Path(file.rasters.dem) == Path(expected_dem)
+
+    @pytest.mark.unit
+    def test_kp_and_k_c_min_max_alternate_spellings_are_accepted(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        kp = config["DIRECTORIES"].pop("kp")
+        config["DIRECTORIES"] = {**config["DIRECTORIES"], "Kp": kp}
+        k_c_min = config["TABLES"].pop("k_c_min")
+        k_c_max = config["TABLES"].pop("k_c_max")
+        config["TABLES"] = {**config["TABLES"], "K_c_min": k_c_min, "K_c_max": k_c_max}
+
+        file = ModelConfigurationFile.model_validate(config)
+
+        assert Path(file.directories.kp) == Path(kp)
+        assert Path(file.tables.k_c_min) == Path(k_c_min)
+        assert Path(file.tables.k_c_max) == Path(k_c_max)
+
+    @pytest.mark.unit
+    def test_multiple_spellings_of_the_same_field_are_rejected(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        config["TABLES"] = {**config["TABLES"], "K_sat": config["TABLES"]["k_sat"]}
+
+        with pytest.raises(ValidationError, match="more than one spelling"):
+            ModelConfigurationFile.model_validate(config)
+
+    @pytest.mark.unit
+    def test_generate_file_flags_are_required(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        del config["GENERATE_FILE"]["itp"]
+
+        with pytest.raises(ValidationError, match="itp"):
+            ModelConfigurationFile.model_validate(config)
 
 
 class TestLoaderAnchoring:

@@ -7,7 +7,12 @@ from .._paths import as_path
 from ..configuration._problems import Problem
 from ..configuration._ranges import raster_ranges
 from ..configuration.raster_map import RasterMap
-from ..validation.raster_content import check_extremes, check_sample_ids, check_zone_ids
+from ..validation.raster_content import (
+    check_below_one,
+    check_extremes,
+    check_sample_ids,
+    check_zone_ids,
+)
 from ..validation.raster_data_rules import RasterDataRules
 from ..validation.raster_map_validator import RasterMapValidator
 
@@ -137,6 +142,11 @@ class InputRasterFiles(BaseModel):
         minimum, minimum_no_data = bands[self.ndvi_min]
         maximum, maximum_no_data = bands[self.ndvi_max]
         problem = check_extremes(minimum, minimum_no_data, maximum, maximum_no_data, self.ndvi_max)
+        if problem is not None:
+            problems.append(problem)
+        # A cell equal to 1 passes the inclusive [-1, 1] range and the extremes
+        # check, but the simple ratio later divides by (1 - ndvi).
+        problem = check_below_one(maximum, maximum_no_data, self.ndvi_max, "NDVI maximum")
         if problem is not None:
             problems.append(problem)
         if self.sample_locations:

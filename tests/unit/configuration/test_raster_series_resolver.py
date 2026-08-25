@@ -66,6 +66,23 @@ class TestDirectorySeriesResolver:
         assert missing.series == "precipitation" and missing.step == 3
         assert "does not exist" in str(missing)
 
+    @pytest.mark.unit
+    def test_a_relative_directory_is_absolutised_and_frozen(self, tmp_path, monkeypatch):
+        config = write_synthetic_dataset(str(tmp_path))
+        monkeypatch.chdir(tmp_path)
+        relative = os.path.relpath(config["DIRECTORIES"]["prec"], tmp_path)
+
+        resolver = DirectorySeriesResolver("precipitation", relative, "prec")
+
+        before = resolver.directory
+        assert os.path.isabs(before)
+
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        monkeypatch.chdir(elsewhere)
+
+        assert resolver.directory == before
+
 
 class TestDatedSeriesResolver:
     @pytest.mark.unit
@@ -96,6 +113,34 @@ class TestDatedSeriesResolver:
                 [
                     ("/a", date(2000, 1, 1), date(2000, 3, 1)),
                     ("/b", date(2000, 3, 1), date(2000, 4, 1)),
+                ],
+                ALIGNMENT,
+            )
+
+    @pytest.mark.unit
+    def test_disjoint_entries_given_out_of_order_are_accepted(self):
+        resolver = DatedSeriesResolver(
+            "landuse",
+            [
+                ("/b", date(2000, 3, 1), date(2000, 4, 30)),
+                ("/a", date(2000, 1, 1), date(2000, 2, 28)),
+            ],
+            ALIGNMENT,
+        )
+
+        assert Path(resolver.path_for_step(1)) == Path("/a")
+        assert Path(resolver.path_for_step(2)) == Path("/a")
+        assert Path(resolver.path_for_step(3)) == Path("/b")
+        assert Path(resolver.path_for_step(4)) == Path("/b")
+
+    @pytest.mark.unit
+    def test_entries_sharing_a_month_are_rejected_even_when_days_differ(self):
+        with pytest.raises(ValueError, match="overlap"):
+            DatedSeriesResolver(
+                "landuse",
+                [
+                    ("/a", date(2000, 1, 1), date(2000, 1, 1)),
+                    ("/b", date(2000, 1, 31), date(2000, 1, 31)),
                 ],
                 ALIGNMENT,
             )

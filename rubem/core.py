@@ -72,7 +72,11 @@ class DynamicFrameworkWrapper:
                 humanize.precisedelta(exec_time, minimum_unit="seconds"),
             )
 
+        # Reached only when the run above did not raise. The CSV export runs
+        # first: metadata.json is the last thing a successful run writes, so
+        # a failing export leaves no fresh metadata beside incomplete outputs.
         self.__export_tables_as_csv()
+        self.config.write_metadata()
 
     @classmethod
     def load(cls, data):

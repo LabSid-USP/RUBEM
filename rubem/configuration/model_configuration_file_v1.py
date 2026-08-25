@@ -15,6 +15,7 @@ replaced by one raster from a given year on (``monthly``, ``yearly_from``,
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
@@ -22,6 +23,7 @@ from typing import Annotated, Literal, Self
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     field_validator,
@@ -30,7 +32,7 @@ from pydantic import (
 
 from .._paths import PathInput, as_path
 from ._json import DuplicateKeyWarning
-from .model_configuration_file import ModelConfigurationFile
+from .model_configuration_file import ModelConfigurationFile, finite_float32
 
 VERSION = "1.0"
 
@@ -39,6 +41,28 @@ VARIABLE_IDS = ("itp", "bfw", "srn", "eta", "lfw", "rec", "smc", "rnf", "arn")
 
 _START_REF = "#/simulation_period/start"
 _FINISH_REF = "#/simulation_period/finish"
+
+
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _reject_numeric_date(value):
+    """Format 1.0 dates are ISO strings, ``YYYY-MM-DD`` and nothing else.
+
+    A bare number is a Unix timestamp trap (pydantic reads it as one), and
+    pydantic's default date parsing is otherwise lenient: it also accepts a
+    quoted timestamp ("946684800") and a full datetime string
+    ("2000-01-01T00:00:00"). Both are rejected here, before pydantic parses
+    the value at all.
+    """
+    if isinstance(value, (bool, int, float)):
+        raise ValueError(f"expected an ISO date string (YYYY-MM-DD), got {value!r}")
+    if isinstance(value, str) and not _ISO_DATE.match(value):
+        raise ValueError(f"expected an ISO date string (YYYY-MM-DD), got {value!r}")
+    return value
+
+
+IsoDate = Annotated[date, BeforeValidator(_reject_numeric_date)]
 
 
 class _Strict(BaseModel):
@@ -53,17 +77,17 @@ class Metadata(_Strict):
     keywords: list[str] = []
     authors: list[str] = []
     contact: list[str] = []
-    creation_date: date | None = None
-    last_update: date | None = None
+    creation_date: IsoDate | None = None
+    last_update: IsoDate | None = None
     license: str | None = None
 
 
 class SimulationPeriod(_Strict):
     """ISO dates; ``finish`` is the last simulated month."""
 
-    start: date
-    finish: date
-    alignment: date | None = None
+    start: IsoDate
+    finish: IsoDate
+    alignment: IsoDate | None = None
 
     @model_validator(mode="after")
     def _check_order(self) -> Self:
@@ -82,7 +106,7 @@ class DateRef(_Strict):
     ref: Literal["#/simulation_period/start", "#/simulation_period/finish"] = Field(alias="$ref")
 
 
-DateOrRef = date | DateRef
+DateOrRef = IsoDate | DateRef
 
 
 class DatedRaster(_Strict):
@@ -238,6 +262,11 @@ class RasterSeriesOutput(_VariableSelection):
     no_data_value: float = -9999
 
     _unique = field_validator("formats")(_unique)
+
+    @field_validator("no_data_value", mode="before")
+    @classmethod
+    def _finite_number(cls, value):
+        return finite_float32(value, "model_simulation_output.raster_series.no_data_value")
 
     @model_validator(mode="after")
     def _formats_when_enabled(self) -> Self:
@@ -453,7 +482,11 @@ class ModelConfigurationFileV1(_Strict):
                 "dir_path": legacy.directories.output,
                 "raster_series": {
                     **flags,
-                    "formats": [f.value for f in formats] if any(flags.values()) else [],
+                    # The formats follow RASTER_FILE_FORMAT regardless of which
+                    # variables are enabled: format 1.0 allows formats without
+                    # enabled variables, and the round trip through to_legacy()
+                    # must recover map_raster_series/tiff_raster_series either way.
+                    "formats": [f.value for f in formats],
                     "no_data_value": rff.no_data_value,
                 },
                 "time_series_samples": {

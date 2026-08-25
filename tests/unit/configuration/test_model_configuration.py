@@ -190,6 +190,7 @@ class TestModelConfiguration:
         # are covered on real data in test_validation_tiers.py.
         mocker.patch("rubem.configuration.model_configuration.check_lookup_tables", return_value=[])
         mocker.patch("rubem.configuration.input_raster_files.check_extremes", return_value=None)
+        mocker.patch("rubem.configuration.input_raster_files.check_below_one", return_value=None)
         mocker.patch("rubem.configuration.input_raster_series.check_below_one", return_value=None)
         mocker.patch("rubem.configuration.input_raster_series.check_positive", return_value=None)
         mocker.patch.object(

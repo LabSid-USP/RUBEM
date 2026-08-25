@@ -10,11 +10,13 @@ import json
 import math
 import os
 import sys
+from collections.abc import Mapping
 from functools import lru_cache
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator, model_validator
 
 from .._paths import PathInput, as_path
 
@@ -61,8 +63,22 @@ class ValueRanges(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    rasters: dict[str, ValueRange]
-    variables: dict[str, ValueRange]
+    rasters: Mapping[str, ValueRange]
+    variables: Mapping[str, ValueRange]
+
+    @field_validator("rasters", "variables", mode="after")
+    @classmethod
+    def _freeze(cls, value: Mapping[str, ValueRange]) -> Mapping[str, ValueRange]:
+        # A frozen model still exposes a mutable dict unless the mapping
+        # itself is made read-only: the cached default (AppSettings.default())
+        # must not be corrupted by a caller mutating what it returns.
+        return MappingProxyType(dict(value))
+
+    @field_serializer("rasters", "variables", mode="wrap")
+    def _serialize_mapping(self, value: Mapping[str, ValueRange], handler):
+        # Serialize as a plain dict; the handler still applies the normal
+        # (recursive) dict[str, ValueRange] serialization on top of it.
+        return handler(dict(value))
 
 
 class I18nSettings(BaseModel):

@@ -25,6 +25,17 @@ def _build_field():
     return pcr.numpy2pcr(pcr.Scalar, array, MISSING), array
 
 
+def _build_field_with_zero_and_missing():
+    """One genuine zero-valued cell and one genuinely missing cell."""
+    import pcraster as pcr
+
+    pcr.setclone(ROWS, COLS, CELL_SIZE, WEST, NORTH)
+    array = np.arange(ROWS * COLS, dtype=np.float32).reshape(ROWS, COLS)
+    array[0, 0] = 0.0
+    array[1, 1] = MISSING
+    return pcr.numpy2pcr(pcr.Scalar, array, MISSING), array
+
+
 class TestReport:
     @pytest.mark.unit
     def test_writes_geotiff_with_timestep_suffix(self, tmp_path):
@@ -79,6 +90,39 @@ class TestReport:
             )
 
         assert not any(outpath.iterdir())
+
+    @pytest.mark.unit
+    def test_a_legitimate_zero_cell_survives_the_round_trip(self, tmp_path):
+        """A real data cell equal to 0 must not be confused with no-data.
+
+        This is what ``finite_float32`` (``rubem.configuration.model_configuration_file``)
+        guards against: a no-data value that underflows to 0.0 in Float32
+        would collide with a cell like this one. With a proper no-data
+        value (-9999, distinct from 0), the zero cell and a genuinely
+        missing cell must both round-trip unchanged and stay distinguishable.
+        """
+        config = write_synthetic_dataset(tmp_path)
+        base_raster_info = OutputRasterBase(config["RASTERS"]["dem"])
+        variable, array = _build_field_with_zero_and_missing()
+
+        report(variable, "itp", tmp_path, base_raster_info, timestep=1, no_data_value=-9999)
+
+        out_file = tmp_path / "itp0000001.tif"
+        ensure_gdal_drivers()
+        from osgeo import gdal
+
+        dataset = gdal.OpenEx(str(out_file), gdal.GA_ReadOnly)
+        try:
+            band = dataset.GetRasterBand(1)
+            assert band.GetNoDataValue() == pytest.approx(-9999)
+            read_array = band.ReadAsArray()
+            assert read_array[0, 0] == 0.0, "a legitimate zero cell must not read as no-data"
+            assert read_array[1, 1] == pytest.approx(-9999), "a missing cell must read as no-data"
+            expected = array.copy()
+            expected[1, 1] = -9999
+            np.testing.assert_allclose(read_array, expected)
+        finally:
+            dataset = None
 
     @staticmethod
     def _assert_raster_matches(out_file, array, base_raster_info):

@@ -24,12 +24,28 @@ class LookupTableError(ValueError):
     """The lookup table cannot be parsed."""
 
 
+def _interval_bounds_are_numeric(key: str) -> bool:
+    """Whether the bounds present in an interval key such as ``[1,3]`` or ``<1,>`` are numeric.
+
+    At least one bound must be given (``[,]`` carries no information and is
+    rejected); a bound that is present must be a number.
+    """
+    low_text, high_text = key[1:-1].split(",")
+    low_text, high_text = low_text.strip(), high_text.strip()
+    if not low_text and not high_text:
+        return False
+    return (not low_text or _NUMBER.match(low_text) is not None) and (
+        not high_text or _NUMBER.match(high_text) is not None
+    )
+
+
 def read_lookup_table(path) -> list[tuple[tuple[str, ...], float]]:
     """Return the ``(keys, value)`` rows of a PCRaster lookup table.
 
     :param path: The table file.
-    :raises LookupTableError: On an empty table, a row without a value, or a
-        value or key that is neither a number nor an interval.
+    :raises LookupTableError: On an empty table, a row without a value, a row
+        with more than one key column, a value or key that is neither a
+        number nor an interval, or an interval key without a numeric bound.
     """
     rows = []
     text = Path(path).read_text(encoding="utf8")
@@ -39,13 +55,18 @@ def read_lookup_table(path) -> list[tuple[tuple[str, ...], float]]:
             continue
         if len(columns) < 2:
             raise LookupTableError(f"{path}: line {number} has no value column: {line!r}")
-        *keys, value = columns
+        if len(columns) > 2:
+            raise LookupTableError(f"{path}: line {number} has more than one key column: {line!r}")
+        key, value = columns
         if not _NUMBER.match(value):
             raise LookupTableError(f"{path}: line {number} has a non-numeric value {value!r}")
-        for key in keys:
-            if not (_NUMBER.match(key) or _INTERVAL.match(key)):
-                raise LookupTableError(f"{path}: line {number} has an invalid key {key!r}")
-        rows.append((tuple(keys), float(value)))
+        if not (_NUMBER.match(key) or _INTERVAL.match(key)):
+            raise LookupTableError(f"{path}: line {number} has an invalid key {key!r}")
+        if _INTERVAL.match(key) and not _interval_bounds_are_numeric(key):
+            raise LookupTableError(
+                f"{path}: line {number} has an interval key with invalid bounds {key!r}"
+            )
+        rows.append(((key,), float(value)))
     if not rows:
         raise LookupTableError(f"{path}: the lookup table is empty")
     return rows

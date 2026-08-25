@@ -47,6 +47,29 @@ class TestValueRange:
             ValueRanges(rasters={}, variables={}, other={})
 
 
+class TestValueRangesMappingsAreReadOnly:
+    @pytest.mark.unit
+    def test_the_cached_default_cannot_be_mutated_through_its_mappings(self):
+        settings = AppSettings.default()
+
+        with pytest.raises(TypeError):
+            settings.value_ranges.rasters["ndvi"] = ValueRange(min=0, max=1)
+        with pytest.raises(TypeError):
+            del settings.value_ranges.rasters["ndvi"]
+        assert not hasattr(settings.value_ranges.variables, "clear")
+
+    @pytest.mark.unit
+    def test_the_mappings_still_behave_like_dicts(self):
+        ranges = ValueRanges(
+            rasters={"ndvi": {"min": -1, "max": 1}}, variables={"alpha": {"min": 0, "max": 1}}
+        )
+
+        assert ranges.rasters["ndvi"].max == 1
+        assert set(ranges.rasters) == {"ndvi"}
+        assert len(ranges.variables) == 1
+        assert ranges.model_dump()["rasters"]["ndvi"] == {"min": -1.0, "max": 1.0}
+
+
 class TestDefaultSettings:
     @pytest.mark.unit
     def test_the_packaged_file_is_the_default(self, monkeypatch):

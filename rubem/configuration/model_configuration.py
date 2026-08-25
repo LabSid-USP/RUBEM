@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import tempfile
 import textwrap
 from pathlib import Path
 
@@ -275,7 +276,6 @@ class ModelConfiguration:
         )
         output = file.model_simulation_output
         self.output_directory = OutputDataDirectory(output.dir_path).ensure_exists()
-        self.__write_metadata(file)
 
         output_formats = OutputFileFormat(0)
         if RasterFormat.PCRASTER_MAP in output.raster_series.formats:
@@ -376,14 +376,34 @@ class ModelConfiguration:
             allow_rotation=OutputFileFormat.PCRASTER not in output_formats,
         )
 
-    def __write_metadata(self, file) -> None:
-        """Write ``metadata.json`` next to the outputs of a format 1.0 run."""
+    def write_metadata(self) -> None:
+        """Write ``metadata.json`` next to the outputs of a format 1.0 run.
+
+        A no-op for a legacy configuration, which has no ``metadata`` section.
+        Intended to be called once the run has finished successfully (after
+        every other output has been written): it is not called while loading
+        or validating the configuration, so a configuration that fails
+        validation never touches an existing ``metadata.json``. The write
+        itself is atomic (a temporary file, replaced onto the target), so a
+        failure while writing leaves an existing ``metadata.json`` untouched.
+        """
+        if self.file_v1 is None:
+            return
         document = {
-            "version": file.version,
-            **file.metadata.model_dump(mode="json", exclude_none=True),
+            "version": self.file_v1.version,
+            **self.file_v1.metadata.model_dump(mode="json", exclude_none=True),
         }
         target = Path(self.output_directory.path) / "metadata.json"
-        target.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+        handle, temporary = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        try:
+            with os.fdopen(handle, "w", encoding="utf-8") as file:
+                file.write(json.dumps(document, indent=2) + "\n")
+            Path(temporary).replace(target)
+        except BaseException:
+            Path(temporary).unlink(missing_ok=True)
+            raise
 
     @classmethod
     def load(
@@ -408,12 +428,19 @@ class ModelConfiguration:
                 "variable."
             )
 
-        if not self.output_variables.any_enabled():
-            self.problems.append(
-                Problem(
-                    description="Simulation will not produce any output.",
-                    reason="No Output Variables were selected.",
+        # A run that only writes time series (no raster series enabled, as
+        # format 1.0 allows) is not "no output": any_output_enabled() covers
+        # both selections so this is reported once, never alongside the
+        # sample-locations-specific problem below for the same root cause.
+        if not self.output_variables.any_output_enabled():
+            reason = "No Output Variables were selected."
+            if self.raster_files.sample_locations and self.output_variables.tss:
+                reason = (
+                    "Sample Locations raster and Time Series generation were enabled but no "
+                    "Output Variables were selected."
                 )
+            self.problems.append(
+                Problem(description="Simulation will not produce any output.", reason=reason)
             )
 
         if self.raster_files.sample_locations and not self.output_variables.tss:
@@ -433,18 +460,6 @@ class ModelConfiguration:
                 Problem(
                     description="Simulation will not produce any Time Series tables.",
                     reason="Time Series generation was enabled but no Sample Locations raster was provided.",
-                )
-            )
-
-        if (
-            self.raster_files.sample_locations
-            and self.output_variables.tss
-            and not self.output_variables.any_enabled()
-        ):
-            self.problems.append(
-                Problem(
-                    description="Simulation will not produce any output.",
-                    reason="Sample Locations raster and Time Series generation were enabled but no Output Variables were selected.",
                 )
             )
 

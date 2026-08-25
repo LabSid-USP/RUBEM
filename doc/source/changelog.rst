@@ -130,6 +130,12 @@ Changed
   workflow publishes its results; releases are signed with Sigstore, carry a
   build provenance attestation, a CycloneDX SBOM of the published wheel and
   the conda inventory of the byte-exact environment.
+- Wrote ``metadata.json`` only after a successful format 1.0 run instead of
+  while loading the configuration, made every ``GENERATE_FILE`` flag required
+  again in the legacy file (as before the Pydantic rewrite), and restricted
+  ``rubem preprocess krige --variogram-model`` to ``spherical``,
+  ``exponential`` and ``gaussian``, the models the variogram fit and the
+  interpolation share.
 
 Fixed
 `````
@@ -150,6 +156,42 @@ Fixed
   ``soil_moisture_content_wilting_point`` and the
   ``rubem.file._file_conversions`` module; the old names still work for one
   minor release and emit a ``DeprecationWarning``.
+- Closed the validation gaps found in review: no-data values must fit a
+  Float32 band, format 1.0 dates must be ISO strings, dated raster ranges are
+  compared by month and sorted before the overlap check, lookup tables must
+  have one key column with numeric interval bounds, ``ndvi_max`` cells equal
+  to 1 are rejected, the blocking content rules only apply to the simulated
+  window, the legacy file accepts the documented ``Kp``, ``K_c_min`` and
+  ``K_c_max`` spellings, path-like values and rejects two spellings of one
+  key, the legacy JSON schema advertises the ``DD/MM/YYYY`` dates, nested
+  output variables agree with ``tss`` and their field, relative series
+  directories are frozen at construction, a time-series-only configuration
+  is no longer reported as producing no output, and the cached application
+  settings are read-only.
+- Reported a ``ValueError`` raised by the run or by the CSV export as an
+  unexpected failure (with its traceback) instead of an invalid configuration,
+  gave ``rubem preprocess info`` the same error handling as the other
+  subcommands, and normalised ``bytes`` and bytes-valued path-like inputs in
+  ``as_path()`` and ``tss2csv()``.
+- Preprocessing: directional maps keep fractional values, south-up or
+  mirrored geometries are refused, geometry checks compare the coordinate
+  reference system, ``mapseries2tif`` checks the geometry without a
+  georeference and promotes the band type when the no-data value does not
+  fit the source type, a stale ``manifest.csv`` or skipped member never
+  survives a rerun, ``minmax`` refuses identical output paths, and kriging
+  fits the variogram with the great-circle distance on geographic
+  coordinates, rejects non-finite station cells and stations sharing a
+  coordinate.
+- GeoTIFF inputs: ``.map`` LDD rasters are converted with ``pcr.ldd`` again,
+  series members are checked against the clone's coordinate reference
+  system, members are found regardless of the extension case, flipped clone
+  transforms are refused, sample and zone identifiers must fit a 32-bit
+  integer, and the point-sampling field is released once the writers hold
+  the file path.
+- CI: the Scorecard job reads the repository again, the release SBOM is
+  generated from an environment holding only the wheel, the pre-commit file
+  hooks run in the lint job, and ``.editorconfig`` leaves the PCRaster
+  series members alone.
 
 Removed
 ```````
