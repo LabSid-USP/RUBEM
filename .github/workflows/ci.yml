@@ -91,6 +91,27 @@ jobs:
           files: coverage.xml
           fail_ci_if_error: false
 
+  preprocessing:
+    # The kriging tool needs the optional [preprocessing] extra; the matrix
+    # jobs skip its tests, this job runs them.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: environment.yml
+          create-args: python=3.13
+          init-shell: bash
+          cache-environment: true
+          post-cleanup: "all"
+      - name: Install RUBEM with the preprocessing extra
+        run: pip install -e .[test,preprocessing]
+        shell: bash -el {0}
+      - name: Run the preprocessing tests
+        run: pytest tests/unit/preprocessing -ra -p no:cacheprovider
+        shell: bash -el {0}
+
   exact:
     # Pinned image: byte identity depends on the host C library and CPU, so the
     # platform of the byte-exact job must not move under `ubuntu-latest`.
@@ -245,7 +266,7 @@ jobs:
   ci-success:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [lint, test, exact, docs, build]
+    needs: [lint, test, preprocessing, exact, docs, build]
     if: ${{ always() }}
     steps:
       - name: Assert every required job succeeded
