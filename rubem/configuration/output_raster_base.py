@@ -46,6 +46,29 @@ def same_crs(first_wkt: str, second_wkt: str) -> bool:
     return bool(first.IsSame(second))
 
 
+def reference_crs(
+    clone_path: PathInput,
+    georeference_path: PathInput | None = None,
+    dem_path: PathInput | None = None,
+) -> str | None:
+    """The coordinate reference system every input raster is checked against.
+
+    A PCRaster ``.map`` clone carries no CRS of its own, so relying on the
+    clone alone would silently skip every CRS check on a run that still
+    declares one through ``RASTERS.georeference`` or the DEM. Returns the
+    clone's own CRS when it has one; otherwise the georeference raster's, when
+    given; otherwise the DEM's, when given; ``None`` when none of them carries
+    one, in which case CRS checks are skipped, as before.
+    """
+    for path in (clone_path, georeference_path, dem_path):
+        if path is None:
+            continue
+        projection = read_raster_geometry(path)[3]
+        if projection:
+            return projection
+    return None
+
+
 class OutputRasterBase(BaseModel):
     """Geometry and coordinate reference system of the output raster series.
 

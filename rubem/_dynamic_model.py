@@ -44,7 +44,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.config = config
 
         self.logger.info("Reading clone file...")
-        set_clone(self.config.raster_files.clone)
+        set_clone(self.config.raster_files.clone, projection=self.config.reference_crs)
 
         self.sample_time_series_dict = {}
         self.sample_vals = None
