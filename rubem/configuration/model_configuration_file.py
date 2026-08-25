@@ -10,10 +10,10 @@ import logging
 import math
 import os
 from datetime import date, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any, Self
 
-import numpy as np
 from pydantic import (
     AliasChoices,
     BaseModel,
@@ -32,11 +32,18 @@ logger = logging.getLogger(__name__)
 
 DATE_FORMAT = "%d/%m/%Y"
 
-_FLOAT32_MIN = float(np.finfo(np.float32).min)
-_FLOAT32_MAX = float(np.finfo(np.float32).max)
-
 _LEGACY_DATE_JSON_SCHEMA = WithJsonSchema({"type": "string", "pattern": r"^\d{2}/\d{2}/\d{4}$"})
 LegacyDate = Annotated[date, _LEGACY_DATE_JSON_SCHEMA]
+
+
+@lru_cache(maxsize=1)
+def _float32_range() -> tuple[float, float]:
+    # Computed lazily (not at import time): numpy is mocked out for the
+    # documentation build, and importing this module must not require it.
+    import numpy as np
+
+    info = np.finfo(np.float32)
+    return float(info.min), float(info.max)
 
 
 def finite_float32(value: Any, label: str) -> float:
@@ -53,10 +60,11 @@ def finite_float32(value: Any, label: str) -> float:
         raise ValueError(f"Invalid {label}: {value!r}") from e
     if not math.isfinite(number):
         raise ValueError(f"Invalid {label}: {value!r}")
-    if not _FLOAT32_MIN <= number <= _FLOAT32_MAX:
+    float32_min, float32_max = _float32_range()
+    if not float32_min <= number <= float32_max:
         raise ValueError(
             f"Invalid {label}: {value!r} is outside the representable Float32 range "
-            f"[{_FLOAT32_MIN}, {_FLOAT32_MAX}]."
+            f"[{float32_min}, {float32_max}]."
         )
     return number
 
