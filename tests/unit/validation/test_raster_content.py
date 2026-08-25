@@ -6,7 +6,10 @@ from rubem.validation.raster_content import (
     check_extremes,
     check_positive,
     check_sample_ids,
+    check_zone_ids,
 )
+
+INT32_MAX = 2147483647
 
 
 class TestCheckPositive:
@@ -84,3 +87,51 @@ class TestCheckSampleIds:
         problem = check_sample_ids(np.array([[0, -9999]]), -9999, "samples")
 
         assert problem is not None and "has no sample" in problem.description
+
+    @pytest.mark.unit
+    def test_rejects_ids_above_the_int32_range(self):
+        """A GeoTIFF sample raster is read as Nominal and cast to int32; an id
+        above the range saturates and merges with another one."""
+        problem = check_sample_ids(np.array([[1, INT32_MAX + 1]]), None, "samples")
+
+        assert problem is not None and problem.blocking
+        assert "32-bit integer" in problem.description
+        assert str(INT32_MAX + 1) in problem.reason
+
+    @pytest.mark.unit
+    def test_accepts_the_int32_maximum(self):
+        assert check_sample_ids(np.array([[1, 2]]), None, "samples") is None
+
+
+class TestCheckZoneIds:
+    @pytest.mark.unit
+    def test_accepts_positive_ids_with_gaps(self):
+        values = np.array([[1, 0, -9999], [5, 5, 0]])
+
+        assert check_zone_ids(values, -9999, "zones") is None
+
+    @pytest.mark.unit
+    def test_rejects_non_integer_or_negative_ids(self):
+        assert "positive integers" in check_zone_ids(np.array([[1.5, 2]]), None, "z").description
+        assert "positive integers" in check_zone_ids(np.array([[-1, 1]]), None, "z").description
+
+    @pytest.mark.unit
+    def test_rejects_a_raster_without_zones(self):
+        problem = check_zone_ids(np.array([[0, -9999]]), -9999, "zones")
+
+        assert problem is not None and "has no zone" in problem.description
+
+    @pytest.mark.unit
+    def test_rejects_ids_above_the_int32_range(self):
+        """A GeoTIFF zones raster is read as Nominal and cast to int32; an id
+        above the range saturates to a negative value and merges distinct
+        zones into one column."""
+        problem = check_zone_ids(np.array([[1, INT32_MAX + 1]]), None, "zones")
+
+        assert problem is not None and problem.blocking
+        assert "32-bit integer" in problem.description
+        assert str(INT32_MAX + 1) in problem.reason
+
+    @pytest.mark.unit
+    def test_accepts_the_int32_maximum(self):
+        assert check_zone_ids(np.array([[1, INT32_MAX]]), None, "zones") is None

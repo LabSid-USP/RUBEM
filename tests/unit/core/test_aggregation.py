@@ -118,6 +118,25 @@ class TestZones:
         with pytest.raises(ConfigurationError, match="Zones raster has no zone"):
             ModelConfiguration(document)
 
+    @pytest.mark.unit
+    def test_a_zone_id_above_the_int32_range_blocks(self, tmp_path):
+        """A GeoTIFF zones raster holding an id above the int32 range must be
+        rejected before the run, since ``read_field`` casts ids to int32 and
+        an out-of-range id would saturate and merge distinct zones."""
+        from rubem.preprocessing._io import write_geotiff
+
+        document = v1(tmp_path)
+        values = np.full((ROWS, COLS), 1, dtype=np.float64)
+        values[0, 0] = 2147483648
+        transform = (0.0, 500.0, 0.0, 1500.0, 0.0, -500.0)
+        zones = write_geotiff(tmp_path / "zones.tif", values, transform)
+        document["rasters"]["zones"] = str(zones)
+        document["model_simulation_output"]["time_series_samples"]["aggregation"] = "zones"
+        del document["rasters"]["samples"]
+
+        with pytest.raises(ConfigurationError, match="32-bit integer"):
+            ModelConfiguration(document)
+
 
 class TestSpecification:
     @pytest.mark.unit

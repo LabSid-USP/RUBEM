@@ -10,6 +10,10 @@ import numpy as np
 
 from ..configuration._problems import Problem
 
+# GeoTIFF sample/zone rasters are rounded and cast to int32 by read_field; an id
+# above this saturates to a negative value and silently merges with another id.
+_INT32_MAX = np.iinfo(np.int32).max
+
 
 def _valid(values: np.ndarray, no_data_value) -> np.ndarray:
     array = np.asarray(values, dtype=float)
@@ -80,6 +84,18 @@ def check_extremes(
     return None
 
 
+def _check_int32_range(ids: np.ndarray, file, label: str) -> Problem | None:
+    """Identifiers above the int32 range saturate when a GeoTIFF is read as Nominal."""
+    if ids.max() > _INT32_MAX:
+        return _blocking(
+            f"{label} identifiers must fit a 32-bit integer.",
+            f"Maximum value: {int(ids.max())}; a GeoTIFF raster is read with identifiers cast "
+            f"to int32 (max {_INT32_MAX}).",
+            file,
+        )
+    return None
+
+
 def check_sample_ids(values, no_data_value, file) -> Problem | None:
     """Sample identifiers must be positive integers ``1..N`` without gaps.
 
@@ -97,6 +113,9 @@ def check_sample_ids(values, no_data_value, file) -> Problem | None:
             f"Offending values: {sorted(set(ids[(ids < 0) | (np.mod(ids, 1) != 0)].tolist()))[:10]}.",
             file,
         )
+    problem = _check_int32_range(ids, file, "Sample")
+    if problem is not None:
+        return problem
     unique = sorted(set(int(value) for value in ids))
     expected = list(range(1, len(unique) + 1))
     if unique != expected:
@@ -123,4 +142,4 @@ def check_zone_ids(values, no_data_value, file) -> Problem | None:
             f"Offending values: {sorted(set(ids[(ids < 0) | (np.mod(ids, 1) != 0)].tolist()))[:10]}.",
             file,
         )
-    return None
+    return _check_int32_range(ids, file, "Zone")
