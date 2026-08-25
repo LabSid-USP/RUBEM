@@ -8,6 +8,7 @@ from pcraster.framework import pcr2numpy
 
 from ..configuration.output_format import OutputFileFormat
 from ..configuration.output_raster_base import OutputRasterBase
+from ._naming import output_raster_filename
 
 logger = logging.getLogger(__name__)
 
@@ -73,14 +74,10 @@ def __report(
     no_data_value: float = -9999,
 ):
     if timestep:
-        out_tif = os.path.abspath(
-            os.path.join(
-                str(outpath),
-                f"{name}{str(timestep).zfill(10 - len(name))}.{extension}",
-            )
-        )
+        filename = output_raster_filename(name, timestep, extension)
     else:
-        out_tif = os.path.abspath(os.path.join(str(outpath), f"{name}.{extension}"))
+        filename = f"{name}.{extension}"
+    out_tif = os.path.abspath(os.path.join(os.fsdecode(outpath), filename))
 
     gdal.UseExceptions()
     gdal.AllRegister()

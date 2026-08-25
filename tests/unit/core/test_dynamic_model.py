@@ -173,3 +173,55 @@ class TestStateRelease:
                 continue
             result = compare_rasters(released / "out" / name, reference / "out" / name)
             assert result.equal, f"{name}:\n{result.report()}"
+
+
+class TestRasterFileFormatAtRuntime:
+    @pytest.mark.unit
+    def test_disabling_the_pcraster_maps_writes_only_geotiffs(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        config["RASTER_FILE_FORMAT"] = {"map_raster_series": False, "tiff_raster_series": True}
+
+        run_model(str(tmp_path), config=config)
+
+        outputs = sorted(path.name for path in (tmp_path / "out").iterdir())
+        assert not [name for name in outputs if name.endswith((".001", ".002"))], outputs
+        assert [name for name in outputs if name.endswith(".tif")]
+        assert [name for name in outputs if name.endswith(".csv")]
+
+    @pytest.mark.unit
+    def test_the_configured_no_data_value_reaches_the_geotiffs(self, tmp_path):
+        """The GeoTIFF band declares the configured value and the cells the
+        model leaves missing (the clone here has no missing cell, so a masked
+        DEM cell is used to create one) carry it."""
+        import numpy as np
+        import pcraster as pcr
+
+        from tests.helpers.compare import ensure_gdal_drivers
+        from tests.helpers.synthetic import COLS, MISSING, ROWS
+
+        config = write_synthetic_dataset(str(tmp_path))
+        config["RASTER_FILE_FORMAT"] = {
+            "map_raster_series": True,
+            "tiff_raster_series": True,
+            "no_data_value": -1,
+        }
+        ndvi_max_path = config["RASTERS"]["ndvi_max"]
+        pcr.setclone(config["RASTERS"]["clone"])
+        ndvi_max = pcr.pcr2numpy(pcr.readmap(ndvi_max_path), MISSING)
+        ndvi_max[ROWS - 1, COLS - 1] = MISSING
+        pcr.report(pcr.numpy2pcr(pcr.Scalar, ndvi_max, MISSING), ndvi_max_path)
+
+        run_model(str(tmp_path), validate_input=False, config=config)
+
+        ensure_gdal_drivers()
+        from osgeo import gdal
+
+        dataset = gdal.OpenEx(str(tmp_path / "out" / "itp0000001.tif"), gdal.GA_ReadOnly)
+        try:
+            band = dataset.GetRasterBand(1)
+            assert band.GetNoDataValue() == -1
+            array = band.ReadAsArray()
+        finally:
+            dataset = None
+        assert array[ROWS - 1, COLS - 1] == -1
+        assert np.count_nonzero(array == -1) == 1
