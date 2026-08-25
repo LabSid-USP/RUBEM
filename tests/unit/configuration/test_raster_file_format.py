@@ -104,3 +104,18 @@ class TestNoDataValue:
         config["RASTER_FILE_FORMAT"]["no_data_value"] = value
 
         assert load(config).output_variables.no_data_value == value
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [1e-100, -1e-100])
+    def test_rejects_values_that_underflow_to_zero_in_float32(self, config, value):
+        config["RASTER_FILE_FORMAT"]["no_data_value"] = value
+
+        with pytest.raises(ValueError, match="no_data_value"):
+            load(config)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [-9999, 0, 1e20])
+    def test_accepts_no_data_values_that_do_not_underflow(self, config, value):
+        config["RASTER_FILE_FORMAT"]["no_data_value"] = value
+
+        assert load(config).output_variables.no_data_value == value

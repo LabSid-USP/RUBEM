@@ -10,7 +10,6 @@ import logging
 import math
 import os
 from datetime import date, datetime
-from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any, Self
 
@@ -36,21 +35,17 @@ _LEGACY_DATE_JSON_SCHEMA = WithJsonSchema({"type": "string", "pattern": r"^\d{2}
 LegacyDate = Annotated[date, _LEGACY_DATE_JSON_SCHEMA]
 
 
-@lru_cache(maxsize=1)
-def _float32_range() -> tuple[float, float]:
-    # Computed lazily (not at import time): numpy is mocked out for the
-    # documentation build, and importing this module must not require it.
-    import numpy as np
-
-    info = np.finfo(np.float32)
-    return float(info.min), float(info.max)
-
-
 def finite_float32(value: Any, label: str) -> float:
     """Parse ``value`` as a finite number a Float32 GDAL band can store.
 
-    :raises ValueError: If ``value`` is a bool, not numeric, non-finite, or
-        outside the range representable by a Float32 raster band.
+    The Float32 conversion itself decides overflow (a value outside
+    ``numpy.finfo(numpy.float32)``'s range becomes infinite) and underflow (a
+    tiny non-zero value rounds to 0.0, which would collide with a legitimate
+    zero cell in the band); 0 itself stays accepted, as an explicit choice.
+
+    :raises ValueError: If ``value`` is a bool, not numeric, non-finite,
+        overflows to infinity, or (unless it is exactly zero) underflows to
+        zero when converted to Float32.
     """
     if isinstance(value, bool):
         raise ValueError(f"Invalid {label}: {value!r}")
@@ -60,11 +55,19 @@ def finite_float32(value: Any, label: str) -> float:
         raise ValueError(f"Invalid {label}: {value!r}") from e
     if not math.isfinite(number):
         raise ValueError(f"Invalid {label}: {value!r}")
-    float32_min, float32_max = _float32_range()
-    if not float32_min <= number <= float32_max:
+
+    # numpy is mocked out for the documentation build; import lazily so
+    # importing this module does not require it.
+    import numpy as np
+
+    as_float32 = np.float32(number)
+    if not np.isfinite(as_float32):
+        raise ValueError(f"Invalid {label}: {value!r} is outside the representable Float32 range.")
+    if number != 0 and as_float32 == 0:
         raise ValueError(
-            f"Invalid {label}: {value!r} is outside the representable Float32 range "
-            f"[{float32_min}, {float32_max}]."
+            f"Invalid {label}: {value!r} underflows to zero when stored as Float32, "
+            "which would collide with a legitimate zero cell; use 0 if a no-data "
+            "value of zero is intended."
         )
     return number
 
