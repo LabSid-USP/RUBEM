@@ -40,3 +40,143 @@ def info(
         values = data.array[valid]
         print(f"Range: {values.min()} to {values.max()}")
     print(f"Projection: {data.projection or 'none'}")
+
+
+@app.command("tif2map")
+def tif2map_command(
+    inputs: Annotated[
+        list[Path],
+        typer.Argument(exists=True, help="GeoTIFF files or directories of GeoTIFF files."),
+    ],
+    output_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "-o", "--output-dir", help="Where to write the maps (default: next to each input)."
+        ),
+    ] = None,
+    value_scale: Annotated[
+        str, typer.Option("--value-scale", help="PCRaster value scale of the maps.")
+    ] = "scalar",
+    all_nodata: Annotated[
+        str,
+        typer.Option(
+            "--all-nodata", help="What to do with an all-no-data raster: error, warn or skip."
+        ),
+    ] = "error",
+) -> None:
+    """Convert GeoTIFF files to PCRaster maps."""
+    from .._deps import require_runtime_deps
+
+    require_runtime_deps()
+    from ._io import AllNoDataPolicy, ValueScale
+    from .conversions import tif2map
+
+    for path in _run(
+        lambda: tif2map(inputs, output_dir, ValueScale(value_scale), AllNoDataPolicy(all_nodata))
+    ):
+        print(path)
+
+
+@app.command("tif2mapseries")
+def tif2mapseries_command(
+    input_dir: Annotated[
+        Path, typer.Argument(exists=True, file_okay=False, help="Directory of GeoTIFF files.")
+    ],
+    prefix: Annotated[str, typer.Option("--prefix", help="Series prefix (at most 7 characters).")],
+    output_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "-o", "--output-dir", help="Where to write the series (default: the input directory)."
+        ),
+    ] = None,
+    clone: Annotated[
+        Path | None,
+        typer.Option(
+            "--clone",
+            exists=True,
+            dir_okay=False,
+            help="Raster whose geometry every file must share.",
+        ),
+    ] = None,
+    value_scale: Annotated[
+        str, typer.Option("--value-scale", help="PCRaster value scale of the maps.")
+    ] = "scalar",
+    all_nodata: Annotated[
+        str,
+        typer.Option(
+            "--all-nodata", help="What to do with an all-no-data raster: error, warn or skip."
+        ),
+    ] = "error",
+    first_step: Annotated[
+        int, typer.Option("--first-step", min=1, help="Step number of the first file.")
+    ] = 1,
+) -> None:
+    """Convert a directory of GeoTIFF files to a PCRaster map series."""
+    from .._deps import require_runtime_deps
+
+    require_runtime_deps()
+    from ._io import AllNoDataPolicy, ValueScale
+    from .conversions import tif2mapseries
+
+    for path in _run(
+        lambda: tif2mapseries(
+            input_dir,
+            prefix,
+            output_dir,
+            clone,
+            ValueScale(value_scale),
+            AllNoDataPolicy(all_nodata),
+            first_step,
+        )
+    ):
+        print(path)
+
+
+@app.command("mapseries2tif")
+def mapseries2tif_command(
+    input_dir: Annotated[
+        Path, typer.Argument(exists=True, file_okay=False, help="Directory of the map series.")
+    ],
+    prefix: Annotated[str, typer.Option("--prefix", help="Series prefix.")],
+    output_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "-o",
+            "--output-dir",
+            help="Where to write the GeoTIFF files (default: the input directory).",
+        ),
+    ] = None,
+    georeference: Annotated[
+        Path | None,
+        typer.Option(
+            "--georeference",
+            exists=True,
+            dir_okay=False,
+            help="Raster whose coordinate reference system is written.",
+        ),
+    ] = None,
+    nodata: Annotated[
+        float, typer.Option("--nodata", help="No-data value of the GeoTIFF files.")
+    ] = -9999.0,
+) -> None:
+    """Convert a PCRaster map series to GeoTIFF files."""
+    from .._deps import require_runtime_deps
+
+    require_runtime_deps()
+    from .conversions import mapseries2tif
+
+    for path in _run(lambda: mapseries2tif(input_dir, prefix, output_dir, georeference, nodata)):
+        print(path)
+
+
+def _run(operation):
+    """Run a tool, turning its input errors into a clean exit."""
+    import logging
+
+    from ._io import PreprocessingError
+
+    try:
+        return operation()
+    except (PreprocessingError, FileNotFoundError, NotADirectoryError, ValueError) as e:
+        logging.getLogger(__name__).critical("%s", e)
+        raise typer.Exit(code=1) from e

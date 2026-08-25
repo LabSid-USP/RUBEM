@@ -18,7 +18,19 @@
 #
 # Contact: rubem.hydrological@labsid.eng.br
 
-"""Common file conversion functionality used by RUBEM."""
+"""Common file conversion functionality used by RUBEM.
+
+Deprecated: use ``rubem preprocess tif2mapseries``
+or :mod:`rubem.preprocessing.conversions`. This module is kept for one minor release.
+"""
+
+import warnings
+
+warnings.warn(
+    "rubem.preprocessing.tif2pcrtss is deprecated; use rubem.preprocessing.conversions.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 import glob
 import os
