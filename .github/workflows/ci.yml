@@ -15,12 +15,35 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  workflow-lint:
+    # Keeps the workflows honest: syntax (actionlint), security posture
+    # (zizmor) and every third-party action pinned to a commit SHA.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+      - name: Install the workflow linters
+        run: pip install "actionlint-py==1.7.7.23" "zizmor==1.29.0"
+      - name: actionlint
+        run: actionlint
+      - name: zizmor
+        run: zizmor --min-severity low --min-confidence medium .github/workflows
+      - name: Assert every third-party action is pinned to a commit SHA
+        run: python3 ci/check_action_pins.py
+
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
       - name: Install lint tools
@@ -49,8 +72,10 @@ jobs:
         # macOS is excluded until PCRaster's osx-arm64 build stops crashing
         # model runs; see LabSid-USP/RUBEM#227.
     steps:
-      - uses: actions/checkout@v7
-      - uses: mamba-org/setup-micromamba@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3
         with:
           environment-file: environment.yml
           create-args: python=${{ matrix.python }}
@@ -78,14 +103,14 @@ jobs:
         run: pytest -n auto -ra --cov=rubem --cov-report=xml --junitxml="TestResults-Rubem.xml"
         shell: bash -el {0}
       - name: Upload test results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: pytest-results-${{ matrix.os }}-py${{ matrix.python }}
           path: "TestResults-Rubem.xml"
           retention-days: 1
         if: ${{ always() }}
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           use_oidc: true
           files: coverage.xml
@@ -97,8 +122,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: mamba-org/setup-micromamba@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3
         with:
           environment-file: environment.yml
           create-args: python=3.13
@@ -119,8 +146,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: mamba-org/setup-micromamba@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3
         with:
           environment-file: ci/golden-env.lock
           environment-name: golden
@@ -175,8 +204,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
       - name: Install documentation dependencies
@@ -188,8 +219,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
       - name: Install build tools
@@ -199,7 +232,7 @@ jobs:
       - name: Check distribution metadata
         run: twine check dist/*
       - name: Upload distribution artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: dist
           path: dist/
@@ -254,8 +287,10 @@ jobs:
     timeout-minutes: 10
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
       - name: Audit the pinned development requirements
@@ -266,7 +301,7 @@ jobs:
   ci-success:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [lint, test, preprocessing, exact, docs, build]
+    needs: [workflow-lint, lint, test, preprocessing, exact, docs, build]
     if: ${{ always() }}
     steps:
       - name: Assert every required job succeeded
