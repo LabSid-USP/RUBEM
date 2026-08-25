@@ -1,0 +1,31 @@
+# Install once with `pre-commit install`; the same tools run in CI.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: ^rubem/appsettings.*\.json$
+      - id: end-of-file-fixer
+        exclude: ^tests/fixtures/base/
+      - id: trailing-whitespace
+        exclude: ^tests/fixtures/base/
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-merge-conflict
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
+    hooks:
+      - id: ruff-check
+        args: ["--fix"]
+      - id: ruff-format
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.3
+    hooks:
+      - id: codespell
+        files: ^(rubem|tests)/
+  - repo: https://github.com/citation-file-format/cffconvert
+    rev: 054bda51dbe278b3e86f27c890e3f3ac877d616c
+    hooks:
+      - id: validate-cff

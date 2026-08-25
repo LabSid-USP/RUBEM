@@ -95,7 +95,7 @@ where:
 
 where:
 
-- :math:`I_R`- Interception rate, dependant on land cover characteristics, represented by the Leaf Area Index (LAI) (mm);
+- :math:`I_R`- Interception rate, dependent on land cover characteristics, represented by the Leaf Area Index (LAI) (mm);
 - :math:`P_m` - Total monthly precipitation (mm);
 - :math:`d_P` - Number of rainy days in the month (days);
 - :math:`I_D` - Minimum threshold for daily interception depends on the canopy storage capacity. Its calculation is associated with the LAI (mm);

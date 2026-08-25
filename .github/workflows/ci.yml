@@ -47,11 +47,17 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install lint tools
-        run: pip install "ruff==0.16.4" "cffconvert==2.0.0"
+        run: pip install "ruff==0.16.4" "cffconvert==2.0.0" "codespell==2.4.3" "pre-commit==4.6.2"
       - name: Ruff check
         run: ruff check .
       - name: Ruff format check
         run: ruff format --check .
+      - name: Spelling of the code and the tests
+        run: codespell rubem tests
+      - name: Spelling of the documentation (report only until the documentation review)
+        run: codespell doc/source README.md CONTRIBUTING.md || true
+      - name: Validate the pre-commit configuration
+        run: pre-commit validate-config
       - name: Validate the citation metadata
         run: cffconvert --validate
 

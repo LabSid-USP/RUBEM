@@ -97,7 +97,7 @@ if __name__ == "__main__":
     # apply function, and convert type list to type array
     dataset = np.asarray([readfile(x) for x in Raster_files])
 
-    # lenght of list has to be the number of files on the given path
+    # length of list has to be the number of files on the given path
     print(len(dataset))
 
     # converts the input (list) to an array before finding the minimum along that axis 0

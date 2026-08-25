@@ -24,7 +24,7 @@ The RUBEM was developed by the `LabSid at the Polytechnic School of São Paulo U
 How is RUBEM licensed?
 ```````````````````````````````````
 
-RUBEM is licensed by the `General Public Licence (GPL) v3 <https://github.com/LabSid-USP/RUBEM/blob/main/LICENSE.md>`__. The GPL v3 is a strong copyleft license that allows any copy or modification of the original code must also be released under the GPL v3. In other words, you can take the GPL 3 code, add to it or make major changes, then distribute your version.
+RUBEM is licensed by the `General Public Licence (GPL) v3 <https://github.com/LabSid-USP/RUBEM/blob/main/LICENSE>`__. The GPL v3 is a strong copyleft license that allows any copy or modification of the original code must also be released under the GPL v3. In other words, you can take the GPL 3 code, add to it or make major changes, then distribute your version.
 
 <QGIS Plugin X> does <feature Y> – why doesn't RUBEM?
 ```````````````````````````````````````````````````````````````````

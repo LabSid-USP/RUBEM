@@ -1,3 +1,15 @@
+# Text files are normalized to LF in the repository.
+* text=auto eol=lf
+
+# Rasters, map series members, images and documents are binary.
+*.map binary
+*.tif binary
+*.tiff binary
+*.[0-9][0-9][0-9] binary
+*.png binary
+*.jpg binary
+*.pdf binary
+
 # The golden regression fixtures are a byte-exact oracle: git must never
-# normalize their line endings or contents.
+# normalize their line endings or contents (the CSV tables are CRLF on purpose).
 tests/fixtures/base/out/** -text

@@ -121,7 +121,7 @@ class Krige_Interpolation(DynamicModel):
 
         self.rain = numpy2pcr(Scalar, self.z1, -999)
 
-        # Second argument correspon to files prefix (e.g. 'prec','etp','kp')
+        # Second argument correspond to files prefix (e.g. 'prec','etp','kp')
         self.report(self.rain, "prec")
 
 
