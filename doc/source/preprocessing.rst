@@ -94,6 +94,13 @@ Define second argument as "run" output files look like follow:
 
 Third argument must be a file in format ``VS_BOOLEAN`` :file:`.map` and ``nrOfTimeSteps`` must match the number of files to be converted (e.g. 8 files of ``etp``, ``nrOfTimeSteps = 8``).
 
+.. note::
+
+    A pre-existing :file:`manifest.csv` in the output directory is removed before
+    any map is written, so its presence after the run means every step
+    completed; a step skipped for being entirely no-data does not leave a
+    stale map at its target either.
+
 PCRaster Tss File Format to TIFF/GeoTIFF
 ````````````````````````````````````````
 
@@ -116,6 +123,17 @@ First argument folder must have an structure as follows:
     ...
 
 Second argument corresponds to the Digital Elevation Model in :file:`*.tif` format used to get mask coordinates, projection and driver information for the conversion.
+
+.. note::
+
+    When no georeference is given, every member must still share the geometry
+    of the first one; the GeoTIFF files then carry no projection. If the
+    requested no-data value cannot be represented by a member's data type
+    (for example, the default ``-9999`` on a Boolean or LDD map), the output
+    band is promoted to the smallest type that holds both the data and the
+    no-data value; a fractional no-data value is rejected on an integer
+    value scale. As above, a pre-existing :file:`manifest.csv` is removed
+    before any file is written.
 
 Get Maximum and Minimum Value Map
 ``````````````````````````````````
@@ -163,7 +181,17 @@ The third argument must be a file in format :file:`*.csv`, each row corresponds 
 
 To use this script, the following conditions must be met:
 
-- A minimum of 3 stations data is mandatory;
-- No value data is not allowed;
+- A minimum of 3 stations data is mandatory, at 3 distinct coordinates (three
+  stations sharing a coordinate do not count as 3);
+- No value data is not allowed; station coordinates and values must also be
+  finite (no ``nan``/``inf``);
 - Projection of station coordinates must correspond to DEM projection;
-- ``nrOfTimeSteps`` must be minor or equal to the number of columns data.
+- The DEM (clone) geometry must be north-up: rotated, sheared or south-up
+  grids are rejected;
+- ``nrOfTimeSteps`` must be minor or equal to the number of columns data;
+- The variogram model must be one of ``spherical``, ``exponential`` or
+  ``gaussian``, the only models both the variogram-fitting and the
+  interpolation library support with the same three parameters
+  (``psill``, ``range``, ``nugget``); for a geographic (longitude/latitude)
+  coordinate reference system the variogram is fit with the same
+  great-circle distance the interpolation uses.
