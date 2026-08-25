@@ -58,6 +58,12 @@ jobs:
         run: codespell doc/source README.md CONTRIBUTING.md || true
       - name: Validate the pre-commit configuration
         run: pre-commit validate-config
+      - name: Run the pre-commit file hooks
+        # ruff, codespell and cffconvert already ran above; skip their hooks
+        # here so each tool only runs once per job.
+        env:
+          SKIP: ruff-check,ruff-format,codespell,validate-cff
+        run: pre-commit run --all-files --show-diff-on-failure
       - name: Validate the citation metadata
         run: cffconvert --validate
 
