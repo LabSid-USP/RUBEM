@@ -289,7 +289,7 @@ class TestFactories:
 
 class TestCheckSeriesMemberCrs:
     @pytest.mark.unit
-    def test_none_when_the_clone_projection_is_unknown(self, tmp_path):
+    def test_none_when_the_reference_projection_is_unknown(self, tmp_path):
         import numpy as np
 
         from rubem.preprocessing._io import write_geotiff
@@ -365,7 +365,7 @@ class TestValidateResolvedSeriesCrs:
         dataset = None
 
         problems = validate_resolved_series(
-            loaded.series_resolvers, 1, 2, clone_projection='LOCAL_CS["Grid A",UNIT["metre",1]]'
+            loaded.series_resolvers, 1, 2, reference_projection='LOCAL_CS["Grid A",UNIT["metre",1]]'
         )
 
         blocking = [

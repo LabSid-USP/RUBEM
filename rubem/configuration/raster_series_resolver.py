@@ -276,24 +276,28 @@ def resolvers_from_v1(file) -> dict:
     return resolvers
 
 
-def check_series_member_crs(file: PathInput, clone_projection: str | None) -> Problem | None:
-    """A GeoTIFF series member must share the clone's coordinate reference system.
+def check_series_member_crs(file: PathInput, reference_projection: str | None) -> Problem | None:
+    """A GeoTIFF series member must share the reference coordinate reference system.
 
     Mirrors the CRS branch of ``InputRasterFiles.__check_geometry`` for the
-    static rasters; ``clone_projection`` is skipped when empty, matching the
-    same "unknown CRS is not a mismatch" rule.
+    static rasters. ``reference_projection`` is the clone's own CRS, else the
+    georeference's, else the DEM's (see
+    :func:`~rubem.configuration.output_raster_base.reference_crs`); the check
+    is skipped when it or the member's own CRS is empty, matching the same
+    "unknown CRS is not a mismatch" rule.
     """
     from ..file._readers import is_geotiff
 
-    if not clone_projection or not is_geotiff(file):
+    if not reference_projection or not is_geotiff(file):
         return None
     from .output_raster_base import read_raster_geometry, same_crs
 
     _, _, _, projection = read_raster_geometry(file)
-    if projection and not same_crs(projection, clone_projection):
+    if projection and not same_crs(projection, reference_projection):
         return Problem(
             description="Input raster series member has another coordinate reference system.",
-            reason="The clone defines a different one.",
+            reason="The reference coordinate reference system (the clone's own, else the "
+            "georeference's, else the DEM's) is different.",
             implication="The simulation cannot run with this raster.",
             file=str(file),
             blocking=True,
@@ -302,14 +306,14 @@ def check_series_member_crs(file: PathInput, clone_projection: str | None) -> Pr
 
 
 def validate_resolved_series(
-    resolvers: dict, first_step: int, last_step: int, clone_projection: str | None = None
+    resolvers: dict, first_step: int, last_step: int, reference_projection: str | None = None
 ) -> list[Problem]:
     """Validate the rasters the resolvers answer over the simulated window.
 
     Every distinct file is opened once and checked with the data rules and
     the content rules of its series (``kp`` positive, NDVI below one), on top
     of the coverage report of :func:`check_coverage`. A GeoTIFF member whose
-    CRS differs from ``clone_projection`` (when given) is a blocking problem.
+    CRS differs from ``reference_projection`` (when given) is a blocking problem.
     """
     from ..validation.raster_content import check_below_one, check_positive
     from ..validation.raster_data_rules import RasterDataRules
@@ -341,7 +345,7 @@ def validate_resolved_series(
         for file in files:
             if not Path(file).is_file():
                 continue  # Already reported by the coverage check.
-            crs_problem = check_series_member_crs(file, clone_projection)
+            crs_problem = check_series_member_crs(file, reference_projection)
             if crs_problem is not None:
                 problems.append(crs_problem)
             with RasterMap(file, ranges[name], rules[name]) as raster:

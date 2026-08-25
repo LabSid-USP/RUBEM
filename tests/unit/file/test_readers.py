@@ -125,6 +125,35 @@ class TestReadField:
             read_field(shifted, FieldScale.SCALAR)
 
     @pytest.mark.unit
+    def test_a_mirrored_y_member_is_refused(self, tmp_path):
+        """The geometry predicate must compare the y cell size too, not just
+        west/cell/north: a member whose y resolution is positive (mirrored,
+        south-up) instead of negative must not be placed on the clone grid
+        upside down."""
+        ensure_gdal_drivers()
+        set_clone(write_geotiff(tmp_path / "clone.tif", np.ones((2, 2), np.uint8), TRANSFORM))
+        mirrored = write_geotiff(
+            tmp_path / "m.tif", np.ones((2, 2), np.float32), TRANSFORM[:5] + (500.0,)
+        )
+
+        with pytest.raises(ValueError, match="does not share the clone geometry"):
+            read_field(mirrored, FieldScale.SCALAR)
+
+    @pytest.mark.unit
+    def test_a_non_square_member_is_refused(self, tmp_path):
+        """A member whose y cell size differs in magnitude from the clone's
+        (non-square, or a different resolution) must not be silently
+        rescaled onto the clone grid."""
+        ensure_gdal_drivers()
+        set_clone(write_geotiff(tmp_path / "clone.tif", np.ones((2, 2), np.uint8), TRANSFORM))
+        non_square = write_geotiff(
+            tmp_path / "n.tif", np.ones((2, 2), np.float32), TRANSFORM[:5] + (-400.0,)
+        )
+
+        with pytest.raises(ValueError, match="does not share the clone geometry"):
+            read_field(non_square, FieldScale.SCALAR)
+
+    @pytest.mark.unit
     def test_a_crs_mismatch_is_refused_at_read_time(self, tmp_path):
         ensure_gdal_drivers()
         set_clone(
@@ -230,3 +259,21 @@ class TestGeotiffSeriesMember:
     def test_returns_none_when_no_member_exists(self, tmp_path):
         assert geotiff_series_member(tmp_path, "prec", 1) is None
         assert geotiff_series_member(tmp_path / "missing", "prec", 1) is None
+
+    @pytest.mark.unit
+    def test_raises_when_two_case_variants_match_the_same_step(self, tmp_path):
+        """On a case-sensitive file system, a differently-cased name is a
+        distinct file: two of them for the same step must not be resolved
+        silently (which one is used would depend on directory iteration
+        order). NTFS (Windows) cannot hold both, so the probe below skips
+        there instead of asserting a false negative."""
+        from tests.helpers.synthetic import geotiff_series_name
+
+        name = geotiff_series_name("prec", 1)
+        (tmp_path / name).write_bytes(b"")
+        (tmp_path / name.upper()).write_bytes(b"")
+        if len(list(tmp_path.iterdir())) < 2:
+            pytest.skip("the file system is case-insensitive; both names collapse into one file")
+
+        with pytest.raises(ValueError, match="matches more than one file"):
+            geotiff_series_member(tmp_path, "prec", 1)

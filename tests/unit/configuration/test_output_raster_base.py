@@ -6,6 +6,7 @@ import pytest
 from rubem.configuration.output_raster_base import (
     OutputRasterBase,
     read_raster_geometry,
+    reference_crs,
     same_crs,
 )
 from tests.helpers.compare import ensure_gdal_drivers
@@ -266,3 +267,58 @@ class TestModelBehaviour:
             OutputRasterBase(cols=0, rows=3, transformation=(0, 1, 0, 0, 0, -1))
         with pytest.raises(ValidationError):
             OutputRasterBase(cols=3, rows=3, transformation=(0, 1, 0))
+
+
+class TestReferenceCrs:
+    """The CRS every input is checked against: the clone's own, else the
+    georeference's, else the DEM's, else none."""
+
+    TRANSFORM = (0.0, 1.0, 0.0, 2.0, 0.0, -1.0)
+    OTHER_CRS_WKT = 'LOCAL_CS["Other grid",UNIT["metre",1]]'
+
+    @pytest.mark.unit
+    def test_the_clones_own_crs_wins(self, tmp_path):
+        clone = write_geotiff(tmp_path / "clone.tif", 2, 2, self.TRANSFORM, LOCAL_CRS_WKT)
+        georeference = write_geotiff(
+            tmp_path / "georef.tif", 2, 2, self.TRANSFORM, self.OTHER_CRS_WKT
+        )
+        dem = write_geotiff(tmp_path / "dem.tif", 2, 2, self.TRANSFORM, self.OTHER_CRS_WKT)
+
+        assert same_crs(reference_crs(clone, georeference, dem), LOCAL_CRS_WKT)
+
+    @pytest.mark.unit
+    def test_the_georeference_wins_when_the_clone_has_none(self, tmp_path):
+        clone = write_geotiff(tmp_path / "clone.tif", 2, 2, self.TRANSFORM)
+        georeference = write_geotiff(tmp_path / "georef.tif", 2, 2, self.TRANSFORM, LOCAL_CRS_WKT)
+        dem = write_geotiff(tmp_path / "dem.tif", 2, 2, self.TRANSFORM, self.OTHER_CRS_WKT)
+
+        assert same_crs(reference_crs(clone, georeference, dem), LOCAL_CRS_WKT)
+
+    @pytest.mark.unit
+    def test_the_dem_wins_when_the_clone_and_georeference_have_none(self, tmp_path):
+        clone = write_geotiff(tmp_path / "clone.tif", 2, 2, self.TRANSFORM)
+        georeference = write_geotiff(tmp_path / "georef.tif", 2, 2, self.TRANSFORM)
+        dem = write_geotiff(tmp_path / "dem.tif", 2, 2, self.TRANSFORM, LOCAL_CRS_WKT)
+
+        assert same_crs(reference_crs(clone, georeference, dem), LOCAL_CRS_WKT)
+
+    @pytest.mark.unit
+    def test_the_dem_wins_when_no_georeference_is_given(self, tmp_path):
+        clone = write_geotiff(tmp_path / "clone.tif", 2, 2, self.TRANSFORM)
+        dem = write_geotiff(tmp_path / "dem.tif", 2, 2, self.TRANSFORM, LOCAL_CRS_WKT)
+
+        assert same_crs(reference_crs(clone, None, dem), LOCAL_CRS_WKT)
+
+    @pytest.mark.unit
+    def test_none_when_nothing_carries_a_crs(self, tmp_path):
+        clone = write_geotiff(tmp_path / "clone.tif", 2, 2, self.TRANSFORM)
+        dem = write_geotiff(tmp_path / "dem.tif", 2, 2, self.TRANSFORM)
+
+        assert reference_crs(clone) is None
+        assert reference_crs(clone, None, dem) is None
+
+    @pytest.mark.unit
+    def test_a_map_clone_with_no_georeference_or_dem_returns_none(self, tmp_path):
+        config = write_synthetic_dataset(tmp_path)
+
+        assert reference_crs(config["RASTERS"]["clone"]) is None

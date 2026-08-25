@@ -60,7 +60,8 @@ class InputRasterSeries(BaseModel):
         precipitation, ETP and Kp series must cover every step (blocking), the NDVI and land use
         series must cover the first step (blocking) and later gaps are reported (the run reuses the
         previous raster). Defaults to ``None`` (no completeness check).
-    :param clone_projection: Coordinate reference system (WKT) of the clone. When given, a GeoTIFF
+    :param reference_projection: Reference coordinate reference system (WKT), see
+        :func:`~rubem.configuration.output_raster_base.reference_crs`. When given, a GeoTIFF
         series member with another CRS is a blocking problem. Defaults to ``None`` (no CRS check).
 
     :raises NotADirectoryError: If any of the input data directories does not exist.
@@ -86,7 +87,7 @@ class InputRasterSeries(BaseModel):
     landuse_filename_prefix: str
     validate_input: bool = Field(default=True, exclude=True, repr=False)
     required_steps: tuple[int, int] | None = Field(default=None, exclude=True, repr=False)
-    clone_projection: str | None = Field(default=None, exclude=True, repr=False)
+    reference_projection: str | None = Field(default=None, exclude=True, repr=False)
 
     _problems: list[Problem] = PrivateAttr(default_factory=list)
 
@@ -185,7 +186,7 @@ class InputRasterSeries(BaseModel):
                 content_rules.get(name),
                 problems,
                 self.required_steps,
-                self.clone_projection,
+                self.reference_projection,
             )
             total_num_files.append(len(steps))
             if self.required_steps is not None:
@@ -248,12 +249,13 @@ class InputRasterSeries(BaseModel):
         content_rule,
         problems,
         required_steps=None,
-        clone_projection=None,
+        reference_projection=None,
     ) -> set[int]:
         map_pattern = raster_series_pattern(prefix)
         geotiff_pattern = geotiff_series_pattern(prefix)
 
         steps = set()
+        step_files: dict[int, list[str]] = {}
         formats = set()
         for entry in directory.iterdir():
             if not entry.is_file():
@@ -272,14 +274,29 @@ class InputRasterSeries(BaseModel):
             # block a run on data the simulation never touches.
             if required_steps is None or required_steps[0] <= step <= required_steps[1]:
                 InputRasterSeries.__validate_raster_file(
-                    str(entry), valid_range, rules, content_rule, problems, clone_projection
+                    str(entry), valid_range, rules, content_rule, problems, reference_projection
                 )
             steps.add(step)
+            step_files.setdefault(step, []).append(entry.name)
         if len(formats) > 1:
             raise ValueError(
                 f"The series in {directory} mixes PCRaster maps and GeoTIFF files for the "
                 f"prefix '{prefix}'."
             )
+        for step, names in step_files.items():
+            if len(names) > 1:
+                problems.append(
+                    Problem(
+                        description="Two files match the same series step.",
+                        reason=f"Step {step} in {directory} matches {sorted(names)}; the pattern "
+                        "matches names case-insensitively, so a case-sensitive file system can "
+                        "hold both as distinct files, and which one is used would depend on "
+                        "directory iteration order.",
+                        implication="The simulation cannot run with this series.",
+                        file=str(directory),
+                        blocking=True,
+                    )
+                )
 
         if not steps:
             logger.error("No files found with prefix '%s' in directory '%s'", prefix, directory)
@@ -294,9 +311,9 @@ class InputRasterSeries(BaseModel):
 
     @staticmethod
     def __validate_raster_file(
-        file, valid_range, rules, content_rule, problems, clone_projection=None
+        file, valid_range, rules, content_rule, problems, reference_projection=None
     ) -> None:
-        crs_problem = check_series_member_crs(file, clone_projection)
+        crs_problem = check_series_member_crs(file, reference_projection)
         if crs_problem is not None:
             problems.append(crs_problem)
         with RasterMap(file, valid_range, rules) as raster:

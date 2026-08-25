@@ -110,7 +110,7 @@ class TestInputRasterSeriesProblems:
             landuse=config["DIRECTORIES"]["landuse"],
             landuse_filename_prefix="cob",
             validate_input=True,
-            clone_projection='LOCAL_CS["Grid A",UNIT["metre",1]]',
+            reference_projection='LOCAL_CS["Grid A",UNIT["metre",1]]',
         )
 
         blocking = [
@@ -157,3 +157,41 @@ class TestInputRasterSeriesProblems:
         series = _series(config, validate_input=True, required_steps=(1, 2))
 
         assert any(problem.blocking for problem in series.problems)
+
+    @pytest.mark.unit
+    def test_two_case_variant_members_for_the_same_step_is_a_blocking_problem(self, tmp_path):
+        """On a case-sensitive file system, ``prec000001.tif`` and
+        ``PREC000001.TIF`` are two distinct files the case-insensitive series
+        pattern both match for step 1; the set of steps used to silently
+        collapse them instead of reporting the ambiguity. NTFS (Windows)
+        cannot hold both, so the copy below is skipped there."""
+        import shutil
+
+        from tests.helpers.synthetic import geotiff_series_name, write_synthetic_dataset
+
+        config = write_synthetic_dataset(str(tmp_path), raster_format="tif")
+        prec_dir = Path(config["DIRECTORIES"]["prec"])
+        name = geotiff_series_name("prec", 1)
+        try:
+            shutil.copyfile(prec_dir / name, prec_dir / name.upper())
+        except shutil.SameFileError:
+            pytest.skip("the file system is case-insensitive; both names collapse into one file")
+
+        series = InputRasterSeries(
+            etp=config["DIRECTORIES"]["etp"],
+            etp_filename_prefix="etp",
+            precipitation=config["DIRECTORIES"]["prec"],
+            precipitation_filename_prefix="prec",
+            ndvi=config["DIRECTORIES"]["ndvi"],
+            ndvi_filename_prefix="ndvi",
+            kp=config["DIRECTORIES"]["kp"],
+            kp_filename_prefix="kp",
+            landuse=config["DIRECTORIES"]["landuse"],
+            landuse_filename_prefix="cob",
+            validate_input=True,
+        )
+
+        blocking = [
+            p for p in series.problems if p.blocking and "same series step" in p.description
+        ]
+        assert blocking, series.problems

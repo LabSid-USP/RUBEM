@@ -164,11 +164,15 @@ class InputRasterFiles(BaseModel):
         return self
 
     def __check_geometry(self, files) -> list[Problem]:
-        """Every input raster must share the clone's size, transform and CRS."""
-        from .output_raster_base import read_raster_geometry, same_crs
+        """Every input raster must share the clone's size and transform, and the
+        reference coordinate reference system (the clone's own, else the
+        georeference's, else the DEM's; see
+        :func:`~rubem.configuration.output_raster_base.reference_crs`)."""
+        from .output_raster_base import read_raster_geometry, reference_crs, same_crs
 
         problems = []
-        clone_cols, clone_rows, clone_transform, clone_projection = read_raster_geometry(self.clone)
+        clone_cols, clone_rows, clone_transform, _ = read_raster_geometry(self.clone)
+        reference = reference_crs(self.clone, self.georeference, self.dem)
         for file, _, _ in files:
             if file == self.clone:
                 continue
@@ -187,11 +191,12 @@ class InputRasterFiles(BaseModel):
                         blocking=True,
                     )
                 )
-            elif projection and clone_projection and not same_crs(projection, clone_projection):
+            elif projection and reference and not same_crs(projection, reference):
                 problems.append(
                     Problem(
                         description="Input raster has another coordinate reference system.",
-                        reason=f"The clone {self.clone} defines a different one.",
+                        reason="The reference coordinate reference system (the clone's own, "
+                        "else the georeference's, else the DEM's) is different.",
                         implication="The simulation cannot run with this raster.",
                         file=file,
                         blocking=True,
