@@ -5,6 +5,8 @@ import stat
 import uuid
 from pathlib import Path
 
+from .._paths import as_path
+
 logger = logging.getLogger(__name__)
 
 _STAGE_ATTEMPTS = 100
@@ -178,7 +180,8 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
         rows, or if a source has a different number of columns.
     :raises IsADirectoryError: If a destination path is an existing directory.
 
-    :param tss_files: Paths of the ``.tss`` files to convert.
+    :param tss_files: Paths of the ``.tss`` files to convert. Each item accepts
+        anything :func:`rubem._paths.as_path` does, ``bytes`` included.
     :type tss_files: list
 
     :param cols_names: List of strings of aliases for the column names.
@@ -190,7 +193,7 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
     if not cols_names:
         raise ValueError("The list of column names is empty.")
 
-    tss_files = [str(Path(str(tss_file)).absolute()) for tss_file in tss_files]
+    tss_files = [str(as_path(tss_file).absolute()) for tss_file in tss_files]
     for tss_file in tss_files:
         if not Path(tss_file).is_file():
             raise FileNotFoundError(f"The time series file {tss_file} does not exist.")

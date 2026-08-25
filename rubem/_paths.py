@@ -16,15 +16,21 @@ PathInput = str | os.PathLike[str] | bytes
 def as_path(value: PathInput) -> Path:
     """Return ``value`` as a :class:`pathlib.Path`.
 
+    ``os.fspath`` is resolved first, so a ``PathLike`` whose ``__fspath__``
+    returns ``bytes`` is decoded the same way a plain ``bytes`` value is,
+    instead of reaching :class:`pathlib.Path` as bytes and raising ``TypeError``.
+
     :raises TypeError: If ``value`` is not a path-like object.
     """
+    if isinstance(value, os.PathLike):
+        value = os.fspath(value)
+    elif not isinstance(value, (str, bytes)):
+        raise TypeError(f"expected a path-like object, got {type(value).__name__}")
     if isinstance(value, bytes):
         warnings.warn(
             "bytes paths are deprecated; pass a str or an os.PathLike instead.",
             DeprecationWarning,
             stacklevel=2,
         )
-        return Path(os.fsdecode(value))
-    if isinstance(value, (str, os.PathLike)):
-        return Path(value)
-    raise TypeError(f"expected a path-like object, got {type(value).__name__}")
+        value = os.fsdecode(value)
+    return Path(value)
