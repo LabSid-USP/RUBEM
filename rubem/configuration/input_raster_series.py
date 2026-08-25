@@ -16,6 +16,7 @@ from .._paths import as_path
 from ..configuration._problems import Problem
 from ..configuration._ranges import raster_ranges
 from ..configuration.raster_map import RasterMap
+from ..configuration.raster_series_resolver import check_series_member_crs
 from ..file._naming import (
     RASTER_SERIES_BASENAME_LENGTH,
     geotiff_series_pattern,
@@ -59,6 +60,8 @@ class InputRasterSeries(BaseModel):
         precipitation, ETP and Kp series must cover every step (blocking), the NDVI and land use
         series must cover the first step (blocking) and later gaps are reported (the run reuses the
         previous raster). Defaults to ``None`` (no completeness check).
+    :param clone_projection: Coordinate reference system (WKT) of the clone. When given, a GeoTIFF
+        series member with another CRS is a blocking problem. Defaults to ``None`` (no CRS check).
 
     :raises NotADirectoryError: If any of the input data directories does not exist.
     :raises ValueError: If any of the input data directories is empty, or a prefix is too long.
@@ -83,6 +86,7 @@ class InputRasterSeries(BaseModel):
     landuse_filename_prefix: str
     validate_input: bool = Field(default=True, exclude=True, repr=False)
     required_steps: tuple[int, int] | None = Field(default=None, exclude=True, repr=False)
+    clone_projection: str | None = Field(default=None, exclude=True, repr=False)
 
     _problems: list[Problem] = PrivateAttr(default_factory=list)
 
@@ -172,7 +176,13 @@ class InputRasterSeries(BaseModel):
             if not any(directory.iterdir()):
                 raise ValueError(f"Empty input data directory: {directory}")
             steps = self.__validate_files_with_prefix(
-                directory, prefix, ranges[name], rules[name], content_rules.get(name), problems
+                directory,
+                prefix,
+                ranges[name],
+                rules[name],
+                content_rules.get(name),
+                problems,
+                self.clone_projection,
             )
             total_num_files.append(len(steps))
             if self.required_steps is not None:
@@ -228,7 +238,7 @@ class InputRasterSeries(BaseModel):
 
     @staticmethod
     def __validate_files_with_prefix(
-        directory, prefix, valid_range, rules, content_rule, problems
+        directory, prefix, valid_range, rules, content_rule, problems, clone_projection=None
     ) -> set[int]:
         map_pattern = raster_series_pattern(prefix)
         geotiff_pattern = geotiff_series_pattern(prefix)
@@ -247,7 +257,7 @@ class InputRasterSeries(BaseModel):
             else:
                 continue
             InputRasterSeries.__validate_raster_file(
-                str(entry), valid_range, rules, content_rule, problems
+                str(entry), valid_range, rules, content_rule, problems, clone_projection
             )
             steps.add(int(digits))
         if len(formats) > 1:
@@ -268,7 +278,12 @@ class InputRasterSeries(BaseModel):
         return steps
 
     @staticmethod
-    def __validate_raster_file(file, valid_range, rules, content_rule, problems) -> None:
+    def __validate_raster_file(
+        file, valid_range, rules, content_rule, problems, clone_projection=None
+    ) -> None:
+        crs_problem = check_series_member_crs(file, clone_projection)
+        if crs_problem is not None:
+            problems.append(crs_problem)
         with RasterMap(file, valid_range, rules) as raster:
             logger.debug(str(raster).replace("\n", ", "))
             valid, errors = RasterMapValidator().validate(raster)

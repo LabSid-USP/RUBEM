@@ -265,12 +265,40 @@ def resolvers_from_v1(file) -> dict:
     return resolvers
 
 
-def validate_resolved_series(resolvers: dict, first_step: int, last_step: int) -> list[Problem]:
+def check_series_member_crs(file: PathInput, clone_projection: str | None) -> Problem | None:
+    """A GeoTIFF series member must share the clone's coordinate reference system.
+
+    Mirrors the CRS branch of ``InputRasterFiles.__check_geometry`` for the
+    static rasters; ``clone_projection`` is skipped when empty, matching the
+    same "unknown CRS is not a mismatch" rule.
+    """
+    from ..file._readers import is_geotiff
+
+    if not clone_projection or not is_geotiff(file):
+        return None
+    from .output_raster_base import read_raster_geometry, same_crs
+
+    _, _, _, projection = read_raster_geometry(file)
+    if projection and not same_crs(projection, clone_projection):
+        return Problem(
+            description="Input raster series member has another coordinate reference system.",
+            reason="The clone defines a different one.",
+            implication="The simulation cannot run with this raster.",
+            file=str(file),
+            blocking=True,
+        )
+    return None
+
+
+def validate_resolved_series(
+    resolvers: dict, first_step: int, last_step: int, clone_projection: str | None = None
+) -> list[Problem]:
     """Validate the rasters the resolvers answer over the simulated window.
 
     Every distinct file is opened once and checked with the data rules and
     the content rules of its series (``kp`` positive, NDVI below one), on top
-    of the coverage report of :func:`check_coverage`.
+    of the coverage report of :func:`check_coverage`. A GeoTIFF member whose
+    CRS differs from ``clone_projection`` (when given) is a blocking problem.
     """
     from ..validation.raster_content import check_below_one, check_positive
     from ..validation.raster_data_rules import RasterDataRules
@@ -302,6 +330,9 @@ def validate_resolved_series(resolvers: dict, first_step: int, last_step: int) -
         for file in files:
             if not Path(file).is_file():
                 continue  # Already reported by the coverage check.
+            crs_problem = check_series_member_crs(file, clone_projection)
+            if crs_problem is not None:
+                problems.append(crs_problem)
             with RasterMap(file, ranges[name], rules[name]) as raster:
                 valid, errors = RasterMapValidator().validate(raster)
                 rule = content_rules.get(name)

@@ -124,6 +124,46 @@ class TestGeoTiffDataset:
             ModelConfiguration(config)
 
     @pytest.mark.unit
+    def test_a_series_member_with_another_crs_blocks(self, tmp_path):
+        from osgeo import gdal
+
+        from tests.helpers.compare import ensure_gdal_drivers
+
+        config = write_synthetic_dataset(str(tmp_path), raster_format="tif")
+        ensure_gdal_drivers()
+        gdal.UseExceptions()
+        member = os.path.join(config["DIRECTORIES"]["prec"], geotiff_series_name("prec", 1))
+        for path, crs in (
+            (config["RASTERS"]["clone"], 'LOCAL_CS["Grid A",UNIT["metre",1]]'),
+            (member, 'LOCAL_CS["Grid B",UNIT["foot",0.3048]]'),
+        ):
+            dataset = gdal.OpenEx(path, gdal.GA_Update)
+            dataset.SetProjection(crs)
+            dataset = None
+
+        with pytest.raises(ConfigurationError, match="another coordinate reference system"):
+            ModelConfiguration(config)
+
+    @pytest.mark.unit
+    def test_a_series_member_sharing_the_clone_crs_is_accepted(self, tmp_path):
+        from osgeo import gdal
+
+        from tests.helpers.compare import ensure_gdal_drivers
+
+        config = write_synthetic_dataset(str(tmp_path), raster_format="tif")
+        ensure_gdal_drivers()
+        gdal.UseExceptions()
+        member = os.path.join(config["DIRECTORIES"]["prec"], geotiff_series_name("prec", 1))
+        for path in (config["RASTERS"]["clone"], member):
+            dataset = gdal.OpenEx(path, gdal.GA_Update)
+            dataset.SetProjection('LOCAL_CS["Grid A",UNIT["metre",1]]')
+            dataset = None
+
+        loaded = ModelConfiguration(config)
+
+        assert not any(problem.blocking for problem in loaded.problems)
+
+    @pytest.mark.unit
     def test_skipping_validation_still_checks_the_geometry_at_read_time(self, tmp_path):
         from osgeo import gdal
 

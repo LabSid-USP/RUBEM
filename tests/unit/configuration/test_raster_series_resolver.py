@@ -13,12 +13,14 @@ from rubem.configuration.raster_series_resolver import (
     MissingStep,
     MonthlySeriesResolver,
     check_coverage,
+    check_series_member_crs,
     date_to_step,
     resolvers_from_legacy,
     resolvers_from_v1,
     step_to_date,
+    validate_resolved_series,
 )
-from tests.helpers.synthetic import series_name, write_synthetic_dataset
+from tests.helpers.synthetic import geotiff_series_name, series_name, write_synthetic_dataset
 
 ALIGNMENT = date(2000, 1, 1)
 
@@ -238,3 +240,90 @@ class TestFactories:
         assert resolvers["ndvi"].path_for_step(2).endswith(series_name("ndvi", 2))
         assert resolvers["landuse"].path_for_step(2).endswith(series_name("cob", 1))
         assert check_coverage(resolvers, 1, 2) == []
+
+
+class TestCheckSeriesMemberCrs:
+    @pytest.mark.unit
+    def test_none_when_the_clone_projection_is_unknown(self, tmp_path):
+        import numpy as np
+
+        from rubem.preprocessing._io import write_geotiff
+        from tests.helpers.compare import ensure_gdal_drivers
+
+        ensure_gdal_drivers()
+        member = write_geotiff(
+            tmp_path / "m.tif", np.ones((2, 2), np.float32), (0.0, 1.0, 0.0, 2.0, 0.0, -1.0)
+        )
+
+        assert check_series_member_crs(str(member), None) is None
+        assert check_series_member_crs(str(member), "") is None
+
+    @pytest.mark.unit
+    def test_none_for_a_pcraster_map_member(self):
+        assert (
+            check_series_member_crs("/maps/prec0000.001", 'LOCAL_CS["Grid A",UNIT["metre",1]]')
+            is None
+        )
+
+    @pytest.mark.unit
+    def test_blocks_a_mismatched_crs(self, tmp_path):
+        import numpy as np
+
+        from rubem.preprocessing._io import write_geotiff
+        from tests.helpers.compare import ensure_gdal_drivers
+
+        ensure_gdal_drivers()
+        member = write_geotiff(
+            tmp_path / "m.tif",
+            np.ones((2, 2), np.float32),
+            (0.0, 1.0, 0.0, 2.0, 0.0, -1.0),
+            projection='LOCAL_CS["Grid B",UNIT["foot",0.3048]]',
+        )
+
+        problem = check_series_member_crs(str(member), 'LOCAL_CS["Grid A",UNIT["metre",1]]')
+
+        assert problem is not None and problem.blocking
+        assert "coordinate reference system" in problem.description
+
+    @pytest.mark.unit
+    def test_accepts_a_matching_crs(self, tmp_path):
+        import numpy as np
+
+        from rubem.preprocessing._io import write_geotiff
+        from tests.helpers.compare import ensure_gdal_drivers
+
+        ensure_gdal_drivers()
+        member = write_geotiff(
+            tmp_path / "m.tif",
+            np.ones((2, 2), np.float32),
+            (0.0, 1.0, 0.0, 2.0, 0.0, -1.0),
+            projection='LOCAL_CS["Grid A",UNIT["metre",1]]',
+        )
+
+        assert check_series_member_crs(str(member), 'LOCAL_CS["Grid A",UNIT["metre",1]]') is None
+
+
+class TestValidateResolvedSeriesCrs:
+    @pytest.mark.unit
+    def test_a_mismatched_member_crs_is_a_blocking_problem(self, tmp_path):
+        from osgeo import gdal
+
+        from tests.helpers.compare import ensure_gdal_drivers
+
+        ensure_gdal_drivers()
+        gdal.UseExceptions()
+        config = write_synthetic_dataset(str(tmp_path), raster_format="tif")
+        loaded = ModelConfiguration(config, validate_input=False)
+        member = os.path.join(config["DIRECTORIES"]["prec"], geotiff_series_name("prec", 1))
+        dataset = gdal.OpenEx(member, gdal.GA_Update)
+        dataset.SetProjection('LOCAL_CS["Grid B",UNIT["foot",0.3048]]')
+        dataset = None
+
+        problems = validate_resolved_series(
+            loaded.series_resolvers, 1, 2, clone_projection='LOCAL_CS["Grid A",UNIT["metre",1]]'
+        )
+
+        blocking = [
+            p for p in problems if p.blocking and "coordinate reference system" in p.description
+        ]
+        assert blocking, problems
