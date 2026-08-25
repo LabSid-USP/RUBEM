@@ -225,6 +225,24 @@ class TestSimulationOutput:
             ModelConfigurationFileV1.model_validate(document)
 
 
+class TestRasterSeriesNoDataValue:
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), 1e40, -1e40, True, "nope"])
+    def test_rejects_non_finite_and_out_of_float32_values(self, document, value):
+        document["model_simulation_output"]["raster_series"]["no_data_value"] = value
+
+        with pytest.raises(ValidationError, match="no_data_value"):
+            ModelConfigurationFileV1.model_validate(document)
+
+    @pytest.mark.unit
+    def test_accepts_a_finite_float32_value(self, document):
+        document["model_simulation_output"]["raster_series"]["no_data_value"] = -32768
+
+        model = ModelConfigurationFileV1.model_validate(document)
+
+        assert model.model_simulation_output.raster_series.no_data_value == -32768
+
+
 class TestConversions:
     @pytest.mark.unit
     def test_legacy_round_trips_through_1_0(self, legacy):
@@ -249,6 +267,22 @@ class TestConversions:
 
         assert v1.model_simulation_output.time_series_samples.enabled() == ()
         assert v1.model_simulation_output.time_series_samples.formats == []
+        assert v1.to_legacy() == legacy
+
+    @pytest.mark.unit
+    def test_from_legacy_keeps_raster_formats_when_every_variable_is_disabled(self, legacy):
+        disabled = {key: False for key in legacy.to_dict()["GENERATE_FILE"]}
+        legacy = ModelConfigurationFile.model_validate(
+            {**legacy.to_dict(), "GENERATE_FILE": disabled}
+        )
+
+        v1 = ModelConfigurationFileV1.from_legacy(legacy)
+
+        assert v1.model_simulation_output.raster_series.enabled() == ()
+        assert v1.model_simulation_output.raster_series.formats == [
+            RasterFormat.PCRASTER_MAP,
+            RasterFormat.GEOTIFF,
+        ]
         assert v1.to_legacy() == legacy
 
     @pytest.mark.unit
@@ -319,4 +353,27 @@ class TestConversions:
         assert model.metadata.creation_date == date(2024, 6, 1)
         document["metadata"]["creation_date"] = "01/06/2024"
         with pytest.raises(ValidationError):
+            ModelConfigurationFileV1.model_validate(document)
+
+    @pytest.mark.unit
+    def test_metadata_dates_reject_numeric_timestamps(self, document):
+        document["metadata"] = {"title": "t", "creation_date": 0}
+
+        with pytest.raises(ValidationError, match="ISO date string"):
+            ModelConfigurationFileV1.model_validate(document)
+
+    @pytest.mark.unit
+    def test_simulation_period_dates_reject_numeric_timestamps(self, document):
+        document["simulation_period"] = {"start": 0, "finish": "2000-02-01"}
+
+        with pytest.raises(ValidationError, match="ISO date string"):
+            ModelConfigurationFileV1.model_validate(document)
+
+    @pytest.mark.unit
+    def test_dated_raster_bounds_reject_numeric_timestamps(self, document):
+        document["raster_series"]["landuse"] = [
+            {"file_path": "/maps/cob.map", "from": 0, "to": "2000-02-01"}
+        ]
+
+        with pytest.raises(ValidationError, match="ISO date string"):
             ModelConfigurationFileV1.model_validate(document)
