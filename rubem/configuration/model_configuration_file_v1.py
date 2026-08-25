@@ -15,6 +15,7 @@ replaced by one raster from a given year on (``monthly``, ``yearly_from``,
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
@@ -42,10 +43,22 @@ _START_REF = "#/simulation_period/start"
 _FINISH_REF = "#/simulation_period/finish"
 
 
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
 def _reject_numeric_date(value):
-    """Format 1.0 dates are ISO strings; a bare number is a Unix timestamp trap."""
+    """Format 1.0 dates are ISO strings, ``YYYY-MM-DD`` and nothing else.
+
+    A bare number is a Unix timestamp trap (pydantic reads it as one), and
+    pydantic's default date parsing is otherwise lenient: it also accepts a
+    quoted timestamp ("946684800") and a full datetime string
+    ("2000-01-01T00:00:00"). Both are rejected here, before pydantic parses
+    the value at all.
+    """
     if isinstance(value, (bool, int, float)):
-        raise ValueError(f"expected an ISO date string, got {value!r}")
+        raise ValueError(f"expected an ISO date string (YYYY-MM-DD), got {value!r}")
+    if isinstance(value, str) and not _ISO_DATE.match(value):
+        raise ValueError(f"expected an ISO date string (YYYY-MM-DD), got {value!r}")
     return value
 
 
