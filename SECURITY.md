@@ -40,4 +40,3 @@ $ python -m sigstore verify github rubem-<version>-py3-none-any.whl \
 The OpenSSF Scorecard check for signed releases considers the last five
 releases, so it reports green only once five consecutive releases carry the
 signatures.
-

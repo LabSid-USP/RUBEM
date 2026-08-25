@@ -2,7 +2,7 @@ Team
 ====
 
 .. important::
-    
+
     **Please don’t email us personally for support on RUBEM.** You can use our `support form <https://forms.gle/JmxWKoXh4C29V2rD8>`__ for any issues you may have.
 
 
@@ -40,5 +40,5 @@ Dev team members
 - `Lina Olivos <https://github.com/LINAMARIAOSORIO>`__
 - `William Vichete <https://github.com/wdvichete84>`__
 - Your name here
-  
+
 Feel free to ask any of us if you have questions or want to join!

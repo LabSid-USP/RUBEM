@@ -1,5 +1,5 @@
 Datasets
-========  
+========
 
 .. role:: raw-html(raw)
    :format: html
@@ -12,7 +12,7 @@ Paraíba do Sul River Basin (PSRB)
 
 The Paraiba do Sul is located in the South-East region of Brazil, been one of the most significant river basins in terms of urban water supply. This interstate basin forms part of the states of Minas Gerais, Rio de Janeiro and São Paulo, and covers an area of 55,500 :raw-html:`km<sup>2</sup>`. An interconnected system of dams in the area are responsible for the water supply of Rio de Janeiro City system, and a transposition to Cantareira System in São Paulo.
 
-`Download here <https://drive.google.com/drive/folders/1nYMieZ7Z-b23axpO644vq3kNBcXJlaGl?usp=sharing>`__ 
+`Download here <https://drive.google.com/drive/folders/1nYMieZ7Z-b23axpO644vq3kNBcXJlaGl?usp=sharing>`__
 
 - **Data Format:** GeoTIFF and PCRaster raster files, .txt;
 - **Size:** ~15 GB
@@ -25,8 +25,8 @@ The Paraiba do Sul is located in the South-East region of Brazil, been one of th
   - ymax: -20.3418
 
 - **Spatial Resolution:** 250m
-- **Temporal Resolution:** monthly 
-- **Time period:** jan/2000 - dec/2021 
+- **Temporal Resolution:** monthly
+- **Time period:** jan/2000 - dec/2021
 - **Available data:**
 
   - Monthly meteorological raster series of: rainfall [mm/month], potential evapotranspiration [mm/month], evaporation coefficient - kp [-];
@@ -41,7 +41,7 @@ Upper Iguaçu River Basin (UIRB)
 
 Upper Iguaçu basin is located in the south portion of Brazil. The Iguaçu River is a tributary of the Paraná River and is also the longest river in the state of Paraná. It is formed by the meeting of the Iraí and Atuba rivers, in the eastern part of the Paraná municipality of Curitiba. Among the main tributaries are: Itaqui, Piraquara, Atuba, Palmital, Barigui, Miringuava, Passaúna and Verde rivers. The basin provides the water consumed in the metropolitan area of Curitiba.
 
-`Download here <https://drive.google.com/drive/folders/1FkiajNrMnmLpjOiS6WpfnFQFFc_CZH29?usp=sharing>`__ | `Alternative link <http://labsid.eng.br/rubemdataset/Upper_Iguazu_Basin.zip>`__ 
+`Download here <https://drive.google.com/drive/folders/1FkiajNrMnmLpjOiS6WpfnFQFFc_CZH29?usp=sharing>`__ | `Alternative link <http://labsid.eng.br/rubemdataset/Upper_Iguazu_Basin.zip>`__
 
 - **Data Format:** GeoTIFF and PCRaster raster files, .txt;
 - **Size:** 222 MB
@@ -54,8 +54,8 @@ Upper Iguaçu basin is located in the south portion of Brazil. The Iguaçu River
   - ymax: -25.8416
 
 - **Spatial Resolution:** 500m
-- **Temporal Resolution:** monthly 
-- **Time period:** jan/2000 - dec/2018 
+- **Temporal Resolution:** monthly
+- **Time period:** jan/2000 - dec/2018
 - **Available data:**
 
   - Monthly Meteorological and Landuse Forcings (Rainfall, Potential Evapotranspiration, Evaporation Coefficient, NDVI);
@@ -63,7 +63,7 @@ Upper Iguaçu basin is located in the south portion of Brazil. The Iguaçu River
   - Tables of soil and landuse parameters.
 
 - **References:** :any:`Mello Júnior et al. 2021 <cite-us>`
-  
+
 
 Piracicaba River Basin (PRB)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -85,7 +85,7 @@ The Piracicaba River Basin is located in the southeastern portion of Brazil in a
 
 - **Spatial Resolution:** 500m
 - **Temporal Resolution:** monthly
-- **Time period:** jan/2000 - dec/2018  
+- **Time period:** jan/2000 - dec/2018
 - **Available data:**
 
   - Monthly Meteorological and Landuse Forcings (Rainfall, Potential Evapotranspiration, Evaporation Coefficient, NDVI);
@@ -119,7 +119,7 @@ Its main tributaries, on the right bank, are Liberal stream, Taquara stream and 
 
 - **Spatial Resolution:** 500m
 - **Temporal Resolution:** monthly
-- **Time period:** jan/2000 - dec/2018  
+- **Time period:** jan/2000 - dec/2018
 - **Available data:**
 
   - Monthly Meteorological and Landuse Forcings (Rainfall, Potential Evapotranspiration, Evaporation Coefficient, NDVI);
