@@ -92,6 +92,18 @@ Optional, if enabled, export time series data of selected output variables (comm
       },
    }
 
+.. note::
+
+   Every raster of the ``RASTERS`` section, and every member of the raster
+   series, may be given either as a PCRaster map or as a GeoTIFF file
+   (:file:`*.tif`, :file:`*.tiff`). GeoTIFF rasters must share the clone's
+   geometry (size, cell size and origin; square cells, no rotation) and, when
+   both define one, its coordinate reference system; their no-data cells are
+   read as missing values. GeoTIFF series members are named like the model's
+   GeoTIFF outputs (``<prefix>`` followed by the step zero-padded to ten
+   characters, e.g. :file:`prec000001.tif`); a directory may not mix the two
+   formats for one prefix.
+
 Georeference
 ''''''''''''
 

@@ -16,7 +16,11 @@ from .._paths import as_path
 from ..configuration._problems import Problem
 from ..configuration._ranges import raster_ranges
 from ..configuration.raster_map import RasterMap
-from ..file._naming import RASTER_SERIES_BASENAME_LENGTH, raster_series_pattern
+from ..file._naming import (
+    RASTER_SERIES_BASENAME_LENGTH,
+    geotiff_series_pattern,
+    raster_series_pattern,
+)
 from ..validation.raster_content import check_below_one, check_positive
 from ..validation.raster_data_rules import RasterDataRules
 from ..validation.raster_map_validator import RasterMapValidator
@@ -226,16 +230,31 @@ class InputRasterSeries(BaseModel):
     def __validate_files_with_prefix(
         directory, prefix, valid_range, rules, content_rule, problems
     ) -> set[int]:
-        compiled_pattern = raster_series_pattern(prefix)
+        map_pattern = raster_series_pattern(prefix)
+        geotiff_pattern = geotiff_series_pattern(prefix)
 
         steps = set()
+        formats = set()
         for entry in directory.iterdir():
-            if entry.is_file() and compiled_pattern.match(entry.name):
-                InputRasterSeries.__validate_raster_file(
-                    str(entry), valid_range, rules, content_rule, problems
-                )
+            if not entry.is_file():
+                continue
+            if map_pattern.match(entry.name):
+                formats.add("map")
                 digits = entry.name[len(prefix) :].replace(".", "")
-                steps.add(int(digits))
+            elif geotiff_pattern.match(entry.name):
+                formats.add("geotiff")
+                digits = entry.stem[len(prefix) :]
+            else:
+                continue
+            InputRasterSeries.__validate_raster_file(
+                str(entry), valid_range, rules, content_rule, problems
+            )
+            steps.add(int(digits))
+        if len(formats) > 1:
+            raise ValueError(
+                f"The series in {directory} mixes PCRaster maps and GeoTIFF files for the "
+                f"prefix '{prefix}'."
+            )
 
         if not steps:
             logger.error("No files found with prefix '%s' in directory '%s'", prefix, directory)
