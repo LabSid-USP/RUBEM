@@ -4,3 +4,4 @@ sphinxcontrib-email
 sphinxcontrib-youtube
 sphinx-autodoc-typehints
 pydantic>=2.11,<3
+typer>=0.16,<1

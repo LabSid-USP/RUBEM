@@ -42,7 +42,7 @@ class TestMainModule:
         assert result.stdout.strip() == f"RUBEM v{rubem.__release__}"
 
     @pytest.mark.unit
-    def test_module_invocation_missing_required_arg(self, tmp_path):
+    def test_module_invocation_without_arguments_prints_the_help(self, tmp_path):
         env = dict(os.environ)
         env["PYTHONPATH"] = REPO_ROOT
 
@@ -56,4 +56,4 @@ class TestMainModule:
         )
 
         assert result.returncode == 2
-        assert "required: -c/--configfile" in result.stderr
+        assert "Usage: rubem [OPTIONS] COMMAND [ARGS]..." in result.stdout + result.stderr

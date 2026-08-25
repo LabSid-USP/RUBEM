@@ -216,14 +216,17 @@ jobs:
           fi
           pip install "$GITHUB_WORKSPACE"/dist/*.whl
           rubem --version
+          rubem config schema --format legacy | python -c "import json, sys; json.load(sys.stdin)"
           echo '{}' > smoke-config.json
-          if output=$(rubem -c smoke-config.json 2>&1); then
-            echo "rubem must fail without pcraster/GDAL" >&2
-            exit 1
-          else
-            echo "$output"
-            echo "$output" | grep -q "environment.yml"
-          fi
+          for invocation in "rubem run -c smoke-config.json" "rubem -c smoke-config.json"; do
+            if output=$($invocation 2>&1); then
+              echo "$invocation must fail without pcraster/GDAL" >&2
+              exit 1
+            else
+              echo "$output"
+              echo "$output" | grep -q "environment.yml"
+            fi
+          done
 
   pip-audit:
     runs-on: ubuntu-latest

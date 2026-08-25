@@ -503,7 +503,7 @@ In the Conda environment where RUBEM is installed, run the following command:
 
 .. code-block:: console
 
-    $ rubem -c Iguazu.json
+    $ rubem run -c Iguazu.json
 
 If all the project's configuration file is specified correctly, the user should be faced with the following:
 
