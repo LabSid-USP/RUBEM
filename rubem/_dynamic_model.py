@@ -590,11 +590,11 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         Initialize Tss report at sample locations or pits for each enabled output variable.
         """
+        point_map = self.config.output_variables.aggregation == "point" and not is_geotiff(
+            self.config.raster_files.sample_locations
+        )
+        id_map = self.config.raster_files.sample_locations if point_map else self.sample_map
         for var in self.config.output_variables.get_enabled_time_series():
-            point_map = self.config.output_variables.aggregation == "point" and not is_geotiff(
-                self.config.raster_files.sample_locations
-            )
-            id_map = self.config.raster_files.sample_locations if point_map else self.sample_map
             tss_file = TimeoutputTimeseriesAdapter(
                 str(Path(self.config.output_directory.path) / var.table_filename_prefix),
                 self,
@@ -602,6 +602,10 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                 noHeader=True,
             )
             self.sample_time_series_dict[var.id] = tss_file.sample
+        if point_map:
+            # The writers above received the sample file path directly; the
+            # full-grid field built to derive sample_vals is not read again.
+            self.sample_map = None
 
     def __time_series_requested(self) -> bool:
         """Whether the run writes time series: enabled, with the raster its aggregation needs."""

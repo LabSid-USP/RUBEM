@@ -161,18 +161,69 @@ class TestStateRelease:
 
     @pytest.mark.unit
     def test_the_release_does_not_change_the_outputs(self, tmp_path):
-        """The reported rasters are built before the release; the run equals the
-        one of the wrapper helper step for step."""
+        """The reported rasters are built before the release; a run that keeps
+        every released field alive (the release methods patched to no-ops)
+        must reproduce the normal run step for step."""
+        from unittest.mock import patch
+
+        from rubem._dynamic_model import RainfallRunoffBalanceEnhancedModel
+
         released = tmp_path / "released"
         reference = tmp_path / "reference"
         run_model(str(released))
-        run_model(str(reference))
+        with (
+            patch.object(
+                RainfallRunoffBalanceEnhancedModel,
+                "_RainfallRunoffBalanceEnhancedModel__release_initial_state",
+                lambda self: None,
+            ),
+            patch.object(
+                RainfallRunoffBalanceEnhancedModel,
+                "_RainfallRunoffBalanceEnhancedModel__release_step_state",
+                lambda self: None,
+            ),
+        ):
+            run_model(str(reference))
 
         for name in expected_outputs():
             if not name.endswith((".tif", ".001", ".002")):
                 continue
             result = compare_rasters(released / "out" / name, reference / "out" / name)
             assert result.equal, f"{name}:\n{result.report()}"
+
+
+class TestSampleMapRelease:
+    """``sample_map`` is only read again by the time series writer when the
+    writer cannot use the sample file path directly."""
+
+    @pytest.mark.unit
+    def test_the_sample_map_is_released_for_a_point_map_sample_file(self, tmp_path):
+        """Point aggregation with a ``.map`` sample file hands the writer the
+        file path directly; the full-grid field is not needed again."""
+        config = write_synthetic_dataset(str(tmp_path))
+        wrapper = DynamicFrameworkWrapper.load(ModelConfiguration(config, validate_input=False))
+        model = wrapper.dynamic_model_concept
+
+        wrapper.run()
+
+        assert model.sample_vals is not None
+        assert model.sample_map is None
+
+    @pytest.mark.unit
+    def test_the_sample_map_survives_subcatchment_aggregation(self, tmp_path):
+        """Subcatchment aggregation builds the id map from the LDD; the writer
+        reads it from the field, which must stay alive for the run."""
+        config = write_synthetic_dataset(str(tmp_path))
+        configuration = ModelConfiguration(config, validate_input=False)
+        configuration.output_variables = configuration.output_variables.model_copy(
+            update={"aggregation": "subcatchment"}
+        )
+        wrapper = DynamicFrameworkWrapper.load(configuration)
+        model = wrapper.dynamic_model_concept
+
+        wrapper.run()
+
+        assert model.sample_map is not None
 
 
 class TestRasterFileFormatAtRuntime:

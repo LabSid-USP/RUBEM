@@ -181,6 +181,9 @@ class ModelConfiguration:
             output_formats=output_formats,
             no_data_value=file.raster_file_format.no_data_value,
         )
+        from .output_raster_base import read_raster_geometry
+
+        clone_projection = read_raster_geometry(file.rasters.clone)[3] or None
         self.raster_series = InputRasterSeries(
             etp=file.directories.etp,
             etp_filename_prefix=file.filename_prefixes.etp_prefix,
@@ -197,6 +200,7 @@ class ModelConfiguration:
                 self.simulation_period.first_step,
                 self.simulation_period.last_step,
             ),
+            clone_projection=clone_projection,
         )
         self.raster_files = InputRasterFiles(
             dem=file.rasters.dem,
@@ -335,6 +339,9 @@ class ModelConfiguration:
         )
         self.series_resolvers = resolvers_from_v1(file)
         window = (self.simulation_period.first_step, self.simulation_period.last_step)
+        from .output_raster_base import read_raster_geometry
+
+        clone_projection = read_raster_geometry(rasters.clone)[3] or None
         series = file.raster_series
         if all(isinstance(getattr(series, name), DirectoryRasterSeries) for name in SERIES_NAMES):
             self.raster_series = InputRasterSeries(
@@ -350,12 +357,15 @@ class ModelConfiguration:
                 landuse_filename_prefix=series.landuse.files_prefix,
                 validate_input=validate_input,
                 required_steps=window,
+                clone_projection=clone_projection,
             )
             self._series_problems = list(self.raster_series.problems)
         else:
             self.raster_series = None
             if validate_input:
-                self._series_problems = validate_resolved_series(self.series_resolvers, *window)
+                self._series_problems = validate_resolved_series(
+                    self.series_resolvers, *window, clone_projection=clone_projection
+                )
             else:
                 self.logger.warning("Input data directories validation is disabled.")
                 self._series_problems = []
