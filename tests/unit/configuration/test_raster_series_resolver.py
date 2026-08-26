@@ -350,6 +350,35 @@ class TestCheckSeriesMemberCrs:
 
 class TestValidateResolvedSeriesCrs:
     @pytest.mark.unit
+    def test_a_fractional_land_use_member_is_a_blocking_problem(self, tmp_path):
+        """The resolver path (format 1.0 dated and monthly series) applies the
+        same categorical rule as the directory series."""
+        import numpy as np
+
+        from rubem.preprocessing._io import read_raster, write_geotiff
+        from tests.helpers.compare import ensure_gdal_drivers
+
+        ensure_gdal_drivers()
+        config = write_synthetic_dataset(str(tmp_path), raster_format="tif")
+        loaded = ModelConfiguration(config, validate_input=False)
+        member = os.path.join(config["DIRECTORIES"]["landuse"], geotiff_series_name("cob", 1))
+        landuse = read_raster(member)
+        write_geotiff(
+            member,
+            np.full(landuse.array.shape, 2.5, dtype=np.float32),
+            landuse.geotransform,
+            landuse.projection,
+            nodata=-9999.0,
+        )
+
+        problems = validate_resolved_series(loaded.series_resolvers, 1, 2)
+
+        blocking = [
+            p for p in problems if p.blocking and "Land use raster has non-integer" in str(p)
+        ]
+        assert blocking, problems
+
+    @pytest.mark.unit
     def test_a_mismatched_member_crs_is_a_blocking_problem(self, tmp_path):
         from osgeo import gdal
 

@@ -17,6 +17,8 @@ from ..configuration._problems import Problem
 # documentation build mocks numpy, so no numpy call may run at import time.
 _INT32_MAX = 2**31 - 1
 _INT32_MIN = -(2**31) + 1
+# How many offending cells are inspected when a few example values are reported.
+_SAMPLE_CELLS = 10_000
 
 
 def _valid(values: np.ndarray, no_data_value) -> np.ndarray:
@@ -111,9 +113,12 @@ def check_integer_values(values, no_data_value, file, label: str) -> Problem | N
         return None
     fractional = valid[np.mod(valid, 1) != 0]
     if fractional.size:
+        # A bounded sample: a malformed full-resolution raster may hold millions
+        # of distinct offending cells, and only a few are worth reporting.
+        sample = np.unique(fractional[:_SAMPLE_CELLS])[:10].tolist()
         return _blocking(
             f"{label} raster has non-integer values.",
-            f"Offending values: {sorted(set(fractional.tolist()))[:10]}.",
+            f"{fractional.size} cell(s); for example {sample}.",
             file,
         )
     return _check_int32_range(valid, file, label)

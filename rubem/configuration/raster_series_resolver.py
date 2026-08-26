@@ -311,11 +311,12 @@ def validate_resolved_series(
     """Validate the rasters the resolvers answer over the simulated window.
 
     Every distinct file is opened once and checked with the data rules and
-    the content rules of its series (``kp`` positive, NDVI below one), on top
+    the content rules of its series (``kp`` positive, NDVI below one, land use
+    integer classes), on top
     of the coverage report of :func:`check_coverage`. A GeoTIFF member whose
     CRS differs from ``reference_projection`` (when given) is a blocking problem.
     """
-    from ..validation.raster_content import check_below_one, check_positive
+    from ..validation.raster_content import check_below_one, check_integer_values, check_positive
     from ..validation.raster_data_rules import RasterDataRules
     from ..validation.raster_map_validator import RasterMapValidator
     from ._ranges import raster_ranges
@@ -335,6 +336,9 @@ def validate_resolved_series(
             values, no_data, file, "Class A pan coefficient (Kp)"
         ),
         "ndvi": lambda values, no_data, file: check_below_one(values, no_data, file, "NDVI"),
+        "landuse": lambda values, no_data, file: check_integer_values(
+            values, no_data, file, "Land use"
+        ),
     }
     for name, resolver in resolvers.items():
         files = []
