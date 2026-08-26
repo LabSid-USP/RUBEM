@@ -20,8 +20,10 @@ from ._io import (
     check_no_collisions,
     check_nodata_collision,
     check_same_geometry,
+    dtype_for_nodata,
     natural_sorted,
     read_raster,
+    remove_stale_manifest,
     write_geotiff,
     write_manifest,
     write_pcraster_map,
@@ -30,37 +32,6 @@ from ._io import (
 logger = logging.getLogger(__name__)
 
 TIFF_SUFFIXES = (".tif", ".tiff")
-
-
-def _dtype_for_nodata(dtype: np.dtype, nodata: float) -> np.dtype:
-    """The smallest dtype no narrower than ``dtype`` that can also hold ``nodata``.
-
-    :raises PreprocessingError: If ``nodata`` has a fractional part and
-        ``dtype`` is an integer dtype (a Boolean, Nominal, Ordinal or LDD
-        value scale cannot represent it).
-    """
-    if dtype.kind in "iu":
-        if float(nodata) != int(nodata):
-            raise PreprocessingError(
-                f"No-data value {nodata} is fractional; {dtype} is an integer value scale."
-            )
-        return np.promote_types(dtype, np.min_scalar_type(int(nodata)))
-    # A floating value scale: min_scalar_type is not used here, as it favors
-    # float16 for any value inside its exponent range regardless of whether
-    # the mantissa can represent it exactly (-9999.0 would round to -10000.0).
-    # The round trip is compared as plain Python floats, not as a numpy array
-    # against a Python scalar: NEP 50 casts the scalar down to the array's
-    # dtype for that comparison, which would call an overflowed inf "equal"
-    # to the finite value that produced it.
-    if float(dtype.type(nodata)) == float(nodata):
-        return dtype
-    return np.promote_types(dtype, np.float64)
-
-
-def _remove_stale_manifest(directory: Path) -> None:
-    """Delete a leftover ``manifest.csv`` so its presence implies a completed run."""
-    manifest = directory / MANIFEST_NAME
-    manifest.unlink(missing_ok=True)
 
 
 def _tiff_files(inputs: Sequence[PathInput]) -> list[Path]:
@@ -144,7 +115,7 @@ def tif2mapseries(
         for index, file in enumerate(files)
     ]
     check_no_collisions(targets)
-    _remove_stale_manifest(destination)
+    remove_stale_manifest(destination)
     written: list[Path] = []
     manifest: list[tuple[str, str]] = []
     for source, target in targets:
@@ -205,7 +176,7 @@ def mapseries2tif(
         digits = member.name[len(prefix) :].replace(".", "")
         targets.append((member, destination / output_raster_filename(prefix, int(digits), "tif")))
     check_no_collisions(targets)
-    _remove_stale_manifest(destination)
+    remove_stale_manifest(destination)
     written: list[Path] = []
     manifest: list[tuple[str, str]] = []
     for source, target in targets:
@@ -215,7 +186,7 @@ def mapseries2tif(
         else:
             check_same_geometry(reference, data, "mapseries2tif")
         array = data.array
-        target_dtype = _dtype_for_nodata(array.dtype, nodata)
+        target_dtype = dtype_for_nodata(array.dtype, nodata)
         valid = data.mask()
         check_nodata_collision(array, valid, nodata, "mapseries2tif")
         remap = data.nodata is not None and data.nodata != nodata
