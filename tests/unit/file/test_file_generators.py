@@ -124,6 +124,22 @@ class TestReport:
         finally:
             dataset = None
 
+    @pytest.mark.unit
+    def test_a_valid_cell_equal_to_the_no_data_value_is_refused(self, tmp_path):
+        """The sentinel doubles as the band's no-data value, so a genuine result
+        equal to it (a runoff of exactly 0 with ``no_data_value: 0``) would be
+        read back as missing. The writer refuses instead of erasing the cell."""
+        config = write_synthetic_dataset(tmp_path)
+        base_raster_info = OutputRasterBase(config["RASTERS"]["dem"])
+        variable, _ = _build_field_with_zero_and_missing()
+
+        with pytest.raises(
+            RuntimeError, match=r"1 valid cell\(s\) already equal the no-data value 0"
+        ):
+            report(variable, "itp", tmp_path, base_raster_info, timestep=1, no_data_value=0.0)
+
+        assert not (tmp_path / "itp0000001.tif").exists()
+
     @staticmethod
     def _assert_raster_matches(out_file, array, base_raster_info):
         ensure_gdal_drivers()

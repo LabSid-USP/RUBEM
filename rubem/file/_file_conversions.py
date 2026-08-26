@@ -217,14 +217,20 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
                     f"The time series file {tss_file} is empty; refusing to replace "
                     "its CSV with a header-only file."
                 )
-            if len(data[0]) != len(header):
+            divergent = next(
+                ((number, row) for number, row in enumerate(data, 1) if len(row) != len(header)),
+                None,
+            )
+            if divergent is not None:
+                number, row = divergent
                 logger.error(
                     "Number of columns in the file %s is different from the number of column names.",
                     tss_file,
                 )
                 raise ValueError(
                     f"The number of columns in the file {tss_file} is different "
-                    "from the number of column names."
+                    f"from the number of column names: data row {number} has {len(row)} "
+                    f"column(s), the column names give {len(header)}."
                 )
 
             previous_mode = _destination_mode(dst_file_path)

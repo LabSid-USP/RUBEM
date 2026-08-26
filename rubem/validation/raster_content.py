@@ -10,9 +10,15 @@ import numpy as np
 
 from ..configuration._problems import Problem
 
-# GeoTIFF sample/zone rasters are rounded and cast to int32 by read_field; an id
-# above this saturates to a negative value and silently merges with another id.
-_INT32_MAX = np.iinfo(np.int32).max
+# Categorical GeoTIFF rasters (classes, identifiers, LDD codes) are cast to
+# int32 by read_field, which refuses values the cast would alter; the same
+# limits are reported here so that validation catches them first. The lowest
+# int32 is PCRaster's own missing value on that scale. Plain integers: the
+# documentation build mocks numpy, so no numpy call may run at import time.
+_INT32_MAX = 2**31 - 1
+_INT32_MIN = -(2**31) + 1
+# How many offending cells are inspected when a few example values are reported.
+_SAMPLE_CELLS = 10_000
 
 
 def _valid(values: np.ndarray, no_data_value) -> np.ndarray:
@@ -85,15 +91,37 @@ def check_extremes(
 
 
 def _check_int32_range(ids: np.ndarray, file, label: str) -> Problem | None:
-    """Identifiers above the int32 range saturate when a GeoTIFF is read as Nominal."""
-    if ids.max() > _INT32_MAX:
+    """Values outside the int32 range cannot be read as classes from a GeoTIFF."""
+    if ids.max() > _INT32_MAX or ids.min() < _INT32_MIN:
         return _blocking(
             f"{label} identifiers must fit a 32-bit integer.",
-            f"Maximum value: {int(ids.max())}; a GeoTIFF raster is read with identifiers cast "
-            f"to int32 (max {_INT32_MAX}).",
+            f"Values range from {ids.min():.0f} to {ids.max():.0f}; a GeoTIFF raster is read "
+            f"with the values cast to int32 ({_INT32_MIN}..{_INT32_MAX}).",
             file,
         )
     return None
+
+
+def check_integer_values(values, no_data_value, file, label: str) -> Problem | None:
+    """Every valid cell of a categorical raster must be an integer within the int32 range.
+
+    Classes and codes are read from a GeoTIFF as int32; a fractional class
+    would otherwise be rounded onto a neighbouring one.
+    """
+    valid = _valid(values, no_data_value)
+    if valid.size == 0:
+        return None
+    fractional = valid[np.mod(valid, 1) != 0]
+    if fractional.size:
+        # A bounded sample: a malformed full-resolution raster may hold millions
+        # of distinct offending cells, and only a few are worth reporting.
+        sample = np.unique(fractional[:_SAMPLE_CELLS])[:10].tolist()
+        return _blocking(
+            f"{label} raster has non-integer values.",
+            f"{fractional.size} cell(s); for example {sample}.",
+            file,
+        )
+    return _check_int32_range(valid, file, label)
 
 
 def check_sample_ids(values, no_data_value, file) -> Problem | None:

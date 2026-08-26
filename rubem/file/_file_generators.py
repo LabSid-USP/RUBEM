@@ -3,11 +3,13 @@ import os
 from pathlib import Path
 
 from osgeo import gdal
+from pcraster import defined
 from pcraster._pcraster import Field
 from pcraster.framework import pcr2numpy
 
 from ..configuration.output_format import OutputFileFormat
 from ..configuration.output_raster_base import OutputRasterBase
+from ..preprocessing._io import PreprocessingError, check_nodata_collision
 from ._naming import output_raster_filename
 
 logger = logging.getLogger(__name__)
@@ -47,6 +49,8 @@ def report(
 
     :raises ValueError: If ``file_format`` is not ``OutputFileFormat.GEOTIFF``.
         PCRaster maps are written by the framework's own ``report``.
+    :raises RuntimeError: If a valid cell of ``variable`` equals ``no_data_value``
+        (it would be read back as missing), or if GDAL cannot write the file.
     """
     if file_format != OutputFileFormat.GEOTIFF:
         raise ValueError(f"Unsupported output file format: {file_format}")
@@ -79,6 +83,17 @@ def __report(
         filename = f"{name}.{extension}"
     out_tif = str((Path(os.fsdecode(outpath)) / filename).absolute())
 
+    # The sentinel is written into the missing cells and declared as the
+    # band's no-data value, so a valid cell holding that exact value (a
+    # runoff of 0 with no_data_value 0) would be indistinguishable from a
+    # missing one on read. Same policy as the preprocessing writers.
+    array = pcr2numpy(variable, no_data_value)
+    valid = pcr2numpy(defined(variable), 0).astype(bool)
+    try:
+        check_nodata_collision(array, valid, no_data_value, f"Could not write the raster {out_tif}")
+    except PreprocessingError as e:
+        raise RuntimeError(str(e)) from e
+
     gdal.UseExceptions()
     gdal.AllRegister()
 
@@ -93,7 +108,7 @@ def __report(
         ) as dataset:
             band = dataset.GetRasterBand(1)
             band.SetNoDataValue(no_data_value)
-            band.WriteArray(pcr2numpy(variable, no_data_value))
+            band.WriteArray(array)
             dataset.SetGeoTransform(base_raster_info.transformation)
             if base_raster_info.projection:
                 dataset.SetProjection(base_raster_info.projection)

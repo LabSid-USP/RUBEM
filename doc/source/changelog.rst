@@ -192,6 +192,13 @@ Fixed
   generated from an environment holding only the wheel, the pre-commit file
   hooks run in the lint job, and ``.editorconfig`` leaves the PCRaster
   series members alone.
+- Outputs and inputs: a GeoTIFF output whose valid cell equals the no-data
+  value fails the run instead of reading back as missing, a categorical
+  GeoTIFF input (soil, land use, LDD, samples, zones) with a non-integer
+  value or one outside the 32-bit integer range is refused at validation
+  and at read time instead of being rounded or wrapped, a valid ``False``
+  cell of a boolean GeoTIFF is no longer read as missing, and the ``.tss``
+  to CSV conversion checks the column count of every data row.
 
 Removed
 ```````
