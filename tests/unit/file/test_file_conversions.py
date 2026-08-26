@@ -103,6 +103,22 @@ class TestTss2Csv:
             tss2csv([], [])
 
     @pytest.mark.unit
+    def test_a_later_row_with_a_divergent_column_count_is_refused(self, tmp_path):
+        """Every data row is checked, not only the first: a truncated or overlong
+        later row would otherwise be written as a malformed CSV."""
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5, 20.5), (2, 11.0), (3, 12.0, 22.0, 32.0)])
+
+        with pytest.raises(
+            ValueError, match=r"data row 2 has 2 column\(s\), the column names give 3"
+        ):
+            tss2csv([tss], ["1", "2"])
+
+        assert tss.exists()
+        assert not list(tmp_path.glob("*.csv"))
+        assert not list(tmp_path.glob("*.tmp"))
+
+    @pytest.mark.unit
     def test_failure_leaves_sources_and_no_partial_outputs(self, tmp_path):
         good = tmp_path / "tss_good.tss"
         bad = tmp_path / "tss_bad.tss"
