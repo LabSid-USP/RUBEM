@@ -10,8 +10,12 @@ on:
 permissions:
   contents: read
 
+# Pull request runs supersede each other; pushes to main get one group per
+# commit, since GitHub keeps at most one running and one pending run per group
+# and cancels the rest, which left main without a completed run after
+# back-to-back merges.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

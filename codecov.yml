@@ -1,0 +1,14 @@
+# Codecov status checks. The hard coverage gate is pytest-cov's ``fail_under``
+# in pyproject.toml, enforced by the test jobs; these statuses are informative
+# and must only turn red on a real regression, not on the fraction of a
+# percent that a small pull request moves the project value by.
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0.5%
+    patch:
+      default:
+        target: auto
+        informational: true
