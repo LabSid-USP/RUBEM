@@ -218,6 +218,22 @@ class TestKrigeSeries:
         assert not (tmp_path / "out" / "manifest.csv").exists()
 
     @pytest.mark.unit
+    def test_a_station_file_named_like_the_output_manifest_is_refused(self, tmp_path):
+        """The stale-manifest cleanup would otherwise delete the input."""
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((3, 3), np.float32), TRANSFORM)
+        (tmp_path / "out").mkdir()
+        stations = matrix_file(
+            tmp_path / "out" / "manifest.csv",
+            [[250.0, 1250.0, 10.0], [1250.0, 1250.0, 20.0], [250.0, 250.0, 30.0]],
+        )
+
+        with pytest.raises(PreprocessingError, match="manifest of the output directory"):
+            krige_file(stations, clone, tmp_path / "out", "prec")
+
+        assert stations.is_file()
+
+    @pytest.mark.unit
     def test_interpolation_leaves_the_global_random_state_alone(self, tmp_path, kriging_deps):
         """Nothing in the kriging path draws random numbers; the library must
         not reseed the host process's NumPy generator."""

@@ -24,6 +24,7 @@ import numpy as np
 from .._paths import PathInput, as_path
 from ..file._naming import get_raster_series_filepath
 from ._io import (
+    MANIFEST_NAME,
     PreprocessingError,
     ValueScale,
     check_nodata_collision,
@@ -393,7 +394,18 @@ def krige_file(
     delimiter: str = ";",
     **options,
 ) -> list[Path]:
-    """Read a station file and interpolate every step; see :func:`krige_series`."""
+    """Read a station file and interpolate every step; see :func:`krige_series`.
+
+    :raises PreprocessingError: If the station file is the output directory's
+        ``manifest.csv``; :func:`krige_series` removes a stale manifest before
+        writing and would delete the input.
+    """
+    source = as_path(stations_file).resolve()
+    if source == (as_path(output_dir) / MANIFEST_NAME).resolve():
+        raise PreprocessingError(
+            f"The station file {source} is the manifest of the output directory; "
+            "choose another output directory or station file name."
+        )
     return krige_series(
         read_stations(stations_file, layout, delimiter), clone, output_dir, prefix, **options
     )
