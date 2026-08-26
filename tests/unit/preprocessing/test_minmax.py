@@ -33,9 +33,10 @@ class TestSeriesExtremes:
     def test_missing_cells_are_ignored(self, tmp_path):
         files = series(tmp_path / "in")
 
-        minimum, maximum, valid, reference = series_extremes([tmp_path / "in"])
+        minimum, maximum, valid, reference, dtype = series_extremes([tmp_path / "in"])
 
         assert valid.tolist() == [[True, True], [True, False]]
+        assert dtype == np.float32
         assert minimum[0, 0] == 3.0 and maximum[0, 0] == 3.0
         assert minimum[0, 1] == 2.0 and maximum[0, 1] == 9.0
         assert minimum[1, 0] == 1.0 and maximum[1, 0] == 7.0
@@ -113,6 +114,41 @@ class TestMinMax:
                 tmp_path / "extreme.tif",
             )
         assert not (tmp_path / "extreme.tif").exists()
+
+    @pytest.mark.unit
+    def test_float64_sources_keep_float64_outputs(self, tmp_path):
+        """A valid value beyond the Float32 range (1e40) would become ``inf``
+        in a Float32 output and then read as missing."""
+        ensure_gdal_drivers()
+        directory = tmp_path / "in"
+        directory.mkdir()
+        layers = [
+            np.array([[1e40, 5.0]], dtype=np.float64),
+            np.array([[2.0, -1e40]], dtype=np.float64),
+        ]
+        for i, layer in enumerate(layers, 1):
+            write_geotiff(directory / f"ndvi{i}.tif", layer, TRANSFORM, nodata=-9999.0)
+
+        written_min, written_max = minmax([directory], tmp_path / "min.tif", tmp_path / "max.tif")
+
+        minimum = read_raster(written_min)
+        maximum = read_raster(written_max)
+        assert minimum.array.dtype == np.float64 and maximum.array.dtype == np.float64
+        assert minimum.array.tolist() == [[2.0, -1e40]]
+        assert maximum.array.tolist() == [[1e40, 5.0]]
+        assert minimum.mask().all() and maximum.mask().all()
+
+    @pytest.mark.unit
+    def test_a_no_data_value_float32_cannot_hold_widens_the_outputs(self, tmp_path):
+        series(tmp_path / "in")
+
+        written_min, _ = minmax(
+            [tmp_path / "in"], tmp_path / "min.tif", tmp_path / "max.tif", nodata=16777217.0
+        )
+
+        minimum = read_raster(written_min)
+        assert minimum.array.dtype == np.float64 and minimum.nodata == 16777217.0
+        assert minimum.array.tolist() == [[3.0, 2.0], [1.0, 16777217.0]]
 
     @pytest.mark.unit
     def test_a_valid_zero_refuses_no_data_zero(self, tmp_path):
