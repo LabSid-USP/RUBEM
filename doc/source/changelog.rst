@@ -69,7 +69,7 @@ Added
   series onto the clone grid, one map per step, reading the legacy matrix
   layout or a long ``step;id;x;y;value`` layout, with the negative-value
   policy (clamp by default), the kriging metric derived from the clone's
-  coordinate reference system, the variogram settings and a seed; the legacy
+  coordinate reference system and the variogram settings; the legacy
   ``kriging`` module is deprecated.
 - Accepted GeoTIFF input rasters and series (``.tif``/``.tiff``): rasters are
   read through GDAL onto the clone grid, a GeoTIFF clone sets the grid
@@ -199,6 +199,12 @@ Fixed
   and at read time instead of being rounded or wrapped, a valid ``False``
   cell of a boolean GeoTIFF is no longer read as missing, and the ``.tss``
   to CSV conversion checks the column count of every data row.
+- Preprocessing: ``minmax`` writes the common type of the series' bands
+  (Float64 sources no longer overflow to ``inf`` in a Float32 output),
+  kriging removes a stale ``manifest.csv`` before writing, and the unused
+  ``--seed`` option of ``rubem preprocess krige`` is gone (nothing in the
+  kriging path draws random numbers, and it reseeded the process's global
+  NumPy generator).
 
 Removed
 ```````
