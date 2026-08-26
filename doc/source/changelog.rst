@@ -195,6 +195,11 @@ Fixed
   generated from an environment holding only the wheel, the pre-commit file
   hooks run in the lint job, and ``.editorconfig`` leaves the PCRaster
   series members alone.
+- CI: pushes to ``main`` no longer cancel each other (one concurrency group
+  per commit; pull request runs still supersede each other), and the Codecov
+  statuses carry explicit thresholds (``codecov.yml``: the project value may
+  move by 0.5%, the patch status is informational; the hard gate stays
+  pytest-cov's ``fail_under``).
 - Outputs and inputs: a GeoTIFF output whose valid cell equals the no-data
   value fails the run instead of reading back as missing, a categorical
   GeoTIFF input (soil, land use, LDD, samples, zones) with a non-integer
