@@ -139,6 +139,56 @@ class TestLoad:
         with pytest.raises(ValidationError):
             settings.logging = {"version": 1}
 
+    @pytest.mark.unit
+    def test_the_logging_settings_are_frozen_all_the_way_down(self, tmp_path):
+        """``AppSettings.default()`` is cached: a mutable ``logging`` dictionary
+        would let one consumer's change reach every other one."""
+        custom = tmp_path / "custom.json"
+        payload = packaged_settings()
+        payload["logging"] = {
+            "version": 1,
+            "handlers": {"console": {"class": "logging.StreamHandler"}},
+            "root": {"handlers": ["console"]},
+        }
+        custom.write_text(json.dumps(payload), encoding="utf8")
+
+        settings = AppSettings.load(custom)
+
+        with pytest.raises(TypeError):
+            settings.logging["version"] = 2
+        with pytest.raises(TypeError):
+            settings.logging["handlers"]["console"]["class"] = "logging.NullHandler"
+        assert not hasattr(settings.logging["root"]["handlers"], "append")
+        assert settings.logging["root"]["handlers"] == ("console",)
+        assert not hasattr(AppSettings.default().logging, "clear")
+
+    @pytest.mark.unit
+    def test_get_setting_and_model_dump_hand_out_plain_copies(self, tmp_path):
+        """``dictConfig`` pops keys from what it is given, so consumers get
+        fresh dictionaries and lists; mutating them leaves the settings alone."""
+        custom = tmp_path / "custom.json"
+        payload = packaged_settings()
+        payload["logging"] = {
+            "version": 1,
+            "handlers": {"console": {"class": "logging.StreamHandler"}},
+            "root": {"handlers": ["console"]},
+        }
+        custom.write_text(json.dumps(payload), encoding="utf8")
+        settings = AppSettings.load(custom)
+
+        copy = settings.get_setting("logging")
+        copy["handlers"]["console"]["class"] = "logging.NullHandler"
+        copy["root"]["handlers"].append("other")
+
+        assert copy == {
+            "version": 1,
+            "handlers": {"console": {"class": "logging.NullHandler"}},
+            "root": {"handlers": ["console", "other"]},
+        }
+        assert settings.get_setting("logging") == payload["logging"]
+        assert settings.model_dump()["logging"] == payload["logging"]
+        assert AppSettings.default().get_setting("logging") == {}
+
 
 class TestEnvironmentSelection:
     @pytest.mark.unit
@@ -150,7 +200,7 @@ class TestEnvironmentSelection:
         )
         with open(PACKAGE_DIR / "appsettings.Development.json", encoding="utf8") as file:
             expected = json.load(file)
-        assert AppSettings.default().logging == expected["logging"]
+        assert AppSettings.default().get_setting("logging") == expected["logging"]
 
     @pytest.mark.unit
     def test_a_file_in_the_working_directory_is_selected(self, monkeypatch, tmp_path):
