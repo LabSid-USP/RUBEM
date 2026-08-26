@@ -16,12 +16,46 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, field_serializer, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from .._paths import PathInput, as_path
 
 PACKAGE_DIR = Path(__file__).parent.parent
 DEFAULT_SETTINGS_FILE = PACKAGE_DIR / "appsettings.json"
+
+
+def _freeze(value):
+    """A read-only view of JSON-like data, mappings and sequences included.
+
+    A frozen model still hands out its mutable ``dict`` and ``list`` members;
+    with :meth:`AppSettings.default` cached, a mutation through one reference
+    would be observed by every other consumer.
+    """
+    if isinstance(value, Mapping):
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(item) for item in value)
+    return value
+
+
+def _thaw(value):
+    """A plain, mutable copy of what :func:`_freeze` produced.
+
+    ``logging.config.dictConfig`` pops keys from the dictionaries it is given,
+    so consumers receive copies, never the frozen settings themselves.
+    """
+    if isinstance(value, Mapping):
+        return {key: _thaw(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw(item) for item in value]
+    return value
 
 
 def _finite(value):
@@ -95,13 +129,24 @@ class AppSettings(BaseModel):
     :param value_ranges: Admissible ranges of the input rasters and the model variables.
     :param i18n: Language settings.
     :param logging: A ``logging.config.dictConfig`` dictionary; empty for the default setup.
+        Read-only on the instance; :meth:`get_setting` and :meth:`model_dump`
+        hand out plain copies.
     """
 
     model_config = ConfigDict(frozen=True, extra="ignore")
 
     value_ranges: ValueRanges
     i18n: I18nSettings = I18nSettings()
-    logging: dict[str, Any] = {}
+    logging: Mapping[str, Any] = Field(default={}, validate_default=True)
+
+    @field_validator("logging", mode="after")
+    @classmethod
+    def _freeze_logging(cls, value: Mapping[str, Any]) -> Mapping[str, Any]:
+        return _freeze(value)
+
+    @field_serializer("logging")
+    def _serialize_logging(self, value: Mapping[str, Any]) -> dict[str, Any]:
+        return _thaw(value)
 
     @classmethod
     def load(cls, settings_file: PathInput) -> "AppSettings":
@@ -139,7 +184,7 @@ class AppSettings(BaseModel):
         if key not in type(self).model_fields:
             return None
         value = getattr(self, key)
-        return value.model_dump() if isinstance(value, BaseModel) else value
+        return value.model_dump() if isinstance(value, BaseModel) else _thaw(value)
 
 
 @lru_cache(maxsize=8)

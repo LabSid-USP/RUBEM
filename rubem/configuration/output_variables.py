@@ -141,7 +141,8 @@ class OutputVariables(BaseModel):
                 for o in objects
             )
         # Pydantic's own bool semantics ("false"/"0"/... parse as False), not
-        # Python's bool() (any non-empty string, including "false", is truthy).
+        # Python's bool() (any non-empty string, including "false", is truthy);
+        # the same goes for every variable flag below.
         tss = _BOOL_ADAPTER.validate_python(expanded.get("tss", False))
         for variable_id in VARIABLE_IDS:
             value = expanded.get(variable_id, False)
@@ -156,7 +157,7 @@ class OutputVariables(BaseModel):
                     else:
                         expanded[variable_id] = {**value, "is_time_series_enabled": False}
                 continue
-            enabled = bool(value)
+            enabled = _BOOL_ADAPTER.validate_python(value)
             expanded[variable_id] = OutputVariable(
                 id=variable_id,
                 is_raster_series_enabled=enabled,

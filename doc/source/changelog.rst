@@ -205,6 +205,11 @@ Fixed
   ``--seed`` option of ``rubem preprocess krige`` is gone (nothing in the
   kriging path draws random numbers, and it reseeded the process's global
   NumPy generator).
+- Configuration: the ``logging`` settings of the cached ``AppSettings`` are
+  read-only all the way down (``get_setting`` and ``model_dump`` hand out
+  plain copies), and the per-variable output flags follow Pydantic's bool
+  parsing (``"false"`` disables a variable instead of enabling it; an
+  unparsable string is rejected).
 
 Removed
 ```````

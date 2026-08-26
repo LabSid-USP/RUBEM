@@ -150,6 +150,24 @@ class TestTssBoolSemantics:
         with pytest.raises(ValidationError):
             OutputVariables(itp=True, tss="not-a-boolean")
 
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "value, expected",
+        [("false", False), ("0", False), ("no", False), (0, False), ("true", True), (1, True)],
+    )
+    def test_variable_flags_use_pydantic_bool_semantics_not_pythons(self, value, expected):
+        variables = OutputVariables(itp=value, tss=True)
+
+        assert variables.itp.is_raster_series_enabled is expected
+        assert variables.itp.is_time_series_enabled is expected
+
+    @pytest.mark.unit
+    def test_an_unparsable_variable_flag_is_rejected(self):
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            OutputVariables(itp="not-a-boolean")
+
 
 class TestNestedObjectConsistency:
     @pytest.mark.unit
