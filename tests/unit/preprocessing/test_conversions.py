@@ -151,6 +151,20 @@ class TestTif2MapSeries:
             tif2mapseries(tmp_path / "in", "prefix08", tmp_path / "out")
 
     @pytest.mark.unit
+    def test_a_clone_named_like_the_output_manifest_is_refused(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "out").mkdir()
+        clone = write_geotiff(
+            tmp_path / "out" / "manifest.csv", np.ones((2, 2), np.float32), TRANSFORM
+        )
+        write_geotiff(tmp_path / "in" / "etp1.tif", np.ones((2, 2), np.float32), TRANSFORM)
+
+        with pytest.raises(PreprocessingError, match="manifest of the output directory"):
+            tif2mapseries(tmp_path / "in", "etp", output_dir=tmp_path / "out", clone=clone)
+
+        assert clone.is_file()
+
+    @pytest.mark.unit
     def test_a_stale_manifest_does_not_survive_a_failing_run(self, tmp_path):
         geotiffs(tmp_path / "in", count=2)
         ensure_gdal_drivers()
@@ -324,6 +338,20 @@ class TestMapSeries2Tif:
 
         with pytest.raises(PreprocessingError, match="fractional"):
             mapseries2tif(tmp_path / "series", "b", nodata=-9999.5)
+
+    @pytest.mark.unit
+    def test_a_clone_named_like_the_output_manifest_is_refused(self, tmp_path):
+        ensure_gdal_drivers()
+        (tmp_path / "out").mkdir()
+        clone = write_geotiff(
+            tmp_path / "out" / "manifest.csv", np.ones((2, 2), np.float32), TRANSFORM
+        )
+        write_geotiff(tmp_path / "in" / "etp1.tif", np.ones((2, 2), np.float32), TRANSFORM)
+
+        with pytest.raises(PreprocessingError, match="manifest of the output directory"):
+            tif2mapseries(tmp_path / "in", "etp", output_dir=tmp_path / "out", clone=clone)
+
+        assert clone.is_file()
 
     @pytest.mark.unit
     def test_a_stale_manifest_does_not_survive_a_failing_run(self, tmp_path):

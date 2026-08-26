@@ -27,7 +27,9 @@ from ._io import (
     PreprocessingError,
     ValueScale,
     check_nodata_collision,
+    check_not_manifest,
     read_raster,
+    remove_stale_manifest,
     write_manifest,
     write_pcraster_map,
 )
@@ -301,7 +303,6 @@ def krige_series(
     coordinates_type: CoordinatesType = CoordinatesType.AUTO,
     variogram_model: str = VariogramModel.SPHERICAL,
     n_lags: int = 25,
-    seed: int | None = None,
     nodata: float = -9999.0,
 ) -> list[Path]:
     """Write one PCRaster map per step of the station series on the clone grid.
@@ -310,8 +311,9 @@ def krige_series(
     :raises PreprocessingError: With fewer than three stations, two stations
         sharing a coordinate, an unsupported variogram model, more steps than
         the file carries, a clone geometry the maps cannot express (rotated
-        or south-up), or a step whose interpolated grid already has a valid
-        cell equal to ``nodata``.
+        or south-up), a clone that is the output directory's ``manifest.csv``
+        (removed before writing), or a step whose interpolated grid already
+        has a valid cell equal to ``nodata``.
     """
     if len(stations.ids) < MINIMUM_STATIONS:
         raise PreprocessingError(
@@ -357,9 +359,9 @@ def krige_series(
         if coordinates_type is CoordinatesType.AUTO
         else coordinates_type
     )
-    if seed is not None:
-        np.random.seed(seed)
     destination = as_path(output_dir)
+    check_not_manifest(clone, destination, "The clone")
+    remove_stale_manifest(destination)
     written: list[Path] = []
     manifest: list[tuple[str, str]] = []
     for index in range(count):
@@ -394,7 +396,13 @@ def krige_file(
     delimiter: str = ";",
     **options,
 ) -> list[Path]:
-    """Read a station file and interpolate every step; see :func:`krige_series`."""
+    """Read a station file and interpolate every step; see :func:`krige_series`.
+
+    :raises PreprocessingError: If the station file is the output directory's
+        ``manifest.csv``; :func:`krige_series` removes a stale manifest before
+        writing and would delete the input.
+    """
+    check_not_manifest(stations_file, output_dir, "The station file")
     return krige_series(
         read_stations(stations_file, layout, delimiter), clone, output_dir, prefix, **options
     )

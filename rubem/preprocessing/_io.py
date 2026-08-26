@@ -365,6 +365,58 @@ def write_pcraster_map(
     return as_path(destination)
 
 
+def dtype_for_nodata(dtype: np.dtype, nodata: float) -> np.dtype:
+    """The smallest dtype no narrower than ``dtype`` that can also hold ``nodata``.
+
+    :raises PreprocessingError: If ``nodata`` has a fractional part and
+        ``dtype`` is an integer dtype (a Boolean, Nominal, Ordinal or LDD
+        value scale cannot represent it).
+    """
+    dtype = np.dtype(dtype)
+    if dtype.kind in "iu":
+        if float(nodata) != int(nodata):
+            raise PreprocessingError(
+                f"No-data value {nodata} is fractional; {dtype} is an integer value scale."
+            )
+        return np.promote_types(dtype, np.min_scalar_type(int(nodata)))
+    # A floating value scale: min_scalar_type is not used here, as it favors
+    # float16 for any value inside its exponent range regardless of whether
+    # the mantissa can represent it exactly (-9999.0 would round to -10000.0).
+    # The round trip is compared as plain Python floats, not as a numpy array
+    # against a Python scalar: NEP 50 casts the scalar down to the array's
+    # dtype for that comparison, which would call an overflowed inf "equal"
+    # to the finite value that produced it.
+    if float(dtype.type(nodata)) == float(nodata):
+        return dtype
+    return np.promote_types(dtype, np.float64)
+
+
+def check_not_manifest(path: PathInput | None, directory: PathInput, label: str) -> None:
+    """Refuse an input that is the output directory's ``manifest.csv``.
+
+    :func:`remove_stale_manifest` deletes that file before the outputs are
+    written, and GDAL opens rasters by content, not by extension: a clone or
+    a station file under that name would be read and then destroyed.
+    """
+    if path is None:
+        return
+    if as_path(path).resolve() == (as_path(directory) / MANIFEST_NAME).resolve():
+        raise PreprocessingError(
+            f"{label} {as_path(path)} is the manifest of the output directory, which is "
+            "removed before the outputs are written; choose another output directory."
+        )
+
+
+def remove_stale_manifest(directory: PathInput) -> None:
+    """Delete a leftover ``manifest.csv`` so its presence implies a completed run.
+
+    Every tool that writes a manifest calls this before its first output: a
+    rerun that fails midway must not leave the previous run's manifest
+    announcing a complete set.
+    """
+    (as_path(directory) / MANIFEST_NAME).unlink(missing_ok=True)
+
+
 def write_manifest(directory: PathInput, rows: Iterable[tuple[str, str]]) -> Path:
     """Write ``manifest.csv`` (source, target) atomically; call it last."""
     manifest = as_path(directory) / MANIFEST_NAME
