@@ -164,7 +164,7 @@ class TestKrigeSeries:
         )
 
         with caplog.at_level("WARNING"):
-            written = krige_series(stations, clone, tmp_path / "out", "prec", seed=1)
+            written = krige_series(stations, clone, tmp_path / "out", "prec")
 
         assert [p.name for p in written] == [series_name("prec", 1), series_name("prec", 2)]
         assert "outside the clone extent: ['e']" in caplog.text
@@ -196,6 +196,46 @@ class TestKrigeSeries:
         # The default sentinel does not collide with any interpolated cell.
         written = krige_series(stations, clone, tmp_path / "out", "prec")
         assert read_raster(written[0]).array[0, 0] == pytest.approx(0.0)
+
+    @pytest.mark.unit
+    def test_a_stale_manifest_does_not_survive_a_failing_run(self, tmp_path, kriging_deps):
+        """The manifest's presence means a completed run: a rerun that fails
+        must not leave the previous run's manifest behind."""
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((3, 3), np.float32), TRANSFORM)
+        stations = Stations(
+            x=np.array([250.0, 1250.0, 250.0]),
+            y=np.array([1250.0, 1250.0, 250.0]),
+            values=np.array([[-50.0, 100.0, 80.0]]),
+            ids=("a", "b", "c"),
+        )
+        (tmp_path / "out").mkdir()
+        (tmp_path / "out" / "manifest.csv").write_text("source,target\nstale,stale\n", "utf8")
+
+        with pytest.raises(PreprocessingError, match="valid cell"):
+            krige_series(stations, clone, tmp_path / "out", "prec", nodata=0.0)
+
+        assert not (tmp_path / "out" / "manifest.csv").exists()
+
+    @pytest.mark.unit
+    def test_interpolation_leaves_the_global_random_state_alone(self, tmp_path, kriging_deps):
+        """Nothing in the kriging path draws random numbers; the library must
+        not reseed the host process's NumPy generator."""
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((3, 3), np.float32), TRANSFORM)
+        stations = Stations(
+            x=np.array([250.0, 1250.0, 250.0]),
+            y=np.array([1250.0, 1250.0, 250.0]),
+            values=np.array([[10.0, 20.0, 30.0]]),
+            ids=("a", "b", "c"),
+        )
+        before = np.random.get_state()
+
+        krige_series(stations, clone, tmp_path / "out", "prec")
+
+        after = np.random.get_state()
+        assert before[0] == after[0] and np.array_equal(before[1], after[1])
+        assert before[2:] == after[2:]
 
     @pytest.mark.unit
     def test_station_and_step_limits(self, tmp_path, kriging_deps):

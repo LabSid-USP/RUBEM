@@ -28,6 +28,7 @@ from ._io import (
     ValueScale,
     check_nodata_collision,
     read_raster,
+    remove_stale_manifest,
     write_manifest,
     write_pcraster_map,
 )
@@ -301,7 +302,6 @@ def krige_series(
     coordinates_type: CoordinatesType = CoordinatesType.AUTO,
     variogram_model: str = VariogramModel.SPHERICAL,
     n_lags: int = 25,
-    seed: int | None = None,
     nodata: float = -9999.0,
 ) -> list[Path]:
     """Write one PCRaster map per step of the station series on the clone grid.
@@ -357,9 +357,8 @@ def krige_series(
         if coordinates_type is CoordinatesType.AUTO
         else coordinates_type
     )
-    if seed is not None:
-        np.random.seed(seed)
     destination = as_path(output_dir)
+    remove_stale_manifest(destination)
     written: list[Path] = []
     manifest: list[tuple[str, str]] = []
     for index in range(count):

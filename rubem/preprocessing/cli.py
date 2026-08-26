@@ -261,9 +261,6 @@ def krige_command(
     n_lags: Annotated[
         int, typer.Option("--n-lags", min=2, help="Number of lags of the empirical variogram.")
     ] = 25,
-    seed: Annotated[
-        int | None, typer.Option("--seed", help="Random seed for reproducible variogram fits.")
-    ] = None,
     nodata: Annotated[
         float, typer.Option("--nodata", help="Missing value written to the maps.")
     ] = -9999.0,
@@ -289,7 +286,6 @@ def krige_command(
             coordinates_type=CoordinatesType(coordinates_type),
             variogram_model=variogram_model,
             n_lags=n_lags,
-            seed=seed,
             nodata=nodata,
         )
 
