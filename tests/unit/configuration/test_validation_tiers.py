@@ -80,6 +80,49 @@ class TestLoaderBlocksOnContent:
         assert any("not positive" in r for r in blocking_reasons(error.value))
 
     @pytest.mark.unit
+    def test_a_fractional_soil_class_blocks(self, tmp_path):
+        """A GeoTIFF soil raster is read as int32 classes; 1.5 would round onto 2."""
+        from rubem.preprocessing._io import read_raster, write_geotiff
+
+        config = write_synthetic_dataset(str(tmp_path), raster_format="tif")
+        soil = read_raster(config["RASTERS"]["soil"])
+        write_geotiff(
+            config["RASTERS"]["soil"],
+            np.full(soil.array.shape, 1.5, dtype=np.float32),
+            soil.geotransform,
+            soil.projection,
+            nodata=-9999.0,
+        )
+
+        with pytest.raises(ConfigurationError) as error:
+            ModelConfiguration(config)
+
+        assert any("Soil raster has non-integer values" in r for r in blocking_reasons(error.value))
+
+    @pytest.mark.unit
+    def test_a_fractional_land_use_class_blocks(self, tmp_path):
+        from rubem.preprocessing._io import read_raster, write_geotiff
+        from tests.helpers.synthetic import geotiff_series_name
+
+        config = write_synthetic_dataset(str(tmp_path), raster_format="tif")
+        member = os.path.join(config["DIRECTORIES"]["landuse"], geotiff_series_name("cob", 1))
+        landuse = read_raster(member)
+        write_geotiff(
+            member,
+            np.full(landuse.array.shape, 2.5, dtype=np.float32),
+            landuse.geotransform,
+            landuse.projection,
+            nodata=-9999.0,
+        )
+
+        with pytest.raises(ConfigurationError) as error:
+            ModelConfiguration(config)
+
+        assert any(
+            "Land use raster has non-integer values" in r for r in blocking_reasons(error.value)
+        )
+
+    @pytest.mark.unit
     def test_ndvi_extremes_must_be_ordered(self, config):
         import pcraster as pcr
 

@@ -22,7 +22,7 @@ from ..file._naming import (
     geotiff_series_pattern,
     raster_series_pattern,
 )
-from ..validation.raster_content import check_below_one, check_positive
+from ..validation.raster_content import check_below_one, check_integer_values, check_positive
 from ..validation.raster_data_rules import RasterDataRules
 from ..validation.raster_map_validator import RasterMapValidator
 
@@ -167,6 +167,9 @@ class InputRasterSeries(BaseModel):
                 values, no_data, file, "Class A pan coefficient (Kp)"
             ),
             "ndvi": lambda values, no_data, file: check_below_one(values, no_data, file, "NDVI"),
+            "landuse": lambda values, no_data, file: check_integer_values(
+                values, no_data, file, "Land use"
+            ),
         }
 
         problems = []

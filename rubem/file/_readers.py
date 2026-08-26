@@ -85,11 +85,43 @@ def set_clone(path: PathInput, projection: str | None = None) -> None:
     _clone_projection = projection if projection is not None else file_projection
 
 
+# PCRaster's own missing value of the INT4 (nominal/ordinal/LDD) cell
+# representation; the range check keeps every valid class above it, so it
+# never collides with data the way a -9999 sentinel could.
+_INT32_MISSING = int(np.iinfo(np.int32).min)
+# PCRaster's own missing value of the UINT1 (boolean) cell representation.
+_UINT8_MISSING = 255
+
+
+def _check_integer_classes(valid_values: np.ndarray, file: Path, scale: FieldScale) -> None:
+    """Categorical values are cast to int32 classes: refuse what the cast would alter.
+
+    Rounding would turn 1.5 into class 2 and a value beyond the int32 range
+    would wrap onto another class; both are silent data corruption.
+    """
+    if not valid_values.size:
+        return
+    fractional = valid_values[np.mod(valid_values, 1) != 0]
+    if fractional.size:
+        raise ValueError(
+            f"{file} is read on the {scale.value} scale but holds non-integer values "
+            f"(for example {fractional[0]!r})."
+        )
+    lowest, highest = float(valid_values.min()), float(valid_values.max())
+    if lowest <= _INT32_MISSING or highest > np.iinfo(np.int32).max:
+        raise ValueError(
+            f"{file} holds values outside the 32-bit integer range of the {scale.value} scale "
+            f"({_INT32_MISSING + 1}..{np.iinfo(np.int32).max}): {lowest:.0f}..{highest:.0f}."
+        )
+
+
 def read_field(path: PathInput, scale: FieldScale):
     """Read a raster as a PCRaster field on the current clone.
 
     :raises RuntimeError: If PCRaster cannot read a map.
-    :raises ValueError: If a GeoTIFF does not match the clone geometry.
+    :raises ValueError: If a GeoTIFF does not match the clone geometry, or if
+        a GeoTIFF read on a categorical scale (nominal, boolean, LDD) holds a
+        non-integer value or one outside the 32-bit integer range.
     """
     import pcraster as pcr
     import pcraster.framework as pcrfw
@@ -134,14 +166,16 @@ def read_field(path: PathInput, scale: FieldScale):
     if scale is FieldScale.SCALAR:
         array = np.where(mask, data.array, -9999.0).astype(np.float64)
         return pcr.numpy2pcr(pcr.Scalar, array, -9999.0)
-    values = np.where(mask, np.rint(np.asarray(data.array, dtype=np.float64)), -9999).astype(
-        np.int32
-    )
+    floats = np.asarray(data.array, dtype=np.float64)
+    _check_integer_classes(floats[mask], file, scale)
+    values = np.where(mask, floats, _INT32_MISSING).astype(np.int32)
     if scale is FieldScale.NOMINAL:
-        return pcr.numpy2pcr(pcr.Nominal, values, -9999)
+        return pcr.numpy2pcr(pcr.Nominal, values, _INT32_MISSING)
     if scale is FieldScale.BOOLEAN:
-        return pcr.numpy2pcr(pcr.Boolean, np.where(mask, values != 0, 0).astype(np.uint8), 0)
-    return pcr.ldd(pcr.numpy2pcr(pcr.Nominal, values, -9999))
+        # A valid False cell is 0, so the missing marker cannot be 0 as well.
+        flags = np.where(mask, values != 0, _UINT8_MISSING).astype(np.uint8)
+        return pcr.numpy2pcr(pcr.Boolean, flags, _UINT8_MISSING)
+    return pcr.ldd(pcr.numpy2pcr(pcr.Nominal, values, _INT32_MISSING))
 
 
 def raster_format(path: PathInput) -> str:

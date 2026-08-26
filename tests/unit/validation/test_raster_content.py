@@ -4,12 +4,46 @@ import pytest
 from rubem.validation.raster_content import (
     check_below_one,
     check_extremes,
+    check_integer_values,
     check_positive,
     check_sample_ids,
     check_zone_ids,
 )
 
 INT32_MAX = 2147483647
+INT32_MIN = -2147483648
+
+
+class TestCheckIntegerValues:
+    @pytest.mark.unit
+    def test_accepts_integer_classes_and_ignores_missing_cells(self):
+        values = np.array([[1.0, -9999.0], [2.0, np.nan]])
+
+        assert check_integer_values(values, -9999.0, "soil", "Soil") is None
+
+    @pytest.mark.unit
+    def test_rejects_fractional_classes(self):
+        """A GeoTIFF class raster is read as int32; 1.5 would be rounded onto class 2."""
+        problem = check_integer_values(np.array([[1.0, 1.5]]), None, "soil", "Soil")
+
+        assert problem is not None and problem.blocking
+        assert "non-integer" in problem.description
+        assert "1.5" in problem.reason
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [INT32_MAX + 1, INT32_MIN])
+    def test_rejects_values_outside_the_int32_range(self, value):
+        """The lowest int32 is PCRaster's own missing value on the categorical scales."""
+        problem = check_integer_values(np.array([[1, value]]), None, "soil", "Soil")
+
+        assert problem is not None and problem.blocking
+        assert "32-bit integer" in problem.description
+
+    @pytest.mark.unit
+    def test_accepts_the_int32_bounds(self):
+        values = np.array([[INT32_MAX, INT32_MIN + 1]], dtype=np.float64)
+
+        assert check_integer_values(values, None, "soil", "Soil") is None
 
 
 class TestCheckPositive:

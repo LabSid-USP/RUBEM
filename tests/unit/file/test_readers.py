@@ -195,6 +195,57 @@ class TestReadField:
         read_field(same_crs, FieldScale.SCALAR)  # Does not raise.
 
 
+class TestReadFieldCategoricalValues:
+    @pytest.mark.unit
+    def test_a_false_cell_and_a_minus_9999_class_survive(self, tmp_path):
+        """Neither 0 (a valid Boolean False) nor -9999 (a valid class when the
+        raster declares no no-data value) may double as the missing marker."""
+        import pcraster as pcr
+
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((2, 2), np.uint8), TRANSFORM)
+        set_clone(clone)
+        nominal = write_geotiff(
+            tmp_path / "n.tif", np.array([[0, -9999], [7, 1]], np.int32), TRANSFORM
+        )
+
+        classes = pcr.pcr2numpy(read_field(nominal, FieldScale.NOMINAL), -1)
+        flags = pcr.pcr2numpy(read_field(nominal, FieldScale.BOOLEAN), 9)
+
+        assert classes.tolist() == [[0, -9999], [7, 1]]
+        assert flags.tolist() == [[0, 1], [1, 1]]
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "value, message",
+        [
+            (1.5, "non-integer values"),
+            (3e9, "32-bit integer range"),
+            (-2147483648.0, "32-bit integer range"),
+        ],
+    )
+    def test_values_the_int32_cast_would_alter_are_refused(self, tmp_path, value, message):
+        """Rounding 1.5 onto class 2 or wrapping 3e9 onto another class would be
+        silent corruption; the scalar scale keeps the same values untouched."""
+        import pcraster as pcr
+
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((2, 2), np.uint8), TRANSFORM)
+        set_clone(clone)
+        raster = write_geotiff(
+            tmp_path / "n.tif",
+            np.array([[1.0, value], [3.0, 4.0]], np.float64),
+            TRANSFORM,
+            nodata=-9999.0,
+        )
+
+        for scale in (FieldScale.NOMINAL, FieldScale.BOOLEAN, FieldScale.LDD):
+            with pytest.raises(ValueError, match=message):
+                read_field(raster, scale)
+        values = pcr.pcr2numpy(read_field(raster, FieldScale.SCALAR), -1.0)
+        assert values[0, 1] == pytest.approx(value)
+
+
 class TestReadFieldLDDRegression:
     @pytest.mark.unit
     def test_a_nominal_scale_map_with_ldd_codes_is_converted_to_ldd(self, tmp_path):

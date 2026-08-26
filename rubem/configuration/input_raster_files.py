@@ -10,6 +10,7 @@ from ..configuration.raster_map import RasterMap
 from ..validation.raster_content import (
     check_below_one,
     check_extremes,
+    check_integer_values,
     check_sample_ids,
     check_zone_ids,
 )
@@ -125,7 +126,14 @@ class InputRasterFiles(BaseModel):
             with RasterMap(file, valid_range, rules) as raster:
                 logger.debug(str(raster).replace("\n", ", "))
                 valid, errors = RasterMapValidator().validate(raster)
-                if file in (self.ndvi_min, self.ndvi_max, self.sample_locations, self.zones):
+                if file in (
+                    self.ndvi_min,
+                    self.ndvi_max,
+                    self.soil,
+                    self.ldd,
+                    self.sample_locations,
+                    self.zones,
+                ):
                     band = raster.bands[0]
                     bands[file] = (band.data_array.copy(), band.no_data_value)
             if not valid:
@@ -149,6 +157,15 @@ class InputRasterFiles(BaseModel):
         problem = check_below_one(maximum, maximum_no_data, self.ndvi_max, "NDVI maximum")
         if problem is not None:
             problems.append(problem)
+        values, no_data = bands[self.soil]
+        problem = check_integer_values(values, no_data, self.soil, "Soil")
+        if problem is not None:
+            problems.append(problem)
+        if self.ldd:
+            values, no_data = bands[self.ldd]
+            problem = check_integer_values(values, no_data, self.ldd, "LDD")
+            if problem is not None:
+                problems.append(problem)
         if self.sample_locations:
             values, no_data = bands[self.sample_locations]
             problem = check_sample_ids(values, no_data, self.sample_locations)
