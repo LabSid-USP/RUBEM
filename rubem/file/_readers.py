@@ -87,8 +87,10 @@ def set_clone(path: PathInput, projection: str | None = None) -> None:
 
 # PCRaster's own missing value of the INT4 (nominal/ordinal/LDD) cell
 # representation; the range check keeps every valid class above it, so it
-# never collides with data the way a -9999 sentinel could.
-_INT32_MISSING = int(np.iinfo(np.int32).min)
+# never collides with data the way a -9999 sentinel could. Plain integers:
+# the documentation build mocks numpy, so no numpy call may run at import.
+_INT32_MISSING = -(2**31)
+_INT32_MAX = 2**31 - 1
 # PCRaster's own missing value of the UINT1 (boolean) cell representation.
 _UINT8_MISSING = 255
 
@@ -108,10 +110,10 @@ def _check_integer_classes(valid_values: np.ndarray, file: Path, scale: FieldSca
             f"(for example {fractional[0]!r})."
         )
     lowest, highest = float(valid_values.min()), float(valid_values.max())
-    if lowest <= _INT32_MISSING or highest > np.iinfo(np.int32).max:
+    if lowest <= _INT32_MISSING or highest > _INT32_MAX:
         raise ValueError(
             f"{file} holds values outside the 32-bit integer range of the {scale.value} scale "
-            f"({_INT32_MISSING + 1}..{np.iinfo(np.int32).max}): {lowest:.0f}..{highest:.0f}."
+            f"({_INT32_MISSING + 1}..{_INT32_MAX}): {lowest:.0f}..{highest:.0f}."
         )
 
 

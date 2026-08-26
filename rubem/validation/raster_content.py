@@ -13,9 +13,10 @@ from ..configuration._problems import Problem
 # Categorical GeoTIFF rasters (classes, identifiers, LDD codes) are cast to
 # int32 by read_field, which refuses values the cast would alter; the same
 # limits are reported here so that validation catches them first. The lowest
-# int32 is PCRaster's own missing value on that scale.
-_INT32_MAX = np.iinfo(np.int32).max
-_INT32_MIN = np.iinfo(np.int32).min + 1
+# int32 is PCRaster's own missing value on that scale. Plain integers: the
+# documentation build mocks numpy, so no numpy call may run at import time.
+_INT32_MAX = 2**31 - 1
+_INT32_MIN = -(2**31) + 1
 
 
 def _valid(values: np.ndarray, no_data_value) -> np.ndarray:
