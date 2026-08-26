@@ -100,6 +100,25 @@ class TestLoaderBlocksOnContent:
         assert any("Soil raster has non-integer values" in r for r in blocking_reasons(error.value))
 
     @pytest.mark.unit
+    def test_a_fractional_ldd_code_blocks(self, tmp_path):
+        from rubem.preprocessing._io import read_raster, write_geotiff
+
+        config = write_synthetic_dataset(str(tmp_path), raster_format="tif")
+        ldd = read_raster(config["RASTERS"]["ldd"])
+        write_geotiff(
+            config["RASTERS"]["ldd"],
+            np.where(ldd.mask(), ldd.array + 0.5, -9999.0).astype(np.float32),
+            ldd.geotransform,
+            ldd.projection,
+            nodata=-9999.0,
+        )
+
+        with pytest.raises(ConfigurationError) as error:
+            ModelConfiguration(config)
+
+        assert any("LDD raster has non-integer values" in r for r in blocking_reasons(error.value))
+
+    @pytest.mark.unit
     def test_a_fractional_land_use_class_blocks(self, tmp_path):
         from rubem.preprocessing._io import read_raster, write_geotiff
         from tests.helpers.synthetic import geotiff_series_name

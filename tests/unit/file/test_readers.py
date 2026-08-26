@@ -216,6 +216,23 @@ class TestReadFieldCategoricalValues:
         assert flags.tolist() == [[0, 1], [1, 1]]
 
     @pytest.mark.unit
+    def test_an_all_missing_categorical_raster_reads_as_missing(self, tmp_path):
+        import pcraster as pcr
+
+        ensure_gdal_drivers()
+        clone = write_geotiff(tmp_path / "clone.tif", np.ones((2, 2), np.uint8), TRANSFORM)
+        set_clone(clone)
+        empty = write_geotiff(
+            tmp_path / "n.tif", np.full((2, 2), -9999, np.int32), TRANSFORM, nodata=-9999
+        )
+
+        classes = pcr.pcr2numpy(read_field(empty, FieldScale.NOMINAL), -1)
+        flags = pcr.pcr2numpy(read_field(empty, FieldScale.BOOLEAN), 9)
+
+        assert classes.tolist() == [[-1, -1], [-1, -1]]
+        assert flags.tolist() == [[9, 9], [9, 9]]
+
+    @pytest.mark.unit
     @pytest.mark.parametrize(
         "value, message",
         [

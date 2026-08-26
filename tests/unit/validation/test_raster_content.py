@@ -22,6 +22,12 @@ class TestCheckIntegerValues:
         assert check_integer_values(values, -9999.0, "soil", "Soil") is None
 
     @pytest.mark.unit
+    def test_ignores_a_raster_without_valid_cells(self):
+        values = np.array([[np.nan, -9999.0]])
+
+        assert check_integer_values(values, -9999.0, "soil", "Soil") is None
+
+    @pytest.mark.unit
     def test_rejects_fractional_classes(self):
         """A GeoTIFF class raster is read as int32; 1.5 would be rounded onto class 2."""
         problem = check_integer_values(np.array([[1.0, 1.5]]), None, "soil", "Soil")
