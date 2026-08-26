@@ -1,6 +1,6 @@
 <!-- PROJECT SHIELDS -->
 [![DOI][zenodo-shield]][zenodo-url]
-[![GPL v3 License][license-shield]][license-url]
+[![GPL-3.0-or-later License][license-shield]][license-url]
 [![Unit tests][github-actions-unit-tests-shield]][github-actions-unit-tests-url]
 [![CodeQL][github-actions-codeql-shield]][github-actions-codeql-url]
 [![Documentation Status][readthedocs-shield]][readthedocs-url]
@@ -128,7 +128,7 @@ Contributions are what make the open source community such an amazing place to b
 <!-- LICENSE -->
 ## License
 
-Distributed under the GPLv3 License. See [`LICENSE.md`](https://github.com/LabSid-USP/RUBEM/blob/main/LICENSE) for more information.
+Distributed under the GNU General Public License, version 3 or (at your option) any later version (SPDX: `GPL-3.0-or-later`). See [`LICENSE`](https://github.com/LabSid-USP/RUBEM/blob/main/LICENSE) for more information.
 
 <!-- CONTACT -->
 ## Contact
@@ -168,7 +168,7 @@ Distributed under the GPLv3 License. See [`LICENSE.md`](https://github.com/LabSi
 [issues-shield]: https://img.shields.io/github/issues/LabSid-USP/RUBEM
 [issues-url]: https://github.com/LabSid-USP/RUBEM/issues
 [license-shield]: https://img.shields.io/github/license/LabSid-USP/RUBEM
-[license-url]: https://github.com/LabSid-USP/RUBEM/blob/master/LICENSE
+[license-url]: https://github.com/LabSid-USP/RUBEM/blob/main/LICENSE
 [youtube-shield]: https://img.shields.io/youtube/channel/subscribers/UCZOGKRCW5mQOY9_w8L7lKJg
 [youtube-url]: https://www.youtube.com/user/labsidengbr
 

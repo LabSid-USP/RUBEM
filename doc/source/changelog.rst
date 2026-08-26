@@ -88,6 +88,9 @@ Changed
 
 - Packaged RUBEM with ``pyproject.toml``: ``pip install`` support, the
   ``rubem`` console script and a single PEP 440 version source.
+- Stated the license expression consistently as ``GPL-3.0-or-later`` (the
+  source headers' "version 3 or any later version") in ``CITATION.cff``,
+  the README and the FAQ; the license itself is unchanged.
 - Rebuilt the CI (lint, OS/Python matrix, documentation build, packaging
   smokes) and updated the documentation build mechanics.
 - Enabled time series per output variable and made the CSV conversion

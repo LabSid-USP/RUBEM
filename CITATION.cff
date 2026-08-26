@@ -67,7 +67,7 @@ keywords:
 - remote sensing
 - PCRaster
 version: 0.10.0.dev0
-license: GPL-3.0
+license: GPL-3.0-or-later
 preferred-citation:
   type: article
   authors:
