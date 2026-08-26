@@ -234,6 +234,27 @@ class TestKrigeSeries:
         assert stations.is_file()
 
     @pytest.mark.unit
+    def test_a_clone_named_like_the_output_manifest_is_refused(self, tmp_path):
+        """GDAL opens a raster by content, so a GeoTIFF called ``manifest.csv``
+        would be read as the clone and then removed as a stale manifest."""
+        ensure_gdal_drivers()
+        (tmp_path / "out").mkdir()
+        clone = write_geotiff(
+            tmp_path / "out" / "manifest.csv", np.ones((3, 3), np.float32), TRANSFORM
+        )
+        stations = Stations(
+            x=np.array([250.0, 1250.0, 250.0]),
+            y=np.array([1250.0, 1250.0, 250.0]),
+            values=np.array([[10.0, 20.0, 30.0]]),
+            ids=("a", "b", "c"),
+        )
+
+        with pytest.raises(PreprocessingError, match="manifest of the output directory"):
+            krige_series(stations, clone, tmp_path / "out", "prec")
+
+        assert clone.is_file()
+
+    @pytest.mark.unit
     def test_interpolation_leaves_the_global_random_state_alone(self, tmp_path, kriging_deps):
         """Nothing in the kriging path draws random numbers; the library must
         not reseed the host process's NumPy generator."""

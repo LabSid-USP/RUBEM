@@ -24,10 +24,10 @@ import numpy as np
 from .._paths import PathInput, as_path
 from ..file._naming import get_raster_series_filepath
 from ._io import (
-    MANIFEST_NAME,
     PreprocessingError,
     ValueScale,
     check_nodata_collision,
+    check_not_manifest,
     read_raster,
     remove_stale_manifest,
     write_manifest,
@@ -311,8 +311,9 @@ def krige_series(
     :raises PreprocessingError: With fewer than three stations, two stations
         sharing a coordinate, an unsupported variogram model, more steps than
         the file carries, a clone geometry the maps cannot express (rotated
-        or south-up), or a step whose interpolated grid already has a valid
-        cell equal to ``nodata``.
+        or south-up), a clone that is the output directory's ``manifest.csv``
+        (removed before writing), or a step whose interpolated grid already
+        has a valid cell equal to ``nodata``.
     """
     if len(stations.ids) < MINIMUM_STATIONS:
         raise PreprocessingError(
@@ -359,6 +360,7 @@ def krige_series(
         else coordinates_type
     )
     destination = as_path(output_dir)
+    check_not_manifest(clone, destination, "The clone")
     remove_stale_manifest(destination)
     written: list[Path] = []
     manifest: list[tuple[str, str]] = []
@@ -400,12 +402,7 @@ def krige_file(
         ``manifest.csv``; :func:`krige_series` removes a stale manifest before
         writing and would delete the input.
     """
-    source = as_path(stations_file).resolve()
-    if source == (as_path(output_dir) / MANIFEST_NAME).resolve():
-        raise PreprocessingError(
-            f"The station file {source} is the manifest of the output directory; "
-            "choose another output directory or station file name."
-        )
+    check_not_manifest(stations_file, output_dir, "The station file")
     return krige_series(
         read_stations(stations_file, layout, delimiter), clone, output_dir, prefix, **options
     )

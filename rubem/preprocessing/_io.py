@@ -391,6 +391,22 @@ def dtype_for_nodata(dtype: np.dtype, nodata: float) -> np.dtype:
     return np.promote_types(dtype, np.float64)
 
 
+def check_not_manifest(path: PathInput | None, directory: PathInput, label: str) -> None:
+    """Refuse an input that is the output directory's ``manifest.csv``.
+
+    :func:`remove_stale_manifest` deletes that file before the outputs are
+    written, and GDAL opens rasters by content, not by extension: a clone or
+    a station file under that name would be read and then destroyed.
+    """
+    if path is None:
+        return
+    if as_path(path).resolve() == (as_path(directory) / MANIFEST_NAME).resolve():
+        raise PreprocessingError(
+            f"{label} {as_path(path)} is the manifest of the output directory, which is "
+            "removed before the outputs are written; choose another output directory."
+        )
+
+
 def remove_stale_manifest(directory: PathInput) -> None:
     """Delete a leftover ``manifest.csv`` so its presence implies a completed run.
 

@@ -19,6 +19,7 @@ from ._io import (
     apply_all_nodata_policy,
     check_no_collisions,
     check_nodata_collision,
+    check_not_manifest,
     check_same_geometry,
     dtype_for_nodata,
     natural_sorted,
@@ -115,6 +116,8 @@ def tif2mapseries(
         for index, file in enumerate(files)
     ]
     check_no_collisions(targets)
+    check_not_manifest(input_dir, destination, "The input")
+    check_not_manifest(clone, destination, "The clone")
     remove_stale_manifest(destination)
     written: list[Path] = []
     manifest: list[tuple[str, str]] = []
@@ -176,6 +179,7 @@ def mapseries2tif(
         digits = member.name[len(prefix) :].replace(".", "")
         targets.append((member, destination / output_raster_filename(prefix, int(digits), "tif")))
     check_no_collisions(targets)
+    check_not_manifest(georeference, destination, "The georeference")
     remove_stale_manifest(destination)
     written: list[Path] = []
     manifest: list[tuple[str, str]] = []
