@@ -39,10 +39,8 @@ class SurfaceRunoff:
         :returns: Coefficient representing soil moisture conditions [-]
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
-        tur = actual_soil_moist_cont / (
-            soil_bulk_density * rootzone_depth * 10
-        )  # [%] soil moisture
-        return (tur / soil_moist_cont_sat_point) ** beta
+
+        return (actual_soil_moist_cont / soil_moist_cont_sat_point) ** beta
 
     @staticmethod
     def get_runoff_coef_permeable_areas(
