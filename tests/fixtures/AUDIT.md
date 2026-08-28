@@ -29,17 +29,23 @@ bit-identical.
 
 ### Generating environment of the replaced files
 
-- Base commit: branch `fix_318` (`eab4553`, "Fix units soil moisture eqution
-  for ch").
-- Generator: a developer workstation (win-64, Python 3.13, pcraster 4.4,
-  gdal 3.11, numpy 2.x), **not** the frozen `ci/golden-env.lock` environment.
-  These 12 files therefore carry the last-bit float signature of that host,
-  and the byte-exact `exact` CI job is expected to fail on them until they
-  are regenerated on the `ubuntu-24.04` runner with
-  `tests/fixtures/regenerate_golden.py`, at which point this section must be
-  updated with the runner provenance the way the section below records it.
-  The semantic comparison (`rtol=1e-5`, `atol=1e-8`) that every other
-  environment runs does pass on the replaced bytes.
+- Base commit: branch `fix_318` (`eab4553`, the Ch soil moisture unit fix).
+- Generator: `python tests/fixtures/regenerate_golden.py` in the environment
+  created from `ci/golden-env.lock` plus `ci/golden-pip.lock` (micromamba,
+  environment name `golden`; linux-64, Python 3.13.7, pcraster 4.4.2,
+  gdal 3.11.5, numpy 2.3.4), run on Ubuntu 24.04.2 under WSL2 on a developer
+  workstation (glibc 2.39-0ubuntu8.4, x86_64, Intel Core i7-12700H).
+- Why this host is acceptable as the generator: byte identity is a property of
+  the C library and CPU, not of the machine, so a host is a valid generator
+  only if it reproduces the runner's bytes. That was verified before promoting
+  anything: the run produced the previous goldens' exact digests for the 37
+  files this change does not touch, and the exact digests the `exact` job on
+  `ubuntu-24.04` reported for the 8 files it does, so the promoted bytes are
+  the runner's bytes. `RUBEM_EXACT_GOLDEN=1 pytest tests -m exact` passes in
+  this environment.
+- The `ubuntu-24.04` runner image remains the canonical reference: if the
+  `exact` job ever disagrees with these bytes, the runner is right and the
+  goldens must be regenerated there, recording the new provenance here.
 
 ### Impact of the correction (previous goldens vs regenerated)
 
@@ -62,14 +68,14 @@ cross-environment float noise:
 ### Checksums replaced by this change
 
 ```
-srn00000.002    83165b7a643e73f62f7724681863f591a31c3b45c19b875601d621a9b56bb2e6 -> 453205222af0693548c68936696c12639520758c61f7cf3286f3094ffb05ba8e
-smc00000.002    88999e794f1625cb03e418a7335e8eea853c7bc84f2f57fef36d001204aeb3ba -> 67d16559e63c53095ea0e238c69ac3323b7376ee3c44daa3aae6321c28eeded4
-rnf00000.002    058580a89fb1137e61abcd9c7aa74399963cc03c208a80605c1b752b03749694 -> 45727ccc0b8b354682d41cd7b2698133b17b13738b97dbf6dd6c6e8d5ebf2a48
-arn00000.002    59d42872d6adc7cf5a0a7da4e8daacfeb8f3c5be53c79bc8981af141d46aaaa2 -> 371283eb75c805c9184250881881da6e68da7322277277b75d8b8551a55621e5
-srn0000002.tif  a2f624db3e41808be94e02f549fe0363db7faf65fc06d6fe461073a4d26e288a -> 4db79f7515633a26459aa269284db69b2f9808a1851a04083e1688c728b7c03e
-smc0000002.tif  46d96253aa9047be531a02597cd350c65ac97db438f0194571842d38563a903d -> e1a63409abde1ccd48590d1a42dde56b50cc26f857941835cd8670e81568ce09
-rnf0000002.tif  21a583574ea1af17882fb35c77ee37cb18b112b7929b6daa5ec2ee3ff22ca80f -> df3ff8583d7bcf605190b9abe95170aeb07573807b36ea4b2fa92dff8b1caff5
-arn0000002.tif  8fc702536057758ce89d0e76a6328b42e0744378cde29999901a6a75493a2c79 -> 0290fb6739a7ea0c7a649194b1929a5019c48745273cd68a8317f4f176120b45
+srn00000.002    83165b7a643e73f62f7724681863f591a31c3b45c19b875601d621a9b56bb2e6 -> 35fc364b2e309f007aedf027433e1947bb28ce99014ffc4d4cad073022b3f0ac
+smc00000.002    88999e794f1625cb03e418a7335e8eea853c7bc84f2f57fef36d001204aeb3ba -> 877cab02bbeeb0c8be4190f8ae3a4e2fde65793fb8ef2cb9cf15cd95e807fb36
+rnf00000.002    058580a89fb1137e61abcd9c7aa74399963cc03c208a80605c1b752b03749694 -> d75b07fc85708ccf5a2da774946dc5e2b534b59caf228c1838ddfb660e5870a3
+arn00000.002    59d42872d6adc7cf5a0a7da4e8daacfeb8f3c5be53c79bc8981af141d46aaaa2 -> 4cd64f93219c0bec9d916c776d09437ee514ede9e4aaf4a6007a1657291151ee
+srn0000002.tif  a2f624db3e41808be94e02f549fe0363db7faf65fc06d6fe461073a4d26e288a -> cf608b6e227a2ee934b0988eb616ce67ef6c3c549acd936b0bafdf4a2d6d3de8
+smc0000002.tif  46d96253aa9047be531a02597cd350c65ac97db438f0194571842d38563a903d -> 9d8ead92ec46bf7dd074eda97e2acbf1371c055aa803884b84f1bfbf96f4546d
+rnf0000002.tif  21a583574ea1af17882fb35c77ee37cb18b112b7929b6daa5ec2ee3ff22ca80f -> e5bf7e18e4dac6c726947f0bf7f60f3cd70927aec882eeb43c566b2c5d40fec9
+arn0000002.tif  8fc702536057758ce89d0e76a6328b42e0744378cde29999901a6a75493a2c79 -> 5c36bb78a75dbbe93e6b50f7ae1ac3964362caedb7ee8e8786501e50c751a10b
 tss_srn.csv     fa87eaf67f6b23cec33776c3c76d4164d50663542e531c117a8abb6f1abf441e -> 66da9bb684f1873d1739588853c1f8109b35f295354022c32f8975499357e5fe
 tss_smc.csv     ea3c1d32cb8892d74a1d375c352fead84e83e4d591e8ad345cede2f4e68928b8 -> 95c54fc37ae5f5ff7e277aabe3d2fe0ebb2101aae620971c0e86065b87a94e9c
 tss_rnf.csv     70e7bb1ce8dba75795cede407eff3dd445721812165ff85f554bf3bca42bf714 -> 2882d376e33facd35295ccf2d059e843316252a69489080382bab33f21e6c1ba
