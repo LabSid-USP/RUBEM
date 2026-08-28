@@ -20,6 +20,7 @@ from datetime import date
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Literal, Self
+from .modflow_configuration import ModflowConfiguration
 
 from pydantic import (
     BaseModel,
@@ -325,6 +326,9 @@ class ModelConfigurationFileV1(_Strict):
     model_initial_soil_conditions: InitialSoilConditions
     model_constants: Constants
     model_simulation_output: SimulationOutput
+    modflow: ModflowConfiguration = Field(
+        default_factory=ModflowConfiguration
+    )
 
     @model_validator(mode="after")
     def _check_aggregation_inputs(self) -> Self:
@@ -384,6 +388,11 @@ class ModelConfigurationFileV1(_Strict):
         data["model_simulation_output"]["dir_path"] = anchor(
             data["model_simulation_output"]["dir_path"]
         )
+        data["modflow"] = (
+            self.modflow
+            .resolve_paths(base_dir)
+            .model_dump(mode="json")
+        )
         for name, spec in data["raster_series"].items():
             if isinstance(spec, list):
                 for entry in spec:
@@ -431,6 +440,10 @@ class ModelConfigurationFileV1(_Strict):
                     else {}
                 ),
             },
+            "modflow": legacy.modflow.model_dump(
+                mode="json",
+                exclude_none=True,
+            ),
             "raster_series": {
                 "precipitation": {
                     "dir_path": legacy.directories.prec,
@@ -558,6 +571,10 @@ class ModelConfigurationFileV1(_Strict):
                 "landuse_prefix": series["landuse"].files_prefix,
             },
             "RASTERS": self.rasters.model_dump(exclude={"zones"}),
+            "MODFLOW": self.modflow.model_dump(
+                mode="json",
+                exclude_none=True,
+            ),
             "TABLES": {
                 "rainydays": self.lookup_tables.rainy_days,
                 "a_i": self.lookup_tables.a_i,

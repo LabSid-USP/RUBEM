@@ -137,6 +137,7 @@ class ModelConfiguration:
             alignment=file.sim_time.alignment,
         )
         self.grid = RasterGrid(file.grid.grid)
+        self.modflow = file.modflow
         self.calibration_parameters = CalibrationParameters(
             alpha=file.calibration.alpha,
             beta=file.calibration.b,
@@ -251,6 +252,7 @@ class ModelConfiguration:
             start=period.start, end=period.finish, alignment=period.alignment
         )
         self.grid = RasterGrid(file.raster_info.grid_size)
+        self.modflow = file.modflow
         calibration = file.model_calibration_parameters
         self.calibration_parameters = CalibrationParameters(
             alpha=calibration.alpha,

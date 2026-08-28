@@ -12,6 +12,7 @@ import os
 from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated, Any, Self
+from .modflow_configuration import ModflowConfiguration
 
 from pydantic import (
     AliasChoices,
@@ -301,6 +302,10 @@ class ModelConfigurationFile(_Section):
     raster_file_format: RasterFileFormat = Field(
         alias="RASTER_FILE_FORMAT", default_factory=RasterFileFormat
     )
+    modflow: ModflowConfiguration = Field(
+        alias="MODFLOW",
+        default_factory=ModflowConfiguration,
+    )
 
     @classmethod
     def from_json(cls, path: PathInput) -> Self:
@@ -329,6 +334,11 @@ class ModelConfigurationFile(_Section):
         data["DIRECTORIES"] = directories
         data["RASTERS"] = rasters
         data["TABLES"] = tables
+        data["MODFLOW"] = (
+            self.modflow
+            .resolve_paths(base_dir)
+            .model_dump(mode="json", exclude_none=True)
+        )
         return type(self).model_validate(data)
 
     def to_dict(self) -> dict:
