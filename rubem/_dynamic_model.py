@@ -18,6 +18,7 @@ from .file._file_generators import report
 from .file._readers import FieldScale, is_geotiff, read_field, set_clone
 from .file._timeoutput import TimeoutputTimeseriesAdapter
 from .hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
+from .hydrological_processes._modflow import ModflowGroundwater
 
 MISSING_VALUE_DEFAULT = -9999
 
@@ -50,6 +51,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.sample_vals = None
         self.sample_map = None
         self.dem = None
+        self.surface_elevation = None
         self.ldd = None
         self.slope = None
         self.ndvi_max = None
@@ -85,6 +87,16 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.current_cell_total_discharge = None
         self.accumulated_cell_total_discharge = None
         self.current_runoff = None
+        self.soil_rootzone_depth_max = None
+        self.soil_rootzone_depth_min = None
+        self.effective_root_depth = None
+        self.root_depth_fraction = None
+
+        self.previous_water_table_head = None
+        self.current_water_table_head = None
+        self.groundwater_depth_cm = None
+
+        self.modflow_groundwater = None
 
     @property
     def soil_moistute_content_wilting_point(self):
@@ -118,6 +130,13 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         self.logger.debug("Reading DEM file...")
         self.dem = self.__read_raster(self.config.raster_files.dem, FieldScale.SCALAR)
+        
+        if (
+            self.config.modflow.enabled
+            and self.config.modflow.coupling.dynamic_root_depth.enabled
+        ):
+            # Keep terrain elevation because it will be needed during dynamic()
+            self.surface_elevation = self.dem
 
         if self.config.raster_files.ldd:
             self.logger.info("Reading Local Drain Direction (LDD) file...")
@@ -165,12 +184,58 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             lookup_func=pcrfw.lookupscalar,
         )
 
-        self.logger.info("Reading soil root zone depth...")
-        self.soil_rootzone_depth = self.__lookup_wrapper(
+        self.logger.info("Reading maximum soil root zone depth...")
+
+        # Original RUBEM root-zone depth.
+        # It remains the maximum root depth and continues to define
+        # the soil-water storage properties.
+        self.soil_rootzone_depth_max = self.__lookup_wrapper(
             file_path=self.config.lookuptable_files.rootzone_depth,
             lookup_value=soil,
             lookup_func=pcrfw.lookupscalar,
         )
+
+        # Preserve the original RUBEM behaviour for TU_sat, TU_wp, TU_fc, etc.
+        self.soil_rootzone_depth = self.soil_rootzone_depth_max
+
+
+
+
+        # Dynamic root depth used only when MODFLOW coupling is enabled.
+        if (
+            self.config.modflow.enabled
+            and self.config.modflow.coupling.dynamic_root_depth.enabled
+        ):
+            self.logger.info("Reading minimum soil root zone depth...")
+
+            self.soil_rootzone_depth_min = self.__lookup_wrapper(
+                file_path=(
+                    self.config.modflow
+                    .coupling
+                    .dynamic_root_depth
+                    .minimum_depth_table
+                ),
+                lookup_value=soil,
+                lookup_func=pcrfw.lookupscalar,
+            )
+
+            self.__validate_dynamic_root_depth(
+                soil=soil,
+            )
+            # At model initialization there is no previous MODFLOW result yet.
+            # Start with the original/max. root depth.
+            self.effective_root_depth = self.soil_rootzone_depth_max
+            self.root_depth_fraction = pcr.scalar(1.0)
+
+            # Will receive the MODFLOW water-table head after the first run.
+            self.previous_water_table_head = None
+
+        else:
+            # RUBEM without dynamic root-depth coupling.
+            self.soil_rootzone_depth_min = None
+            self.effective_root_depth = self.soil_rootzone_depth_max
+            self.root_depth_fraction = pcr.scalar(1.0)
+            self.previous_water_table_head = None
 
         self.logger.info("Reading soil moisture for saturation of the first layer...")
         tusat_partial = self.__lookup_wrapper(
@@ -221,7 +286,173 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.initial_cell_total_flow = pcrfw.scalar(0)
         self.previous_cell_total_flow = pcrfw.scalar(0)
 
+        if self.config.modflow.enabled:
+            self.logger.info("Initializing MODFLOW groundwater module...")
+
+            first_date = self.config.simulation_period.start_date
+
+            first_period_days = monthrange(
+                first_date.year,
+                first_date.month,
+            )[1]
+
+            self.modflow_groundwater = ModflowGroundwater(
+                config=self.config.modflow,
+                cell_area_m2=self.config.grid.area,
+                logger=self.logger,
+            )
+
+            self.modflow_groundwater.initialize(
+                first_period_days=first_period_days
+            )
+
+
         self.__release_initial_state()
+
+
+    def __validate_dynamic_root_depth(
+        self,
+        soil: Field,
+    ) -> None:
+        """Validate minimum and maximum root depths used by MODFLOW coupling."""
+
+        soil_array = pcr.pcr2numpy(
+            soil,
+            MISSING_VALUE_DEFAULT,
+        )
+
+        zr_min_array = pcr.pcr2numpy(
+            self.soil_rootzone_depth_min,
+            MISSING_VALUE_DEFAULT,
+        )
+
+        zr_max_array = pcr.pcr2numpy(
+            self.soil_rootzone_depth_max,
+            MISSING_VALUE_DEFAULT,
+        )
+
+        valid_soil = (
+            soil_array != MISSING_VALUE_DEFAULT
+        )
+
+        valid_min = (
+            zr_min_array != MISSING_VALUE_DEFAULT
+        )
+
+        valid_max = (
+            zr_max_array != MISSING_VALUE_DEFAULT
+        )
+
+
+        # ---------------------------------------------------------
+        # Missing Zr_min
+        # ---------------------------------------------------------
+
+        missing_min = (
+            valid_soil
+            & valid_max
+            & ~valid_min
+        )
+
+        if np.any(missing_min):
+
+            missing_classes = np.unique(
+                soil_array[missing_min]
+            )
+
+            raise ValueError(
+                "Dpz_min does not define a minimum root depth "
+                "for soil class(es): "
+                f"{missing_classes.tolist()}."
+            )
+
+        # ---------------------------------------------------------
+        # Missing Zr_max
+        # ---------------------------------------------------------
+
+        missing_max = (
+            valid_soil
+            & ~valid_max
+        )
+
+        if np.any(missing_max):
+
+            missing_classes = np.unique(
+                soil_array[missing_max]
+            )
+
+            raise ValueError(
+                "Dpz_max does not define a maximum root depth "
+                "for soil class(es): "
+                f"{missing_classes.tolist()}."
+            )
+        # ---------------------------------------------------------
+        # Zr_min must be positive
+        # ---------------------------------------------------------
+
+        invalid_min = (
+            valid_min
+            & (zr_min_array <= 0.0)
+        )
+
+        if np.any(invalid_min):
+
+            invalid_classes = np.unique(
+                soil_array[invalid_min]
+            )
+
+            raise ValueError(
+                "Dpz_min must be greater than zero for "
+                "soil class(es): "
+                f"{invalid_classes.tolist()}."
+            )
+
+
+        # ---------------------------------------------------------
+        # Zr_max must also be positive
+        # ---------------------------------------------------------
+
+        invalid_max = (
+            valid_max
+            & (zr_max_array <= 0.0)
+        )
+
+        if np.any(invalid_max):
+
+            invalid_classes = np.unique(
+                soil_array[invalid_max]
+            )
+
+            raise ValueError(
+                "Dpz_max must be greater than zero for "
+                "soil class(es): "
+                f"{invalid_classes.tolist()}."
+            )
+
+
+        # ---------------------------------------------------------
+        # Zr_min <= Zr_max
+        # ---------------------------------------------------------
+
+        min_above_max = (
+            valid_min
+            & valid_max
+            & (zr_min_array > zr_max_array)
+        )
+
+        if np.any(min_above_max):
+
+            invalid_classes = np.unique(
+                soil_array[min_above_max]
+            )
+
+            raise ValueError(
+                "Dpz_min cannot be greater than Dpz_max "
+                "for soil class(es): "
+                f"{invalid_classes.tolist()}."
+            )
+
+
 
     def __release_initial_state(self):
         """Drop the rasters the dynamic section never reads again.
@@ -327,8 +558,60 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             lookup_value=current_landuse,
             lookup_func=pcrfw.lookupscalar,
         )
+        
+        # ---------------------------------------------------------
+        # MODFLOW -> dynamic effective root depth
+        # ---------------------------------------------------------
+
+        if (
+            self.config.modflow.enabled
+            and self.config.modflow.coupling.dynamic_root_depth.enabled
+            and self.previous_water_table_head is not None
+            ):
+            self.logger.debug(
+                "Updating effective root depth from MODFLOW water table..."
+            )
+
+            # DEM and MODFLOW heads are in metres.
+            # Convert depth below ground surface to centimetres.
+            # Actual groundwater-reference depth.
+            # Remains undefined where MODFLOW did not provide a valid reference head.
+            self.groundwater_depth_cm = pcr.max(
+                (
+                    self.surface_elevation
+                    - self.previous_water_table_head
+                ) * 100.0,
+                pcr.scalar(0.0),
+            )
+
+            # Value actually used by the root-depth algorithm.
+            # No valid MODFLOW head -> do not restrict roots -> use Zr_max.
+            root_depth_driver_cm = pcr.cover(
+                self.groundwater_depth_cm,
+                self.soil_rootzone_depth_max,
+            )
+
+            self.effective_root_depth = pcr.min(
+                self.soil_rootzone_depth_max,
+                pcr.max(
+                    self.soil_rootzone_depth_min,
+                    root_depth_driver_cm,
+                ),
+            )
+
+            self.root_depth_fraction = (
+                self.effective_root_depth
+                / self.soil_rootzone_depth_max
+            )
+
+        else:
+            # First timestep, MODFLOW disabled, or dynamic root depth disabled.
+            self.effective_root_depth = self.soil_rootzone_depth_max
+            self.root_depth_fraction = pcr.scalar(1.0)
+
 
         self.logger.debug("Interception")
+
         current_reflectances_simple_ratio = Interception.get_reflectances_simple_ratio(current_ndvi)
         current_fpar = Interception.get_fpar(
             self.config.constants.fraction_photo_active_radiation_min,
@@ -363,7 +646,14 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             partial_crop_coef,
         )
 
-        water_stress_coef = pcr.scalar(
+        # ---------------------------------------------------------
+        # Soil-moisture stress
+        # ---------------------------------------------------------
+
+        # Original RUBEM soil-moisture stress.
+        # This continues to use the full/max root-zone storage and
+        # is also used for bare-soil evaporation.
+        water_stress_coef_soil = pcr.scalar(
             Evapotranspiration.get_water_stress_coef_et_vegetated_area(
                 self.current_soil_moist_content,
                 self.soil_moisture_content_wilting_point,
@@ -371,10 +661,69 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             )
         )
 
+
+        # ---------------------------------------------------------
+        # Root-access stress for vegetation
+        # ---------------------------------------------------------
+
+        if (
+            self.config.modflow.enabled
+            and self.config.modflow.coupling.dynamic_root_depth.enabled
+        ):
+
+            # Fraction of the original RUBEM root-zone depth that
+            # can currently be explored by roots.
+            root_fraction = pcr.min(
+                pcr.scalar(1.0),
+                pcr.max(
+                    pcr.scalar(0.0),
+                    self.root_depth_fraction,
+                ),
+            )
+
+            # Virtual water quantities inside the effective root zone.
+            #
+            # IMPORTANT:
+            # These values are used only to calculate vegetation Ks.
+            # They do NOT replace the actual RUBEM soil-water storage.
+            effective_soil_moist_content = (
+                self.current_soil_moist_content
+                * root_fraction
+            )
+
+            effective_wilting_point = (
+                self.soil_moisture_content_wilting_point
+                * root_fraction
+            )
+
+            effective_field_capacity = (
+                self.soil_moisture_content_field_capacity
+                * root_fraction
+            )
+
+            water_stress_coef_vegetation = pcr.scalar(
+                Evapotranspiration.get_water_stress_coef_et_vegetated_area(
+                    effective_soil_moist_content,
+                    effective_wilting_point,
+                    effective_field_capacity,
+                )
+            )
+
+        else:
+
+            # Original RUBEM behaviour.
+            water_stress_coef_vegetation = (
+                water_stress_coef_soil
+            )
+
         # Vegetated area
         real_et_vegetated_area = Evapotranspiration.get_et_vegetated_area(
-            current_potential_evapotranspiration, current_crop_coef, water_stress_coef
+            current_potential_evapotranspiration,
+            current_crop_coef,
+            water_stress_coef_vegetation,
         )
+
+
 
         # Impervious area
         # ET impervious area = Interception of impervious area
@@ -391,9 +740,14 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         )
 
         # Bare soil
-        real_et_bare_soil_area = Evapotranspiration.get_water_stress_coef_et_bare_soil_area(
-            current_potential_evapotranspiration, min_crop_coef, water_stress_coef
+        real_et_bare_soil_area = (
+            Evapotranspiration.get_water_stress_coef_et_bare_soil_area(
+                current_potential_evapotranspiration,
+                min_crop_coef,
+                water_stress_coef_soil,
+            )
         )
+
         self.current_total_real_evapotranspiration = (
             (vegetated_area_fraction * real_et_vegetated_area)
             + (impervious_area_fraction * real_et_impervious_area)
@@ -468,18 +822,167 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.soil_moist_content_sat_point,
         )
 
-        self.logger.debug("Baseflow")
 
-        self.current_baseflow = Soil.get_baseflow(
-            self.previous_baseflow,
-            self.config.calibration_parameters.alpha_gw,
-            self.current_recharge,
-            self.current_soil_sat_zone_storage,
-            self.baseflow_threshold,
-        )
-        self.previous_baseflow = self.current_baseflow
+        self.logger.debug("Groundwater / Baseflow")
+
+        days_in_period = monthrange(
+            current_date.year,
+            current_date.month,
+        )[1]
+
+
+        if self.config.modflow.enabled:
+
+            self.logger.debug("Running MODFLOW...")
+
+            modflow_result = self.modflow_groundwater.run_timestep(
+                recharge_mm=self.current_recharge,
+                days_in_period=days_in_period,
+            )
+
+            # ---------------------------------------------------------
+            # MODFLOW -> RUBEM baseflow
+            # ---------------------------------------------------------
+
+            # Aquifer -> river leakage replaces the simplified
+            # RUBEM groundwater/baseflow reservoir.
+            self.current_baseflow = modflow_result.baseflow_mm
+
+            # Current MODFLOW water table/head.
+            self.current_water_table_head = (
+                modflow_result.water_table_head
+            )
+
+
+            # ---------------------------------------------------------
+            # Diagnostic outputs: river-aquifer exchange
+            # ---------------------------------------------------------
+
+            if self.config.modflow.output.river_leakage:
+
+                self.report(
+                    modflow_result.aquifer_to_river_m3_per_day,
+                    str(
+                        Path(self.config.output_directory.path)
+                        / "mfaq2riv"
+                    ),
+                )
+
+                self.report(
+                    modflow_result.river_to_aquifer_m3_per_day,
+                    str(
+                        Path(self.config.output_directory.path)
+                        / "mfriv2aq"
+                    ),
+                )
+
+                self.report(
+                    modflow_result.net_river_leakage_m3_per_day,
+                    str(
+                        Path(self.config.output_directory.path)
+                        / "mfrivnet"
+                    ),
+                )
+
+
+            # ---------------------------------------------------------
+            # Diagnostic outputs: heads
+            # ---------------------------------------------------------
+
+            if self.config.modflow.output.heads:
+
+                for layer_number, head in modflow_result.heads.items():
+
+                    self.report(
+                        head,
+                        str(
+                            Path(self.config.output_directory.path)
+                            / f"mfh{layer_number}"
+                        ),
+                    )
+
+
+            # ---------------------------------------------------------
+            # MODFLOW -> dynamic root-depth coupling
+            # ---------------------------------------------------------
+
+            if self.config.modflow.coupling.dynamic_root_depth.enabled:
+
+                # Current MODFLOW result.
+                self.report(
+                    self.current_water_table_head,
+                    str(
+                        Path(self.config.output_directory.path)
+                        / "mfwt"
+                    ),
+                )
+
+                # These variables were calculated at the BEGINNING
+                # of the current timestep using head(t-1).
+                if self.previous_water_table_head is not None:
+
+                    # Head actually used to calculate Zr_eff in this timestep.
+                    self.report(
+                        self.previous_water_table_head,
+                        str(
+                            Path(self.config.output_directory.path)
+                            / "mfdrv"
+                        ),
+                    )
+
+                    if self.groundwater_depth_cm is not None:
+                        self.report(
+                            self.groundwater_depth_cm,
+                            str(
+                                Path(self.config.output_directory.path)
+                                / "mfgwdcm"
+                            ),
+                        )
+
+                    if self.effective_root_depth is not None:
+                        self.report(
+                            self.effective_root_depth,
+                            str(
+                                Path(self.config.output_directory.path)
+                                / "mfzr"
+                            ),
+                        )
+
+                    if self.root_depth_fraction is not None:
+                        self.report(
+                            self.root_depth_fraction,
+                            str(
+                                Path(self.config.output_directory.path)
+                                / "mfzfrac"
+                            ),
+                        )
+
+
+                # IMPORTANT:
+                # head calculated in timestep t becomes the driver for
+                # root depth in timestep t+1.
+                self.previous_water_table_head = (
+                    self.current_water_table_head
+                )
+
+
+        else:
+
+            # Original RUBEM groundwater/baseflow formulation.
+            self.current_baseflow = Soil.get_baseflow(
+                self.previous_baseflow,
+                self.config.calibration_parameters.alpha_gw,
+                self.current_recharge,
+                self.current_soil_sat_zone_storage,
+                self.baseflow_threshold,
+            )
+
+            self.previous_baseflow = self.current_baseflow
+
+
 
         self.logger.debug("Soil Balance")
+
         self.current_soil_moist_content = Soil.get_actual_soil_moist_cont(
             self.previous_soil_moist_content,
             current_precipitation,
@@ -491,11 +994,27 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             open_water_area_fraction,
             self.soil_moist_content_sat_point,
         )
-        self.current_soil_sat_zone_storage = Soil.get_actual_water_cont_sat_zone(
-            self.previous_soil_sat_zone_storage, self.current_recharge, self.current_baseflow
+
+        self.previous_soil_moist_content = (
+            self.current_soil_moist_content
         )
-        self.previous_soil_moist_content = self.current_soil_moist_content
-        self.previous_soil_sat_zone_storage = self.current_soil_sat_zone_storage
+
+
+        # The simplified saturated-zone reservoir is used only
+        # when MODFLOW is disabled.
+        if not self.config.modflow.enabled:
+
+            self.current_soil_sat_zone_storage = (
+                Soil.get_actual_water_cont_sat_zone(
+                    self.previous_soil_sat_zone_storage,
+                    self.current_recharge,
+                    self.current_baseflow,
+                )
+            )
+
+            self.previous_soil_sat_zone_storage = (
+                self.current_soil_sat_zone_storage
+            )
 
         self.logger.debug("Runoff")
         self.current_cell_total_discharge = (
@@ -538,6 +1057,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.current_cell_total_discharge = None
         self.accumulated_cell_total_discharge = None
         self.current_runoff = None
+        self.current_water_table_head = None
 
     def __current_step_report(self):
         output_vars_dict = {

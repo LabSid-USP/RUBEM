@@ -24,18 +24,20 @@ from pcraster import initialise
 from pcraster._pcraster import Field
 
 
+
 @dataclass
 class ModflowStepResult:
-    """Outputs returned by one MODFLOW stress period."""
-
     converged: bool
     baseflow_mm: Field
+
+    water_table_head: Field | None
+
     aquifer_to_river_m3_per_day: Field
     river_to_aquifer_m3_per_day: Field
     net_river_leakage_m3_per_day: Field
+
     heads: dict[int, Field] = field(default_factory=dict)
     storage: dict[int, Field] = field(default_factory=dict)
-
 
 class ModflowGroundwater:
     """PCRaster MODFLOW groundwater component for RUBEM.
@@ -76,6 +78,7 @@ class ModflowGroundwater:
         self.enabled = bool(self._get(config, "enabled", 0))
         self.layers = list(self._get(config, "layers", []))
         self.number_layers = len(self.layers)
+        self.dry_head = -999.9
 
         self.mf = None
         self._initialized = False
@@ -112,11 +115,19 @@ class ModflowGroundwater:
         # Keep one single persistent MODFLOW object for the full simulation.
         self.mf = initialise(pcr.clone())
 
+        # Grid/layer geometry first.
         self._setup_geometry()
+
+        # DIS must be configured before BAS/BCF and solver packages.
         self._setup_dis(first_period_days)
+
+        # BCF optional setting.
+        self.mf.setDryHead(self.dry_head)
+
         self._setup_layer_properties()
         self._setup_wetting()
         self._setup_solver()
+        
 
         self._initialized = True
         self.logger.info("PCRaster MODFLOW initialization completed.")
@@ -147,9 +158,40 @@ class ModflowGroundwater:
 
         # Update stress-period length so calendar months can have 28--31 days.
         dis_cfg = self._get(self.config, "dis", {})
-        nstp = int(self._get(dis_cfg, "nstp", 5))
-        tsmult = float(self._get(dis_cfg, "tsmult", 1.0))
-        self.mf.updateDISParameter(float(days_in_period), nstp, tsmult)
+
+        nstp = int(
+            self._get(
+                dis_cfg,
+                "nstp",
+                5,
+            )
+        )
+
+        tsmult = float(
+            self._get(
+                dis_cfg,
+                "tsmult",
+                1.0,
+            )
+        )
+
+        steady_state = int(
+            self._get(
+                dis_cfg,
+                "steady_state",
+                0,
+            )
+        )
+
+        # Stress-period length is updated only for transient simulations.
+        if steady_state == 0:
+            self.mf.updateDISParameter(
+                float(days_in_period),
+                nstp,
+                tsmult,
+            )
+            
+
 
         # Stress packages can be changed every dynamic timestep.
         recharge_m_per_day = self.recharge_mm_to_modflow(
@@ -178,6 +220,31 @@ class ModflowGroundwater:
             self.logger.warning(message)
 
         exchange = self._get_river_exchange()
+
+        coupling_cfg = self._get(
+            self.config,
+            "coupling",
+            {},
+        )
+
+        dynamic_root_cfg = self._get(
+            coupling_cfg,
+            "dynamic_root_depth",
+            {},
+        )
+
+        if bool(
+            self._get(
+                dynamic_root_cfg,
+                "enabled",
+                0,
+            )
+        ):
+            water_table_head = self._get_water_table_head()
+        else:
+            water_table_head = None
+
+
         baseflow_mm = self.volume_rate_to_depth(
             exchange["aquifer_to_river"],
             days_in_period,
@@ -194,6 +261,7 @@ class ModflowGroundwater:
             net_river_leakage_m3_per_day=exchange["net"],
             heads=heads,
             storage=storage,
+            water_table_head=water_table_head,
         )
 
     def recharge_mm_to_modflow(
@@ -321,21 +389,65 @@ class ModflowGroundwater:
             )
 
             if transient:
-                specific_storage = self._required(
-                    layer,
-                    "specific_storage",
-                    f"MODFLOW.layers[{layer_number - 1}].specific_storage",
-                )
-                specific_yield = self._required(
-                    layer,
-                    "specific_yield",
-                    f"MODFLOW.layers[{layer_number - 1}].specific_yield",
-                )
+
+                laycon = laytype % 10
+
+                if laycon == 0:
+
+                    # Confined.
+                    primary_storage = self._required(
+                        layer,
+                        "specific_storage",
+                        f"MODFLOW.layers[{layer_number - 1}].specific_storage",
+                    )
+
+                    # Sf2 is not physically used for LAYCON 0,
+                    # but setStorage requires a second map.
+                    secondary_storage = primary_storage
+
+
+                elif laycon == 1:
+
+                    # Unconfined.
+                    specific_yield = self._required(
+                        layer,
+                        "specific_yield",
+                        f"MODFLOW.layers[{layer_number - 1}].specific_yield",
+                    )
+
+                    primary_storage = specific_yield
+                    secondary_storage = specific_yield
+
+
+                elif laycon in (2, 3):
+
+                    # Convertible.
+                    primary_storage = self._required(
+                        layer,
+                        "specific_storage",
+                        f"MODFLOW.layers[{layer_number - 1}].specific_storage",
+                    )
+
+                    secondary_storage = self._required(
+                        layer,
+                        "specific_yield",
+                        f"MODFLOW.layers[{layer_number - 1}].specific_yield",
+                    )
+
+
+                else:
+                    raise ValueError(
+                        f"Unsupported LAYCON {laycon} "
+                        f"for layer {layer_number}."
+                    )
+
+
                 self.mf.setStorage(
-                    str(specific_storage),
-                    str(specific_yield),
+                    str(primary_storage),
+                    str(secondary_storage),
                     layer_number,
                 )
+
 
     def _setup_wetting(self) -> None:
         """Configure optional BCF wetting capability."""
@@ -352,9 +464,29 @@ class ModflowGroundwater:
 
         layers = self._get(wetting_cfg, "layers", None)
         if layers is None:
-            wetting_layers = list(range(1, self.number_layers + 1))
+
+            wetting_layers = [
+                layer_number
+                for layer_number, layer
+                in enumerate(self.layers, start=1)
+                if (
+                    int(self._get(layer, "laytype", 0))
+                    % 10
+                ) in (1, 3)
+            ]
+
+            if not wetting_layers:
+                raise ValueError(
+                    "Wetting is enabled, but no MODFLOW layer "
+                    "has LAYCON 1 or 3."
+                )
+
         else:
-            wetting_layers = [int(value) for value in layers]
+
+            wetting_layers = [
+                int(value)
+                for value in layers
+    ]
 
         wetting_map_path = self._get(wetting_cfg, "map", None)
 
@@ -385,8 +517,36 @@ class ModflowGroundwater:
             wetting_map = pcr.readmap(str(source_boundary)) * multiplier
 
         for layer_number in wetting_layers:
-            self._validate_layer_number(layer_number, "wetting layer")
-            self.mf.setWetting(wetting_map, layer_number)
+
+            self._validate_layer_number(
+                layer_number,
+                "wetting layer",
+            )
+
+            layer = self.layers[layer_number - 1]
+
+            laytype = int(
+                self._get(
+                    layer,
+                    "laytype",
+                    0,
+                )
+            )
+
+            laycon = laytype % 10
+
+            if laycon not in (1, 3):
+                raise ValueError(
+                    f"Wetting cannot be applied to MODFLOW "
+                    f"layer {layer_number}: LAYCON={laycon}. "
+                    "Wetting requires LAYCON 1 or 3."
+                )
+
+            self.mf.setWetting(
+                wetting_map,
+                layer_number,
+            )
+
 
     def _setup_solver(self) -> None:
         """Configure the MODFLOW solver.  Version 1 supports PCG."""
@@ -494,6 +654,186 @@ class ModflowGroundwater:
             for layer_number in range(1, self.number_layers + 1)
         }
 
+    def _get_valid_head_for_layer(
+        self,
+        layer_number: int,
+    ) -> Field:
+        """Return valid head for one MODFLOW layer."""
+
+        layer = self.layers[layer_number - 1]
+
+        head = pcr.scalar(
+            self.mf.getHeads(layer_number)
+        )
+
+        boundary_path = self._required(
+            layer,
+            "boundary",
+            f"MODFLOW.layers[{layer_number - 1}].boundary",
+        )
+
+        boundary = pcr.scalar(
+            pcr.readmap(str(boundary_path))
+        )
+
+        valid_head = (
+            pcr.defined(head)
+            & (boundary != 0)
+            & (head != self.dry_head)
+        )
+
+        return pcr.ifthen(
+            valid_head,
+            head,
+        )
+
+
+    def _get_water_table_head(self) -> Field:
+        """Select groundwater head for RUBEM root-depth coupling."""
+
+        coupling_cfg = self._get(
+            self.config,
+            "coupling",
+            {},
+        )
+
+        root_cfg = self._get(
+            coupling_cfg,
+            "dynamic_root_depth",
+            {},
+        )
+
+        water_table_cfg = self._get(
+            root_cfg,
+            "water_table",
+            {},
+        )
+
+        method = self._get(
+            water_table_cfg,
+            "method",
+            "highest_unconfined",
+        )
+
+        valid_methods = {
+            "highest_unconfined",
+            "highest_active_head",
+            "layer",
+        }
+
+        if method not in valid_methods:
+            raise ValueError(
+                f"Invalid water-table selection method: "
+                f"{method!r}."
+            )
+
+        # -----------------------------------------------------
+        # Explicit layer
+        # -----------------------------------------------------
+
+        if method == "layer":
+
+            layer_number = int(
+                self._required(
+                    water_table_cfg,
+                    "layer",
+                    "MODFLOW.coupling.dynamic_root_depth."
+                    "water_table.layer",
+                )
+            )
+
+            self._validate_layer_number(
+                layer_number,
+                "water-table source layer",
+            )
+
+            return self._get_valid_head_for_layer(
+                layer_number
+            )
+
+
+        # -----------------------------------------------------
+        # Search top -> bottom
+        # -----------------------------------------------------
+
+        selected_head = None
+
+        for layer_number in range(
+            self.number_layers,
+            0,
+            -1,
+        ):
+
+            layer = self.layers[layer_number - 1]
+
+            laytype = int(
+                self._get(
+                    layer,
+                    "laytype",
+                    0,
+                )
+            )
+
+            laycon = laytype % 10
+
+            candidate = self._get_valid_head_for_layer(
+                layer_number
+            )
+
+
+            if method == "highest_unconfined":
+
+                # LAYCON 0 is always confined.
+                if laycon == 0:
+                    continue
+
+                # LAYCON 1 is explicitly unconfined.
+                if laycon == 1:
+                    pass
+
+                # LAYCON 2 and 3 are convertible.
+                # They behave as unconfined where the head is at or below
+                # the top elevation of the layer.
+                elif laycon in (2, 3):
+
+                    top_path = self._required(
+                        layer,
+                        "top",
+                        f"MODFLOW.layers[{layer_number - 1}].top",
+                    )
+
+                    layer_top = pcr.scalar(
+                        pcr.readmap(str(top_path))
+                    )
+
+                    candidate = pcr.ifthen(
+                        pcr.defined(candidate)
+                        & (candidate <= layer_top),
+                        candidate,
+                    )
+
+
+
+            if selected_head is None:
+
+                selected_head = candidate
+
+            else:
+
+                selected_head = pcr.cover(
+                    selected_head,
+                    candidate,
+                )
+
+
+        if selected_head is None:
+            raise RuntimeError(
+                "No MODFLOW layer satisfies the configured "
+                f"water-table selection method '{method}'."
+            )
+
+        return selected_head
+
     def _get_storage_if_requested(self) -> dict[int, Field]:
         output_cfg = self._get(self.config, "output", {})
         if not bool(self._get(output_cfg, "storage", False)):
@@ -513,16 +853,12 @@ class ModflowGroundwater:
 
         recharge_cfg = self._get(self.config, "recharge", {})
         recharge_option = int(self._get(recharge_cfg, "option", 3))
-        if recharge_option not in (1, 3):
-            raise ValueError("MODFLOW.recharge.option must be 1 or 3.")
-
-        # This project explicitly requires recharge to the highest active cell.
         if recharge_option != 3:
-            self.logger.warning(
-                "MODFLOW recharge option is %d; option 3 is recommended for "
-                "RUBEM coupling to the highest active cell.",
-                recharge_option,
+            raise ValueError(
+                "MODFLOW.recharge.option must be 3 "
+                "(recharge to the highest active cell)."
             )
+
 
         river_cfg = self._get(self.config, "river", {})
         if bool(self._get(river_cfg, "enabled", 0)):
@@ -585,15 +921,52 @@ class ModflowGroundwater:
                     )
                 )
 
+
             dis_cfg = self._get(self.config, "dis", {})
+
             if int(self._get(dis_cfg, "steady_state", 0)) == 0:
-                for key in ("specific_storage", "specific_yield"):
+
+                laytype = int(
+                    self._get(
+                        layer,
+                        "laytype",
+                        0,
+                    )
+                )
+
+                laycon = laytype % 10
+
+                storage_keys = []
+
+                if laycon == 0:
+                    storage_keys = [
+                        "specific_storage",
+                    ]
+
+                elif laycon == 1:
+                    storage_keys = [
+                        "specific_yield",
+                    ]
+
+                elif laycon in (2, 3):
+                    storage_keys = [
+                        "specific_storage",
+                        "specific_yield",
+                    ]
+
+                for key in storage_keys:
+
                     paths.append(
                         (
                             f"MODFLOW.layers[{index}].{key}",
-                            self._required(layer, key, f"MODFLOW.layers[{index}].{key}"),
+                            self._required(
+                                layer,
+                                key,
+                                f"MODFLOW.layers[{index}].{key}",
+                            ),
                         )
                     )
+
 
         if bool(self._get(river_cfg, "enabled", 0)):
             for index, river_layer in enumerate(self._get(river_cfg, "layers", [])):
