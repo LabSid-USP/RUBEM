@@ -1,6 +1,88 @@
 # Golden fixture audit
 
-## Why the goldens changed
+## 2026-08: the Ch soil moisture unit correction (partial regeneration)
+
+`SurfaceRunoff.get_coef_soil_moist_conditions` converted the actual soil
+moisture content from mm to a fraction (`Tur / (Dg * Zr * 10)`) before
+dividing it by the saturation point. That conversion was wrong: the caller
+already passes `soil_moist_content_sat_point` in mm (`_dynamic_model.py`
+builds it as `tusat * Dg * Zr * 10`), so Ch compared a fraction against a
+depth and came out smaller than it should be by a factor of
+`(Dg * Zr * 10) ** beta` — with this fixture's `Dg` (1.25-1.64), `Zr`
+(22-92 cm) and `beta` (0.5), a factor of roughly 24 to 39. Ch multiplies
+`(P - I)` directly in `get_surface_runoff`, with no clipping, so the surface
+runoff was suppressed by that factor. The division was removed and Ch is now
+the mm/mm ratio `(Tur / Tursat) ** beta`.
+
+Only the 12 goldens whose values actually moved were replaced; the other 33
+keep the bytes of the previous regeneration, so the diff of this change is
+exactly the affected variables:
+
+- `srn`, `smc`, `rnf`, `arn` at timestep 2, as `.002` map, `.tif` and
+  `tss_*.csv`.
+
+Timestep 1 is untouched because the fixture sets `t_ini = 1.0`, so the
+initial soil moisture equals the saturation point and `get_surface_runoff`
+takes its saturated branch (`srn = P - I`), which does not read Ch. The
+variables that do not depend on Ch (`itp`, `bfw`, `eta`, `lfw`, `rec`) are
+bit-identical.
+
+### Generating environment of the replaced files
+
+- Base commit: branch `fix_318` (`eab4553`, the Ch soil moisture unit fix).
+- Generator: `python tests/fixtures/regenerate_golden.py` in the environment
+  created from `ci/golden-env.lock` plus `ci/golden-pip.lock` (micromamba,
+  environment name `golden`; linux-64, Python 3.13.7, pcraster 4.4.2,
+  gdal 3.11.5, numpy 2.3.4), run on Ubuntu 24.04.2 under WSL2 on a developer
+  workstation (glibc 2.39-0ubuntu8.4, x86_64, Intel Core i7-12700H).
+- Why this host is acceptable as the generator: byte identity is a property of
+  the C library and CPU, not of the machine, so a host is a valid generator
+  only if it reproduces the runner's bytes. That was verified before promoting
+  anything: the run produced the previous goldens' exact digests for the 37
+  files this change does not touch, and the exact digests the `exact` job on
+  `ubuntu-24.04` reported for the 8 files it does, so the promoted bytes are
+  the runner's bytes. `RUBEM_EXACT_GOLDEN=1 pytest tests -m exact` passes in
+  this environment.
+- The `ubuntu-24.04` runner image remains the canonical reference: if the
+  `exact` job ever disagrees with these bytes, the runner is right and the
+  goldens must be regenerated there, recording the new provenance here.
+
+### Impact of the correction (previous goldens vs regenerated)
+
+Maximum absolute difference over valid (non-nodata) cells/values, both runs
+executed on the same host so the numbers isolate the formula change from
+cross-environment float noise:
+
+| Variable | Rasters | Time series CSV |
+|---|---|---|
+| itp | 0.000000e+00 | 0.000000e+00 |
+| bfw | 0.000000e+00 | 0.000000e+00 |
+| srn | 1.026310e+02 | 3.522971e+01 |
+| eta | 0.000000e+00 | 0.000000e+00 |
+| lfw | 0.000000e+00 | 0.000000e+00 |
+| rec | 0.000000e+00 | 0.000000e+00 |
+| smc | 1.026310e+02 | 3.523000e+01 |
+| rnf | 1.026310e+02 | 3.522970e+01 |
+| arn | 2.423833e+01 | 1.820190e+01 |
+
+### Checksums replaced by this change
+
+```
+srn00000.002    83165b7a643e73f62f7724681863f591a31c3b45c19b875601d621a9b56bb2e6 -> 35fc364b2e309f007aedf027433e1947bb28ce99014ffc4d4cad073022b3f0ac
+smc00000.002    88999e794f1625cb03e418a7335e8eea853c7bc84f2f57fef36d001204aeb3ba -> 877cab02bbeeb0c8be4190f8ae3a4e2fde65793fb8ef2cb9cf15cd95e807fb36
+rnf00000.002    058580a89fb1137e61abcd9c7aa74399963cc03c208a80605c1b752b03749694 -> d75b07fc85708ccf5a2da774946dc5e2b534b59caf228c1838ddfb660e5870a3
+arn00000.002    59d42872d6adc7cf5a0a7da4e8daacfeb8f3c5be53c79bc8981af141d46aaaa2 -> 4cd64f93219c0bec9d916c776d09437ee514ede9e4aaf4a6007a1657291151ee
+srn0000002.tif  a2f624db3e41808be94e02f549fe0363db7faf65fc06d6fe461073a4d26e288a -> cf608b6e227a2ee934b0988eb616ce67ef6c3c549acd936b0bafdf4a2d6d3de8
+smc0000002.tif  46d96253aa9047be531a02597cd350c65ac97db438f0194571842d38563a903d -> 9d8ead92ec46bf7dd074eda97e2acbf1371c055aa803884b84f1bfbf96f4546d
+rnf0000002.tif  21a583574ea1af17882fb35c77ee37cb18b112b7929b6daa5ec2ee3ff22ca80f -> e5bf7e18e4dac6c726947f0bf7f60f3cd70927aec882eeb43c566b2c5d40fec9
+arn0000002.tif  8fc702536057758ce89d0e76a6328b42e0744378cde29999901a6a75493a2c79 -> 5c36bb78a75dbbe93e6b50f7ae1ac3964362caedb7ee8e8786501e50c751a10b
+tss_srn.csv     fa87eaf67f6b23cec33776c3c76d4164d50663542e531c117a8abb6f1abf441e -> 66da9bb684f1873d1739588853c1f8109b35f295354022c32f8975499357e5fe
+tss_smc.csv     ea3c1d32cb8892d74a1d375c352fead84e83e4d591e8ad345cede2f4e68928b8 -> 95c54fc37ae5f5ff7e277aabe3d2fe0ebb2101aae620971c0e86065b87a94e9c
+tss_rnf.csv     70e7bb1ce8dba75795cede407eff3dd445721812165ff85f554bf3bca42bf714 -> 2882d376e33facd35295ccf2d059e843316252a69489080382bab33f21e6c1ba
+tss_arn.csv     b44aa9fcb00b450e1dda4c00b082335de2c775da951ad5b13402f1e8326031c3 -> a51bdb9c3ca82657f10ea5bb545bf8036fd35716b5c9db6bcd751b1485428531
+```
+
+## The k_sat lookup table correction
 
 The regression configuration in `tests/integration/test_cli.py` mapped
 `TABLES.k_sat` to `txt/soil/Tsat.txt`, the same file already used for
@@ -8,7 +90,7 @@ The regression configuration in `tests/integration/test_cli.py` mapped
 fixture `txt/soil/Kr.txt`. The mapping was corrected and the goldens were
 regenerated once with `tests/fixtures/regenerate_golden.py`.
 
-## Generating environment and recipe
+### Generating environment and recipe
 
 - Base commit: `fb740f51aeaa38c45f93dd011078f954e2804bfd` (`main`)
 - Generator: the `exact` CI job on a GitHub-hosted runner of the `ubuntu-24.04`
@@ -58,7 +140,7 @@ regenerated once with `tests/fixtures/regenerate_golden.py`.
   model; a scoped `.gitattributes` rule (`tests/fixtures/base/out/** -text`)
   keeps git from normalizing any golden byte.
 
-## Impact of the correction (legacy vs regenerated)
+### Impact of the correction (legacy vs regenerated)
 
 Maximum absolute difference over valid (non-nodata) cells/values:
 
@@ -79,7 +161,7 @@ the corrected `Kr.txt` values differ from `Tsat.txt`; interception (`itp`)
 does not depend on `k_sat` and only shows Float32-level noise from the
 change of generating environment relative to the legacy goldens.
 
-## Legacy golden checksums (before this regeneration)
+### Legacy golden checksums (before this regeneration)
 
 ```
 9b03293d225604ce34f535b4d3174a2f4f91905669c12396ca0cf4f76d5fa4cd  arn00000.001
