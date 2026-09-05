@@ -18,15 +18,18 @@ bytes of the previous regeneration:
   `lfw`, `rec` at timestep 2, as `.001`/`.002` maps and `.tif`.
 
 Timestep 1 of `bfw`, `eta`, `lfw` and `rec` is untouched because none of them
-reads the interception of the current step: the first-step evapotranspiration,
-lateral flow and recharge depend on the initial soil moisture only, and the
-first-step baseflow on the initial storage. The `tss_*.csv` series are
-bit-identical because the sampled values are written with six significant
-digits and the change is four orders of magnitude below that.
+reads the interception of the current step: the only carried state the
+first-step evapotranspiration, lateral flow and recharge read is the initial
+soil moisture, and the first-step baseflow reads the initial storage and the
+(unchanged) first-step recharge. The `tss_*.csv` series are bit-identical
+because the sampled cells are unaffected for every variable except `arn`,
+whose sampled values move by at most `9.5e-7 mm`, below the last of the six
+significant digits the series are written with.
 
 ### Generating environment of the replaced files
 
-- Base commit: branch `fix_319` (`9bcdb32`, the interception guard fix).
+- Base commit: branch `fix_319` (`9bcdb32`, `origin/main` `b64006a` merged into
+  the fix commit `56c45ea`).
 - Generator: `python tests/fixtures/regenerate_golden.py` in the environment
   created from `ci/golden-env.lock` plus `ci/golden-pip.lock` (micromamba,
   environment name `golden`; linux-64, Python 3.13.7, pcraster 4.4.2,
@@ -51,9 +54,10 @@ executed on the same host so the numbers isolate the formula change from
 cross-environment float noise. The correction removes a `1e-5 mm`
 perturbation of the denominator, so the differences are numerical noise of
 that order; the semantic comparison of the CI matrix (`rtol=1e-5`, `atol=1e-8`)
-rejected the previous goldens on a single cell of `srn00000.001` (`7.6e-6`
-absolute on a value of `0.359 mm`, a relative difference of `2.1e-5`); every
-other cell of the 28 files is within tolerance.
+rejected the previous goldens on a single cell (row 70, column 75) of `srn`
+at timestep 1, in `srn00000.001` and in its GeoTIFF twin `srn0000001.tif`
+(`7.6e-6` absolute on a value of `0.359 mm`, a relative difference of
+`2.1e-5`); every other cell of the 28 files is within tolerance.
 
 | Variable | Rasters | Time series CSV |
 |---|---|---|
