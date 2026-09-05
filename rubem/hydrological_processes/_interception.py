@@ -159,25 +159,12 @@ class Interception:
         )
 
         partial_den = 1 + (
-            precipitation
-            * (
-                (1 - pcr.exp(-0.463 * leaf_area_index))
-                / (alfa * leaf_area_index)
-            )
+            precipitation * ((1 - pcr.exp(-0.463 * leaf_area_index)) / (alfa * leaf_area_index))
         )
 
-        min_daily_interception_limit = (
-            alfa * leaf_area_index * (1 - (1 / partial_den))
-        )
+        min_daily_interception_limit = alfa * leaf_area_index * (1 - (1 / partial_den))
 
-        interception_rate = (
-            1
-            - pcr.exp(
-                -min_daily_interception_limit
-                * rainy_days
-                / prec
-            )
-        )
+        interception_rate = 1 - pcr.exp(-min_daily_interception_limit * rainy_days / prec)
 
         # Total interception
         return vegetated_area_fraction * precipitation * interception_rate
