@@ -218,6 +218,13 @@ Fixed
   plain copies), and the per-variable output flags follow Pydantic's bool
   parsing (``"false"`` disables a variable instead of enabling it; an
   unparsable string is rejected).
+- Interception: positive monthly precipitation reaches the denominator of the
+  interception-rate equation unchanged; the ``1e-5`` guard against a zero
+  precipitation was being added to every value (#319). The golden fixtures
+  were regenerated (see ``tests/fixtures/AUDIT.md``).
+- Evapotranspiration: a cell whose NDVI equals ``1.1 * NDVI_min`` takes the
+  ``kc_min`` branch of the crop coefficient, as documented, instead of a
+  crop coefficient of zero (#320).
 
 Removed
 ```````
