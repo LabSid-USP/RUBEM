@@ -228,6 +228,10 @@ Fixed
   crop coefficient of zero
   (`#320 <https://github.com/LabSid-USP/RUBEM/issues/320>`__). The reference
   dataset has no cell on the threshold, so the golden fixtures are unchanged.
+- Baseflow: the recession baseflow is limited to the water available in the
+  saturated zone (``TU_S`` of the previous step plus the recharge), so the
+  saturated-zone storage can no longer become negative
+  (`#322 <https://github.com/LabSid-USP/RUBEM/issues/322>`__).
 
 Removed
 ```````
