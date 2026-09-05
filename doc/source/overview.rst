@@ -368,28 +368,35 @@ where:
 Baseflow
 `````````
 
-The basic flow is the one that occurs in the saturated soil layer. The base flow is determined by [TERINK2015]_ by groundwater recharge and the recession coefficient. It is calculated only if the moisture content in the saturated zone exceeds a specified threshold.
+The basic flow is the one that occurs in the saturated soil layer. The base flow is determined by [TERINK2015]_ by groundwater recharge and the recession coefficient. It is calculated only if the moisture content in the saturated zone exceeds a specified threshold, Equation :eq:`baseflow-recession`, and it is limited to the water actually available in the saturated zone during the time step, Equation :eq:`baseflow`, so that the saturated zone storage (Equation :eq:`tus`) never becomes negative.
+
+.. math::
+   :label: baseflow-recession
+   :nowrap:
+
+    \[
+    BF_{calc} = \left\{
+            \begin{array}{ll}
+            0,  & \mbox{if } TU_{S,T-1} \leq BF_{thresh} \\
+            BF_{T-1} \cdot e^{-\alpha_{GW}} + (1-e^{-\alpha_{GW}}) \cdot REC,  & \mbox{if } TU_{S,T-1} > BF_{thresh} \\
+            \end{array}
+    \right.
+    \]
 
 .. math::
    :label: baseflow
    :nowrap:
 
-    \[
-    BF = \left\{
-            \begin{array}{ll}
-            0,  & \mbox{if } TU_S \leq BF_{thresh} \\
-            BF_{T-1} \cdot e^{-\alpha_{GW}} + (1-e^{-\alpha_{GW}}) \cdot REC,  & \mbox{if } TU_S > BF_{thresh} \\
-            \end{array}
-    \right.
-    \]
+    \[BF = \min\left(BF_{calc},\; TU_{S,T-1} + REC\right)\]
 
 where:
 
 - :math:`BF` – Baseflow (mm);
+- :math:`BF_{calc}` – Baseflow given by the recession equation, before the availability limit (mm);
 - :math:`BF_{T-1}` – Baseflow at the previous time step (mm);
 - :math:`\alpha_{GW}` – Baseflow decay coefficient (-) [parameter to be calibrated];
 - :math:`REC` – Recharge (mm);
-- :math:`TU_S` – Saturated zone moisture content (mm);
+- :math:`TU_{S,T-1}` – Saturated zone moisture content at the previous time step (mm);
 - :math:`BF_{thresh}` – Threshold baseflow, attributed for each watershed (mm).
 
 Water Balance

@@ -225,6 +225,9 @@ Fixed
 - Evapotranspiration: a cell whose NDVI equals ``1.1 * NDVI_min`` takes the
   ``kc_min`` branch of the crop coefficient, as documented, instead of a
   crop coefficient of zero (#320).
+- Baseflow is limited to the water available in the saturated zone
+  (``TU_S`` of the previous step plus the recharge), so the saturated-zone
+  storage can no longer become negative (#322).
 
 Removed
 ```````
