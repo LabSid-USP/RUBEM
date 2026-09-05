@@ -92,6 +92,58 @@ class TestDynamicModelBehavior:
         ), "the fallback reproduced the second-step NDVI instead of the first"
 
     @pytest.mark.unit
+    def test_ndvi_at_the_crop_coefficient_threshold_takes_the_minimum_branch(self, tmp_path):
+        """A cell whose NDVI equals 1.1 * NDVI_min gets kc = kc_min (issue #320).
+
+        The documented rule is kc = kc_min whenever NDVI <= 1.1 * NDVI_min, so
+        the first-step evapotranspiration of a run whose NDVI sits exactly on
+        the threshold must reproduce the run whose NDVI equals NDVI_min. Two
+        strict comparisons around the threshold left that cell with kc = 0 and
+        no vegetated-area evapotranspiration at all. A third run above the
+        threshold, whose kc is interpolated, must differ, so that a constant
+        output cannot pass.
+        """
+        import numpy as np
+        import pcraster as pcr
+
+        from tests.helpers.synthetic import COLS, MISSING, ROWS
+
+        threshold_dir = tmp_path / "threshold"
+        below_dir = tmp_path / "below"
+        above_dir = tmp_path / "above"
+
+        runs = [
+            (directory, write_synthetic_dataset(str(directory)))
+            for directory in (threshold_dir, below_dir, above_dir)
+        ]
+        # The threshold is the Float32 product PCRaster evaluates from the
+        # ndvi_min raster the model reads: the Python literal 1.1 * 0.2 rounds
+        # to a Float32 below it and would take the kc_min branch with any
+        # comparison operator.
+        ndvi_min = pcr.readmap(str(threshold_dir / "maps" / "ndvi" / "ndvi_min.map"))
+        threshold = float(pcr.pcr2numpy(1.1 * ndvi_min, np.nan)[0, 0])
+        below = float(pcr.pcr2numpy(ndvi_min, np.nan)[0, 0])
+        # Write every step-1 NDVI raster while the synthetic clone is still set;
+        # each model run replaces the PCRaster clone.
+        for (directory, _), value in zip(runs, (threshold, below, 0.6), strict=True):
+            ndvi = pcr.numpy2pcr(
+                pcr.Scalar, np.full((ROWS, COLS), value, dtype=np.float32), MISSING
+            )
+            pcr.report(ndvi, str(directory / "maps" / "ndvi" / series_name("ndvi", 1)))
+        for directory, config in runs:
+            run_model(str(directory), config=config)
+
+        name = series_name("eta", 1)
+        same = compare_rasters(threshold_dir / "out" / name, below_dir / "out" / name)
+        assert same.equal, (
+            f"{name} at NDVI = 1.1 * NDVI_min differs from the NDVI = NDVI_min control:\n"
+            f"{same.report()}"
+        )
+        assert not compare_rasters(threshold_dir / "out" / name, above_dir / "out" / name).equal, (
+            "the threshold run reproduced the interpolated kc of the above-threshold control"
+        )
+
+    @pytest.mark.unit
     def test_disabling_tss_produces_no_time_series(self, tmp_path):
         config = write_synthetic_dataset(str(tmp_path))
         config["GENERATE_FILE"]["tss"] = False
