@@ -81,19 +81,12 @@ class Soil:
         """Return Baseflow in the pixel [mm]."""
 
         # Baseflow occurs only above the defined saturated-zone threshold
-        cond_lim_for_baseflow = pcr.scalar(
-            water_cont_sat_zone > threshold_for_baseflow_ocurrence
-        )
+        cond_lim_for_baseflow = pcr.scalar(water_cont_sat_zone > threshold_for_baseflow_ocurrence)
 
         # Baseflow calculated according to the RUBEM recession equation
         calculated_baseflow = (
-            (
-                previous_baseflow
-                * ((pcr.exp(1)) ** -baseflow_recession_coef)
-            )
-            + (
-                1 - ((pcr.exp(1)) ** -baseflow_recession_coef)
-            ) * recharge
+            (previous_baseflow * ((pcr.exp(1)) ** -baseflow_recession_coef))
+            + (1 - ((pcr.exp(1)) ** -baseflow_recession_coef)) * recharge
         ) * cond_lim_for_baseflow
 
         # Water effectively available in the saturated zone
