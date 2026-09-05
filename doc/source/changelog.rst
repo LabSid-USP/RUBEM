@@ -86,6 +86,9 @@ Added
 Changed
 ```````
 
+- The impervious area interception ``i_imp`` must lie between 1 and 3 mm, the range of the
+  published formulation (`#327 <https://github.com/LabSid-USP/RUBEM/issues/327>`__);
+  the model overview and the user guide state the same range.
 - Packaged RUBEM with ``pyproject.toml``: ``pip install`` support, the
   ``rubem`` console script and a single PEP 440 version source.
 - Stated the license expression consistently as ``GPL-3.0-or-later`` (the
