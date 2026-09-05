@@ -152,14 +152,18 @@ class Interception:
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
         # condition of precipitation, to divide by non zero number (missing value)
-        cond_non_zero_prec = pcr.scalar(precipitation != 0)
-        cond_zero_prec = pcr.scalar(precipitation == 0)
-        prec = precipitation * cond_non_zero_prec + (precipitation * cond_zero_prec + 0.00001)
+        prec = pcr.ifthenelse(
+            precipitation != 0,
+            precipitation,
+            pcr.scalar(1e-5),
+        )
 
         partial_den = 1 + (
-            precipitation * ((1 - (pcr.exp(-0.463 * leaf_area_index))) / (alfa * leaf_area_index))
+            precipitation * ((1 - pcr.exp(-0.463 * leaf_area_index)) / (alfa * leaf_area_index))
         )
+
         min_daily_interception_limit = alfa * leaf_area_index * (1 - (1 / partial_den))
+
         interception_rate = 1 - pcr.exp(-min_daily_interception_limit * rainy_days / prec)
 
         # Total interception

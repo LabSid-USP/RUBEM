@@ -1,8 +1,27 @@
+import math
+
 import pcraster as pcr
 import pytest
 from pcraster.framework import generalfunctions
 
 from rubem.hydrological_processes import Interception
+
+
+def _interception_equation(alfa, leaf_area_index, precipitation, rainy_days, a_v):
+    """Evaluate the interception equations of ``get_interception`` in float64.
+
+    The rate and the vegetated-area interception follow the ``interception-r``
+    and ``interception-v`` equations of ``doc/source/overview.rst``; the daily
+    limit is evaluated as ``Interception.get_interception`` does. The
+    zero-precipitation guard is left out, so the helper is only defined for
+    positive precipitation.
+    """
+    partial_den = 1 + precipitation * (1 - math.exp(-0.463 * leaf_area_index)) / (
+        alfa * leaf_area_index
+    )
+    daily_interception_limit = alfa * leaf_area_index * (1 - 1 / partial_den)
+    interception_rate = 1 - math.exp(-daily_interception_limit * rainy_days / precipitation)
+    return a_v * precipitation * interception_rate
 
 
 class TestInterceptionModule:
@@ -165,6 +184,8 @@ class TestInterceptionModule:
         a_v = pcr.scalar(0.255)
         field = Interception.get_interception(alfa, lai, precipitation, rainy_days, a_v)
         result = generalfunctions.getCellValue(field, 0, 0)
+        # The guard keeps the division finite; no interception without precipitation
+        assert math.isfinite(result)
         expected = 0.0
         assert result == pytest.approx(expected)
 
@@ -192,3 +213,53 @@ class TestInterceptionModule:
     def test_interceptionCalc_None_values(self):
         with pytest.raises(RuntimeError):
             Interception.get_interception(None, None, None, None, None)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        ("alfa", "lai", "precipitation", "rainy_days", "a_v"),
+        [
+            (10.0, 12.0, 125.93, 15, 0.255),
+            (4.5, 3.0, 100.0, 12, 0.6),
+        ],
+    )
+    def test_interceptionCalc_positive_precipitation_matches_the_equation(
+        self, alfa, lai, precipitation, rainy_days, a_v
+    ):
+        expected = _interception_equation(alfa, lai, precipitation, rainy_days, a_v)
+        field = Interception.get_interception(
+            pcr.scalar(alfa),
+            pcr.scalar(lai),
+            pcr.scalar(precipitation),
+            pcr.scalar(rainy_days),
+            pcr.scalar(a_v),
+        )
+        result = generalfunctions.getCellValue(field, 0, 0)
+        assert result == pytest.approx(expected, rel=1e-5)
+
+    @pytest.mark.unit
+    def test_interceptionCalc_small_positive_precipitation_keeps_denominator(self):
+        """Guard issue #319: positive precipitation reaches the denominator unchanged.
+
+        The zero-precipitation guard used to add 1e-5 to every precipitation
+        value, so for P = 1e-4 the denominator of I_R became 1.1e-4 instead of
+        1e-4. The equation gives I_R = 1 - exp(-I_D * 2 / 1e-4), about 0.5236,
+        and I about 5.23e-5; the old guard gave about 4.90e-5, roughly 6 percent
+        lower. Only a zero precipitation may be replaced by the small constant.
+
+        PCRaster evaluates the fields in float32, and the cancellation in
+        1 - 1 / partial_den (partial_den is within 4e-5 of 1 here) can move the
+        result by up to about 0.2 percent of the float64 value depending on the
+        platform's float32 rounding, so the tolerance must stay well above that
+        and well below the 6 percent error of the old guard.
+        """
+        alfa, lai, precipitation, rainy_days, a_v = 1.0, 1.0, 1e-4, 2, 1.0
+        expected = _interception_equation(alfa, lai, precipitation, rainy_days, a_v)
+        field = Interception.get_interception(
+            pcr.scalar(alfa),
+            pcr.scalar(lai),
+            pcr.scalar(precipitation),
+            pcr.scalar(rainy_days),
+            pcr.scalar(a_v),
+        )
+        result = generalfunctions.getCellValue(field, 0, 0)
+        assert result == pytest.approx(expected, rel=1e-2)
