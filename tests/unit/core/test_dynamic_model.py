@@ -6,7 +6,7 @@ import pytest
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.core import DynamicFrameworkWrapper
 from tests.helpers.compare import compare_rasters
-from tests.helpers.synthetic import series_name, write_synthetic_dataset
+from tests.helpers.synthetic import COLS, MISSING, ROWS, series_name, write_synthetic_dataset
 from tests.unit.core.test_core import expected_outputs, run_model
 
 STEP_FLUXES = (
@@ -105,8 +105,6 @@ class TestDynamicModelBehavior:
         """
         import numpy as np
         import pcraster as pcr
-
-        from tests.helpers.synthetic import COLS, MISSING, ROWS
 
         threshold_dir = tmp_path / "threshold"
         below_dir = tmp_path / "below"
