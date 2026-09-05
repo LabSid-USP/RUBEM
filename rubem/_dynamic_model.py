@@ -355,11 +355,12 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         partial_crop_coef = Interception.get_crop_coef(
             current_ndvi, self.ndvi_min, self.ndvi_max, min_crop_coef, max_crop_coef
         )
-        # If NDVI < 1.1 * NDVI_min, kc = kc_min
-        crop_coef_lt_min_ndvi = pcrfw.scalar(current_ndvi < 1.1 * self.ndvi_min)
-        crop_coef_gt_min_ndvi = pcrfw.scalar(current_ndvi > 1.1 * self.ndvi_min)
-        current_crop_coef = pcr.scalar(
-            (crop_coef_gt_min_ndvi * partial_crop_coef) + (crop_coef_lt_min_ndvi * min_crop_coef)
+        # If NDVI <= 1.1 * NDVI_min, kc = kc_min
+
+        current_crop_coef = pcr.ifthenelse(
+            current_ndvi <= 1.1 * self.ndvi_min,
+            min_crop_coef,
+            partial_crop_coef,
         )
 
         water_stress_coef = pcr.scalar(

@@ -223,6 +223,11 @@ Fixed
   precipitation was being added to every value
   (`#319 <https://github.com/LabSid-USP/RUBEM/issues/319>`__). The golden
   fixtures were regenerated (see ``tests/fixtures/AUDIT.md``).
+- Evapotranspiration: a cell whose NDVI equals ``1.1 * NDVI_min`` takes the
+  ``kc_min`` branch of the crop coefficient, as documented, instead of a
+  crop coefficient of zero
+  (`#320 <https://github.com/LabSid-USP/RUBEM/issues/320>`__). The reference
+  dataset has no cell on the threshold, so the golden fixtures are unchanged.
 
 Removed
 ```````
