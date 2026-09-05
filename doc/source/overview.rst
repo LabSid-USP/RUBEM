@@ -225,7 +225,7 @@ Impervious Area Fraction
 
 where:
 
-- :math:`I_I` – Interception for impervious areas (3 -5 mm);
+- :math:`I_I` – Interception for impervious areas (1 to 3 mm);
 - :math:`ET_{R,I}` – Real evapotranspiration at the impervious area (mm).
 
 Surface Runoff

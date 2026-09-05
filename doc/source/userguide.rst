@@ -586,7 +586,7 @@ Mandatory maximum float value [dimensionless quantity] that characterizes plant 
 
 Mandatory float value [mm] that represents the rainfall interception in impervious areas.
 
-.. math:: 1 < I_I < 3
+.. math:: 1 \leq I_I \leq 3
 
 .. code-block:: json
 
