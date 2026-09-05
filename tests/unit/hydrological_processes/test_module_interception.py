@@ -10,9 +10,10 @@ from rubem.hydrological_processes import Interception
 def _interception_equation(alfa, leaf_area_index, precipitation, rainy_days, a_v):
     """Evaluate the interception equations of ``get_interception`` in float64.
 
-    The rate and the vegetated-area interception follow the ``interception-r``
-    and ``interception-v`` equations of ``doc/source/overview.rst``; the daily
-    limit is evaluated as ``Interception.get_interception`` does. The
+    The rate, the vegetated-area interception and the total follow the
+    ``interception-r``, ``interception-v`` and ``interception`` equations of
+    ``doc/source/overview.rst``; the daily limit is evaluated as
+    ``Interception.get_interception`` does. The
     zero-precipitation guard is left out, so the helper is only defined for
     positive precipitation.
     """
@@ -225,6 +226,11 @@ class TestInterceptionModule:
     def test_interceptionCalc_positive_precipitation_matches_the_equation(
         self, alfa, lai, precipitation, rainy_days, a_v
     ):
+        """Conformance to the interception equations at ordinary precipitation.
+
+        The #319 regression itself is the small-precipitation test below: at
+        these magnitudes the old guard moved the result by less than 1e-7.
+        """
         expected = _interception_equation(alfa, lai, precipitation, rainy_days, a_v)
         field = Interception.get_interception(
             pcr.scalar(alfa),
@@ -242,7 +248,7 @@ class TestInterceptionModule:
 
         The zero-precipitation guard used to add 1e-5 to every precipitation
         value, so for P = 1e-4 the denominator of I_R became 1.1e-4 instead of
-        1e-4. The equation gives I_R = 1 - exp(-I_D * 2 / 1e-4), about 0.5236,
+        1e-4. The equation gives I_R = 1 - exp(-I_D * 2 / 1e-4), about 0.5235,
         and I about 5.23e-5; the old guard gave about 4.90e-5, roughly 6 percent
         lower. Only a zero precipitation may be replaced by the small constant.
 
