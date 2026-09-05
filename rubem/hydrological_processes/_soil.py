@@ -80,6 +80,11 @@ class Soil:
     ) -> Field:
         """Return Baseflow in the pixel [mm].
 
+        The baseflow given by the recession equation is limited to the water
+        available in the saturated zone during the timestep, i.e. the storage
+        of the previous timestep plus the recharge, so that the saturated-zone
+        balance never becomes negative.
+
         :param previous_baseflow: Baseflow at timestep t-1 [mm]
         :type previous_baseflow: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
@@ -89,21 +94,33 @@ class Soil:
         :param recharge: Monthly Recharge at timestep t
         :type recharge: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
-        :param water_cont_sat_zone: Water content at saturated zone [mm]
+        :param water_cont_sat_zone: Water content at saturated zone at timestep t-1 [mm]
         :type water_cont_sat_zone: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param threshold_for_baseflow_ocurrence: Threshold for baseflow occurrence [mm]
         :type threshold_for_baseflow_ocurrence: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
-        :returns: Monthly Baseflow [mm]
+        :returns: Monthly Baseflow [mm], limited to ``water_cont_sat_zone + recharge``
         :rtype: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
         """
-        # limit condition for base flow
+
+        # Baseflow occurs only above the defined saturated-zone threshold
         cond_lim_for_baseflow = pcr.scalar(water_cont_sat_zone > threshold_for_baseflow_ocurrence)
-        return (
+
+        # Baseflow calculated according to the RUBEM recession equation
+        calculated_baseflow = (
             (previous_baseflow * ((pcr.exp(1)) ** -baseflow_recession_coef))
             + (1 - ((pcr.exp(1)) ** -baseflow_recession_coef)) * recharge
         ) * cond_lim_for_baseflow
+
+        # Water effectively available in the saturated zone
+        available_water = water_cont_sat_zone + recharge
+
+        # Baseflow cannot exceed available water
+        return pcr.min(
+            calculated_baseflow,
+            available_water,
+        )
 
     # First soil layer
     @staticmethod
