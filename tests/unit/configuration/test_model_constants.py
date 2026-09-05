@@ -16,6 +16,9 @@ class TestModelConstants:
             (1.0, 1.01, 12.0, 3.0),
             (1.0, 1.0, 12.01, 3.0),
             (1.0, 1.0, 12.0, 3.01),
+            # The impervious area interception must lie between 1 and 3 mm.
+            (0.95, 0.001, 12.0, 0.99),
+            (0.95, 0.001, 12.0, 0.0),
             # FPAR bounds must satisfy 0 < min < max < 1 and lai_max must be positive.
             (0.0, 0.0, 0.0, 0.0),
             (1.0, 1.0, 12.0, 3.0),
@@ -37,7 +40,7 @@ class TestModelConstants:
         "fpar_max, fpar_min, lai_max, imp_int",
         [
             (0.95, 0.001, 12.0, 3.0),
-            (0.5, 0.1, 0.01, 0.0),
+            (0.5, 0.1, 0.01, 1.0),
             (0.999, 0.998, 1.0, 1.5),
         ],
     )
