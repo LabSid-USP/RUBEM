@@ -427,7 +427,8 @@ where:
 
 - :math:`TU_S` – Saturated zone moisture content (mm);
 - :math:`TU_{S,T-1}` – Saturated zone moisture content at the previous time step (mm);
-- :math:`BF` – Baseflow (mm).
+- :math:`BF` – Baseflow (mm);
+- :math:`REC` – Recharge (mm).
 
 .. math::
    :label: tur

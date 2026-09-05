@@ -91,7 +91,7 @@ class Soil:
         :param baseflow_recession_coef: Baseflow recession coefficient (Calibrated) [-]
         :type baseflow_recession_coef: float
 
-        :param recharge: Monthly Recharge at timestep t
+        :param recharge: Monthly Recharge at timestep t [mm]
         :type recharge: Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :param water_cont_sat_zone: Water content at saturated zone at timestep t-1 [mm]
