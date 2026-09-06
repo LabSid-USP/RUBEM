@@ -813,6 +813,8 @@ Land Use (:math:`w_1`), Soil Moisture (:math:`w_2`) and Slope (:math:`w_3`) are 
 
 .. math:: w_1 + w_2 + w_3 = 1
 
+Together with Manning's roughness coefficient, the wilting point and the impervious and open water area fractions, these weights must keep the weighted runoff coefficient of every land use and soil class pair within its domain, :math:`C_{wp} \le 1`, since above 1 the denominator of the actual runoff coefficient crosses zero and the surface runoff can exceed the precipitation. The input validation reports the pairs of land use and soil classes that violate this domain: blocking when the part of :math:`C_{wp}` that does not depend on the slope already reaches 1, and as a warning naming the slope above which the coefficient reaches 1 otherwise.
+
 :raw-html:`Land Use Factor Weight (w<sub>1</sub>)`
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
