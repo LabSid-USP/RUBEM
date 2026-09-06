@@ -13,6 +13,15 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added the validation of the weighted runoff coefficient domain
+  ``C_wp <= 1``: for every pair of a land use class and a soil class the
+  slope-free part of the coefficient is computed from the Manning roughness,
+  the wilting point, the impervious and open water fractions and the weights
+  ``w1``, ``w2`` and ``w3``; a pair at or above 1 blocks the run, a pair that
+  only the slope term can push above 1 is reported with the slope threshold,
+  and a wilting point at or above 1 blocks (skipped with ``-s``;
+  `#328 <https://github.com/LabSid-USP/RUBEM/issues/328>`__). The user guide
+  states the domain next to the weights.
 - Added the optional ``RASTERS.georeference`` raster whose coordinate
   reference system is written to the GeoTIFF outputs; the clone and the
   georeference must share the DEM geometry, rotated grids are refused when
