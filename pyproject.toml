@@ -90,6 +90,7 @@ markers = [
   "unit: mark a test as a unit test.",
   "integration: mark a test as a integration test.",
   "exact: mark a test that reproduces the goldens byte-for-byte on the golden environment.",
+  "paper: mark a conformity test derived from the published model formulation (journal supplement).",
 ]
 
 [tool.coverage.run]
