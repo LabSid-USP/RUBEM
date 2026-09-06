@@ -13,6 +13,13 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added the ``paper`` conformity tests (``tests/paper``, marker ``paper``):
+  equation tests of the process functions against the journal supplement
+  (S3, S5 to S20 and S22 to S33), model-level tests of the rules the model
+  applies inline (open water, impervious and saturated cells, total and
+  routed discharge, crop coefficient threshold) and an independent float64
+  reference of one monthly step compared cell by cell with the model on the
+  synthetic dataset (`#332 <https://github.com/LabSid-USP/RUBEM/issues/332>`__).
 - Added the optional ``RASTERS.georeference`` raster whose coordinate
   reference system is written to the GeoTIFF outputs; the clone and the
   georeference must share the DEM geometry, rotated grids are refused when
