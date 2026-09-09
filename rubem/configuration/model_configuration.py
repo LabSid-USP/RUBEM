@@ -154,12 +154,21 @@ class ModelConfiguration:
             baseflow_limit=file.initial_soil_conditions.bfw_lim,
             initial_saturated_zone_storage=file.initial_soil_conditions.s_sat_ini,
         )
+        
         self.constants = ModelConstants(
-            fraction_photo_active_radiation_max=file.constants.fpar_max,
-            fraction_photo_active_radiation_min=file.constants.fpar_min,
-            leaf_area_interception_max=file.constants.lai_max,
-            impervious_area_interception=file.constants.i_imp,
+        fraction_photo_active_radiation_max=file.constants.fpar_max,
+        fraction_photo_active_radiation_min=file.constants.fpar_min,
+
+        leaf_area_interception_max=file.constants.lai_max,
+
+        leaf_area_interception_max_from_table=(
+            file.constants.lai_max_from_table
+        ),
+
+        impervious_area_interception=file.constants.i_imp,
         )
+            
+
         self.output_directory = OutputDataDirectory(file.directories.output).ensure_exists()
 
         output_formats = OutputFileFormat(0)
@@ -232,6 +241,8 @@ class ModelConfiguration:
             rootzone_depth=file.tables.rootzone_depth,
             kc_min=file.tables.k_c_min,
             kc_max=file.tables.k_c_max,
+            lai_max=file.tables.lai_max,
+
             validate_input=validate_input,
         )
         self._series_problems = list(self.raster_series.problems)
