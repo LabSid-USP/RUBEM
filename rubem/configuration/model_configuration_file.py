@@ -217,6 +217,7 @@ class Tables(_Section):
     rootzone_depth: str = Field(validation_alias=AliasChoices("rootzone_depth", "Zr"))
     k_c_min: str = Field(validation_alias=AliasChoices("k_c_min", "kc_min", "kcmin", "K_c_min"))
     k_c_max: str = Field(validation_alias=AliasChoices("k_c_max", "kc_max", "kcmax", "K_c_max"))
+    lai_max: str | None = None
 
 
 class Grid(_Section):
@@ -245,7 +246,14 @@ class InitialSoilConditionsSection(_Section):
 class Constants(_Section):
     fpar_max: float
     fpar_min: float
+    
+    # Valor fixo de LAI_max
     lai_max: float
+
+    # False = usa lai_max fixo
+    # True  = usa tabela associada ao landuse
+    lai_max_from_table: bool = False
+    
     i_imp: float
 
 

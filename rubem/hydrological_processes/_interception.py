@@ -105,7 +105,7 @@ class Interception:
     def get_leaf_area_index(
         fpar: Field,
         fpar_max: float,
-        leaf_area_index_max: float,
+        leaf_area_index_max: float | Field,
     ) -> Field:
         """Return Leaf Area Index (LAI).
 
@@ -115,8 +115,9 @@ class Interception:
         :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation (FPAR) [-]
         :type fpar_max: float
 
-        :param leaf_area_index_max: Maximum Leaf Area Index [-]
-        :type leaf_area_index_max: float
+        :param leaf_area_index_max: Maximum Leaf Area Index [-],
+        either a spatial PCRaster field or a fixed scalar value.
+        :type leaf_area_index_max: float or Field
 
         :returns: Leaf Area Index (LAI) [-]
         :rtype:Field ``PCRASTER_VALUESCALE=VS_SCALAR``

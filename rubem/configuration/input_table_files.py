@@ -25,6 +25,9 @@ TABLE_FIELDS = (
     "kc_max",
 )
 
+OPTIONAL_TABLE_FIELDS = (
+    "lai_max",
+)
 
 class InputTableFiles(BaseModel):
     """
@@ -66,25 +69,46 @@ class InputTableFiles(BaseModel):
     rootzone_depth: str
     kc_min: str
     kc_max: str
+    lai_max: str | None = None
     validate_input: bool = Field(default=True, exclude=True, repr=False)
 
     @field_validator(*TABLE_FIELDS, mode="before")
     @classmethod
     def _normalise(cls, value):
+        if value in (None, ""):
+            return None
         return str(as_path(value))
 
     @model_validator(mode="after")
     def _validate_files(self) -> Self:
+
         if not self.validate_input:
             logger.warning("Input lookup table files validation is disabled.")
             return self
-        for name in TABLE_FIELDS:
-            file = Path(getattr(self, name))
+
+        for name in TABLE_FIELDS + OPTIONAL_TABLE_FIELDS:
+
+            file_path = getattr(self, name)
+
+            # tabelas opcionais podem não existir na configuração
+            if file_path is None:
+                continue
+
+            file = Path(file_path)
+
             if not file.is_file():
-                raise FileNotFoundError(f"Invalid input lookuptable file: {file}")
+                raise FileNotFoundError(
+                    f"Invalid input lookuptable file: {file}"
+                )
+
             if file.stat().st_size <= 0:
-                raise ValueError(f"Empty input lookuptable file: {file}")
+                raise ValueError(
+                    f"Empty input lookuptable file: {file}"
+                )
+
         return self
+
+
 
     def __str__(self) -> str:
         return (

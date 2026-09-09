@@ -25,6 +25,7 @@ class ModelConstants(BaseModel):
     fraction_photo_active_radiation_max: float
     fraction_photo_active_radiation_min: float
     leaf_area_interception_max: float
+    leaf_area_interception_max_from_table: bool = False
     impervious_area_interception: float
 
     @model_validator(mode="after")
