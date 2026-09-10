@@ -3,7 +3,7 @@
 This first version is intended to couple RUBEM recharge to MODFLOW and return
 river-aquifer exchange to RUBEM.  It supports a generic number of aquifer
 layers configured in JSON, transient DIS parameters, PCG, optional wetting,
-RIV, GHB and DRN with fixed maps per layer, recharge to the highest active cell,
+RIV, GHB and DRN, recharge to the highest active cell,
 and retrieval of heads/storage.
 
 WEL is not implemented and fails explicitly if configured as enabled.
@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import logging
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Mapping, Optional
 
 import numpy as np
@@ -303,8 +304,31 @@ class ModflowGroundwater:
     # Initialization
     # ------------------------------------------------------------------
     def _read_scalar_input(self, path, label, required=None, fill=0.0) -> Field:
-        """Fill unused cells, but reject missing values where data is required."""
-        values = pcr.pcr2numpy(pcr.scalar(pcr.readmap(str(path))), np.nan)
+        """Read a map, constant or lookup; validate and fill unused cells."""
+        lookup = self._get(path, "table") is not None
+        if lookup:
+            classes = pcr.readmap(str(self._get(path, "map")))
+            if classes.dataType() != pcr.Nominal:
+                raise ValueError(f"{label}.map must be a nominal PCRaster map.")
+            table = Path(self._get(path, "table"))
+            # PCRaster caches tables by filename. A fresh snapshot is needed
+            # when a calibrator rewrites a table between runs in one process.
+            with TemporaryDirectory(prefix="rubem_kh_") as directory:
+                snapshot = Path(directory) / "conductivity.tbl"
+                snapshot.write_bytes(table.read_bytes())
+                try:
+                    raster = pcr.lookupscalar(str(snapshot), classes)
+                except RuntimeError as error:
+                    raise ValueError(f"{label}: cannot read lookup table {table}: {error}") from error
+            label = f"{label} lookup (check class coverage in the map and table)"
+        elif isinstance(path, (int, float)):
+            self._validate_constant(path, label)
+            raster = pcr.spatial(pcr.scalar(float(path)))
+        elif isinstance(path, Field):
+            raster = path
+        else:
+            raster = pcr.scalar(pcr.readmap(str(path)))
+        values = pcr.pcr2numpy(raster, np.nan)
         finite = np.isfinite(values)
         if required is not None:
             invalid = required & ~finite
@@ -314,12 +338,24 @@ class ModflowGroundwater:
                     f"{label}: missing or non-finite value in a required cell "
                     f"(row {row}, column {column})."
                 )
+        if lookup:
+            used = required if required is not None else finite
+            invalid = used & (values <= 0)
+            if invalid.any():
+                row, column = np.argwhere(invalid)[0] + 1
+                raise ValueError(
+                    f"{label}: conductivity must be positive "
+                    f"(row {row}, column {column})."
+                )
         return pcr.numpy2pcr(pcr.Scalar, np.where(finite, values, fill), np.nan)
 
-    def _read_stress_inputs(self, package, layer_number, conductance, **heads):
+    def _read_stress_inputs(self, package, layer_number, conductance, mask=None, **heads):
         """Build complete stress maps, with zero conductance outside BAS cells."""
         active = pcr.scalar(self._boundaries[layer_number]) != 0
         cond = self._read_scalar_input(conductance, f"{package}.conductance")
+        if mask is not None:
+            river_cells = self._read_scalar_input(mask, f"{package}.mask") > 0
+            cond = pcr.ifthenelse(river_cells, cond, pcr.scalar(0))
         cond = pcr.ifthenelse(active, cond, pcr.scalar(0))
         required = pcr.pcr2numpy(cond, 0) > 0
         maps = {
@@ -698,10 +734,13 @@ class ModflowGroundwater:
                 "conductance",
                 "MODFLOW.river.layers[].conductance",
             )
+            mask = self._get(river_layer, "mask")
+            if isinstance(conductance, (int, float)) and mask is None:
+                raise ValueError("Constant river conductance requires a 'mask' map.")
 
             cond, maps = self._read_stress_inputs(
                 f"MODFLOW.river.layer{layer_number}", layer_number, conductance,
-                stage=stage, bottom=bottom,
+                mask=mask, stage=stage, bottom=bottom,
             )
             self.mf.setRiver(
                 maps["stage"],
@@ -1165,6 +1204,11 @@ class ModflowGroundwater:
 
         if bool(self._get(river_cfg, "enabled", 0)):
             for index, river_layer in enumerate(self._get(river_cfg, "layers", [])):
+                mask = self._get(river_layer, "mask")
+                if isinstance(self._get(river_layer, "conductance"), (int, float)) and mask is None:
+                    raise ValueError("Constant river conductance requires a 'mask' map.")
+                if mask is not None:
+                    paths.append((f"MODFLOW.river.layers[{index}].mask", mask))
                 for key in ("stage", "bottom", "conductance"):
                     paths.append(
                         (
@@ -1195,8 +1239,22 @@ class ModflowGroundwater:
             paths.append(("MODFLOW.wetting.map", wetting_path))
 
         for label, path in paths:
-            if not Path(str(path)).exists():
+            if isinstance(path, (int, float)):
+                self._validate_constant(path, label)
+                if label.endswith(".specific_yield") and path > 1:
+                    raise ValueError(f"{label}: specific yield must be between 0 and 1.")
+            elif self._get(path, "table") is not None:
+                for key in ("map", "table"):
+                    file_path = self._required(path, key, f"{label}.{key}")
+                    if not Path(str(file_path)).is_file():
+                        raise FileNotFoundError(f"{label}.{key} does not exist: {file_path}")
+            elif not Path(str(path)).is_file():
                 raise FileNotFoundError(f"{label} does not exist: {path}")
+
+    @staticmethod
+    def _validate_constant(value, label) -> None:
+        if isinstance(value, bool) or not np.isfinite(value) or value < 0:
+            raise ValueError(f"{label}: constant must be finite and non-negative.")
 
     def _validate_layer_number(self, layer_number: int, label: str) -> None:
         if layer_number < 1 or layer_number > self.number_layers:

@@ -11,12 +11,23 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator, field_valida
 PositiveLayer = Annotated[int, Field(ge=1)]
 PositiveFloat = Annotated[float, Field(gt=0)]
 PositiveInt = Annotated[int, Field(ge=1)]
+MapPath = Annotated[str, Field(min_length=1)]
+NonNegativeConstant = Annotated[float, Field(strict=True, ge=0, allow_inf_nan=False)]
+StorageInput = MapPath | NonNegativeConstant
+YieldInput = MapPath | Annotated[float, Field(strict=True, ge=0, le=1, allow_inf_nan=False)]
 
 
 class _Strict(BaseModel):
     """Strict immutable configuration section."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class ModflowConductivityLookup(_Strict):
+    """Nominal class raster and PCRaster class-to-conductivity table."""
+
+    map: MapPath
+    table: MapPath
 
 
 class ModflowLayerConfiguration(_Strict):
@@ -32,15 +43,15 @@ class ModflowLayerConfiguration(_Strict):
     # Legacy Bauru convention:
     # KY*.map -> horizontal hydraulic conductivity
     # KX*.map -> vertical hydraulic conductivity
-    horizontal_conductivity: str
+    horizontal_conductivity: MapPath | ModflowConductivityLookup
     vertical_conductivity: str
 
     boundary: str
     initial_head: str
 
     # Required for transient simulations (steady_state = 0).
-    specific_storage: str | None = None
-    specific_yield: str | None = None
+    specific_storage: StorageInput | None = None
+    specific_yield: YieldInput | None = None
 
 
     laytype: int = 0
@@ -150,7 +161,15 @@ class ModflowRiverLayerConfiguration(_Strict):
     layer: PositiveLayer
     stage: str
     bottom: str
-    conductance: str
+    conductance: MapPath | NonNegativeConstant
+    # Positive cells identify rivers; zero/NoData cells are excluded.
+    mask: MapPath | None = None
+
+    @model_validator(mode="after")
+    def _check_constant_mask(self) -> Self:
+        if isinstance(self.conductance, (int, float)) and self.mask is None:
+            raise ValueError("Constant river conductance requires a 'mask' map.")
+        return self
 
 
 class ModflowRiverConfiguration(_Strict):
@@ -419,7 +438,7 @@ class ModflowConfiguration(_Strict):
 
                 if laycon == 0:
 
-                    if not layer.specific_storage:
+                    if layer.specific_storage is None:
                         raise ValueError(
                             f"MODFLOW layer {index} with "
                             "LAYCON 0 requires "
@@ -428,7 +447,7 @@ class ModflowConfiguration(_Strict):
 
                 elif laycon == 1:
 
-                    if not layer.specific_yield:
+                    if layer.specific_yield is None:
                         raise ValueError(
                             f"MODFLOW layer {index} with "
                             "LAYCON 1 requires "
@@ -437,14 +456,14 @@ class ModflowConfiguration(_Strict):
 
                 elif laycon in (2, 3):
 
-                    if not layer.specific_storage:
+                    if layer.specific_storage is None:
                         raise ValueError(
                             f"MODFLOW layer {index} with "
                             f"LAYCON {laycon} requires "
                             "'specific_storage'."
                         )
 
-                    if not layer.specific_yield:
+                    if layer.specific_yield is None:
                         raise ValueError(
                             f"MODFLOW layer {index} with "
                             f"LAYCON {laycon} requires "
@@ -544,8 +563,10 @@ class ModflowConfiguration(_Strict):
         base = Path(base_dir)
 
         def anchor(value):
-            if value is None:
-                return None
+            if value is None or isinstance(value, (int, float)):
+                return value
+            if isinstance(value, dict):
+                return {key: anchor(path) for key, path in value.items()}
             path = Path(value)
             return value if path.is_absolute() else str(base / path)
 
@@ -569,7 +590,7 @@ class ModflowConfiguration(_Strict):
         wetting["map"] = anchor(wetting.get("map"))
 
         for river_layer in data["river"]["layers"]:
-            for key in ("stage", "bottom", "conductance"):
+            for key in ("stage", "bottom", "conductance", "mask"):
                 river_layer[key] = anchor(river_layer.get(key))
 
         for ghb_layer in data["ghb"]["layers"]:
