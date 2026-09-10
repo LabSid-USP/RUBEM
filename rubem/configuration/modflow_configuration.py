@@ -169,13 +169,30 @@ class ModflowRiverConfiguration(_Strict):
         return self
 
 
+class ModflowGhbLayerConfiguration(_Strict):
+    """GHB maps for one layer: external head (m) and conductance (m2/day)."""
+
+    layer: PositiveLayer
+    head: Annotated[str, Field(min_length=1)]
+    conductance: Annotated[str, Field(min_length=1)]
+
+
 class ModflowGhbConfiguration(_Strict):
-    """Reserved configuration for the future GHB implementation."""
+    """Optional GHB package with fixed maps per layer."""
 
     enabled: Literal[0, 1] = 0
-    layers: list[PositiveLayer] = Field(default_factory=list)
-    conductance: str | None = None
-    head_table: str | None = None
+    layers: list[ModflowGhbLayerConfiguration] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _check_layers(self) -> Self:
+        if self.enabled and not self.layers:
+            raise ValueError("ghb.enabled=1 requires at least one GHB layer.")
+
+        numbers = [item.layer for item in self.layers]
+        if len(numbers) != len(set(numbers)):
+            raise ValueError("ghb.layers cannot contain the same layer more than once.")
+
+        return self
 
 
 class ModflowWellsConfiguration(_Strict):
@@ -285,9 +302,8 @@ class ModflowConfiguration(_Strict):
     default_factory=ModflowCouplingConfiguration
     )   
 
-    # Accepted now so the JSON structure is stable, but the first
-    # ModflowGroundwater implementation intentionally raises if they are enabled.
     ghb: ModflowGhbConfiguration = Field(default_factory=ModflowGhbConfiguration)
+    # WEL remains reserved and raises when enabled.
     wells: ModflowWellsConfiguration = Field(
         default_factory=ModflowWellsConfiguration
     )
@@ -469,7 +485,8 @@ class ModflowConfiguration(_Strict):
                 f"range 1-{number_layers}."
             )
 
-        for layer_number in self.ghb.layers:
+        for ghb_layer in self.ghb.layers:
+            layer_number = ghb_layer.layer
             if layer_number > number_layers:
                 raise ValueError(
                     f"GHB layer {layer_number} is outside the valid "
@@ -522,9 +539,9 @@ class ModflowConfiguration(_Strict):
             for key in ("stage", "bottom", "conductance"):
                 river_layer[key] = anchor(river_layer.get(key))
 
-        ghb = data["ghb"]
-        ghb["conductance"] = anchor(ghb.get("conductance"))
-        ghb["head_table"] = anchor(ghb.get("head_table"))
+        for ghb_layer in data["ghb"]["layers"]:
+            for key in ("head", "conductance"):
+                ghb_layer[key] = anchor(ghb_layer[key])
 
         wells = data["wells"]
         wells["map"] = anchor(wells.get("map"))

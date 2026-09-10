@@ -3,10 +3,10 @@
 This first version is intended to couple RUBEM recharge to MODFLOW and return
 river-aquifer exchange to RUBEM.  It supports a generic number of aquifer
 layers configured in JSON, transient DIS parameters, PCG, optional wetting,
-RIV, recharge to the highest active cell, and retrieval of heads/storage.
+RIV, GHB with fixed maps per layer, recharge to the highest active cell,
+and retrieval of heads/storage.
 
-Not implemented in this first version: GHB and WEL.  They fail explicitly if
-configured as enabled, so that they are never silently ignored.
+WEL is not implemented and fails explicitly if configured as enabled.
 
 Layer numbering follows PCRaster MODFLOW: layer 1 is the bottom layer and
 layer N is the uppermost layer.
@@ -19,6 +19,7 @@ import logging
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
+import numpy as np
 import pcraster as pcr
 from pcraster import initialise
 from pcraster._pcraster import Field
@@ -49,9 +50,10 @@ class ModflowGroundwater:
         regular dictionary or an object with equivalent attributes (for
         example, a Pydantic model).
     cell_area_m2:
-        Horizontal area of one RUBEM/MODFLOW cell in square metres.  This is
-        used to convert RIV leakage [m3/day] back to an equivalent RUBEM
-        water depth [mm/timestep].
+        Horizontal area of one RUBEM/MODFLOW cell in square metres. Its square
+        root sets the MODFLOW row and column widths independently of the clone
+        coordinate units. This area also converts RIV leakage [m3/day] back to
+        an equivalent RUBEM water depth [mm/timestep].
     logger:
         Optional logger.  If omitted, a module logger is created.
 
@@ -82,9 +84,10 @@ class ModflowGroundwater:
 
         self.mf = None
         self._initialized = False
+        self._boundaries: dict[int, Field] = {}
 
-        if self.cell_area_m2 <= 0:
-            raise ValueError("MODFLOW cell_area_m2 must be greater than zero.")
+        if not np.isfinite(self.cell_area_m2) or self.cell_area_m2 <= 0:
+            raise ValueError("MODFLOW cell_area_m2 must be finite and greater than zero.")
 
     # ------------------------------------------------------------------
     # Public API
@@ -117,6 +120,7 @@ class ModflowGroundwater:
 
         # Grid/layer geometry first.
         self._setup_geometry()
+        self._setup_cell_dimensions()
 
         # DIS must be configured before BAS/BCF and solver packages.
         self._setup_dis(first_period_days)
@@ -200,9 +204,10 @@ class ModflowGroundwater:
         )
         recharge_cfg = self._get(self.config, "recharge", {})
         recharge_option = int(self._get(recharge_cfg, "option", 3))
-        self.mf.setRecharge(recharge_m_per_day, recharge_option)
+        self.mf.setRecharge(pcr.cover(recharge_m_per_day, pcr.scalar(0)), recharge_option)
 
         self._set_river_stress()
+        self._set_ghb_stress()
 
         self.logger.debug("Running PCRaster MODFLOW...")
         self.mf.run()
@@ -292,22 +297,98 @@ class ModflowGroundwater:
     # ------------------------------------------------------------------
     # Initialization
     # ------------------------------------------------------------------
+    def _read_scalar_input(self, path, label, required=None, fill=0.0) -> Field:
+        """Fill unused cells, but reject missing values where data is required."""
+        values = pcr.pcr2numpy(pcr.scalar(pcr.readmap(str(path))), np.nan)
+        finite = np.isfinite(values)
+        if required is not None:
+            invalid = required & ~finite
+            if invalid.any():
+                row, column = np.argwhere(invalid)[0] + 1
+                raise ValueError(
+                    f"{label}: missing or non-finite value in a required cell "
+                    f"(row {row}, column {column})."
+                )
+        return pcr.numpy2pcr(pcr.Scalar, np.where(finite, values, fill), np.nan)
+
+    def _read_stress_inputs(self, package, layer_number, conductance, **heads):
+        """Build complete stress maps, with zero conductance outside BAS cells."""
+        active = pcr.scalar(self._boundaries[layer_number]) != 0
+        cond = self._read_scalar_input(conductance, f"{package}.conductance")
+        cond = pcr.ifthenelse(active, cond, pcr.scalar(0))
+        required = pcr.pcr2numpy(cond, 0) > 0
+        maps = {
+            key: self._read_scalar_input(path, f"{package}.{key}", required)
+            for key, path in heads.items()
+        }
+        return cond, maps
+
     def _setup_geometry(self) -> None:
-        """Create the generic layer geometry from bottom to top."""
+        """Complete DIS geometry only in columns inactive in every layer.
 
-        bottom = self._required(self.config, "bottom", "MODFLOW.bottom")
+        DIS requires elevations over the whole rectangular clone. BAS maps
+        define the groundwater domain, including constant-head cells. Missing
+        BAS values become inactive; elevations in the domain are never filled.
+        """
+        domain = None
+        for number, layer in enumerate(self.layers, start=1):
+            label = f"MODFLOW.layers[{number - 1}].boundary"
+            path = self._required(layer, "boundary", label)
+            boundary = pcr.cover(pcr.nominal(pcr.readmap(str(path))), pcr.nominal(0))
+            self._boundaries[number] = boundary
+            active = pcr.pcr2numpy(boundary, 0) != 0
+            domain = active if domain is None else domain | active
 
-        first_layer_top = self._required(
-            self.layers[0],
-            "top",
-            "MODFLOW.layers[0].top",
+        surfaces = [("MODFLOW.bottom", self._required(self.config, "bottom", "MODFLOW.bottom"))]
+        for index, layer in enumerate(self.layers):
+            label = f"MODFLOW.layers[{index}].top"
+            surfaces.append((label, self._required(layer, "top", label)))
+
+        elevations = []
+        previous = None
+        for index, (label, path) in enumerate(surfaces):
+            values = pcr.pcr2numpy(pcr.scalar(pcr.readmap(str(path))), np.nan)
+            invalid = domain & ~np.isfinite(values)
+            if invalid.any():
+                row, column = np.argwhere(invalid)[0] + 1
+                raise ValueError(
+                    f"{label}: missing or non-finite elevation in a column active "
+                    f"in at least one MODFLOW layer (row {row}, column {column}). "
+                    "Supply elevations throughout the groundwater domain."
+                )
+
+            # Synthetic 1 m layers outside the domain satisfy DIS geometry
+            # without adding groundwater cells or changing any input files.
+            values = np.where(domain, values, float(index))
+            if previous is not None:
+                invalid = domain & (values <= previous)
+                if invalid.any():
+                    row, column = np.argwhere(invalid)[0] + 1
+                    raise ValueError(
+                        f"{label}: top must be above the underlying surface "
+                        f"(row {row}, column {column})."
+                    )
+            elevations.append(pcr.numpy2pcr(pcr.Scalar, values, np.nan))
+            previous = values
+
+        self.mf.createBottomLayer(elevations[0], elevations[1])
+        for top in elevations[2:]:
+            self.mf.addLayer(top)
+
+    def _setup_cell_dimensions(self) -> None:
+        """Use RUBEM's metric square cells even when map coordinates are degrees.
+
+        This preserves the configured constant-area approximation; it does
+        not reproject rasters or compute geodesic cell dimensions.
+        """
+        width_m = self.cell_area_m2 ** 0.5
+        self.mf.setRowWidth([width_m] * pcr.clone().nrRows())
+        self.mf.setColumnWidth([width_m] * pcr.clone().nrCols())
+        self.logger.info(
+            "MODFLOW cell dimensions: %.6g x %.6g metres (RUBEM grid area); "
+            "raster coordinates are unchanged.",
+            width_m, width_m,
         )
-
-        self.mf.createBottomLayer(str(bottom), str(first_layer_top))
-
-        for layer in self.layers[1:]:
-            top = self._required(layer, "top", "MODFLOW.layers[].top")
-            self.mf.addLayer(str(top))
 
     def _setup_dis(self, first_period_days: int) -> None:
         """Configure the transient MODFLOW discretization package."""
@@ -347,11 +428,6 @@ class ModflowGroundwater:
         transient = int(self._get(dis_cfg, "steady_state", 0)) == 0
 
         for layer_number, layer in enumerate(self.layers, start=1):
-            boundary = self._required(
-                layer,
-                "boundary",
-                f"MODFLOW.layers[{layer_number - 1}].boundary",
-            )
             initial_head = self._required(
                 layer,
                 "initial_head",
@@ -373,8 +449,12 @@ class ModflowGroundwater:
                 self._get(layer, "compute_conductivity", True)
             )
 
-            self.mf.setBoundary(str(boundary), layer_number)
-            self.mf.setInitialHead(str(initial_head), layer_number)
+            active = pcr.pcr2numpy(self._boundaries[layer_number], 0) != 0
+            self.mf.setBoundary(self._boundaries[layer_number], layer_number)
+            self.mf.setInitialHead(
+                self._read_scalar_input(initial_head, f"Layer {layer_number}.initial_head", active),
+                layer_number,
+            )
 
             # PCRaster MODFLOW expects horizontal conductivity first and
             # vertical conductivity second.  In the legacy Bauru data:
@@ -382,8 +462,14 @@ class ModflowGroundwater:
             #   KX*.map -> vertical conductivity
             self.mf.setConductivity(
                 laytype,
-                str(horizontal_conductivity),
-                str(vertical_conductivity),
+                self._read_scalar_input(
+                    horizontal_conductivity, f"Layer {layer_number}.horizontal_conductivity",
+                    active, fill=1.0,
+                ),
+                self._read_scalar_input(
+                    vertical_conductivity, f"Layer {layer_number}.vertical_conductivity",
+                    active, fill=1.0,
+                ),
                 layer_number,
                 compute_conductivity,
             )
@@ -443,8 +529,12 @@ class ModflowGroundwater:
 
 
                 self.mf.setStorage(
-                    str(primary_storage),
-                    str(secondary_storage),
+                    self._read_scalar_input(
+                        primary_storage, f"Layer {layer_number}.primary_storage", active
+                    ),
+                    self._read_scalar_input(
+                        secondary_storage, f"Layer {layer_number}.secondary_storage", active
+                    ),
                     layer_number,
                 )
 
@@ -491,7 +581,7 @@ class ModflowGroundwater:
         wetting_map_path = self._get(wetting_cfg, "map", None)
 
         if wetting_map_path:
-            wetting_map: Any = str(wetting_map_path)
+            wetting_map = self._read_scalar_input(wetting_map_path, "MODFLOW.wetting.map")
         else:
             # Compatibility option for the legacy Bauru approach, where the
             # wetting map was derived as -1 * boundary of the top layer.
@@ -514,7 +604,9 @@ class ModflowGroundwater:
                 f"MODFLOW.layers[{source_layer - 1}].boundary",
             )
             multiplier = float(self._get(wetting_cfg, "multiplier", -1.0))
-            wetting_map = pcr.readmap(str(source_boundary)) * multiplier
+            wetting_map = pcr.cover(
+                pcr.scalar(pcr.readmap(str(source_boundary))), pcr.scalar(0)
+            ) * multiplier
 
         for layer_number in wetting_layers:
 
@@ -602,12 +694,40 @@ class ModflowGroundwater:
                 "MODFLOW.river.layers[].conductance",
             )
 
+            cond, maps = self._read_stress_inputs(
+                f"MODFLOW.river.layer{layer_number}", layer_number, conductance,
+                stage=stage, bottom=bottom,
+            )
             self.mf.setRiver(
-                str(stage),
-                str(bottom),
-                str(conductance),
+                maps["stage"],
+                maps["bottom"],
+                cond,
                 layer_number,
             )
+
+    def _set_ghb_stress(self) -> None:
+        """Apply external heads and conductances before each stress period.
+
+        PCRaster activates GHB where conductance is positive. These exchanges
+        affect groundwater heads; RUBEM baseflow is still obtained from RIV.
+        """
+        ghb_cfg = self._get(self.config, "ghb", {})
+        if not bool(self._get(ghb_cfg, "enabled", 0)):
+            return
+
+        for ghb_layer in self._get(ghb_cfg, "layers", []):
+            layer_number = int(
+                self._required(ghb_layer, "layer", "MODFLOW.ghb.layers[].layer")
+            )
+            self._validate_layer_number(layer_number, "GHB layer")
+            head = self._required(ghb_layer, "head", "MODFLOW.ghb.layers[].head")
+            conductance = self._required(
+                ghb_layer, "conductance", "MODFLOW.ghb.layers[].conductance"
+            )
+            cond, maps = self._read_stress_inputs(
+                f"MODFLOW.ghb.layer{layer_number}", layer_number, conductance, head=head
+            )
+            self.mf.setGeneralHead(maps["head"], cond, layer_number)
 
     def _get_river_exchange(self) -> dict[str, Field]:
         """Aggregate RIV exchange over all configured river layers."""
@@ -884,14 +1004,22 @@ class ModflowGroundwater:
                     )
                 seen_layers.add(layer_number)
 
-        # GHB and WEL are intentionally postponed to the next implementation
-        # step.  Never ignore them silently if somebody enables them in JSON.
         ghb_cfg = self._get(self.config, "ghb", {})
         if bool(self._get(ghb_cfg, "enabled", 0)):
-            raise NotImplementedError(
-                "GHB is enabled in the configuration but is not implemented "
-                "in this first MODFLOW module version."
-            )
+            ghb_layers = list(self._get(ghb_cfg, "layers", []))
+            if not ghb_layers:
+                raise ValueError("MODFLOW.ghb.enabled=1 requires at least one GHB layer.")
+            seen_ghb_layers: set[int] = set()
+            for ghb_layer in ghb_layers:
+                layer_number = int(
+                    self._required(ghb_layer, "layer", "MODFLOW.ghb.layers[].layer")
+                )
+                self._validate_layer_number(layer_number, "GHB layer")
+                if layer_number in seen_ghb_layers:
+                    raise ValueError(
+                        f"MODFLOW GHB layer {layer_number} is configured more than once."
+                    )
+                seen_ghb_layers.add(layer_number)
 
         wells_cfg = self._get(self.config, "wells", {})
         if bool(self._get(wells_cfg, "enabled", 0)):
@@ -981,6 +1109,12 @@ class ModflowGroundwater:
                             ),
                         )
                     )
+
+        if bool(self._get(ghb_cfg, "enabled", 0)):
+            for index, ghb_layer in enumerate(self._get(ghb_cfg, "layers", [])):
+                for key in ("head", "conductance"):
+                    label = f"MODFLOW.ghb.layers[{index}].{key}"
+                    paths.append((label, self._required(ghb_layer, key, label)))
 
         wetting_cfg = self._get(self.config, "wetting", {})
         wetting_path = self._get(wetting_cfg, "map", None)

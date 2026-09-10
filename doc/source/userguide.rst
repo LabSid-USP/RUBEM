@@ -1225,3 +1225,81 @@ Use ``-c`` or ``--configfile`` to set the path of the RUBEM configuration file.
    .## Timestep 22 of 24
    .## Timestep 23 of 24
    .## Timestep 24 of 24
+
+MODFLOW general-head boundaries
+------------------------------
+
+When the optional MODFLOW module is enabled, general-head boundaries (GHB)
+can be configured with fixed PCRaster maps for each target layer. Add this
+block inside ``MODFLOW`` (or ``modflow`` in the v1 configuration):
+
+.. code-block:: json
+
+   "ghb": {
+       "enabled": 1,
+       "layers": [
+           {
+               "layer": 3,
+               "head": "input/modflow/ghb_head.map",
+               "conductance": "input/modflow/ghb_cond.map"
+           }
+       ]
+   }
+
+Layer numbers follow PCRaster MODFLOW: layer 1 is the deepest layer. Each
+layer may appear once and must exist in the model. Both inputs must be spatial
+scalar maps compatible with the clone. ``head`` is the external hydraulic head
+in metres, using the model's elevation datum; ``conductance`` is hydraulic
+conductance in square metres per day. Use positive conductance on GHB cells
+and zero elsewhere, with valid head values on GHB cells. The BAS boundary map
+should mark these cells as active (1).
+
+The module calls ``setGeneralHead(head, conductance, layer)`` before every
+MODFLOW stress-period run. GHB exchanges affect groundwater heads and the
+groundwater balance; RUBEM baseflow continues to come from the RIV package.
+GHB flow maps are not exported by the current output configuration.
+Table-based or time-varying GHB inputs are not supported. Omit ``ghb`` or use
+``"ghb": {"enabled": 0}`` to disable it. Relative map paths follow the same
+base-directory resolution as other MODFLOW inputs.
+
+See the `PCRaster GHB documentation
+<https://pcraster.geo.uu.nl/pcraster/4.4.2/documentation/modflow/ghb.html>`_
+for the underlying API (available since PCRaster 4.3).
+
+MODFLOW maps clipped to the model domain
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PCRaster MODFLOW requires DIS elevations across the entire rectangular clone,
+including cells outside the study area. RUBEM prepares these inputs in memory;
+the original raster files are not modified.
+
+The ``boundary`` maps define the groundwater domain. Missing boundary values
+are converted to 0 (inactive); active and constant-head cells are preserved.
+In columns inactive in every layer, RUBEM supplies synthetic elevations with
+positive layer thickness. All original elevations in columns active in any
+layer must be finite, and each top must be above the underlying surface;
+otherwise initialization reports the offending map, row and column.
+
+Missing initial heads, conductivities and storage inputs are filled only in
+inactive cells. Missing optional wetting values and recharge are filled with
+zero. For RIV and GHB, missing conductance means no boundary stress, and
+conductance is zeroed outside the layer's BAS domain. Head and river-bottom
+values are required wherever the resulting conductance is positive.
+
+Geographic raster coordinates and MODFLOW cell dimensions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Rasters may retain geographic coordinates in degrees. MODFLOW row and column
+widths are explicitly set in metres from the RUBEM grid size (``GRID.grid`` in
+legacy JSON), using PCRaster's ``setRowWidth`` and ``setColumnWidth`` methods.
+For a grid size of 30, every MODFLOW cell measures 30 by 30 metres and has an
+area of 900 square metres. Recharge volumes, storage and the conversion of
+river flow back to RUBEM water depth use this same metric cell area. Raster
+files, their alignment and the clone coordinates remain unchanged.
+
+This is a constant square-cell approximation, not a reprojection or a
+latitude-dependent calculation of physical pixel dimensions. A geographic
+pixel can have a different ground area from the configured RUBEM grid area.
+Elevation and head map values must still be in metres, conductivity in metres
+per day, and RIV/GHB conductance in square metres per day. Geographic raster
+coordinates do not change these physical input units.
