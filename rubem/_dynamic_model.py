@@ -886,6 +886,17 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
 
             # ---------------------------------------------------------
+            # Diagnostic outputs: drains (signed m3/day; separate from baseflow)
+            # ---------------------------------------------------------
+
+            if self.config.modflow.output.drain_flow:
+                for layer_number, flow in modflow_result.drain_flow.items():
+                    self.report(
+                        flow,
+                        str(Path(self.config.output_directory.path) / f"mfdrn{layer_number}"),
+                    )
+
+            # ---------------------------------------------------------
             # Diagnostic outputs: heads
             # ---------------------------------------------------------
 

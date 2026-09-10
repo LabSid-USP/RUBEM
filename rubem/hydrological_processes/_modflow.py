@@ -3,7 +3,7 @@
 This first version is intended to couple RUBEM recharge to MODFLOW and return
 river-aquifer exchange to RUBEM.  It supports a generic number of aquifer
 layers configured in JSON, transient DIS parameters, PCG, optional wetting,
-RIV, GHB with fixed maps per layer, recharge to the highest active cell,
+RIV, GHB and DRN with fixed maps per layer, recharge to the highest active cell,
 and retrieval of heads/storage.
 
 WEL is not implemented and fails explicitly if configured as enabled.
@@ -39,6 +39,8 @@ class ModflowStepResult:
 
     heads: dict[int, Field] = field(default_factory=dict)
     storage: dict[int, Field] = field(default_factory=dict)
+    # Signed MODFLOW flux: negative means aquifer -> drain (m3/day).
+    drain_flow: dict[int, Field] = field(default_factory=dict)
 
 class ModflowGroundwater:
     """PCRaster MODFLOW groundwater component for RUBEM.
@@ -85,6 +87,7 @@ class ModflowGroundwater:
         self.mf = None
         self._initialized = False
         self._boundaries: dict[int, Field] = {}
+        self._drain_active_layers: set[int] = set()
 
         if not np.isfinite(self.cell_area_m2) or self.cell_area_m2 <= 0:
             raise ValueError("MODFLOW cell_area_m2 must be finite and greater than zero.")
@@ -208,6 +211,7 @@ class ModflowGroundwater:
 
         self._set_river_stress()
         self._set_ghb_stress()
+        self._set_drain_stress()
 
         self.logger.debug("Running PCRaster MODFLOW...")
         self.mf.run()
@@ -267,6 +271,7 @@ class ModflowGroundwater:
             heads=heads,
             storage=storage,
             water_table_head=water_table_head,
+            drain_flow=self._get_drain_flow_if_requested(),
         )
 
     def recharge_mm_to_modflow(
@@ -729,6 +734,53 @@ class ModflowGroundwater:
             )
             self.mf.setGeneralHead(maps["head"], cond, layer_number)
 
+    def _set_drain_stress(self) -> None:
+        """Apply optional drains without adding their discharge to RUBEM baseflow."""
+        drain_cfg = self._get(self.config, "drain", {})
+        if not bool(self._get(drain_cfg, "enabled", 0)):
+            return
+
+        self._drain_active_layers.clear()
+        for drain_layer in self._get(drain_cfg, "layers", []):
+            layer_number = int(
+                self._required(drain_layer, "layer", "MODFLOW.drain.layers[].layer")
+            )
+            self._validate_layer_number(layer_number, "DRN layer")
+            elevation = self._required(
+                drain_layer, "elevation", "MODFLOW.drain.layers[].elevation"
+            )
+            conductance = self._required(
+                drain_layer, "conductance", "MODFLOW.drain.layers[].conductance"
+            )
+            cond, maps = self._read_stress_inputs(
+                f"MODFLOW.drain.layer{layer_number}", layer_number, conductance,
+                elevation=elevation,
+            )
+            values = pcr.pcr2numpy(cond, 0)
+            if (values < 0).any():
+                raise ValueError(f"DRN layer {layer_number}: conductance must be non-negative.")
+            if (values > 0).any():
+                self._drain_active_layers.add(layer_number)
+            self.mf.setDrain(maps["elevation"], cond, layer_number)
+
+    def _get_drain_flow_if_requested(self) -> dict[int, Field]:
+        """Return signed cell flows (m3/day), separately from RIV baseflow."""
+        drain_cfg = self._get(self.config, "drain", {})
+        output_cfg = self._get(self.config, "output", {})
+        if not (
+            bool(self._get(drain_cfg, "enabled", 0))
+            and bool(self._get(output_cfg, "drain_flow", False))
+        ):
+            return {}
+        result = {}
+        for layer in self._get(drain_cfg, "layers", []):
+            number = int(self._get(layer, "layer"))
+            result[number] = (
+                self.mf.getDrain(number) if number in self._drain_active_layers
+                else pcr.spatial(pcr.scalar(0))
+            )
+        return result
+
     def _get_river_exchange(self) -> dict[str, Field]:
         """Aggregate RIV exchange over all configured river layers."""
 
@@ -1021,6 +1073,21 @@ class ModflowGroundwater:
                     )
                 seen_ghb_layers.add(layer_number)
 
+        drain_cfg = self._get(self.config, "drain", {})
+        if bool(self._get(drain_cfg, "enabled", 0)):
+            drain_layers = list(self._get(drain_cfg, "layers", []))
+            if not drain_layers:
+                raise ValueError("MODFLOW.drain.enabled=1 requires at least one DRN layer.")
+            seen_drain_layers: set[int] = set()
+            for drain_layer in drain_layers:
+                number = int(
+                    self._required(drain_layer, "layer", "MODFLOW.drain.layers[].layer")
+                )
+                self._validate_layer_number(number, "DRN layer")
+                if number in seen_drain_layers:
+                    raise ValueError(f"MODFLOW DRN layer {number} is configured more than once.")
+                seen_drain_layers.add(number)
+
         wells_cfg = self._get(self.config, "wells", {})
         if bool(self._get(wells_cfg, "enabled", 0)):
             raise NotImplementedError(
@@ -1115,6 +1182,12 @@ class ModflowGroundwater:
                 for key in ("head", "conductance"):
                     label = f"MODFLOW.ghb.layers[{index}].{key}"
                     paths.append((label, self._required(ghb_layer, key, label)))
+
+        if bool(self._get(drain_cfg, "enabled", 0)):
+            for index, drain_layer in enumerate(self._get(drain_cfg, "layers", [])):
+                for key in ("elevation", "conductance"):
+                    label = f"MODFLOW.drain.layers[{index}].{key}"
+                    paths.append((label, self._required(drain_layer, key, label)))
 
         wetting_cfg = self._get(self.config, "wetting", {})
         wetting_path = self._get(wetting_cfg, "map", None)

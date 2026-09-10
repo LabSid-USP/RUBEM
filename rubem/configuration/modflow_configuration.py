@@ -195,6 +195,30 @@ class ModflowGhbConfiguration(_Strict):
         return self
 
 
+class ModflowDrainLayerConfiguration(_Strict):
+    """DRN maps for one layer: drain elevation (m) and conductance (m2/day)."""
+
+    layer: PositiveLayer
+    elevation: Annotated[str, Field(min_length=1)]
+    conductance: Annotated[str, Field(min_length=1)]
+
+
+class ModflowDrainConfiguration(_Strict):
+    """Optional DRN package with fixed maps per layer."""
+
+    enabled: Literal[0, 1] = 0
+    layers: list[ModflowDrainLayerConfiguration] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _check_layers(self) -> Self:
+        if self.enabled and not self.layers:
+            raise ValueError("drain.enabled=1 requires at least one DRN layer.")
+        numbers = [item.layer for item in self.layers]
+        if len(numbers) != len(set(numbers)):
+            raise ValueError("drain.layers cannot contain the same layer more than once.")
+        return self
+
+
 class ModflowWellsConfiguration(_Strict):
     """Reserved configuration for the future WEL implementation."""
 
@@ -208,6 +232,7 @@ class ModflowOutputConfiguration(_Strict):
     heads: bool = True
     river_leakage: bool = True
     storage: bool = False
+    drain_flow: bool = False
 
 
 class ModflowWaterTableConfiguration(_Strict):
@@ -303,6 +328,7 @@ class ModflowConfiguration(_Strict):
     )   
 
     ghb: ModflowGhbConfiguration = Field(default_factory=ModflowGhbConfiguration)
+    drain: ModflowDrainConfiguration = Field(default_factory=ModflowDrainConfiguration)
     # WEL remains reserved and raises when enabled.
     wells: ModflowWellsConfiguration = Field(
         default_factory=ModflowWellsConfiguration
@@ -493,6 +519,13 @@ class ModflowConfiguration(_Strict):
                     f"range 1-{number_layers}."
                 )
 
+        for drain_layer in self.drain.layers:
+            if drain_layer.layer > number_layers:
+                raise ValueError(
+                    f"DRN layer {drain_layer.layer} is outside the valid "
+                    f"range 1-{number_layers}."
+                )
+
         for layer_number in self.wells.layers:
             if layer_number > number_layers:
                 raise ValueError(
@@ -542,6 +575,10 @@ class ModflowConfiguration(_Strict):
         for ghb_layer in data["ghb"]["layers"]:
             for key in ("head", "conductance"):
                 ghb_layer[key] = anchor(ghb_layer[key])
+
+        for drain_layer in data["drain"]["layers"]:
+            for key in ("elevation", "conductance"):
+                drain_layer[key] = anchor(drain_layer[key])
 
         wells = data["wells"]
         wells["map"] = anchor(wells.get("map"))
