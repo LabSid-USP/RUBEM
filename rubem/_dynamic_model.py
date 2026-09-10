@@ -620,10 +620,20 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.min_reflectances_simple_ratio,
             self.max_reflectances_simple_ratio,
         )
+        if self.config.constants.leaf_area_interception_max_from_table:
+            self.logger.debug("Reading land-use attributes: LAI_max...")
+            current_lai_max = self.__lookup_wrapper(
+                file_path=self.config.lookuptable_files.lai_max,
+                lookup_value=current_landuse,
+                lookup_func=pcrfw.lookupscalar,
+            )
+        else:
+            current_lai_max = self.config.constants.leaf_area_interception_max
+
         current_leaf_area_index = Interception.get_leaf_area_index(
             current_fpar,
             self.config.constants.fraction_photo_active_radiation_max,
-            self.config.constants.leaf_area_interception_max,
+            current_lai_max,
         )
         self.current_interception = Interception.get_interception(
             self.config.calibration_parameters.alpha,

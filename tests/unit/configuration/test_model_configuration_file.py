@@ -78,7 +78,7 @@ class TestModelConfigurationFile:
         canonical = file.to_dict()
 
         assert canonical["SIM_TIME"]["start"] == config["SIM_TIME"]["start"]
-        assert canonical["TABLES"] == config["TABLES"]
+        assert canonical["TABLES"] == {**config["TABLES"], "lai_max": None}
         assert canonical["GENERATE_FILE"]["tss"] is True
         assert ModelConfigurationFile.model_validate(canonical) == file
 
@@ -121,7 +121,7 @@ class TestModelConfigurationFile:
 
         canonical = ModelConfigurationFile.model_validate(config).to_dict()
 
-        assert canonical["TABLES"] == tables
+        assert canonical["TABLES"] == {**tables, "lai_max": None}
         assert canonical["CALIBRATION"] == calibration
         assert set(canonical["INITIAL_SOIL_CONDITIONS"]) == {
             "t_ini",

@@ -159,6 +159,7 @@ class ModelConfiguration:
             fraction_photo_active_radiation_max=file.constants.fpar_max,
             fraction_photo_active_radiation_min=file.constants.fpar_min,
             leaf_area_interception_max=file.constants.lai_max,
+            leaf_area_interception_max_from_table=file.constants.lai_max_from_table,
             impervious_area_interception=file.constants.i_imp,
         )
         self.output_directory = OutputDataDirectory(file.directories.output).ensure_exists()
@@ -233,6 +234,7 @@ class ModelConfiguration:
             rootzone_depth=file.tables.rootzone_depth,
             kc_min=file.tables.k_c_min,
             kc_max=file.tables.k_c_max,
+            lai_max=file.tables.lai_max,
             validate_input=validate_input,
         )
         self._series_problems = list(self.raster_series.problems)
@@ -277,6 +279,7 @@ class ModelConfiguration:
             fraction_photo_active_radiation_max=constants.fpar_max,
             fraction_photo_active_radiation_min=constants.fpar_min,
             leaf_area_interception_max=constants.lai_max,
+            leaf_area_interception_max_from_table=constants.lai_max_from_table,
             impervious_area_interception=constants.i_imp,
         )
         output = file.model_simulation_output
@@ -340,6 +343,7 @@ class ModelConfiguration:
             rootzone_depth=tables.rootzone_depth,
             kc_min=tables.kc_min,
             kc_max=tables.kc_max,
+            lai_max=tables.lai_max,
             validate_input=validate_input,
         )
         self.series_resolvers = resolvers_from_v1(file)

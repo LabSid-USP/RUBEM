@@ -12,43 +12,49 @@ class TestSurfaceRunoffModule:
 
     @pytest.mark.unit
     def test_chCalc(self):
-        tur = pcr.scalar(1.0)
+        tur = pcr.scalar(50.0)
         dg = pcr.scalar(1.0)
         zr = pcr.scalar(1.0)
-        tsat = pcr.scalar(1.0)
-        b = pcr.scalar(1.0)
+        tsat = pcr.scalar(200.0)
+        b = pcr.scalar(2.0)
         field = SurfaceRunoff.get_coef_soil_moist_conditions(tur, dg, zr, tsat, b)
         result = generalfunctions.getCellValue(field, 0, 0)
-        expected = 0.1
+        expected = 0.0625
         assert result == pytest.approx(expected)
 
     @pytest.mark.unit
     def test_chCalc_dg_eq_0(self):
-        tur = pcr.scalar(1.0)
+        """Ch no longer converts the soil moisture content, so Dg cannot divide by zero."""
+        tur = pcr.scalar(50.0)
         dg = pcr.scalar(0.0)
         zr = pcr.scalar(1.0)
-        tsat = pcr.scalar(1.0)
-        b = pcr.scalar(1.0)
-        with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            SurfaceRunoff.get_coef_soil_moist_conditions(tur, dg, zr, tsat, b)
+        tsat = pcr.scalar(200.0)
+        b = pcr.scalar(2.0)
+        field = SurfaceRunoff.get_coef_soil_moist_conditions(tur, dg, zr, tsat, b)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 0.0625
+        assert result == pytest.approx(expected)
 
     @pytest.mark.unit
     def test_chCalc_Zr_eq_0(self):
-        tur = pcr.scalar(1.0)
+        """Ch no longer converts the soil moisture content, so Zr cannot divide by zero."""
+        tur = pcr.scalar(50.0)
         dg = pcr.scalar(1.0)
         zr = pcr.scalar(0.0)
-        tsat = pcr.scalar(1.0)
-        b = pcr.scalar(1.0)
-        with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
-            SurfaceRunoff.get_coef_soil_moist_conditions(tur, dg, zr, tsat, b)
+        tsat = pcr.scalar(200.0)
+        b = pcr.scalar(2.0)
+        field = SurfaceRunoff.get_coef_soil_moist_conditions(tur, dg, zr, tsat, b)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 0.0625
+        assert result == pytest.approx(expected)
 
     @pytest.mark.unit
     def test_chCalc_Tsat_eq_0(self):
-        tur = pcr.scalar(1.0)
+        tur = pcr.scalar(50.0)
         dg = pcr.scalar(1.0)
         zr = pcr.scalar(1.0)
         tsat = pcr.scalar(0.0)
-        b = pcr.scalar(1.0)
+        b = pcr.scalar(2.0)
         with pytest.raises(RuntimeError, match="pcrfdiv: operator /: Domain Error"):
             SurfaceRunoff.get_coef_soil_moist_conditions(tur, dg, zr, tsat, b)
 

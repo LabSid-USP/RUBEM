@@ -218,6 +218,7 @@ class Tables(_Section):
     rootzone_depth: str = Field(validation_alias=AliasChoices("rootzone_depth", "Zr"))
     k_c_min: str = Field(validation_alias=AliasChoices("k_c_min", "kc_min", "kcmin", "K_c_min"))
     k_c_max: str = Field(validation_alias=AliasChoices("k_c_max", "kc_max", "kcmax", "K_c_max"))
+    lai_max: str | None = None
 
 
 class Grid(_Section):
@@ -247,6 +248,7 @@ class Constants(_Section):
     fpar_max: float
     fpar_min: float
     lai_max: float
+    lai_max_from_table: bool = False
     i_imp: float
 
 
@@ -306,6 +308,12 @@ class ModelConfigurationFile(_Section):
         alias="MODFLOW",
         default_factory=ModflowConfiguration,
     )
+
+    @model_validator(mode="after")
+    def _check_lai_max_table(self) -> Self:
+        if self.constants.lai_max_from_table and not self.tables.lai_max:
+            raise ValueError("CONSTANTS.lai_max_from_table=true requires TABLES.lai_max.")
+        return self
 
     @classmethod
     def from_json(cls, path: PathInput) -> Self:
