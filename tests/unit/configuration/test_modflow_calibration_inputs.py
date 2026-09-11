@@ -3,11 +3,14 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from rubem.configuration.model_configuration_file import ModelConfigurationFile
+from rubem.configuration.model_configuration_file_v1 import ModelConfigurationFileV1
 from rubem.configuration.modflow_configuration import (
     ModflowConfiguration,
     ModflowLayerConfiguration,
     ModflowRiverLayerConfiguration,
 )
+from tests.helpers.synthetic import write_synthetic_dataset
 
 pytestmark = pytest.mark.unit
 
@@ -111,3 +114,24 @@ def test_legacy_maps_remain_supported(tmp_path):
     assert Path(resolved.layers[0].specific_yield) == tmp_path / "sy.map"
     assert Path(resolved.river.layers[0].conductance) == tmp_path / "cond.map"
     assert resolved.river.layers[0].mask is None
+
+
+def test_full_legacy_v1_roundtrip_keeps_calibration_inputs(tmp_path):
+    data = write_synthetic_dataset(str(tmp_path))
+    data["MODFLOW"] = {
+        "enabled": 1, "bottom": "bottom.map",
+        "layers": [layer(horizontal_conductivity={"map": "classes.map", "table": "kh.tbl"})],
+        "river": {"enabled": 1, "layers": [{
+            "layer": 1, "stage": "stage.map", "bottom": "bed.map",
+            "conductance": 2, "mask": "rivers.map",
+        }]},
+    }
+    legacy = ModelConfigurationFile.model_validate(data)
+    v1 = ModelConfigurationFileV1.from_legacy(legacy)
+    assert v1.to_legacy().modflow == legacy.modflow
+    for resolved in (legacy.resolve_paths(tmp_path), v1.resolve_paths(tmp_path)):
+        assert Path(resolved.modflow.layers[0].horizontal_conductivity.table) == tmp_path / "kh.tbl"
+        assert resolved.modflow.layers[0].specific_storage == 0.00001
+        assert resolved.modflow.layers[0].specific_yield == 0.1
+        assert resolved.modflow.river.layers[0].conductance == 2
+        assert Path(resolved.modflow.river.layers[0].mask) == tmp_path / "rivers.map"

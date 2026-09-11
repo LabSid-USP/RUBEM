@@ -98,3 +98,28 @@ def test_constant_river_requires_stage_at_selected_cells(maps):
             "river", 1, 2, mask=maps("mask", [0, 0, 0, 1]),
             stage=maps("stage", [np.nan]*4),
         )
+
+
+@pytest.mark.parametrize("missing", ["map", "table", "mask"])
+def test_missing_calibration_file_is_reported_before_backend_setup(maps, tmp_path, missing):
+    path = maps("input", [1]*4)
+    table = tmp_path / "kh.tbl"
+    table.write_text("1 2\n", encoding="ascii")
+    lookup = {"map": path, "table": str(table)}
+    mask = path
+    if missing == "mask":
+        mask = str(tmp_path / "missing.map")
+    else:
+        lookup[missing] = str(tmp_path / "missing.file")
+    model = ModflowGroundwater({
+        "enabled": 1, "bottom": path, "layers": [{
+            "top": path, "boundary": path, "initial_head": path,
+            "horizontal_conductivity": lookup, "vertical_conductivity": path,
+            "laytype": 2, "specific_storage": 0.00001, "specific_yield": 0.1,
+        }],
+        "river": {"enabled": 1, "layers": [{
+            "layer": 1, "stage": path, "bottom": path, "conductance": 2, "mask": mask,
+        }]},
+    }, 900)
+    with pytest.raises(FileNotFoundError, match=rf"\.{missing} does not exist"):
+        model._validate_configuration()

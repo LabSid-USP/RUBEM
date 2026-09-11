@@ -1,0 +1,213 @@
+{
+    "GRID": {
+        "grid": 30.0
+    },
+    "SIM_TIME": {
+        "start": "01/08/2023",
+        "end": "01/04/2024"
+    },
+    "DIRECTORIES": {
+        "output": "D:/Bauru/carol/output/",
+        "ndvi": "D:/Bauru/carol/input/ndvi/",
+        "landuse": "D:/Bauru/carol/input/cob/",
+        "etp": "D:/Bauru/carol/input/etp/",
+        "prec": "D:/Bauru/carol/input/prec/",
+        "kp": "D:/Bauru/carol/input/kp/"
+    },
+    "FILENAME_PREFIXES": {
+        "etp_prefix": "etp",
+        "prec_prefix": "prec",
+        "kp_prefix": "kp",
+        "ndvi_prefix": "ndvi",
+        "landuse_prefix": "cob"
+    },
+    "GENERATE_FILE": {
+        "itp": true,
+        "bfw": true,
+        "srn": true,
+        "eta": true,
+        "lfw": true,
+        "rec": true,
+        "smc": true,
+        "rnf": true,
+        "arn": true,
+        "tss": true
+    },
+    "RASTERS": {
+        "dem": "D:/Bauru/carol/input/dem/dem.map",
+        "clone": "D:/Bauru/carol/input/clone/clone.map",
+        "samples": "D:/Bauru/carol/input/samples/samples.map",
+        "soil": "D:/Bauru/carol/input/soil/soil.map",
+        "ndvi_max": "D:/Bauru/carol/input/ndvi/ndvi_max.map",
+        "ndvi_min": "D:/Bauru/carol/input/ndvi/ndvi_min.map"
+    },
+    "TABLES": {
+        "rainydays": "D:/Bauru/carol/input/text/rainydays.txt",
+        "bulk_density": "D:/Bauru/carol/input/text/soil/Bdens.txt",
+        "k_sat": "D:/Bauru/carol/input/text/soil/Ksat.txt",
+        "t_fcap": "D:/Bauru/carol/input/text/soil/Tfc.txt",
+        "t_sat": "D:/Bauru/carol/input/text/soil/Tsat.txt",
+        "t_wp": "D:/Bauru/carol/input/text/soil/Twp.txt",
+        "rootzone_depth": "D:/Bauru/carol/input/text/soil/Dpz.txt",
+        "a_i": "D:/Bauru/carol/input/text/landuse/a_i.txt",
+        "a_o": "D:/Bauru/carol/input/text/landuse/a_o.txt",
+        "a_s": "D:/Bauru/carol/input/text/landuse/a_s.txt",
+        "a_v": "D:/Bauru/carol/input/text/landuse/a_v.txt",
+        "manning": "D:/Bauru/carol/input/text/landuse/manning.txt",
+        "k_c_min": "D:/Bauru/carol/input/text/landuse/kcmin.txt",
+        "k_c_max": "D:/Bauru/carol/input/text/landuse/kcmax.txt"
+    },
+    "INITIAL_SOIL_CONDITIONS": {
+        "t_ini": 0.5,
+        "bfw_ini": 5.0,
+        "bfw_lim": 100.0,
+        "s_sat_ini": 200.0
+    },
+    "CONSTANTS": {
+        "fpar_max": 0.95,
+        "fpar_min": 0.001,
+        "lai_max": 12.0,
+        "lai_max_from_table": false,
+        "i_imp": 2.5
+    },
+    "CALIBRATION": {
+        "alpha": 4.415,
+        "b": 0.078,
+        "w_1": 0.51,
+        "w_2": 0.12,
+        "w_3": 0.37,
+        "rcd": 5.375,
+        "f": 0.581,
+        "alpha_gw": 0.922,
+        "x": 0.307
+    },
+    "RASTER_FILE_FORMAT": {
+        "map_raster_series": true,
+        "tiff_raster_series": false
+    },
+    "MODFLOW": {
+        "enabled": 1,
+        "coupling": {
+            "baseflow_from_river_leakage": true,
+            "dynamic_root_depth": {
+                "enabled": 1,
+                "minimum_depth_table": "D:/Bauru/carol/input/text/soil/Dpz_min.txt",
+                "water_table": {
+                    "method": "highest_active_head"
+                }
+            }
+        },
+        "bottom": "D:/Bauru/carol/input/modflow/botton.map",
+        "layers": [
+            {
+                "name": "layer_1",
+                "top": "D:/Bauru/carol/input/modflow/botton2.map",
+                "horizontal_conductivity": {
+                    "map": "D:/Bauru/carol/input/modflow/kh_classes1.map",
+                    "table": "kh1.tbl"
+                },
+                "vertical_conductivity": "D:/Bauru/carol/input/modflow/KY1.map",
+                "boundary": "D:/Bauru/carol/input/modflow/bound.map",
+                "initial_head": "D:/Bauru/carol/input/modflow/head1.map",
+                "specific_storage": 1e-06,
+                "specific_yield": 0.15,
+                "laytype": 2,
+                "compute_conductivity": true
+            },
+            {
+                "name": "layer_2",
+                "top": "D:/Bauru/carol/input/modflow/botton3.map",
+                "horizontal_conductivity": {
+                    "map": "D:/Bauru/carol/input/modflow/kh_classes2.map",
+                    "table": "kh2.tbl"
+                },
+                "vertical_conductivity": "D:/Bauru/carol/input/modflow/KY2.map",
+                "boundary": "D:/Bauru/carol/input/modflow/bound.map",
+                "initial_head": "D:/Bauru/carol/input/modflow/head2.map",
+                "specific_storage": 1e-06,
+                "specific_yield": 0.15,
+                "laytype": 2,
+                "compute_conductivity": true
+            },
+            {
+                "name": "layer_3",
+                "top": "D:/Bauru/carol/input/modflow/top_model.map",
+                "horizontal_conductivity": {
+                    "map": "D:/Bauru/carol/input/modflow/kh_classes3.map",
+                    "table": "kh3.tbl"
+                },
+                "vertical_conductivity": "D:/Bauru/carol/input/modflow/KY3.map",
+                "boundary": "D:/Bauru/carol/input/modflow/bound.map",
+                "initial_head": "D:/Bauru/carol/input/modflow/head3.map",
+                "specific_storage": 1e-06,
+                "specific_yield": 0.15,
+                "laytype": 1,
+                "compute_conductivity": true
+            }
+        ],
+        "recharge": {
+            "source": "rubem",
+            "option": 3
+        },
+        "dis": {
+            "time_unit": 4,
+            "length_unit": 2,
+            "nstp": 5,
+            "tsmult": 1.0,
+            "steady_state": 0
+        },
+        "solver": {
+            "type": "PCG",
+            "mxiter": 2000,
+            "iter1": 20,
+            "npcond": 1,
+            "hclose": 5.0,
+            "rclose": 3.0,
+            "relax": 1.0,
+            "nbpol": 2,
+            "damp": 0.5,
+            "fail_on_non_convergence": true
+        },
+        "wetting": {
+            "enabled": 1,
+            "map": "D:/Bauru/carol/input/modflow/wet.map",
+            "multiplier": -1.0,
+            "layers": [
+                3
+            ],
+            "wetfct": 1.0,
+            "iwetit": 3,
+            "ihdwet": 0
+        },
+        "river": {
+            "enabled": 1,
+            "layers": [
+                {
+                    "layer": 3,
+                    "stage": "D:/Bauru/carol/input/modflow/riv_stage.map",
+                    "bottom": "D:/Bauru/carol/input/modflow/riv_bot.map",
+                    "conductance": 0.387,
+                    "mask": "D:/Bauru/carol/input/modflow/riv_cond.map"
+                }
+            ]
+        },
+        "ghb": {
+            "enabled": 1,
+            "layers": [
+                {
+                    "layer": 3,
+                    "head": "D:/Bauru/carol/input/modflow/ghb_head.map",
+                    "conductance": "D:/Bauru/carol/input/modflow/ghb_cond.map"
+                }
+            ]
+        },
+        "wells": {
+            "enabled": 0
+        },
+        "output": {
+            "heads": true,
+            "river_leakage": true,
+            "storage": false
+        }
+    }
+}
