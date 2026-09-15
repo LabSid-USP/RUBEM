@@ -1,3 +1,5 @@
+import math
+
 import pcraster as pcr
 import pytest
 from pcraster.framework import generalfunctions
@@ -105,6 +107,51 @@ class TestBaseFlowSoilModule:
         eb_lim = pcr.scalar(2.0)
         field = Soil.get_baseflow(eb_prev, alpha, rec, tus, eb_lim)
         result = generalfunctions.getCellValue(field, 0, 0)
+        expected = 0.0
+        assert result == pytest.approx(expected)
+
+    @pytest.mark.unit
+    def test_baseflowCalc_capped_by_available_water(self):
+        """Baseflow is limited to the water available in the saturated zone (issue #322)."""
+        eb_prev = pcr.scalar(10.0)
+        alpha = pcr.scalar(1.0)
+        rec = pcr.scalar(0.5)
+        tus = pcr.scalar(2.0)
+        eb_lim = pcr.scalar(1.0)
+        field = Soil.get_baseflow(eb_prev, alpha, rec, tus, eb_lim)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        # Recession value (about 3.995) exceeds the available water (2.0 + 0.5)
+        expected = 2.5
+        assert result == pytest.approx(expected)
+        # The saturated-zone balance ends at zero instead of going negative
+        balance = Soil.get_actual_water_cont_sat_zone(tus, rec, field)
+        balance_result = generalfunctions.getCellValue(balance, 0, 0)
+        assert balance_result == pytest.approx(0.0, abs=1e-6)
+
+    @pytest.mark.unit
+    def test_baseflowCalc_not_capped_below_available_water(self):
+        eb_prev = pcr.scalar(2.0)
+        alpha = pcr.scalar(1.0)
+        rec = pcr.scalar(1.0)
+        tus = pcr.scalar(5.0)
+        eb_lim = pcr.scalar(1.0)
+        field = Soil.get_baseflow(eb_prev, alpha, rec, tus, eb_lim)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        # Recession value (about 1.368) is below the available water (5.0 + 1.0),
+        # so it is returned unchanged
+        expected = 2.0 * math.exp(-1.0) + (1.0 - math.exp(-1.0)) * 1.0
+        assert result == pytest.approx(expected, rel=1e-5)
+
+    @pytest.mark.unit
+    def test_baseflowCalc_cond_false_water_available(self):
+        eb_prev = pcr.scalar(10.0)
+        alpha = pcr.scalar(1.0)
+        rec = pcr.scalar(0.5)
+        tus = pcr.scalar(0.5)
+        eb_lim = pcr.scalar(1.0)
+        field = Soil.get_baseflow(eb_prev, alpha, rec, tus, eb_lim)
+        result = generalfunctions.getCellValue(field, 0, 0)
+        # Below the threshold no baseflow occurs even though water is available
         expected = 0.0
         assert result == pytest.approx(expected)
 
