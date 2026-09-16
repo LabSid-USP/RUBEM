@@ -1127,9 +1127,11 @@ Configuration File Template
 Running RUBEM
 -------------
 
-The ``rubem`` command has two subcommands: ``run`` executes a simulation and
-``config schema`` prints the JSON Schema of the configuration file. Running it
-without arguments shows the available commands:
+The ``rubem`` command groups its work in subcommands: ``run`` executes a
+simulation, ``calibrate`` fits the calibration parameters to an observed
+series, ``config schema`` prints the JSON Schema of the configuration file and
+``preprocess`` prepares the input rasters. Running it without arguments shows
+the available commands:
 
 .. code-block:: console
 
@@ -1143,8 +1145,10 @@ without arguments shows the available commands:
      -h, --help     Show this message and exit.
 
    Commands:
-     run     Run a simulation from a configuration file.
-     config  Inspect the configuration file format.
+     run         Run a simulation from a configuration file.
+     calibrate   Calibrate the model parameters against an observed series.
+     config      Inspect the configuration file format.
+     preprocess  Prepare model inputs: inspect and convert rasters, build...
 
 .. note::
 
@@ -1169,6 +1173,54 @@ Use ``-h`` or ``--help`` to get a brief description of each command and its argu
      -s, --skip-inputs-validation  Disable input files validation before running
                                    the model.
      -h, --help                    Show this message and exit.
+
+.. code-block:: console
+
+   $ rubem calibrate -h
+   Usage: rubem calibrate [OPTIONS]
+
+     Calibrate the model parameters against an observed series.
+
+   Options:
+     -c, --configfile <path>     Path to the configuration file (JSON).
+                                 [required]
+     --observed <file>           Observed series at the sample stations (CSV or
+                                 PCRaster TSS).  [required]
+     -o, --run-dir <path>        Directory for the calibration artifacts.
+                                 [required]
+     --variable <str>            Output variable compared with the observed
+                                 series.  [default: arn]
+     --spinup-steps <int range>  Leading time steps excluded from the NSE.
+                                 [default: 0; x>=0]
+     --maxiter <int range>       Maximum number of generations.  [default: 100;
+                                 x>=1]
+     --popsize <int range>       Population multiplier of the search.  [default:
+                                 15; x>=1]
+     --seed <int>                Seed of the differential evolution.
+     --workers <int range>       Parallel evaluations (default: all cores but
+                                 one).  [x>=1]
+     --temp-dir <path>           Parent of the per-evaluation output directories.
+     -h, --help                  Show this message and exit.
+
+``calibrate`` needs SciPy, which comes with ``pip install
+"rubem[calibration]"``. It writes ``evaluations.csv``, ``result.json``
+and ``<config>-calibrated.json`` into the ``--run-dir``. The method itself (the
+objective, the parameter bounds, the derivation of ``w3`` and how to budget the
+number of evaluations) is documented separately.
+
+.. code-block:: console
+
+   $ rubem calibrate -c project-config.json --observed observed.csv -o calibration
+   Loading configuration and validating inputs...
+   Calibration started...
+   Calibration finished successfully!
+   Best NSE: 0.873210
+   Best objective: 160757
+   Evaluations: 2048
+   Generations: 16
+   Evaluations table: /basins/ipojuca/calibration/evaluations.csv
+   Result: /basins/ipojuca/calibration/result.json
+   Calibrated configuration: /basins/ipojuca/calibration/project-config-calibrated.json
 
 Use ``-V`` or ``--version`` to get the version of the RUBEM.
 
