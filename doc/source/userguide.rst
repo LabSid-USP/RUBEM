@@ -1205,8 +1205,9 @@ Use ``-h`` or ``--help`` to get a brief description of each command and its argu
 ``calibrate`` needs SciPy, which comes with ``pip install
 "rubem[calibration]"``. It writes ``evaluations.csv``, ``result.json``
 and ``<config>-calibrated.json`` into the ``--run-dir``. The method itself (the
-objective, the parameter bounds, the derivation of ``w3`` and how to budget the
-number of evaluations) is documented separately.
+objective, the parameter bounds, the derivation of ``w3``, how to budget the
+number of evaluations and what a run needs from the configuration) is
+documented in :doc:`Calibration </calibration>`.
 
 .. code-block:: console
 
