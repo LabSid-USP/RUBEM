@@ -18,6 +18,7 @@ import pytest
 from rubem import _deps
 from rubem.api import Model
 from rubem.calibration import runner
+from rubem.calibration.objective import Series
 from rubem.calibration.parameters import (
     CALIBRATION_PARAMETERS,
     FREE_PARAMETERS,
@@ -28,13 +29,18 @@ from rubem.calibration.runner import (
     EVALUATION_COLUMNS,
     CalibrationError,
     CalibrationSettings,
+    _check_observed_series,
     _population_size,
     _Progress,
+    _station_ids,
     calibrate,
 )
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.configuration.model_configuration_file import ModelConfigurationFile
-from rubem.configuration.model_configuration_file_v1 import ModelConfigurationFileV1
+from rubem.configuration.model_configuration_file_v1 import (
+    Aggregation,
+    ModelConfigurationFileV1,
+)
 from tests.helpers.config import REPO_ROOT
 from tests.helpers.synthetic import write_synthetic_dataset
 
@@ -362,9 +368,10 @@ class TestReproducibility:
                 for row in read_evaluations(result.evaluations_csv)
             ]
 
-        # Same seed, same initial population, same candidates, in the same order:
-        # the table of a calibration is a function of its settings alone. Only
-        # the identifiers and the process ids differ between the two runs.
+        # Same seed, same initial population, same candidates, in the same
+        # order: the synthetic dataset carries a fixed LDD, so the simulation
+        # itself is reproducible and the two searches follow the same path. Only
+        # the identifiers, the process ids and the elapsed times differ.
         assert candidates(first) == candidates(second)
         assert first.best_parameters == second.best_parameters
         assert first.best_objective == second.best_objective
@@ -385,11 +392,21 @@ class TestFailures:
     def test_a_run_whose_evaluations_all_fail_is_reported_with_its_first_error(
         self, dataset, tmp_path
     ):
-        foreign = tmp_path / "foreign.csv"
-        foreign.write_text("0;A;B\n1;1.0;2.0\n2;2.0;3.0\n3;3.0;4.0\n", encoding="utf8")
+        # The stations and the steps of this file are the ones the run samples,
+        # so the parent lets it through; every value is a gap, so every worker
+        # fails inside the evaluation of the series.
+        gaps = tmp_path / "gaps.csv"
+        gaps.write_text(
+            "0;1;2\n" + "".join(f"{step};-9999;-9999\n" for step in range(1, TIMESTEPS + 1)),
+            encoding="utf8",
+        )
 
-        with pytest.raises(CalibrationError, match="no station in common"):
-            dataset.calibrate(observed=foreign, maxiter=1)
+        with pytest.raises(CalibrationError, match="Nash-Sutcliffe") as failure:
+            dataset.calibrate(observed=gaps, maxiter=1)
+
+        # The search ran: what is reported is the summary of the finished run,
+        # carrying the first error a worker recorded, not a refusal of the parent.
+        assert "Every evaluation of the calibration failed" in str(failure.value)
 
         rows = read_evaluations(dataset.run_dir / "evaluations.csv")
         assert rows, "the table of the evaluations is written even when every one failed"
@@ -428,6 +445,138 @@ class TestFailures:
             dataset.calibrate()
 
         assert not dataset.run_dir.exists(), "nothing is written when the search cannot start"
+
+
+@pytest.fixture
+def no_pool(monkeypatch):
+    """Let a test prove that no worker process was ever started."""
+    _RecordingExecutor.built.clear()
+    monkeypatch.setattr(runner, "ProcessPoolExecutor", _RecordingExecutor)
+    return _RecordingExecutor.built
+
+
+class TestObservedSeries:
+    @pytest.mark.unit
+    def test_an_observed_series_of_foreign_stations_is_refused_before_the_search(
+        self, dataset, tmp_path, no_pool
+    ):
+        foreign = tmp_path / "foreign.csv"
+        foreign.write_text("0;A;B\n1;1.0;2.0\n2;2.0;3.0\n3;3.0;4.0\n", encoding="utf8")
+
+        with pytest.raises(CalibrationError, match="no station in common") as failure:
+            dataset.calibrate(observed=foreign, maxiter=1)
+
+        # Both sets are named, and the refusal comes before anything is written
+        # or any worker is started: a wrong observed file costs no model run.
+        assert "A, B" in str(failure.value)
+        assert "1, 2" in str(failure.value)
+        assert not dataset.run_dir.exists()
+        assert no_pool == []
+        assert multiprocessing.active_children() == []
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        ("steps", "overrides"),
+        [
+            ([TIMESTEPS + 1, TIMESTEPS + 2], {}),
+            ([-1, 0], {}),
+            ([1, TIMESTEPS], {"spinup_steps": TIMESTEPS}),
+        ],
+        ids=["after the window", "before the window", "inside the spin-up"],
+    )
+    def test_an_observed_series_outside_the_compared_steps_is_refused(
+        self, dataset, tmp_path, no_pool, steps, overrides
+    ):
+        elsewhere = tmp_path / "elsewhere.csv"
+        elsewhere.write_text(
+            "0;1;2\n" + "".join(f"{step};1.0;2.0\n" for step in steps), encoding="utf8"
+        )
+
+        with pytest.raises(CalibrationError, match="no time step in common") as failure:
+            dataset.calibrate(observed=elsewhere, **overrides)
+
+        message = str(failure.value)
+        assert f"{min(steps)} to {max(steps)}" in message
+        assert f"1 to {TIMESTEPS}" in message
+        assert f"{overrides.get('spinup_steps', 0)} spin-up" in message
+        assert not dataset.run_dir.exists()
+        assert no_pool == []
+
+    @pytest.mark.unit
+    def test_an_observed_station_the_run_does_not_sample_is_warned_about_and_ignored(
+        self, dataset, caplog
+    ):
+        rows = dataset.observed.read_text(encoding="utf8").splitlines()
+        extra = dataset.observed.with_name("extra.csv")
+        extra.write_text(
+            "".join(f"{row};{'3' if number == 0 else '1.0'}\n" for number, row in enumerate(rows)),
+            encoding="utf8",
+        )
+
+        exact = calibrate(
+            dataset.config_file, dataset.observed, dataset.run_dir / "exact", dataset.settings()
+        )
+        with caplog.at_level(logging.WARNING, logger="rubem.calibration.runner"):
+            with_extra = calibrate(
+                dataset.config_file, extra, dataset.run_dir / "extra", dataset.settings()
+            )
+
+        # The foreign column is named once and then ignored by the alignment, so
+        # the calibration is the one the exact file produces.
+        assert "does not sample (3)" in caplog.text
+        assert with_extra.best_parameters == exact.best_parameters
+        assert with_extra.best_objective == exact.best_objective
+        assert with_extra.best_nse == exact.best_nse
+        assert with_extra.evaluations == exact.evaluations
+
+    @pytest.mark.unit
+    def test_the_stations_are_the_values_of_the_sample_locations_raster(self, dataset):
+        samples = ModelConfiguration(
+            dataset.config, validate_input=False
+        ).raster_files.sample_locations
+
+        # The no-data cells of the nominal map are not stations, and the ids are
+        # the strings the model writes in the header of its table.
+        assert _station_ids(samples) == {"1", "2"}
+
+    @pytest.mark.unit
+    def test_a_background_of_zeroes_is_not_a_station(self, tmp_path):
+        from osgeo import gdal
+
+        gdal.UseExceptions()
+        gdal.AllRegister()
+        raster = tmp_path / "samples-with-zeroes.tif"
+        handle = gdal.GetDriverByName("GTiff").Create(str(raster), 3, 3, 1, gdal.GDT_Int32)
+        try:
+            values = np.zeros((3, 3), dtype=np.int32)
+            values[0, 0], values[2, 2] = 1, 2
+            handle.GetRasterBand(1).WriteArray(values)
+            handle.FlushCache()
+        finally:
+            handle = None
+
+        # A raster may mark its background with zeroes and declare no no-data
+        # value at all; the validation of the inputs counts neither the zeroes
+        # nor the missing cells as a sample, and neither does this.
+        assert _station_ids(raster) == {"1", "2"}
+
+    @pytest.mark.unit
+    def test_the_stations_of_a_zones_aggregation_are_not_checked(self):
+        # The model remaps the zone ids to 1..N at run time, so the parent has
+        # no station id to compare and the check only covers the steps.
+        observed = Series(steps=np.array([1, 2, 3]), stations={"A": np.zeros(3)})
+
+        assert (
+            _check_observed_series(
+                observed,
+                first_step=1,
+                last_step=3,
+                spinup_steps=0,
+                aggregation=Aggregation.ZONES,
+                station_ids={"1", "2"},
+            )
+            is None
+        )
 
 
 class TestSettings:

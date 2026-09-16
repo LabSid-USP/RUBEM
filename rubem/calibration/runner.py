@@ -11,8 +11,15 @@ The run directory receives three artifacts: ``evaluations.csv``, one row per
 evaluation, ``result.json``, the best candidate and the settings that found it,
 and ``<configuration>-calibrated.json``, the calibrated configuration in the
 format the input was written in. The rows of the table are ordered by the
-candidate they evaluated and not by the moment they were written, so that two
-calibrations of one configuration with one seed produce the same table.
+candidate they evaluated and not by the moment they were written, so that the
+order of the rows does not depend on the order in which the workers happened to
+finish. It does not make the table itself reproducible: the ``id``, ``pid`` and
+``elapsed_seconds`` columns differ between two runs of one seed, and from the
+first generation on the selection reads the objective values, so two runs
+evaluate the same candidates only when the simulation itself is reproducible
+(on the real basins that requires a fixed ``RASTERS.ldd``, since ``lddcreate``
+does not always derive the same directions twice; see the note on the LDD
+raster in the user guide).
 
 Number of evaluations
     The population of a ``sobol`` initialization is ``max(5, popsize * 8)``
@@ -51,7 +58,7 @@ from ..configuration.model_configuration_file_v1 import (
     ModelConfigurationFileV1,
 )
 from ._worker import _INADMISSIBLE_ERROR, EvaluationContext, evaluate
-from .objective import read_series
+from .objective import Series, read_series
 from .parameters import (
     CALIBRATION_PARAMETERS,
     FREE_PARAMETERS,
@@ -293,7 +300,9 @@ def calibrate(
     :rtype: CalibrationResult
 
     :raises CalibrationError: If SciPy is not installed, if the configuration
-        cannot be calibrated as asked, or if every evaluation of the run failed.
+        cannot be calibrated as asked, if the observed series shares no time
+        step or no station with what the configuration will sample, or if every
+        evaluation of the run failed.
     :raises ImportError: If PCRaster or GDAL are not installed.
     :raises FileNotFoundError: If the configuration or the observed series is
         not there.
@@ -323,6 +332,19 @@ def calibrate(
     _check_sample_locations(configuration, file_v1)
 
     observed = read_series(observed_path)
+    aggregation = file_v1.model_simulation_output.time_series_samples.aggregation
+    _check_observed_series(
+        observed,
+        first_step=configuration.simulation_period.first_step,
+        last_step=configuration.simulation_period.last_step,
+        spinup_steps=settings.spinup_steps,
+        aggregation=aggregation,
+        station_ids=(
+            None
+            if aggregation is Aggregation.ZONES
+            else _station_ids(configuration.raster_files.sample_locations)
+        ),
+    )
     x0 = parameters_to_vector(configuration.calibration_parameters.model_dump())
 
     run_directory = as_path(run_dir).absolute()
@@ -500,6 +522,118 @@ def _check_sample_locations(configuration, file_v1: ModelConfigurationFileV1) ->
         )
 
 
+def _station_ids(sample_locations: PathInput) -> set[str]:
+    """Return the station ids of a sample locations raster.
+
+    The raster is a nominal map, so its cells read as integers. Neither the
+    no-data cells nor the zeroes are stations, which is what the validation of
+    the inputs already asks of a sample raster: its ids are ``1..N`` and its
+    background is missing or zero. Every remaining value becomes the string the
+    model writes in the header of its time series table, ``str(int(value))``.
+
+    :param sample_locations: The sample locations raster of the configuration.
+    :type sample_locations: str | os.PathLike[str]
+
+    :return: The distinct station ids, as strings.
+    :rtype: set[str]
+    """
+    from osgeo import gdal
+
+    gdal.UseExceptions()
+    gdal.AllRegister()
+    dataset = gdal.Open(str(as_path(sample_locations)))
+    try:
+        band = dataset.GetRasterBand(1)
+        values = np.unique(np.asarray(band.ReadAsArray()))
+        no_data = band.GetNoDataValue()
+    finally:
+        dataset = None
+
+    if no_data is not None:
+        values = values[values != no_data]
+    return {str(int(value)) for value in values.tolist() if math.isfinite(value) and value != 0}
+
+
+def _check_observed_series(
+    observed: Series,
+    *,
+    first_step: int,
+    last_step: int,
+    spinup_steps: int,
+    aggregation: Aggregation,
+    station_ids: set[str] | None,
+) -> None:
+    """Refuse an observed series that cannot be compared with what the run samples.
+
+    Every evaluation aligns the observed series with the table its own
+    simulation wrote, so a series that shares no step or no station with that
+    table makes every evaluation fail. The mismatch is the same for every
+    candidate, so it is settled here, in the parent, before a single model run
+    is spent on it.
+
+    The compared steps are the simulated steps, ``first_step`` to ``last_step``,
+    that survive the spin-up. The stations are the ids the ``point`` and the
+    ``subcatchment`` aggregations sample, the values of the sample locations
+    raster; the ``zones`` aggregation remaps the zone ids to ``1..N`` at run
+    time (the mapping is written to ``zones_mapping.csv``), so the parent cannot
+    know the ids of its stations and the station check is skipped for it.
+
+    :param observed: The observed series, as the parent read it.
+    :type observed: rubem.calibration.objective.Series
+
+    :param first_step: Number of the first simulated step.
+    :type first_step: int
+
+    :param last_step: Number of the last simulated step.
+    :type last_step: int
+
+    :param spinup_steps: Number of initial time steps excluded from the
+        efficiency.
+    :type spinup_steps: int
+
+    :param aggregation: The aggregation the time series of the run use.
+    :type aggregation: Aggregation
+
+    :param station_ids: The ids of the stations the run will sample, or ``None``
+        when they are not known before the run.
+    :type station_ids: set[str] | None
+
+    :raises CalibrationError: If no observed step is compared, or if no observed
+        station id is one of the stations of the run.
+    """
+    compared_steps = {step for step in range(first_step, last_step + 1) if step > spinup_steps}
+    observed_steps = {int(step) for step in np.asarray(observed.steps).tolist()}
+    if not compared_steps & observed_steps:
+        raise CalibrationError(
+            f"The observed series covers the step(s) {min(observed_steps)} to "
+            f"{max(observed_steps)}, and the configuration simulates the step(s) "
+            f"{first_step} to {last_step}, of which the {spinup_steps} spin-up step(s) "
+            "are excluded from the efficiency: the two series would have no time step "
+            "in common and every evaluation would fail."
+        )
+
+    if aggregation is Aggregation.ZONES or station_ids is None:
+        return
+
+    observed_ids = set(observed.stations)
+    if not observed_ids & station_ids:
+        raise CalibrationError(
+            f"The observed series has the station(s) {', '.join(sorted(observed_ids)) or 'none'} "
+            f"and the configuration samples the station(s) "
+            f"{', '.join(sorted(station_ids)) or 'none'}: the two series would have no "
+            "station in common and every evaluation would fail."
+        )
+
+    foreign = sorted(observed_ids - station_ids)
+    if foreign:
+        logger.warning(
+            "The observed series has %d station(s) the configuration does not sample "
+            "(%s); they are ignored by the calibration.",
+            len(foreign),
+            ", ".join(foreign),
+        )
+
+
 def _population_size(settings: CalibrationSettings) -> int:
     """Return the number of population members the search will use.
 
@@ -541,10 +675,15 @@ def _record_order(record: dict[str, Any]) -> tuple[tuple[float, ...], str]:
 
     The records are not ordered by the moment they were written: the workers run
     in parallel, so that order changes from run to run. Ordering them by the
-    candidate they evaluated makes ``evaluations.csv`` a function of the seed
-    alone, so two calibrations of the same configuration with the same seed
-    produce the same table and can be compared line by line. The identifier only
-    separates two evaluations of the very same candidate.
+    candidate they evaluated takes that scheduling order out of
+    ``evaluations.csv``. It does not make the table reproducible on its own: the
+    ``id``, ``pid`` and ``elapsed_seconds`` columns differ between two runs, and
+    from the first generation on the selection reads the objective values, so
+    two runs of one seed evaluate the same candidates only when the simulation
+    itself is reproducible (on the real basins that requires a fixed
+    ``RASTERS.ldd``, since ``lddcreate`` does not always derive the same
+    directions twice; see the note on the LDD raster in the user guide). The
+    identifier only separates two evaluations of the very same candidate.
     """
     parameters = record.get("parameters") or {}
     values = tuple(float(parameters.get(name, math.inf)) for name in CALIBRATION_PARAMETERS)
