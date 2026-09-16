@@ -135,7 +135,7 @@ Mandatory if ``Export Results to Station Locations`` is enabled. Path to Station
 Grid
 `````
 
-Mandatory cell dimension value in meters. Value has to correspond to the pixel resolution of the dataset's DEM map file.
+Mandatory cell dimension value in meters. It is the metric cell size the user asserts for the dataset: the cell area it defines converts the accumulated runoff from millimeters to cubic meters per second, so it has to correspond to the pixel resolution of the dataset's rasters.
 
 .. code-block:: json
 
@@ -144,6 +144,26 @@ Mandatory cell dimension value in meters. Value has to correspond to the pixel r
          "grid": 500.0,
       },
    }
+
+When the coordinate reference system of the dataset is a projected one, the
+value is compared with the pixel size of the clone during the validation of the
+input rasters (skipped by ``--skip-inputs-validation``): the linear unit of the
+system is converted to meters, and a relative difference above ``1e-6`` on
+either axis blocks the simulation. The system taken as the reference is the
+clone's own one, or, when the clone carries none, the one of the georeference
+raster, or the one of the DEM. When that system is a geographic one (degrees,
+as the published basins are) the metric cell size cannot be derived from the
+rasters, so no comparison is made and the declared value is used as given; the
+same holds when none of those rasters carries a coordinate reference system, as
+happens with a dataset made only of PCRaster maps. In both cases an
+informational message states the declared cell size and the resolution of the
+raster.
+
+.. tip::
+
+   ``rubem preprocess info <raster>`` prints the pixel size of a raster, which
+   is the value to declare here when the raster is in a projected coordinate
+   reference system.
 
 Simulation Period
 `````````````````
