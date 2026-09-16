@@ -13,6 +13,16 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added ``rubem.api``, the public Python surface: ``Model.from_file`` and
+  ``Model.from_config`` load a configuration file or document, ``Model.run()``
+  runs the simulation in the current process and ``Model.run_isolated()`` in a
+  fresh spawned subprocess, both returning a ``RunResult`` that lists the
+  rasters, time series and metadata the run wrote, enumerated from the
+  configuration. Importing the module needs neither PCRaster nor GDAL; running
+  without them raises ``ImportError`` with the installation guidance.
+  ``ConfigurationError`` now survives pickling with its problems
+  (`#341 <https://github.com/LabSid-USP/RUBEM/issues/341>`__). The Python API
+  page documents the stability policy and the process model.
 - Added the optional ``RASTERS.georeference`` raster whose coordinate
   reference system is written to the GeoTIFF outputs; the clone and the
   georeference must share the DEM geometry, rotated grids are refused when
