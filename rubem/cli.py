@@ -1,6 +1,7 @@
 """The ``rubem`` command line.
 
-``rubem run -c <config.json> [-s]`` runs a simulation; ``rubem config schema``
+``rubem run -c <config.json> [-s]`` runs a simulation; ``rubem calibrate``
+fits the calibration parameters to an observed series; ``rubem config schema``
 prints the JSON Schema of the configuration file. The former ``rubem -c
 <config.json>`` spelling still works for one minor release and emits a
 ``DeprecationWarning``.
@@ -21,7 +22,7 @@ import typer
 from pydantic import ValidationError
 
 from . import __release__
-from ._deps import require_runtime_deps
+from ._deps import require_calibration_deps, require_runtime_deps
 from .configuration._problems import ConfigurationError
 from .configuration.app_settings import AppSettings
 from .preprocessing.cli import app as preprocess_app
@@ -178,6 +179,113 @@ def run(
     logger.info("RUBEM successfully finished!")
 
 
+@app.command()
+def calibrate(
+    configfile: Annotated[
+        Path,
+        typer.Option(
+            "-c",
+            "--configfile",
+            callback=_configfile_callback,
+            help="Path to the configuration file (JSON).",
+        ),
+    ],
+    observed: Annotated[
+        Path,
+        typer.Option(
+            "--observed",
+            exists=True,
+            dir_okay=False,
+            help="Observed series at the sample stations (CSV or PCRaster TSS).",
+        ),
+    ],
+    run_dir: Annotated[
+        Path,
+        typer.Option("-o", "--run-dir", help="Directory for the calibration artifacts."),
+    ],
+    variable: Annotated[
+        str, typer.Option("--variable", help="Output variable compared with the observed series.")
+    ] = "arn",
+    spinup_steps: Annotated[
+        int,
+        typer.Option("--spinup-steps", min=0, help="Leading time steps excluded from the NSE."),
+    ] = 0,
+    maxiter: Annotated[
+        int, typer.Option("--maxiter", min=1, help="Maximum number of generations.")
+    ] = 100,
+    popsize: Annotated[
+        int, typer.Option("--popsize", min=1, help="Population multiplier of the search.")
+    ] = 15,
+    seed: Annotated[
+        int | None, typer.Option("--seed", help="Seed of the differential evolution.")
+    ] = None,
+    workers: Annotated[
+        int | None,
+        typer.Option("--workers", min=1, help="Parallel evaluations (default: all cores but one)."),
+    ] = None,
+    temp_dir: Annotated[
+        Path | None,
+        typer.Option("--temp-dir", help="Parent of the per-evaluation output directories."),
+    ] = None,
+) -> None:
+    """Calibrate the model parameters against an observed series."""
+    require_runtime_deps()
+    require_calibration_deps()
+
+    from .calibration.runner import CalibrationError, CalibrationSettings
+    from .calibration.runner import calibrate as run_calibration
+
+    settings_arguments: dict = {
+        "variable": variable,
+        "spinup_steps": spinup_steps,
+        "maxiter": maxiter,
+        "popsize": popsize,
+        "seed": seed,
+    }
+    if workers is not None:
+        settings_arguments["workers"] = workers
+    if temp_dir is not None:
+        settings_arguments["temp_dir"] = str(temp_dir)
+
+    try:
+        # The library only logs; the progress a command-line calibration is
+        # expected to show is written here, so that an embedded calibration
+        # stays silent unless its host configures logging.
+        print("Loading configuration and validating inputs...", flush=True)
+        print("Calibration started...", flush=True)
+        result = run_calibration(
+            configfile, observed, run_dir, CalibrationSettings(**settings_arguments)
+        )
+    except (ConfigurationError, ValidationError, ValueError) as e:
+        # A configuration the user can fix: no traceback, the message says what.
+        logger.critical("Invalid configuration: %s", e)
+        raise typer.Exit(code=1) from e
+    except CalibrationError as e:
+        # The calibration itself refused to run or produced nothing usable;
+        # the message says what, so no traceback either.
+        logger.critical("Calibration failed: %s", e)
+        raise typer.Exit(code=1) from e
+    except KeyboardInterrupt as e:
+        logger.critical("RUBEM was interrupted by the user.")
+        raise typer.Exit(code=2) from e
+    except Exception as e:
+        logger.critical("RUBEM unexpectedly quit.")
+        logger.exception(e)
+        raise typer.Exit(code=1) from e
+
+    best_nse = "n/a" if result.best_nse is None else f"{result.best_nse:.6f}"
+    print("Calibration finished successfully!", flush=True)
+    print(f"Best NSE: {best_nse}", flush=True)
+    print(f"Best objective: {result.best_objective:.6g}", flush=True)
+    print(f"Evaluations: {result.evaluations}", flush=True)
+    print(f"Generations: {result.generations}", flush=True)
+    print(f"Evaluations table: {result.evaluations_csv}", flush=True)
+    print(f"Result: {result.result_json}", flush=True)
+    print(f"Calibrated configuration: {result.calibrated_config}", flush=True)
+
+    logger.info("RUBEM successfully finished!")
+
+
 @config_app.command("schema")
 def config_schema(
     schema_format: Annotated[
@@ -258,7 +366,7 @@ def _legacy_arguments(argv: Sequence[str]) -> list[str]:
     global _legacy_invocation
     _legacy_invocation = False
     arguments = list(argv)
-    if not arguments or arguments[0] in ("run", "config"):
+    if not arguments or arguments[0] in ("run", "config", "calibrate", "preprocess"):
         return arguments
     options = [a for a in arguments if a.startswith("-")]
     if not options or not {o.split("=", 1)[0] for o in options} <= _LEGACY_OPTIONS:

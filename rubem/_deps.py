@@ -69,3 +69,53 @@ def require_preprocessing_deps() -> None:
             "This preprocessing tool needs the optional dependencies "
             f"{', '.join(missing)}. Install them with 'pip install \"rubem[preprocessing]\"'."
         )
+
+
+_CALIBRATION_DEPENDENCIES = ("scipy",)
+
+
+def missing_calibration_deps() -> list[str]:
+    """Return the optional calibration dependencies that are not importable.
+
+    As in :func:`missing_runtime_deps`, a dependency whose lookup itself fails
+    counts as missing: the calibration would not get past it either.
+
+    :return: The missing dependency names, in the order they are checked.
+    """
+    missing = []
+    for name in _CALIBRATION_DEPENDENCIES:
+        try:
+            found = importlib.util.find_spec(name) is not None
+        except (ImportError, ValueError):
+            found = False
+        if not found:
+            missing.append(name)
+    return missing
+
+
+def calibration_deps_message(missing: list[str] | None = None) -> str:
+    """Return the installation guidance for the missing calibration dependencies.
+
+    The command line raises it as ``SystemExit`` and the runner as
+    ``CalibrationError``, so both front ends give the same instructions.
+
+    :param missing: The missing dependency names, see
+        :func:`missing_calibration_deps`. Defaults to ``None``, which names
+        every optional calibration dependency.
+    """
+    names = list(_CALIBRATION_DEPENDENCIES) if missing is None else missing
+    plural = "dependencies" if len(names) > 1 else "dependency"
+    return (
+        f"The calibration command needs the optional {plural} {', '.join(names)}. "
+        "Install it with 'pip install \"rubem[calibration]\"'."
+    )
+
+
+def require_calibration_deps() -> None:
+    """Fail fast with guidance when SciPy is not importable.
+
+    :raises SystemExit: If any optional calibration dependency is missing.
+    """
+    missing = missing_calibration_deps()
+    if missing:
+        raise SystemExit(calibration_deps_message(missing))
