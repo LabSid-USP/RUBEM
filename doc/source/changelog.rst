@@ -13,6 +13,12 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added the comparison of ``GRID.grid`` (``raster_info.grid_size``) with the pixel size of the
+  clone when the reference coordinate reference system is projected: the linear unit is
+  converted to metres and a relative difference above ``1e-6`` on either axis blocks the run;
+  a geographic or absent system leaves the declared value as given and logs the raster
+  resolution (skipped with ``-s``; `#329 <https://github.com/LabSid-USP/RUBEM/issues/329>`__).
+  The user guide states that ``grid`` is the metric cell size the user asserts.
 - Added the optional ``RASTERS.georeference`` raster whose coordinate
   reference system is written to the GeoTIFF outputs; the clone and the
   georeference must share the DEM geometry, rotated grids are refused when
