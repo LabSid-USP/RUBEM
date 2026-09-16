@@ -12,6 +12,8 @@ PCRaster map carries none), no comparison is possible and the declared value is
 kept as given.
 """
 
+from __future__ import annotations
+
 import logging
 
 from osgeo import osr
