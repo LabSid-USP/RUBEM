@@ -162,7 +162,7 @@ Class A Pan Coefficient (:raw-html:`K<sub>P</sub>`) raster series
 
 These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRaster.
 
-:raw-html:`K<sub>P</sub>` is interpolated by kriging of weather stations.
+:raw-html:`K<sub>P</sub>` is interpolated by kriging of weather stations. It can also be computed from wind speed and relative humidity raster series with ``rubem preprocess kp``, see :ref:`Class A Pan Coefficient (Kp) Series <preprocessing:Class A Pan Coefficient (Kp) Series>`.
 
 - Filetype: PCRaster map format (:file:`kpc00000.001`- :file:`kpc99999.999` raster map series).
 - Unit: Dimensionless
