@@ -13,6 +13,15 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added ``rubem calibrate``: a differential evolution (SciPy) over the eight free
+  calibration parameters, ``w3`` derived from the other two weights, minimizing
+  ``1000 (100 (1 - NSE))^2`` on the station series of one output variable
+  (``arn`` by default) against an observed CSV or PCRaster TSS file, with
+  masked values, a zero-variance guard and a spin-up window; every candidate
+  runs in a fresh spawned worker through the Python API, records one JSON
+  file, and the run directory receives ``evaluations.csv``, ``result.json``
+  and ``<config>-calibrated.json``. SciPy comes with the optional extra
+  ``rubem[calibration]`` (`#343 <https://github.com/LabSid-USP/RUBEM/issues/343>`__).
 - Added ``rubem.api``, the public Python surface: ``Model.from_file`` and
   ``Model.from_config`` load a configuration file or document, ``Model.run()``
   runs the simulation in the current process and ``Model.run_isolated()`` in a
