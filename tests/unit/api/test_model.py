@@ -277,8 +277,9 @@ class TestIsolatedRuns:
         assert marker["pid"] != os.getpid(), "the run must not happen in the calling process"
         assert "pcraster" in sys.modules, "the parent of this test has the model loaded"
         assert marker["preloaded"] == [], "a spawned child starts without the parent's modules"
-        with pytest.raises(ProcessLookupError):
-            os.kill(marker["pid"], 0)
+        # The executor's worker is a multiprocessing child of this process, so an
+        # empty active_children() proves it was joined; a probe with os.kill would
+        # not be portable (Windows has no signal 0) and could hit a reused pid.
         assert multiprocessing.active_children() == []
 
     @pytest.mark.unit
