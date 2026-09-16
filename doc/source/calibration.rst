@@ -95,22 +95,30 @@ reported as having no efficiency and is left out of the average, instead of
 dragging it. The efficiency of a candidate is the mean over the stations that
 do have one.
 
-A mismatch between the observations and the configuration — no station id in
-common, no time step in common after the spin-up, or no shared station with an
-efficiency — is not a poor candidate. It is not caught before the search
-either: the comparison happens inside the evaluation, after that evaluation has
-run the whole simulation. The evaluation is then recorded with the message of
-the error in its ``error`` column and with the objective ``1e30``, like any
-other failure, and the search carries on. The calibration ends with an error
-only once no evaluation of the whole run has succeeded.
+A mismatch between the observations and the configuration is not a poor
+candidate, and the two kinds of it that can be told before any model run are
+refused before the search starts: an observed series with no time step in
+common with the simulated steps that survive the spin-up, and one whose station
+ids match none of the ids of the sample locations raster (an observed station
+the configuration does not sample is reported once and ignored). With the
+``zones`` aggregation the station ids are only known once a run has written
+``zones_mapping.csv``, so that check is skipped.
+
+What cannot be told in advance surfaces inside the evaluations: a series whose
+shared stations all lack an efficiency, because every observation is missing or
+constant, fails each evaluation after its simulation has run. The evaluation is
+then recorded with the message of the error in its ``error`` column and with
+the objective ``1e30``, like any other failure, and the search carries on; the
+calibration ends with an error only once no evaluation of the whole run has
+succeeded.
 
 .. warning::
 
-   A wrong station id is therefore paid for in model runs before it is
-   reported. The per-generation log line is the early sign: a best objective of
-   ``1e+30`` from the first generation on means that every candidate failed.
-   Check the observed file against a run of the configuration first, over a few
-   time steps, as `Running on a cluster or a large machine`_ describes.
+   Such a failure is paid for in model runs before it is reported. The
+   per-generation log line is the early sign: a best objective of ``1e+30`` from
+   the first generation on means that every candidate failed. Check the observed
+   file against a run of the configuration first, over a few time steps, as
+   `Running on a cluster or a large machine`_ describes.
 
 The spin-up window
 ``````````````````
