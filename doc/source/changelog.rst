@@ -13,6 +13,12 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added ``rubem preprocess kp``, which builds the Class A pan coefficient series from wind
+  speed and relative humidity raster series and a fetch distance with the formula of the
+  published model (supplement S29), through the shared raster I/O of the preprocessing tools;
+  a member with a non-positive coefficient refuses the whole run, cells above the configured
+  ``kp`` range are warned about. The model's ``get_pan_coef_et_open_water_area`` now delegates
+  to the same implementation (`#330 <https://github.com/LabSid-USP/RUBEM/issues/330>`__).
 - Added the optional ``RASTERS.georeference`` raster whose coordinate
   reference system is written to the GeoTIFF outputs; the clone and the
   georeference must share the DEM geometry, rotated grids are refused when
