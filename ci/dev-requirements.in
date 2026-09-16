@@ -1,0 +1,18 @@
+# Direct development requirements audited by the pip-audit job. Refresh the
+# lock with:
+#   uv pip compile ci/dev-requirements.in -o ci/dev-requirements.lock --python-version 3.12
+# An existing lock keeps its pins; add --upgrade to move every package forward.
+build
+codespell
+pre-commit
+pyfakefs
+pytest-cov
+pytest-mock
+pytest-xdist
+ruff
+scipy>=1.16.2
+sphinx-autodoc-typehints
+sphinx-rtd-theme
+sphinxcontrib-email
+sphinxcontrib-youtube
+twine
