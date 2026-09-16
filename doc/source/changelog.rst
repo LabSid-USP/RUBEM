@@ -13,6 +13,14 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added the calibration page of the documentation (the objective, the free
+  parameters and their bounds, the derivation of ``w3``, the differential
+  evolution settings and the evaluation budget, the observed series formats,
+  the fixed drainage network a calibration on ``arn`` needs, the artifacts, the
+  process model and hints for large machines), the ``dataset`` pytest marker
+  with the ``RUBEM_DATASET_DIR`` convention for tests that need the published
+  datasets, and a calibration smoke test on the Ipojuca basin
+  (`#345 <https://github.com/LabSid-USP/RUBEM/issues/345>`__).
 - Added ``rubem calibrate``: a differential evolution (SciPy) over the eight free
   calibration parameters, ``w3`` derived from the other two weights, minimizing
   ``1000 (100 (1 - NSE))^2`` on the station series of one output variable
