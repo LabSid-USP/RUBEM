@@ -79,6 +79,16 @@ class TestDynamicFrameworkWrapper:
             assert np.isfinite(valid).all(), f"{name} has non-finite cells"
 
     @pytest.mark.unit
+    def test_the_csv_tables_carry_only_the_column_names_and_the_data_rows(self, tmp_path):
+        """The PCRaster header of the sources never reaches the converted table."""
+        run_model(str(tmp_path))
+        lines = (tmp_path / "out" / "tss_arn.csv").read_text(encoding="utf8").splitlines()
+
+        assert lines[0] == "0;1;2"
+        assert len(lines) == 3
+        assert [line.split(";")[0] for line in lines[1:]] == ["1", "2"]
+
+    @pytest.mark.unit
     def test_time_series_cover_every_station_and_step(self, tmp_path):
         run_model(str(tmp_path))
         data = np.genfromtxt(str(tmp_path / "out" / "tss_arn.csv"), delimiter=";", skip_header=1)

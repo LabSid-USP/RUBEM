@@ -14,7 +14,28 @@ class FakeUUID:
         self.hex = hex_value
 
 
-def write_tss(path, rows):
+def write_tss(path, rows, ids=None, number_of_columns=None, title="timeseries scalar"):
+    """Write a ``.tss`` file in the headed form the model produces.
+
+    ``ids`` defaults to the station ids the first row has values for, and
+    ``number_of_columns`` to the column count that header describes; both are
+    given explicitly by the tests that check a header disagreeing with the
+    column names.
+    """
+    if ids is None:
+        ids = [str(column) for column in range(1, len(rows[0]))]
+    if number_of_columns is None:
+        number_of_columns = len(ids) + 1
+    with open(path, "w", encoding="utf8") as f:
+        f.write(f"{title}\n{number_of_columns}\ntimestep\n")
+        for station in ids:
+            f.write(f"{station}\n")
+        for row in rows:
+            f.write(" ".join(str(value) for value in row) + "\n")
+
+
+def write_headerless_tss(path, rows):
+    """Write the headerless form the model used to produce."""
     with open(path, "w", encoding="utf8") as f:
         for row in rows:
             f.write(" ".join(str(value) for value in row) + "\n")
@@ -119,11 +140,119 @@ class TestTss2Csv:
         assert not list(tmp_path.glob("*.tmp"))
 
     @pytest.mark.unit
+    def test_a_headerless_source_is_refused(self, tmp_path):
+        """The model writes headed files; a headerless one is not converted."""
+        tss = tmp_path / "tss_itp.tss"
+        write_headerless_tss(tss, [(1, 10.5), (2, 11.0)])
+
+        with pytest.raises(ValueError, match="has no PCRaster header"):
+            tss2csv([tss], ["1"])
+
+        assert tss.exists()
+        assert not list(tmp_path.glob("*.csv"))
+        assert not list(tmp_path.glob("*.tmp"))
+
+    @pytest.mark.unit
+    def test_a_source_whose_second_line_is_not_an_integer_is_refused(self, tmp_path):
+        tss = tmp_path / "tss_itp.tss"
+        tss.write_text("timeseries scalar\nnot a number\ntimestep\n1\n 1 10.5\n", encoding="utf8")
+
+        with pytest.raises(ValueError, match="has no PCRaster header"):
+            tss2csv([tss], ["1"])
+
+        assert not list(tmp_path.glob("*.csv"))
+
+    @pytest.mark.unit
+    def test_a_source_announcing_no_column_is_refused(self, tmp_path):
+        """A count below one is not a column count: the time step is a column."""
+        tss = tmp_path / "tss_itp.tss"
+        tss.write_text("timeseries scalar\n-3\ntimestep\n1\n 1 10.5\n", encoding="utf8")
+
+        with pytest.raises(ValueError, match="has no PCRaster header"):
+            tss2csv([tss], ["1"])
+
+        assert tss.exists()
+        assert not list(tmp_path.glob("*.csv"))
+
+    @pytest.mark.unit
+    def test_a_zero_byte_source_is_refused_and_keeps_the_previous_csv(self, tmp_path):
+        """A run cut short before any line must not replace usable results."""
+        first = tmp_path / "tss_a.tss"
+        second = tmp_path / "tss_b.tss"
+        write_tss(first, [(1, 10.5)])
+        second.write_text("", encoding="utf8")
+        (tmp_path / "tss_a.csv").write_text("previous a\n", encoding="utf8")
+        (tmp_path / "tss_b.csv").write_text("previous b\n", encoding="utf8")
+
+        with pytest.raises(ValueError, match="has no PCRaster header"):
+            tss2csv([first, second], ["1"])
+
+        assert (tmp_path / "tss_a.csv").read_text(encoding="utf8") == "previous a\n"
+        assert (tmp_path / "tss_b.csv").read_text(encoding="utf8") == "previous b\n"
+        assert sorted(path.name for path in tmp_path.iterdir()) == [
+            "tss_a.csv",
+            "tss_a.tss",
+            "tss_b.csv",
+            "tss_b.tss",
+        ]
+
+    @pytest.mark.unit
+    def test_a_header_with_other_station_ids_is_refused(self, tmp_path):
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5, 20.5)], ids=["3", "4"])
+
+        with pytest.raises(ValueError, match=r"are \['3', '4'\].*give \['1', '2'\]"):
+            tss2csv([tss], ["1", "2"])
+
+        assert tss.exists()
+        assert not list(tmp_path.glob("*.csv"))
+
+    @pytest.mark.unit
+    def test_a_header_with_another_column_count_is_refused(self, tmp_path):
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, [(1, 10.5, 20.5)], ids=["1", "2"])
+
+        with pytest.raises(ValueError, match=r"announces 3 column\(s\), the column names give 2"):
+            tss2csv([tss], ["1"])
+
+        assert tss.exists()
+        assert not list(tmp_path.glob("*.csv"))
+
+    @pytest.mark.unit
+    def test_a_truncated_header_is_refused(self, tmp_path):
+        """A header that stops short of the column count it announces."""
+        ending = tmp_path / "tss_ending.tss"
+        with_rows = tmp_path / "tss_with_rows.tss"
+        write_tss(ending, [], ids=["1"], number_of_columns=3)
+        write_tss(with_rows, [(1, 10.5, 20.5)], ids=["1"], number_of_columns=3)
+
+        for tss in (ending, with_rows):
+            with pytest.raises(ValueError, match="is truncated"):
+                tss2csv([tss], ["1", "2"])
+
+            assert tss.exists()
+        assert not list(tmp_path.glob("*.csv"))
+
+    @pytest.mark.unit
+    def test_the_csv_of_a_headed_file_is_the_one_the_headerless_form_produced(self, tmp_path):
+        """Only the data rows are converted, so the CSV text is byte for byte
+        the one the previous headerless sources produced from the same rows."""
+        rows = [(1, 10.5, 20.5), (2, 11.0, 21.0)]
+        tss = tmp_path / "tss_itp.tss"
+        write_tss(tss, rows)
+
+        tss2csv([tss], ["1", "2"])
+
+        produced = (tmp_path / "tss_itp.csv").read_text(encoding="utf8", newline="")
+        assert produced == "0;1;2\r\n1;10.5;20.5\r\n2;11.0;21.0\r\n"
+
+    @pytest.mark.unit
     def test_failure_leaves_sources_and_no_partial_outputs(self, tmp_path):
         good = tmp_path / "tss_good.tss"
         bad = tmp_path / "tss_bad.tss"
         write_tss(good, [(1, 10.5)])
-        write_tss(bad, [(1, 10.5, 99.0)])
+        # The header agrees with the column names; the data row does not.
+        write_tss(bad, [(1, 10.5, 99.0)], ids=["1"])
 
         with pytest.raises(ValueError):
             tss2csv([good, bad], ["1"])
@@ -271,7 +400,7 @@ class TestTss2Csv:
         first = tmp_path / "tss_a.tss"
         second = tmp_path / "tss_b.tss"
         write_tss(first, [(1, 10.5)])
-        second.write_text("", encoding="utf8")
+        write_tss(second, [], ids=["1"])
         (tmp_path / "tss_a.csv").write_text("previous a\n", encoding="utf8")
         (tmp_path / "tss_b.csv").write_text("previous b\n", encoding="utf8")
 
