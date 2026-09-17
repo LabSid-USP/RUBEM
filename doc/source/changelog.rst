@@ -86,6 +86,12 @@ Added
 Changed
 ```````
 
+- The station time series the model keeps as PCRaster ``.tss`` files carry the
+  PCRaster header (title, number of columns, ``timestep`` line and one line per
+  station id), so PCRaster's own tools read them; the CSV conversion reads the
+  header, refuses a file without it or whose ids differ from the configured
+  stations, and converts the data rows only, leaving the CSV tables unchanged
+  (`#347 <https://github.com/LabSid-USP/RUBEM/issues/347>`__).
 - Packaged RUBEM with ``pyproject.toml``: ``pip install`` support, the
   ``rubem`` console script and a single PEP 440 version source.
 - Stated the license expression consistently as ``GPL-3.0-or-later`` (the
