@@ -54,6 +54,8 @@ class FakeCalibration:
             evaluations_csv=Path(run_dir) / "evaluations.csv",
             result_json=Path(run_dir) / "result.json",
             calibrated_config=Path(run_dir) / "config-calibrated.json",
+            best_series=Path(run_dir) / "best_arn.csv",
+            stations_csv=Path(run_dir) / "stations.csv",
         )
 
     def __call__(self, config_path, observed_path, run_dir, settings):
@@ -97,6 +99,12 @@ class TestCliCalibrateArgumentsReachTheRunner:
         assert settings.popsize == 15
         assert settings.seed is None
         assert settings.temp_dir is None
+        assert settings.init == "sobol"
+        assert settings.strategy == "best1exp"
+        assert settings.polish is False
+        assert settings.bounds is None
+        assert settings.fixed is None
+        assert settings.stations is None
 
     @pytest.mark.unit
     def test_every_option_reaches_the_settings(
@@ -206,6 +214,9 @@ class TestCliCalibrateOutput:
             str(result.evaluations_csv),
             str(result.result_json),
             str(result.calibrated_config),
+            f"Observed summary: {result.run_dir / 'observed.csv'}",
+            f"Stations table: {result.stations_csv}",
+            f"Best candidate series: {result.best_series}",
         ):
             assert expected in output, f"missing line: {expected!r}\n{output}"
 
@@ -460,6 +471,13 @@ class TestCliCalibrateHelp:
             "--seed",
             "--workers",
             "--temp-dir",
+            "--bound",
+            "--fix",
+            "--stations",
+            "--init",
+            "--strategy",
+            "--polish",
+            "--no-polish",
         ):
             assert option in output, f"missing option: {option}\n{output}"
 
@@ -477,3 +495,183 @@ class TestCliCalibrateHelp:
             check=True,
         )
         assert completed.stdout.strip() == "False"
+
+
+class TestCliCalibrateDecisionSpaceOptions:
+    @pytest.mark.unit
+    def test_the_bounds_the_fixed_parameters_and_the_stations_reach_the_settings(
+        self, config_path, observed_path, tmp_path, fake_calibration, restore_logging
+    ):
+        main(
+            [
+                "calibrate",
+                "-c",
+                str(config_path),
+                "--observed",
+                str(observed_path),
+                "-o",
+                str(tmp_path / "calibration"),
+                "--bound",
+                "rcd=2:5",
+                "--bound",
+                "alpha=1:10",
+                "--fix",
+                "x=0",
+                "--stations",
+                "1, 2 ,3",
+                "--init",
+                "latinhypercube",
+                "--strategy",
+                "rand1bin",
+                "--polish",
+            ]
+        )
+
+        settings = fake_calibration.calls[0][3]
+        assert settings.bounds == {"rcd": (2.0, 5.0), "alpha": (1.0, 10.0)}
+        assert settings.fixed == {"x": 0.0}
+        # The ids are read as strings and the spacing around the commas is not
+        # part of them.
+        assert settings.stations == ("1", "2", "3")
+        assert settings.init == "latinhypercube"
+        assert settings.strategy == "rand1bin"
+        assert settings.polish is True
+
+    @pytest.mark.unit
+    def test_no_polish_is_the_default_and_can_be_written_out(
+        self, config_path, observed_path, tmp_path, fake_calibration, restore_logging
+    ):
+        main(
+            [
+                "calibrate",
+                "-c",
+                str(config_path),
+                "--observed",
+                str(observed_path),
+                "-o",
+                str(tmp_path / "calibration"),
+                "--no-polish",
+            ]
+        )
+
+        assert fake_calibration.calls[0][3].polish is False
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        ("arguments", "message"),
+        [
+            (["--bound", "rcd=2"], "NAME=MIN:MAX"),
+            (["--bound", "rcd:2:5"], "NAME=MIN:MAX"),
+            (["--bound", "=2:5"], "NAME=MIN:MAX"),
+            (["--bound", "rcd=a:5"], "is not a number"),
+            (["--bound", "rcd=2:nan"], "is not a finite number"),
+            (["--bound", "rcd=2:5", "--bound", "rcd=3:4"], "more than once"),
+            (["--fix", "x"], "NAME=VALUE"),
+            (["--fix", "=0"], "NAME=VALUE"),
+            (["--fix", "x=zero"], "is not a number"),
+            (["--fix", "x=0", "--fix", "x=1"], "more than once"),
+            (["--stations", ",1"], "ID[,ID...]"),
+            (["--stations", ""], "ID[,ID...]"),
+            (["--init", "quasirandom"], "quasirandom"),
+        ],
+    )
+    def test_a_malformed_option_is_rejected_with_the_form_it_expects(
+        self,
+        config_path,
+        observed_path,
+        tmp_path,
+        fake_calibration,
+        capsys,
+        restore_logging,
+        arguments,
+        message,
+    ):
+        with pytest.raises(SystemExit) as error:
+            main(
+                [
+                    "calibrate",
+                    "-c",
+                    str(config_path),
+                    "--observed",
+                    str(observed_path),
+                    "-o",
+                    str(tmp_path / "calibration"),
+                    *arguments,
+                ]
+            )
+
+        assert error.value.code == 2
+        assert message in capsys.readouterr().err
+        assert not fake_calibration.calls
+
+
+class TestCliCalibrateProgress:
+    @pytest.mark.unit
+    def test_the_progress_logger_is_routed_to_standard_output(self, capsys, restore_logging):
+        """The lines a calibration reports reach the terminal verbatim."""
+        import logging
+
+        from rubem.cli import setup_logging
+
+        setup_logging()
+        logging.getLogger("rubem.progress").info("Generation 7: best objective 1.")
+
+        captured = capsys.readouterr()
+        assert captured.out == "Generation 7: best objective 1.\n"
+        assert captured.err == "", "the progress is not a diagnostic"
+
+    @pytest.mark.unit
+    @pytest.mark.slow
+    def test_a_real_calibration_prints_the_budget_and_one_line_per_generation(
+        self, tmp_path, capsys, restore_logging
+    ):
+        """The whole command, on the synthetic dataset, with a search of two generations.
+
+        The observations are the series the configuration itself wrote, so the
+        search has an optimum to find and every evaluation succeeds. The
+        population is the smallest a Sobol' initialization builds for eight free
+        parameters, which keeps the run to a few dozen model runs.
+        """
+        pytest.importorskip("scipy.optimize")
+
+        from rubem.api import Model
+
+        config = write_synthetic_dataset(str(tmp_path), timesteps=3)
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps(config), encoding="utf8")
+        observed = tmp_path / "observed.csv"
+        observed.write_bytes(Model.from_config(config).run().time_series["arn"][0].read_bytes())
+        run_dir = tmp_path / "calibration"
+
+        main(
+            [
+                "calibrate",
+                "-c",
+                str(config_file),
+                "--observed",
+                str(observed),
+                "-o",
+                str(run_dir),
+                "--maxiter",
+                "1",
+                "--popsize",
+                "1",
+                "--workers",
+                "2",
+                "--seed",
+                "1",
+                "--temp-dir",
+                str(tmp_path / "temp"),
+            ]
+        )
+
+        output = capsys.readouterr().out
+        assert "Calibrating 8 free parameter(s)" in output, output
+        assert "compares 3 time step(s)" in output, output
+        assert "Generation 1:" in output, output
+        assert "best NSE" in output, output
+        assert "Calibration finished after" in output, output
+        assert "Calibration finished successfully!" in output
+        assert (run_dir / "observed.csv").is_file()
+        assert (run_dir / "stations.csv").is_file()
+        assert (run_dir / "best_arn.csv").is_file()
