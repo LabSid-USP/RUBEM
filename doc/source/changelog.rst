@@ -13,6 +13,16 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- ``rubem calibrate`` gains per-run bounds (``--bound NAME=MIN:MAX``, narrowing the
+  settings ranges), fixed parameters that leave the search (``--fix NAME=VALUE``),
+  the stations that enter the objective (``--stations``), the initialization,
+  strategy and polishing options, per-station goodness-of-fit (pairs, means,
+  standard deviations, Pearson correlation, RMSE, NSE), ``observed.csv``,
+  ``stations.csv`` and ``best_<variable>.csv`` in the run directory, a
+  ``started_at`` column in the evaluations, progress lines on the terminal and
+  the consolidation of the evaluations of an interrupted search. Negative
+  observed values are gaps, and time series files without their header are
+  refused (`#348 <https://github.com/LabSid-USP/RUBEM/issues/348>`__).
 - Added the calibration page of the documentation (the objective, the free
   parameters and their bounds, the derivation of ``w3``, the differential
   evolution settings and the evaluation budget, the observed series formats,
