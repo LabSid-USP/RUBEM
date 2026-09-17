@@ -13,13 +13,17 @@ time series it wrote and compares it with the observed series. It never calls
 :meth:`rubem.api.Model.run_isolated`: the worker is already the isolation layer,
 and an isolated run inside it would nest one process pool in another.
 
-Nothing here raises: a candidate outside the admissible region is rejected
-without a run, and any failure of the run or of the evaluation is recorded and
-turned into :data:`rubem.calibration.objective.INADMISSIBLE_OBJECTIVE`, so that
-one failing candidate does not end the calibration.
+:func:`evaluate` never raises: a candidate outside the admissible region is
+rejected without a run, and any failure of the run or of the evaluation is
+recorded and turned into
+:data:`rubem.calibration.objective.INADMISSIBLE_OBJECTIVE`, so that one failing
+candidate does not end the calibration. :func:`simulate_best`, which the search
+calls once at the end to keep the series of the candidate it chose, does raise:
+there is one named candidate and nothing to rank a failure behind.
 """
 
 import copy
+import dataclasses
 import json
 import logging
 import os
@@ -28,7 +32,8 @@ import tempfile
 import time
 import uuid
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -37,11 +42,12 @@ from ..configuration.model_configuration_file_v1 import VARIABLE_IDS
 from .objective import (
     INADMISSIBLE_OBJECTIVE,
     Series,
+    StationMetrics,
     evaluate_series,
     objective,
     read_series,
 )
-from .parameters import is_admissible, vector_to_parameters
+from .parameters import DecisionSpace, decision_space
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +90,16 @@ class EvaluationContext:
         and their content. ``False`` by default: the parent validated them once
         before the calibration started, and they do not change during it.
     :type validate_input: bool
+
+    :param space: The decision vector of the run, which turns a candidate into
+        the nine parameters of the model. Defaults to the whole search, without
+        fixed parameters and without narrowed bounds.
+    :type space: rubem.calibration.parameters.DecisionSpace
+
+    :param stations: Ids of the stations the objective averages. ``None``, the
+        default, averages every station the two series share; the others are
+        measured either way.
+    :type stations: tuple[str, ...] | None
     """
 
     document: dict
@@ -94,6 +110,8 @@ class EvaluationContext:
     temp_dir: str
     evaluations_dir: str
     validate_input: bool = False
+    space: DecisionSpace = field(default_factory=decision_space)
+    stations: tuple[str, ...] | None = None
 
 
 def evaluate(vector: Sequence[float] | np.ndarray, context: EvaluationContext) -> float:
@@ -106,8 +124,9 @@ def evaluate(vector: Sequence[float] | np.ndarray, context: EvaluationContext) -
     objective. Every evaluation, successful or not, leaves one JSON record in
     the evaluations directory of the context.
 
-    :param vector: The candidate, the eight free values in the order of
-        :data:`rubem.calibration.parameters.FREE_PARAMETERS`.
+    :param vector: The candidate, the free values in the order of the
+        :attr:`~rubem.calibration.parameters.DecisionSpace.free_names` of the
+        decision space of the context.
     :type vector: collections.abc.Sequence[float] | numpy.ndarray
 
     :param context: What the evaluation runs against.
@@ -118,17 +137,21 @@ def evaluate(vector: Sequence[float] | np.ndarray, context: EvaluationContext) -
         candidate was rejected or its evaluation failed.
     :rtype: float
     """
+    started_at = datetime.now(UTC).isoformat()
     started = time.perf_counter()
     try:
-        parameters = vector_to_parameters(vector)
+        parameters = context.space.to_parameters(vector)
     except ValueError as error:
-        _write_record(context, {}, None, {}, INADMISSIBLE_OBJECTIVE, 0.0, _describe(error))
+        _write_record(
+            context, started_at, {}, None, {}, INADMISSIBLE_OBJECTIVE, 0.0, _describe(error)
+        )
         return INADMISSIBLE_OBJECTIVE
 
-    if not is_admissible(vector):
+    if not context.space.is_admissible(vector):
         logger.debug("Rejecting an inadmissible candidate without running the model.")
         _write_record(
             context,
+            started_at,
             parameters,
             None,
             {},
@@ -140,13 +163,14 @@ def evaluate(vector: Sequence[float] | np.ndarray, context: EvaluationContext) -
 
     output_dir = tempfile.mkdtemp(prefix="evaluation-", dir=context.temp_dir)
     try:
-        nse, station_nse = _run_and_evaluate(context, parameters, output_dir)
+        nse, metrics = _run_and_evaluate(context, parameters, output_dir)
     except Exception as error:
         # One failing candidate must not end the calibration: it is recorded and
         # ranked behind every candidate that was actually evaluated.
         logger.warning("The evaluation of a candidate failed: %s", error)
         _write_record(
             context,
+            started_at,
             parameters,
             None,
             {},
@@ -159,16 +183,72 @@ def evaluate(vector: Sequence[float] | np.ndarray, context: EvaluationContext) -
         shutil.rmtree(output_dir, ignore_errors=True)
 
     value = objective(nse)
-    _write_record(context, parameters, nse, station_nse, value, time.perf_counter() - started, None)
+    _write_record(
+        context,
+        started_at,
+        parameters,
+        nse,
+        metrics,
+        value,
+        time.perf_counter() - started,
+        None,
+    )
     return value
+
+
+def simulate_best(
+    document: dict,
+    base_dir: str | None,
+    parameters: dict[str, float],
+    output_dir: str,
+    variable: str,
+) -> str:
+    """Run one candidate and keep what it wrote.
+
+    This is how the calibration obtains the series of the candidate it chose:
+    the run is the very run an evaluation makes, from the same derived
+    configuration, but the output directory is left in place so that the table
+    can be read afterwards. It lives at module level and takes plain data for
+    the same reason :func:`evaluate` does: the spawned workers import this
+    module by name to find the function they have to call.
+
+    Unlike :func:`evaluate` it raises: the caller asked for one named
+    candidate's series and has nothing to rank a failure behind.
+
+    :param document: The calibrated configuration as a format 1.0 document.
+    :type document: dict
+
+    :param base_dir: Directory the relative paths of the document are anchored
+        on, ``None`` when they are absolute already.
+    :type base_dir: str | None
+
+    :param parameters: The nine calibration parameters of the candidate.
+    :type parameters: dict[str, float]
+
+    :param output_dir: Directory the run writes into. It is not removed.
+    :type output_dir: str
+
+    :param variable: Id of the output variable the table is wanted for.
+    :type variable: str
+
+    :return: The path of the CSV table the run wrote for ``variable``.
+    :rtype: str
+
+    :raises RuntimeError: If the run wrote no CSV table for the variable.
+    """
+    from ..api import Model
+
+    derived = _document_for(document, variable, parameters, output_dir)
+    result = Model.from_config(derived, validate_input=False, base_dir=base_dir).run()
+    return str(_time_series_table(result, variable))
 
 
 def _run_and_evaluate(
     context: EvaluationContext,
     parameters: dict[str, float],
     output_dir: str,
-) -> tuple[float, dict[str, float | None]]:
-    """Run the candidate and return its mean efficiency and the efficiency per station."""
+) -> tuple[float, dict[str, StationMetrics]]:
+    """Run the candidate and return its mean efficiency and the statistics per station."""
     from ..api import Model
 
     document = _derived_document(context, parameters, output_dir)
@@ -176,7 +256,7 @@ def _run_and_evaluate(
         document, validate_input=context.validate_input, base_dir=context.base_dir
     ).run()
     simulated = read_series(_time_series_table(result, context.variable))
-    return evaluate_series(simulated, context.observed, context.spinup_steps)
+    return evaluate_series(simulated, context.observed, context.spinup_steps, context.stations)
 
 
 def _time_series_table(result, variable: str) -> Path:
@@ -199,17 +279,27 @@ def _derived_document(
     parameters: dict[str, float],
     output_dir: str,
 ) -> dict:
+    """Return the configuration document of one candidate of an evaluation."""
+    return _document_for(context.document, context.variable, parameters, output_dir)
+
+
+def _document_for(
+    base_document: dict,
+    variable: str,
+    parameters: dict[str, float],
+    output_dir: str,
+) -> dict:
     """Return the configuration document of one candidate.
 
     The calibrated document is copied and four things are changed: the
     calibration parameters become the candidate's, the outputs go to the
-    temporary directory of the evaluation, every raster series is disabled (an
-    evaluation reads no raster, and writing them would dominate its cost) and
-    the time series are reduced to the calibrated variable, as CSV. The
-    aggregation the user configured is kept, since it decides which areas the
-    observed stations correspond to.
+    directory of the run, every raster series is disabled (an evaluation reads
+    no raster, and writing them would dominate its cost) and the time series are
+    reduced to the calibrated variable, as CSV. The aggregation the user
+    configured is kept, since it decides which areas the observed stations
+    correspond to.
     """
-    document = copy.deepcopy(context.document)
+    document = copy.deepcopy(base_document)
     document["model_calibration_parameters"] = {
         "alpha": parameters["alpha"],
         "b": parameters["beta"],
@@ -231,7 +321,7 @@ def _derived_document(
     }
     output["time_series_samples"] = {
         **dict.fromkeys(VARIABLE_IDS, False),
-        context.variable: True,
+        variable: True,
         "formats": ["CSV"],
         "aggregation": previous_samples.get("aggregation", "point"),
     }
@@ -245,9 +335,10 @@ def _describe(error: BaseException) -> str:
 
 def _write_record(
     context: EvaluationContext,
+    started_at: str,
     parameters: dict[str, float],
     nse: float | None,
-    station_nse: dict[str, float | None],
+    metrics: dict[str, StationMetrics],
     value: float,
     elapsed_seconds: float,
     error: str | None,
@@ -258,13 +349,25 @@ def _write_record(
     it, so a record is written to a temporary file next to its destination and
     renamed onto it: a reader either does not see the record yet or sees it
     whole. The name is a fresh UUID, so two workers never collide.
+
+    The record carries the goodness of fit of every station under
+    ``station_metrics`` and, under ``station_nse``, the efficiencies alone,
+    taken from the very same statistics so that the two can never disagree.
+    ``started_at`` is the wall-clock moment the evaluation began, in UTC: the
+    records are consolidated in the order of the candidates they evaluated, and
+    this is what puts them back in the order they were made in.
     """
+    station_metrics = {
+        station: dataclasses.asdict(measured) for station, measured in metrics.items()
+    }
     record = {
         "id": uuid.uuid4().hex,
         "pid": os.getpid(),
+        "started_at": started_at,
         "parameters": parameters,
         "nse": nse,
-        "station_nse": station_nse,
+        "station_nse": {station: measured["nse"] for station, measured in station_metrics.items()},
+        "station_metrics": station_metrics,
         "objective": value,
         "elapsed_seconds": elapsed_seconds,
         "error": error,

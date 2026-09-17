@@ -1,5 +1,6 @@
 """One evaluation of a candidate: the model run, the record and the failure modes."""
 
+import datetime
 import json
 import os
 import shutil
@@ -8,7 +9,12 @@ from pathlib import Path
 import pytest
 
 from rubem.api import Model
-from rubem.calibration._worker import EvaluationContext, _derived_document, evaluate
+from rubem.calibration._worker import (
+    EvaluationContext,
+    _derived_document,
+    evaluate,
+    simulate_best,
+)
 from rubem.calibration.objective import INADMISSIBLE_OBJECTIVE, read_series
 from rubem.calibration.parameters import (
     FREE_PARAMETERS,
@@ -39,7 +45,7 @@ class Dataset:
         self.temp_dir.mkdir()
         self.evaluations_dir.mkdir()
 
-    def context(self, observed_path=None, variable="arn", spinup_steps=0):
+    def context(self, observed_path=None, variable="arn", spinup_steps=0, stations=None):
         """An evaluation context reading ``observed_path``, the plain run by default."""
         return EvaluationContext(
             document=self.document,
@@ -50,6 +56,7 @@ class Dataset:
             temp_dir=str(self.temp_dir),
             evaluations_dir=str(self.evaluations_dir),
             validate_input=False,
+            stations=stations,
         )
 
     def records(self):
@@ -218,3 +225,159 @@ class TestFailedEvaluation:
         (record,) = dataset.records()
         assert record["error"]
         assert list(dataset.temp_dir.iterdir()) == []
+
+
+class TestRecordedMetrics:
+    @pytest.mark.unit
+    def test_the_record_carries_the_moment_the_evaluation_started(self, dataset):
+        before = datetime.datetime.now(datetime.UTC)
+
+        evaluate(dataset.vector, dataset.context())
+
+        (record,) = dataset.records()
+        started_at = datetime.datetime.fromisoformat(record["started_at"])
+        assert started_at.tzinfo is not None, "the moment carries its time zone"
+        assert started_at.utcoffset() == datetime.timedelta(0)
+        # The wall-clock moment is what puts the records back in the order they
+        # were made in, so it has to be the moment of this evaluation.
+        assert before <= started_at <= datetime.datetime.now(datetime.UTC)
+
+    @pytest.mark.unit
+    def test_the_record_carries_the_goodness_of_fit_of_every_station(self, dataset):
+        evaluate(dataset.vector, dataset.context())
+
+        (record,) = dataset.records()
+        metrics = record["station_metrics"]
+
+        assert sorted(metrics) == ["1", "2"]
+        for measured in metrics.values():
+            assert sorted(measured) == [
+                "mean_observed",
+                "mean_simulated",
+                "nse",
+                "pairs",
+                "r",
+                "rmse",
+                "std_observed",
+                "std_simulated",
+            ]
+            # The observations are what this very configuration wrote, so the
+            # simulation reproduces them exactly.
+            assert measured["pairs"] == TIMESTEPS
+            assert measured["nse"] == pytest.approx(1.0, abs=1e-12)
+            assert measured["rmse"] == pytest.approx(0.0, abs=1e-9)
+            assert measured["mean_observed"] == pytest.approx(measured["mean_simulated"])
+
+    @pytest.mark.unit
+    def test_the_efficiencies_are_the_ones_of_the_statistics(self, dataset):
+        # ``station_nse`` stays for the readers that only want the efficiency;
+        # it is taken from the statistics, so the two can never disagree.
+        evaluate(dataset.vector, dataset.context())
+
+        (record,) = dataset.records()
+
+        assert record["station_nse"] == {
+            station: measured["nse"] for station, measured in record["station_metrics"].items()
+        }
+
+    @pytest.mark.unit
+    def test_a_rejected_candidate_still_carries_the_moment_and_no_statistics(self, dataset):
+        from rubem.calibration.parameters import FREE_PARAMETERS
+
+        vector = dataset.vector.copy()
+        vector[FREE_PARAMETERS.index("w_1")] = 0.6
+        vector[FREE_PARAMETERS.index("w_2")] = 0.6
+
+        evaluate(vector, dataset.context())
+
+        (record,) = dataset.records()
+        assert record["error"] == "inadmissible"
+        assert record["station_metrics"] == {}
+        assert datetime.datetime.fromisoformat(record["started_at"]).tzinfo is not None
+
+    @pytest.mark.unit
+    def test_a_station_outside_the_objective_is_measured_all_the_same(self, dataset):
+        # The objective averages station 1 alone; station 2 is reported anyway,
+        # which is the validation half of a calibration/validation split.
+        value = evaluate(dataset.vector, dataset.context(stations=("1",)))
+
+        assert value == pytest.approx(0.0, abs=1e-9)
+        (record,) = dataset.records()
+        assert sorted(record["station_metrics"]) == ["1", "2"]
+        assert record["nse"] == pytest.approx(1.0, abs=1e-12)
+
+    @pytest.mark.unit
+    def test_a_selection_that_names_no_shared_station_fails_the_evaluation(self, dataset):
+        from rubem.calibration.objective import INADMISSIBLE_OBJECTIVE
+
+        value = evaluate(dataset.vector, dataset.context(stations=("nowhere",)))
+
+        assert value == INADMISSIBLE_OBJECTIVE
+        (record,) = dataset.records()
+        assert "none of the stations" in record["error"]
+
+
+class TestSimulateBest:
+    @pytest.mark.unit
+    def test_it_runs_the_candidate_and_keeps_the_table_it_wrote(self, dataset, tmp_path):
+        from rubem.calibration.parameters import vector_to_parameters
+
+        output_dir = tmp_path / "best"
+        output_dir.mkdir()
+
+        table = simulate_best(
+            dataset.document,
+            dataset.configuration.base_dir,
+            vector_to_parameters(dataset.vector),
+            str(output_dir),
+            "arn",
+        )
+
+        # The directory is left in place, which is the whole point: the series
+        # of the chosen candidate has to be readable after the run.
+        assert Path(table).is_file()
+        assert Path(table).parent == output_dir
+        assert sorted(entry.name for entry in output_dir.iterdir()) == [
+            "metadata.json",
+            "tss_arn.csv",
+        ]
+        series = read_series(table)
+        assert sorted(series.stations) == ["1", "2"]
+        assert series.steps.tolist() == list(range(1, TIMESTEPS + 1))
+
+    @pytest.mark.unit
+    def test_it_reproduces_the_series_of_the_configuration_it_is_given(self, dataset, tmp_path):
+        from rubem.calibration.parameters import vector_to_parameters
+
+        output_dir = tmp_path / "best"
+        output_dir.mkdir()
+
+        table = simulate_best(
+            dataset.document,
+            dataset.configuration.base_dir,
+            vector_to_parameters(dataset.vector),
+            str(output_dir),
+            "arn",
+        )
+
+        simulated = read_series(table)
+        observed = read_series(dataset.observed_path)
+        for station, values in observed.stations.items():
+            assert simulated.stations[station].tolist() == pytest.approx(values.tolist())
+
+    @pytest.mark.unit
+    def test_a_variable_the_run_does_not_write_raises(self, dataset, tmp_path):
+        from rubem.calibration.parameters import vector_to_parameters
+
+        output_dir = tmp_path / "best"
+        output_dir.mkdir()
+
+        # Unlike an evaluation, this one has nothing to rank a failure behind.
+        with pytest.raises(Exception, match="nope"):
+            simulate_best(
+                dataset.document,
+                dataset.configuration.base_dir,
+                vector_to_parameters(dataset.vector),
+                str(output_dir),
+                "nope",
+            )

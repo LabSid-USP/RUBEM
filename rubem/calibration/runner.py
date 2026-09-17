@@ -7,14 +7,20 @@ keeps its clone and its raster memory process-wide, so a worker that is reused
 would accumulate the state of every run it made; ``spawn`` with
 ``max_tasks_per_child=1`` gives every evaluation a fresh interpreter.
 
-The run directory receives three artifacts: ``evaluations.csv``, one row per
-evaluation, ``result.json``, the best candidate and the settings that found it,
-and ``<configuration>-calibrated.json``, the calibrated configuration in the
-format the input was written in. The rows of the table are ordered by the
+The run directory receives, before the search, ``observed.csv``, the coverage
+and the summary statistics of the observations over the compared steps, and
+after it ``evaluations.csv``, one row per evaluation, ``stations.csv``, the
+goodness of fit of the best candidate at every station, ``best_<variable>.csv``,
+the observed and the simulated series of that candidate side by side,
+``result.json``, the best candidate and the settings that found it, and
+``<configuration>-calibrated.json``, the calibrated configuration in the format
+the input was written in. The rows of the table of evaluations are ordered by the
 candidate they evaluated and not by the moment they were written, so that the
 order of the rows does not depend on the order in which the workers happened to
-finish. It does not make the table itself reproducible: the ``id``, ``pid`` and
-``elapsed_seconds`` columns differ between two runs of one seed, and from the
+finish; the ``started_at`` column is what puts them back in the order they were
+made in. It does not make the table itself reproducible: the ``id``, ``pid``,
+``started_at`` and ``elapsed_seconds`` columns differ between two runs of one
+seed, and from the
 first generation on the selection reads the objective values, so two runs
 evaluate the same candidates only when the simulation itself is reproducible
 (on the real basins that requires a fixed ``RASTERS.ldd``, since ``lddcreate``
@@ -22,10 +28,12 @@ does not always derive the same directions twice; see the note on the LDD
 raster in the user guide).
 
 Number of evaluations
-    The population of a ``sobol`` initialization is ``max(5, popsize * 8)``
-    rounded up to the next power of two, since a Sobol' sequence is balanced
-    only over a power-of-two sample: with the default ``popsize`` of 15 that is
-    128 members, so a calibration costs one model run per member and per
+    The population of a ``sobol`` initialization is ``max(5, popsize * N)``,
+    with ``N`` the number of free parameters, rounded up to the next power of
+    two, since a Sobol' sequence is balanced only over a power-of-two sample:
+    with the default ``popsize`` of 15 and the eight free parameters of a search
+    without fixed ones that is 128 members, so a calibration costs one model run
+    per member and per
     generation, ``128 * (maxiter + 1)`` runs at most. The number is logged when
     the calibration starts so that the budget can be checked before it runs.
     Members whose weights violate ``w_1 + w_2 <= 1`` are skipped by SciPy
@@ -42,9 +50,11 @@ import logging
 import math
 import multiprocessing
 import os
+import shutil
 import sys
 import tempfile
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -52,33 +62,44 @@ from typing import Any
 import numpy as np
 
 from .._paths import PathInput, as_path
+from ..configuration._ranges import variable_range
 from ..configuration.model_configuration_file_v1 import (
     VARIABLE_IDS,
     Aggregation,
     ModelConfigurationFileV1,
 )
-from ._worker import _INADMISSIBLE_ERROR, EvaluationContext, evaluate
-from .objective import Series, read_series
+from ._worker import _INADMISSIBLE_ERROR, EvaluationContext, evaluate, simulate_best
+from .objective import Series, align_series, read_series, valid_mask
 from .parameters import (
     CALIBRATION_PARAMETERS,
     FREE_PARAMETERS,
-    bounds,
-    parameters_to_vector,
-    vector_to_parameters,
-    weights_constraint,
+    DecisionSpace,
+    decision_space,
 )
 
 logger = logging.getLogger(__name__)
+
+progress = logging.getLogger("rubem.progress")
+"""The logger of what a person watching a calibration wants to see.
+
+The budget, one line per generation and the closing summary go here; the module
+logger keeps the diagnostics, the warnings and the refusals. The command line
+routes this logger to standard output, as it does for a simulation, so that an
+embedded calibration stays silent unless its host asks for the progress.
+"""
 
 EVALUATIONS_DIRNAME = "evaluations"
 """Name of the directory under the run directory that collects the JSON records."""
 
 EVALUATIONS_CSV = "evaluations.csv"
 RESULT_JSON = "result.json"
+OBSERVED_CSV = "observed.csv"
+STATIONS_CSV = "stations.csv"
 
 EVALUATION_COLUMNS = (
     "id",
     "pid",
+    "started_at",
     *CALIBRATION_PARAMETERS,
     "nse",
     "objective",
@@ -86,6 +107,35 @@ EVALUATION_COLUMNS = (
     "error",
 )
 """The columns of ``evaluations.csv``, one row per evaluation."""
+
+OBSERVED_COLUMNS = (
+    "station",
+    "in_selection",
+    "pairs_in_window",
+    "dropped",
+    "mean",
+    "std",
+    "min",
+    "max",
+)
+"""The columns of ``observed.csv``, one row per station of the observed series."""
+
+STATION_COLUMNS = (
+    "station",
+    "in_selection",
+    "pairs",
+    "mean_observed",
+    "std_observed",
+    "mean_simulated",
+    "std_simulated",
+    "r",
+    "rmse",
+    "nse",
+)
+"""The columns of ``stations.csv``, one row per station the best candidate compared."""
+
+STATION_SEPARATOR = ";"
+"""The separator of the per-station tables, the one the model writes its own tables with."""
 
 
 class CalibrationError(RuntimeError):
@@ -130,7 +180,9 @@ class CalibrationSettings:
     :type temp_dir: str | None
 
     :param init: Initial population: the name of a SciPy initialization
-        (``sobol`` by default) or an explicit ``(S, 8)`` array with ``S > 4``.
+        (``sobol`` by default) or an explicit ``(S, N)`` array with ``S > 4``
+        members and one column per free parameter, which is one column fewer
+        for every parameter :attr:`fixed` takes out of the decision vector.
     :type init: str | numpy.ndarray
 
     :param strategy: Differential evolution strategy.
@@ -146,6 +198,24 @@ class CalibrationSettings:
         the local search would spend model runs on gradients the objective, a
         simulation read from a table, does not provide reliably.
     :type polish: bool
+
+    :param bounds: The ``(minimum, maximum)`` range to search a parameter in, by
+        name; it narrows the range of the application settings, which is what a
+        parameter left out of the mapping is searched in. ``None``, the default,
+        searches every parameter in the range of the settings.
+    :type bounds: dict[str, tuple[float, float]] | None
+
+    :param fixed: The parameters that are not searched, by name, with the value
+        every candidate carries. A fixed parameter leaves the decision vector,
+        so the search loses one dimension, and keeps its value in the nine
+        parameters of every run and of the result. ``None``, the default,
+        searches every parameter.
+    :type fixed: dict[str, float] | None
+
+    :param stations: Ids of the stations whose efficiency the objective averages.
+        ``None``, the default, uses every station the observed series and the
+        run have in common.
+    :type stations: tuple[str, ...] | None
     """
 
     variable: str = "arn"
@@ -160,6 +230,9 @@ class CalibrationSettings:
     mutation: tuple[float, float] = (0.5, 1.0)
     recombination: float = 0.7
     polish: bool = False
+    bounds: dict[str, tuple[float, float]] | None = None
+    fixed: dict[str, float] | None = None
+    stations: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -200,6 +273,14 @@ class CalibrationResult:
 
     :param calibrated_config: The input configuration with the best parameters.
     :type calibrated_config: pathlib.Path
+
+    :param best_series: The observed and the simulated series of the best
+        candidate, side by side on the compared steps.
+    :type best_series: pathlib.Path
+
+    :param stations_csv: The goodness of fit of the best candidate at every
+        station the two series share.
+    :type stations_csv: pathlib.Path
     """
 
     best_parameters: dict[str, float]
@@ -213,6 +294,8 @@ class CalibrationResult:
     evaluations_csv: Path
     result_json: Path
     calibrated_config: Path
+    best_series: Path
+    stations_csv: Path
 
 
 def _prepare_worker() -> None:
@@ -257,7 +340,12 @@ class _Progress:
     generations: int = field(default=0)
 
     def __call__(self, intermediate_result) -> bool:
-        """Log the generation, the best objective so far and the records written.
+        """Log the generation, the best objective and efficiency so far and the records.
+
+        The best efficiency is read from the records the workers have written,
+        which is where the efficiencies live: what SciPy reports is the
+        objective, and the efficiency behind it is what a person watching a
+        calibration reads.
 
         SciPy inspects the signature of the callback and passes the
         intermediate result by keyword under exactly this name; returning
@@ -265,11 +353,15 @@ class _Progress:
         ``False``.
         """
         self.generations = int(getattr(intermediate_result, "nit", 0) or 0)
-        logger.info(
-            "Generation %d: best objective %.6g, %d evaluation(s) recorded.",
+        records = _read_records(self.evaluations_dir)
+        best = _best_record(records)
+        best_nse = None if best is None else best.get("nse")
+        progress.info(
+            "Generation %d: best objective %.6g, best NSE %s, %d evaluation(s) recorded.",
             self.generations,
             float(intermediate_result.fun),
-            len(_record_paths(self.evaluations_dir)),
+            "n/a" if best_nse is None else f"{float(best_nse):.6f}",
+            len(records),
         )
         return False
 
@@ -301,8 +393,16 @@ def calibrate(
 
     :raises CalibrationError: If SciPy is not installed, if the configuration
         cannot be calibrated as asked, if the observed series shares no time
-        step or no station with what the configuration will sample, or if every
-        evaluation of the run failed.
+        step or no station with what the configuration will sample, if the
+        station selection names none of those stations, if a worker process
+        died before finishing its evaluation, or if every evaluation of the run
+        failed. An interrupted or crashed search still leaves the table of the
+        evaluations it made behind.
+    :raises ValueError: If the decision space the settings describe is not a
+        search (an unknown or derived parameter, a fixed value or an overridden
+        bound outside the range of the application settings, every parameter
+        fixed), or if an explicit initial population does not have one column per
+        free parameter.
     :raises ImportError: If PCRaster or GDAL are not installed.
     :raises FileNotFoundError: If the configuration or the observed series is
         not there.
@@ -325,6 +425,18 @@ def calibrate(
         raise CalibrationError(
             f"The calibration needs at least one worker process, got {settings.workers}."
         )
+    _check_stations(settings.stations)
+
+    space = decision_space(fixed=settings.fixed, bounds=settings.bounds)
+    if not isinstance(settings.init, str):
+        shape = np.shape(settings.init)
+        if len(shape) != 2 or shape[1] != space.dimension:
+            raise ValueError(
+                f"The initial population has the shape {shape} and the search has "
+                f"{space.dimension} free parameter(s) ({', '.join(space.free_names)}); it must "
+                f"be a two-dimensional array of {shape[0] if shape else 0} member(s) with one "
+                "column per free parameter."
+            )
 
     config_file = as_path(config_path).absolute()
     configuration = Model.from_file(config_file, validate_input=True).configuration
@@ -333,19 +445,26 @@ def calibrate(
 
     observed = read_series(observed_path)
     aggregation = file_v1.model_simulation_output.time_series_samples.aggregation
+    sampled_ids = (
+        None
+        if aggregation is Aggregation.ZONES
+        else _station_ids(configuration.raster_files.sample_locations)
+    )
+    compared_steps = _compared_steps(
+        first_step=configuration.simulation_period.first_step,
+        last_step=configuration.simulation_period.last_step,
+        spinup_steps=settings.spinup_steps,
+    )
     _check_observed_series(
         observed,
         first_step=configuration.simulation_period.first_step,
         last_step=configuration.simulation_period.last_step,
         spinup_steps=settings.spinup_steps,
         aggregation=aggregation,
-        station_ids=(
-            None
-            if aggregation is Aggregation.ZONES
-            else _station_ids(configuration.raster_files.sample_locations)
-        ),
+        station_ids=sampled_ids,
     )
-    x0 = parameters_to_vector(configuration.calibration_parameters.model_dump())
+    _check_station_selection(settings.stations, observed, sampled_ids)
+    x0 = _starting_point(space, configuration.calibration_parameters.model_dump())
 
     run_directory = as_path(run_dir).absolute()
     evaluations_dir = run_directory / EVALUATIONS_DIRNAME
@@ -357,6 +476,9 @@ def calibrate(
             "record(s) of an earlier calibration; consolidating both runs into one table "
             "would mix them. Choose an empty run directory."
         )
+    observed_csv = run_directory / OBSERVED_CSV
+    _write_observed_csv(observed_csv, observed, compared_steps, settings.stations)
+    _report_observed_coverage(observed, compared_steps, settings.stations)
     temp_dir = (
         as_path(settings.temp_dir).absolute()
         if settings.temp_dir is not None
@@ -376,49 +498,70 @@ def calibrate(
         temp_dir=str(temp_dir),
         evaluations_dir=str(evaluations_dir),
         validate_input=False,
+        space=space,
+        stations=settings.stations,
     )
 
-    planned_members = _population_size(settings)
-    logger.info(
+    planned_members = _population_size(settings, space.dimension)
+    progress.info(
         "Calibrating %d free parameter(s) with %d population member(s) per generation and "
         "at most %d generation(s): up to %d model run(s), on %d worker process(es).",
-        len(FREE_PARAMETERS),
+        space.dimension,
         planned_members,
         settings.maxiter,
         planned_members * (settings.maxiter + 1),
         workers,
     )
+    _report_decision_space(space, settings.stations)
 
-    progress = _Progress(evaluations_dir)
-    executor = ProcessPoolExecutor(
-        max_workers=workers,
-        mp_context=multiprocessing.get_context("spawn"),
-        max_tasks_per_child=1,
-        initializer=_prepare_worker,
-    )
+    # A search with at most one free weight has no constraint to hand over: the
+    # sum of the weights is then a bound of the decision space, and SciPy takes
+    # a different code path for a constrained search, so the argument is left
+    # out instead of being passed as ``None``.
+    constraint = space.weights_constraint()
+    callback = _Progress(evaluations_dir)
+    executor = _pool(workers)
+    arguments: dict[str, Any] = {
+        "strategy": settings.strategy,
+        "maxiter": settings.maxiter,
+        "popsize": settings.popsize,
+        "mutation": settings.mutation,
+        "recombination": settings.recombination,
+        "rng": settings.seed,
+        "polish": settings.polish,
+        "init": settings.init,
+        "x0": x0,
+        "updating": "deferred",
+        "workers": executor.map,
+        "callback": callback,
+    }
+    if constraint is not None:
+        arguments["constraints"] = constraint
+    evaluations_csv = run_directory / EVALUATIONS_CSV
     try:
-        optimum = differential_evolution(
-            functools.partial(evaluate, context=context),
-            bounds(),
-            strategy=settings.strategy,
-            maxiter=settings.maxiter,
-            popsize=settings.popsize,
-            mutation=settings.mutation,
-            recombination=settings.recombination,
-            rng=settings.seed,
-            polish=settings.polish,
-            init=settings.init,
-            x0=x0,
-            updating="deferred",
-            workers=executor.map,
-            constraints=weights_constraint(),
-            callback=progress,
-        )
-    finally:
-        executor.shutdown(wait=True)
+        try:
+            optimum = differential_evolution(
+                functools.partial(evaluate, context=context),
+                list(space.bounds),
+                **arguments,
+            )
+        finally:
+            executor.shutdown(wait=True)
+    except BaseException as error:
+        # An interruption or a crash after the first evaluation still leaves a
+        # table: the evaluations that were made are hours of model runs, and a
+        # calibration that has to be stopped is read from them like any other.
+        _consolidate(evaluations_csv, evaluations_dir)
+        if isinstance(error, BrokenProcessPool):
+            raise CalibrationError(
+                "A worker process died before finishing its evaluation, most often "
+                "because the system killed it for lack of memory: every worker holds "
+                "the rasters of one model run. Run the calibration again with a lower "
+                f"--workers. The evaluations made so far are in {evaluations_csv}."
+            ) from error
+        raise
 
     records = _read_records(evaluations_dir)
-    evaluations_csv = run_directory / EVALUATIONS_CSV
     _write_evaluations_csv(evaluations_csv, records)
 
     _report_failures(records)
@@ -441,10 +584,26 @@ def calibrate(
             planned_members,
         )
 
-    best_parameters = vector_to_parameters(optimum.x)
+    best_parameters = space.to_parameters(optimum.x)
     best_objective = float(optimum.fun)
     result_json = run_directory / RESULT_JSON
     calibrated_config = run_directory / f"{config_file.stem}-calibrated.json"
+    stations_csv = run_directory / STATIONS_CSV
+    best_series = run_directory / f"best_{settings.variable}.csv"
+    _write_stations_csv(stations_csv, best.get("station_metrics") or {}, settings.stations)
+    _write_calibrated_config(calibrated_config, configuration, file_v1, best_parameters)
+    _write_best_series(
+        best_series,
+        document=file_v1.to_dict(),
+        base_dir=configuration.base_dir,
+        parameters=best_parameters,
+        variable=settings.variable,
+        observed=observed,
+        spinup_steps=settings.spinup_steps,
+        temp_dir=temp_dir,
+        workers=workers,
+        evaluations_csv=evaluations_csv,
+    )
     _write_result_json(
         result_json,
         best_parameters=best_parameters,
@@ -452,17 +611,26 @@ def calibrate(
         best_objective=best_objective,
         optimum=optimum,
         settings=settings,
+        space=space,
         workers=workers,
         temp_dir=temp_dir,
         population_size=population_size,
+        artifacts={
+            "evaluations_csv": str(evaluations_csv),
+            "observed_csv": str(observed_csv),
+            "stations_csv": str(stations_csv),
+            "best_series": str(best_series),
+            "calibrated_config": str(calibrated_config),
+        },
     )
-    _write_calibrated_config(calibrated_config, configuration, file_v1, best_parameters)
 
-    logger.info(
-        "Calibration finished after %d evaluation(s) in %d generation(s): best objective %.6g.",
+    progress.info(
+        "Calibration finished after %d evaluation(s) in %d generation(s): best objective "
+        "%.6g, best NSE %s.",
         int(optimum.nfev),
         int(optimum.nit),
         best_objective,
+        "n/a" if best["nse"] is None else f"{float(best['nse']):.6f}",
     )
     return CalibrationResult(
         best_parameters=best_parameters,
@@ -476,6 +644,8 @@ def calibrate(
         evaluations_csv=evaluations_csv,
         result_json=result_json,
         calibrated_config=calibrated_config,
+        best_series=best_series,
+        stations_csv=stations_csv,
     )
 
 
@@ -492,6 +662,193 @@ def _require_scipy():
     from scipy.optimize import differential_evolution
 
     return differential_evolution
+
+
+def _check_stations(stations: tuple[str, ...] | None) -> None:
+    """Refuse a station selection the objective could not be averaged over.
+
+    :param stations: The ids the caller asked the objective to average, or
+        ``None`` for every station the two series share.
+    :type stations: tuple[str, ...] | None
+
+    :raises CalibrationError: If the selection is not a non-empty sequence of
+        non-empty station ids.
+    """
+    if stations is None:
+        return
+    if isinstance(stations, str) or not isinstance(stations, (tuple, list)):
+        raise CalibrationError(
+            "The stations of the objective must be given as a tuple of station ids, "
+            f"got {type(stations).__name__}."
+        )
+    if not stations:
+        raise CalibrationError(
+            "The stations of the objective are an empty selection; name at least one station, "
+            "or leave them unset to average every station the two series share."
+        )
+    wrong = [station for station in stations if not isinstance(station, str) or not station.strip()]
+    if wrong:
+        raise CalibrationError(
+            f"The station id(s) {', '.join(repr(station) for station in wrong)} are not "
+            "non-empty station ids; a station is named by the id it carries in the header of "
+            "the time series table."
+        )
+
+
+def _pool(workers: int) -> ProcessPoolExecutor:
+    """Return the process pool one evaluation at a time is run in.
+
+    ``spawn`` with one task per worker is what isolates the runs from each
+    other: PCRaster keeps its clone and its raster memory process-wide, so a
+    worker reused for a second evaluation would carry the state of the first.
+    """
+    return ProcessPoolExecutor(
+        max_workers=workers,
+        mp_context=multiprocessing.get_context("spawn"),
+        max_tasks_per_child=1,
+        initializer=_prepare_worker,
+    )
+
+
+def _consolidate(evaluations_csv: Path, evaluations_dir: Path) -> None:
+    """Write the table of the evaluations recorded so far, if there are any.
+
+    This is what an interrupted or crashed search leaves behind: the records
+    are already on disk, one per evaluation, and consolidating them costs
+    nothing next to the model runs they stand for. A failure to write the table
+    is reported and swallowed, since the exception that brought the search down
+    is the one the caller has to see.
+    """
+    try:
+        records = _read_records(evaluations_dir)
+        if records:
+            _write_evaluations_csv(evaluations_csv, records)
+            logger.warning(
+                "The search ended early; the %d evaluation(s) it recorded are in %s.",
+                len(records),
+                evaluations_csv,
+            )
+    except Exception as error:  # pragma: no cover - the original failure must win
+        logger.warning("The evaluations of the interrupted search could not be written: %s", error)
+
+
+def _compared_steps(*, first_step: int, last_step: int, spinup_steps: int) -> list[int]:
+    """Return the simulated time steps the efficiency is computed on, in order."""
+    return [step for step in range(first_step, last_step + 1) if step > spinup_steps]
+
+
+def _check_station_selection(
+    stations: tuple[str, ...] | None,
+    observed: Series,
+    sampled_ids: set[str] | None,
+) -> None:
+    """Refuse a station selection that names none of the stations of the run.
+
+    The selection is applied inside every evaluation, so a misspelt id would
+    make every one of them fail and the whole budget would be spent finding
+    out. The comparable stations are the ones the observed series and the run
+    have in common; under the ``zones`` aggregation the parent does not know
+    the ids of the run, so the selection is only checked against the
+    observations.
+
+    :param stations: The ids the objective averages, or ``None``.
+    :type stations: tuple[str, ...] | None
+
+    :param observed: The observed series, as the parent read it.
+    :type observed: rubem.calibration.objective.Series
+
+    :param sampled_ids: The ids the run will sample, or ``None`` when they are
+        not known before the run.
+    :type sampled_ids: set[str] | None
+
+    :raises CalibrationError: If none of the selected ids is comparable.
+    """
+    if stations is None:
+        return
+    comparable = set(observed.stations)
+    if sampled_ids is not None:
+        comparable &= sampled_ids
+    unknown = [station for station in stations if station not in comparable]
+    if len(unknown) == len(stations):
+        raise CalibrationError(
+            f"The station(s) {', '.join(stations)} of the objective are none of the "
+            f"station(s) {', '.join(sorted(comparable)) or 'none'} the observed series and "
+            "the run have in common; every evaluation would fail."
+        )
+    if unknown:
+        logger.warning(
+            "The objective names %d station(s) the comparison does not have (%s); it is "
+            "averaged over the remaining ones.",
+            len(unknown),
+            ", ".join(unknown),
+        )
+
+
+def _starting_point(space: DecisionSpace, parameters: dict[str, float]) -> np.ndarray:
+    """Return the ``x0`` of the search: the configuration, inside the bounds of the run.
+
+    The starting point is the parameter set of the configuration being
+    calibrated. A bound narrowed for this run may exclude it, and SciPy refuses
+    a starting point outside the bounds, so every coordinate that falls outside
+    is moved onto the bound it crosses and the move is reported: the run then
+    starts from the admissible point closest to the configuration instead of
+    ending before its first evaluation.
+
+    :param space: The decision vector of the run.
+    :type space: rubem.calibration.parameters.DecisionSpace
+
+    :param parameters: The calibration parameters of the configuration.
+    :type parameters: dict[str, float]
+
+    :return: The free values of the starting point, in the order of the space.
+    :rtype: numpy.ndarray
+    """
+    x0 = space.from_parameters(parameters)
+    for index, (name, (minimum, maximum)) in enumerate(
+        zip(space.free_names, space.bounds, strict=True)
+    ):
+        value = float(x0[index])
+        moved = min(max(value, minimum), maximum)
+        if moved != value:
+            x0[index] = moved
+            logger.warning(
+                "The configuration has %s = %g, outside the bound [%g, %g] of this "
+                "calibration; the search starts from %g instead.",
+                name,
+                value,
+                minimum,
+                maximum,
+                moved,
+            )
+    if not space.is_admissible(x0):
+        logger.warning(
+            "The parameters of the configuration are not an admissible candidate of this "
+            "calibration; the search starts from the rest of the initial population."
+        )
+    return x0
+
+
+def _report_decision_space(space: DecisionSpace, stations: tuple[str, ...] | None) -> None:
+    """Log what this run searches: the fixed parameters, the narrowed bounds and the stations."""
+    if space.fixed:
+        logger.info(
+            "Fixed, not searched: %s.",
+            ", ".join(f"{name} = {value:g}" for name, value in space.fixed.items()),
+        )
+    narrowed = [
+        (name, bound)
+        for name, bound in zip(space.free_names, space.bounds, strict=True)
+        if bound != variable_range(name)
+    ]
+    if narrowed:
+        logger.info(
+            "Searched in a narrowed range: %s.",
+            ", ".join(
+                f"{name} in [{minimum:g}, {maximum:g}]" for name, (minimum, maximum) in narrowed
+            ),
+        )
+    if stations is not None:
+        logger.info("The objective averages the station(s) %s.", ", ".join(stations))
 
 
 def _as_v1(configuration) -> ModelConfigurationFileV1:
@@ -634,16 +991,196 @@ def _check_observed_series(
         )
 
 
-def _population_size(settings: CalibrationSettings) -> int:
+def _observed_window(observed: Series, compared_steps: list[int]) -> np.ndarray:
+    """Return the rows of the observed series that fall on the compared steps."""
+    steps = np.asarray(observed.steps, dtype=np.int64)
+    return np.flatnonzero(np.isin(steps, np.asarray(compared_steps, dtype=np.int64)))
+
+
+def _in_selection(station: str, stations: tuple[str, ...] | None) -> str:
+    """Return whether a station enters the objective, as the tables spell it."""
+    return "true" if stations is None or station in stations else "false"
+
+
+def _write_observed_csv(
+    path: Path,
+    observed: Series,
+    compared_steps: list[int],
+    stations: tuple[str, ...] | None,
+) -> None:
+    """Write what the observations offer on the compared steps, one row per station.
+
+    The row of a station carries how many of the compared steps it observes
+    (``pairs_in_window``), how many values on those steps the mask of
+    :func:`rubem.calibration.objective.valid_mask` rejected as gaps
+    (``dropped``, the negative values among them) and the summary statistics of
+    the values that were kept. It is written before the search: a station whose
+    gauge is nearly empty over the simulated window explains a mean efficiency
+    afterwards, and it is cheaper to read it first.
+    """
+    window = _observed_window(observed, compared_steps)
+    with path.open("w", encoding="utf-8", newline="") as table:
+        writer = csv.writer(table, delimiter=STATION_SEPARATOR)
+        writer.writerow(OBSERVED_COLUMNS)
+        for station in sorted(observed.stations):
+            values = np.asarray(observed.stations[station], dtype=np.float64)[window]
+            mask = valid_mask(values)
+            kept = values[mask]
+            writer.writerow(
+                [
+                    station,
+                    _in_selection(station, stations),
+                    int(kept.size),
+                    int(values.size - kept.size),
+                    _cell(float(np.mean(kept)) if kept.size else None),
+                    _cell(float(np.std(kept, ddof=1)) if kept.size > 1 else None),
+                    _cell(float(np.min(kept)) if kept.size else None),
+                    _cell(float(np.max(kept)) if kept.size else None),
+                ]
+            )
+
+
+def _report_observed_coverage(
+    observed: Series,
+    compared_steps: list[int],
+    stations: tuple[str, ...] | None,
+) -> None:
+    """Log how much of the compared window the observations cover, per station."""
+    window = _observed_window(observed, compared_steps)
+    covered = np.asarray(observed.steps, dtype=np.int64)[window]
+    if covered.size:
+        span = f"the step(s) {int(covered.min())} to {int(covered.max())}"
+    else:
+        span = "no step of it"
+    progress.info(
+        "The calibration compares %d time step(s); the observed series covers %d of them, %s.",
+        len(compared_steps),
+        int(covered.size),
+        span,
+    )
+    for station in sorted(observed.stations):
+        values = np.asarray(observed.stations[station], dtype=np.float64)[window]
+        kept = int(np.count_nonzero(valid_mask(values)))
+        progress.info(
+            "Station %s%s: %d observed value(s) on the compared steps, %d dropped as gaps.",
+            station,
+            "" if stations is None or station in stations else " (not in the objective)",
+            kept,
+            int(values.size) - kept,
+        )
+
+
+def _write_stations_csv(
+    path: Path,
+    station_metrics: dict[str, Any],
+    stations: tuple[str, ...] | None,
+) -> None:
+    """Write the goodness of fit of the best candidate, one row per station.
+
+    The statistics are the ones its own evaluation recorded, not a
+    recomputation: the table and the record of that evaluation therefore always
+    agree. A station outside the selection is measured like any other and
+    marked as such, which is what makes the stations left out of the objective a
+    validation of the calibration.
+    """
+    with path.open("w", encoding="utf-8", newline="") as table:
+        writer = csv.writer(table, delimiter=STATION_SEPARATOR)
+        writer.writerow(STATION_COLUMNS)
+        for station in sorted(station_metrics):
+            measured = station_metrics[station] or {}
+            writer.writerow(
+                [
+                    station,
+                    _in_selection(station, stations),
+                    int(measured.get("pairs") or 0),
+                    # The remaining columns are the statistics, under the very
+                    # names the record spells them with.
+                    *(_cell(measured.get(name)) for name in STATION_COLUMNS[3:]),
+                ]
+            )
+
+
+def _write_best_series(
+    path: Path,
+    *,
+    document: dict,
+    base_dir: str | None,
+    parameters: dict[str, float],
+    variable: str,
+    observed: Series,
+    spinup_steps: int,
+    temp_dir: Path,
+    workers: int,
+    evaluations_csv: Path,
+) -> None:
+    """Run the best candidate once more and write its series beside the observed one.
+
+    The search keeps no output: every evaluation writes into a temporary
+    directory that is removed when it ends, which is what keeps a calibration of
+    thousands of runs from filling a disk. The candidate that won is therefore
+    run one last time, in a worker of its own, so that the series behind the
+    reported efficiency can be plotted against the observations. The steps and
+    the stations of the table are the ones the objective compared, from the same
+    alignment, and a value either series does not offer is left as an empty
+    cell.
+
+    :raises CalibrationError: If the run of the best candidate failed.
+    """
+    output_dir = Path(tempfile.mkdtemp(prefix="best-", dir=str(temp_dir)))
+    executor = _pool(workers)
+    try:
+        table = executor.submit(
+            simulate_best, document, base_dir, parameters, str(output_dir), variable
+        ).result()
+        simulated = read_series(table)
+    except Exception as error:
+        raise CalibrationError(
+            "The best candidate of the search could not be run again to keep its series: "
+            f"{type(error).__name__}: {error}. The calibration itself finished; its "
+            f"evaluations are in {evaluations_csv}."
+        ) from error
+    finally:
+        executor.shutdown(wait=True)
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+    alignment = align_series(simulated, observed, spinup_steps)
+    columns = [
+        column
+        for station in alignment.stations
+        for column in (f"observed_{station}", f"simulated_{station}")
+    ]
+    with path.open("w", encoding="utf-8", newline="") as best:
+        writer = csv.writer(best, delimiter=STATION_SEPARATOR)
+        writer.writerow(["step", *columns])
+        for row, step in enumerate(alignment.steps.tolist()):
+            cells: list[str] = []
+            for station in alignment.stations:
+                cells.append(
+                    _observation(observed.stations[station], alignment.observed_index[row])
+                )
+                cells.append(
+                    _observation(simulated.stations[station], alignment.simulated_index[row])
+                )
+            writer.writerow([int(step), *cells])
+
+
+def _observation(values: np.ndarray, row: int) -> str:
+    """Return one value of a series, or an empty cell when the mask rejects it."""
+    value = float(np.asarray(values, dtype=np.float64)[row])
+    return _cell(value) if bool(valid_mask(np.asarray([value]))[0]) else ""
+
+
+def _population_size(settings: CalibrationSettings, dimension: int = len(FREE_PARAMETERS)) -> int:
     """Return the number of population members the search will use.
 
     The arithmetic mirrors SciPy's: an explicit population is used as it is, a
-    named initialization gives ``max(5, popsize * 8)`` members, and ``sobol``
-    rounds that up to the next power of two.
+    named initialization gives ``max(5, popsize * dimension)`` members, with
+    ``dimension`` the number of free parameters, and ``sobol`` alone rounds that
+    up to the next power of two.
     """
     if not isinstance(settings.init, str):
         return int(np.shape(settings.init)[0])
-    members = max(5, settings.popsize * len(FREE_PARAMETERS))
+    members = max(5, settings.popsize * dimension)
     if settings.init == "sobol":
         return 1 << (members - 1).bit_length()
     return members
@@ -701,6 +1238,7 @@ def _write_evaluations_csv(path: Path, records: list[dict[str, Any]]) -> None:
                 [
                     record.get("id", ""),
                     record.get("pid", ""),
+                    record.get("started_at", ""),
                     *(_cell(parameters.get(name)) for name in CALIBRATION_PARAMETERS),
                     _cell(record.get("nse")),
                     _cell(record.get("objective")),
@@ -716,8 +1254,17 @@ def _cell(value) -> str:
 
 
 def _best_record(records: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """Return the record of the lowest objective among those that were evaluated."""
-    evaluated = [record for record in records if not record.get("error")]
+    """Return the record of the lowest objective among those that were evaluated.
+
+    A record without an objective is not a candidate for the best one: the
+    records are written by other processes, and the parent reads whatever is in
+    the directory rather than assuming every file there is complete.
+    """
+    evaluated = [
+        record
+        for record in records
+        if not record.get("error") and record.get("objective") is not None
+    ]
     if not evaluated:
         return None
     return min(evaluated, key=lambda record: float(record["objective"]))
@@ -736,11 +1283,17 @@ def _write_result_json(
     best_objective: float,
     optimum,
     settings: CalibrationSettings,
+    space: DecisionSpace,
     workers: int,
     temp_dir: Path,
     population_size: int,
+    artifacts: dict[str, str],
 ) -> None:
-    """Write the summary of the calibration."""
+    """Write the summary of the calibration.
+
+    The ``artifacts`` object names every file the run wrote next to this one, so
+    that the summary is the one file a reader has to open to find the rest.
+    """
     document = {
         "best_parameters": best_parameters,
         "best_nse": best_nse,
@@ -750,19 +1303,22 @@ def _write_result_json(
         "success": bool(optimum.success),
         "message": str(optimum.message),
         "population_size": population_size,
-        "settings": _settings_document(settings, workers, temp_dir),
+        "settings": _settings_document(settings, space, workers, temp_dir),
+        "artifacts": artifacts,
     }
     path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
 
 
 def _settings_document(
-    settings: CalibrationSettings, workers: int, temp_dir: Path
+    settings: CalibrationSettings, space: DecisionSpace, workers: int, temp_dir: Path
 ) -> dict[str, Any]:
     """Return the settings as JSON-able data, resolved the way the run used them.
 
-    The number of workers and the temporary directory are the values the run
-    actually used, not the ``None`` the caller may have left them at, so that
-    the summary describes a calibration that can be repeated.
+    The number of workers, the temporary directory and the bounds are the values
+    the run actually used, not the ``None`` the caller may have left them at, so
+    that the summary describes a calibration that can be repeated: the bounds are
+    the effective ones, one entry per searched parameter, the ranges of the
+    application settings narrowed by whatever the caller asked for.
     """
     init = settings.init if isinstance(settings.init, str) else np.asarray(settings.init).tolist()
     return {
@@ -778,6 +1334,12 @@ def _settings_document(
         "mutation": list(settings.mutation),
         "recombination": settings.recombination,
         "polish": settings.polish,
+        "bounds": {
+            name: [minimum, maximum]
+            for name, (minimum, maximum) in zip(space.free_names, space.bounds, strict=True)
+        },
+        "fixed": dict(space.fixed),
+        "stations": list(settings.stations) if settings.stations is not None else None,
     }
 
 

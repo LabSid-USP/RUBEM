@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +28,8 @@ from rubem.calibration.parameters import (
 )
 from rubem.calibration.runner import (
     EVALUATION_COLUMNS,
+    OBSERVED_COLUMNS,
+    STATION_COLUMNS,
     CalibrationError,
     CalibrationSettings,
     _check_observed_series,
@@ -108,6 +111,35 @@ class Dataset:
 def read_evaluations(path):
     with path.open(encoding="utf-8", newline="") as table:
         return list(csv.DictReader(table))
+
+
+def read_station_table(path):
+    """Read one of the ``;``-separated per-station tables of a run directory."""
+    with path.open(encoding="utf-8", newline="") as table:
+        return list(csv.DictReader(table, delimiter=";"))
+
+
+@pytest.fixture
+def progress_log(caplog):
+    """Capture the ``rubem.progress`` lines whatever the logging configuration is.
+
+    The command line detaches that logger from the root one so that its lines
+    are printed verbatim, and a test that ran the command line before this one
+    may have left it detached; attaching the capture handler to the logger
+    itself is what makes the capture independent of that.
+    """
+    captured = logging.getLogger("rubem.progress")
+    handlers, level, propagate = captured.handlers[:], captured.level, captured.propagate
+    captured.handlers = [caplog.handler]
+    captured.setLevel(logging.INFO)
+    captured.propagate = False
+    caplog.set_level(logging.INFO)
+    try:
+        yield caplog
+    finally:
+        captured.handlers[:] = handlers
+        captured.setLevel(level)
+        captured.propagate = propagate
 
 
 @pytest.fixture
@@ -219,15 +251,109 @@ class TestCalibration:
         assert list(data.temp_dir.iterdir()) == []
 
     @pytest.mark.unit
-    def test_the_run_directory_holds_the_three_artifacts(self, calibrated):
+    def test_the_run_directory_holds_every_artifact(self, calibrated):
         _, result = calibrated
 
         assert result.run_dir.is_dir()
         assert result.evaluations_csv.is_file()
         assert result.result_json.is_file()
         assert result.calibrated_config.is_file()
+        assert result.stations_csv.is_file()
+        assert result.best_series.is_file()
+        assert (result.run_dir / "observed.csv").is_file()
+        assert result.best_series.name == "best_arn.csv"
         assert result.message
         assert result.generations == 1
+
+    @pytest.mark.unit
+    def test_the_summary_names_every_artifact_it_wrote(self, calibrated):
+        _, result = calibrated
+        artifacts = json.loads(result.result_json.read_text(encoding="utf-8"))["artifacts"]
+
+        assert Path(artifacts["evaluations_csv"]) == result.evaluations_csv
+        assert Path(artifacts["observed_csv"]) == result.run_dir / "observed.csv"
+        assert Path(artifacts["stations_csv"]) == result.stations_csv
+        assert Path(artifacts["best_series"]) == result.best_series
+        assert Path(artifacts["calibrated_config"]) == result.calibrated_config
+
+    @pytest.mark.unit
+    def test_the_observations_are_summarized_before_the_search(self, calibrated):
+        _, result = calibrated
+        rows = read_station_table(result.run_dir / "observed.csv")
+
+        assert list(rows[0]) == list(OBSERVED_COLUMNS)
+        assert [row["station"] for row in rows] == ["1", "2"]
+        for row in rows:
+            # The observed file is the table the configuration itself wrote:
+            # every compared step is observed and nothing is a gap.
+            assert row["in_selection"] == "true"
+            assert row["pairs_in_window"] == str(TIMESTEPS)
+            assert row["dropped"] == "0"
+            assert float(row["min"]) <= float(row["mean"]) <= float(row["max"])
+            assert float(row["std"]) >= 0.0
+
+    @pytest.mark.unit
+    def test_the_stations_of_the_best_candidate_are_a_table_of_their_own(self, calibrated):
+        _, result = calibrated
+        rows = read_station_table(result.stations_csv)
+
+        assert list(rows[0]) == list(STATION_COLUMNS)
+        assert [row["station"] for row in rows] == ["1", "2"]
+        for row in rows:
+            # The optimum reproduces the observations exactly.
+            assert row["in_selection"] == "true"
+            assert int(row["pairs"]) == TIMESTEPS
+            assert float(row["nse"]) == pytest.approx(1.0, abs=1e-12)
+            assert float(row["rmse"]) == pytest.approx(0.0, abs=1e-9)
+            assert float(row["r"]) == pytest.approx(1.0, abs=1e-9)
+            assert float(row["mean_observed"]) == pytest.approx(float(row["mean_simulated"]))
+            assert float(row["std_observed"]) == pytest.approx(float(row["std_simulated"]))
+
+    @pytest.mark.unit
+    def test_the_series_of_the_best_candidate_is_kept_beside_the_observed_one(self, calibrated):
+        _, result = calibrated
+        rows = read_station_table(result.best_series)
+
+        assert list(rows[0]) == [
+            "step",
+            "observed_1",
+            "simulated_1",
+            "observed_2",
+            "simulated_2",
+        ]
+        assert [int(row["step"]) for row in rows] == list(range(1, TIMESTEPS + 1))
+        for row in rows:
+            for station in ("1", "2"):
+                # The best candidate is the configuration that wrote the
+                # observations, so the two columns of a station are one series.
+                assert float(row[f"simulated_{station}"]) == pytest.approx(
+                    float(row[f"observed_{station}"]), abs=1e-9
+                )
+
+    @pytest.mark.unit
+    def test_the_table_of_the_best_candidate_is_read_back_by_the_reader(self, calibrated):
+        from rubem.calibration.objective import read_series
+
+        _, result = calibrated
+        table = read_series(result.best_series)
+
+        # It is written in the layout the readers accept, header included.
+        assert table.steps.tolist() == list(range(1, TIMESTEPS + 1))
+        assert sorted(table.stations) == ["observed_1", "observed_2", "simulated_1", "simulated_2"]
+
+    @pytest.mark.unit
+    def test_every_row_of_the_table_carries_the_moment_it_started(self, calibrated):
+        import datetime
+
+        _, result = calibrated
+        rows = read_evaluations(result.evaluations_csv)
+
+        assert "started_at" in EVALUATION_COLUMNS
+        moments = [datetime.datetime.fromisoformat(row["started_at"]) for row in rows]
+        assert all(moment.tzinfo is not None for moment in moments)
+        # The rows are ordered by the candidate they evaluated; the moments are
+        # what puts them back in the order the evaluations were made in.
+        assert sorted(moments) != [] and len(moments) == len(rows)
 
 
 class _RecordingExecutor(ProcessPoolExecutor):
@@ -328,22 +454,44 @@ class TestProgress:
 
     @pytest.mark.unit
     def test_the_callback_logs_the_generation_and_lets_the_search_go_on(
-        self, tmp_path, caplog, capfd
+        self, tmp_path, progress_log, capfd
     ):
         evaluations = tmp_path / "evaluations"
         evaluations.mkdir()
         (evaluations / "one.json").write_text("{}", encoding="utf8")
-        progress = _Progress(evaluations)
+        callback = _Progress(evaluations)
 
-        with caplog.at_level(logging.INFO, logger="rubem.calibration.runner"):
-            stop = progress(scipy_optimize.OptimizeResult(fun=12.5, nit=3))
+        stop = callback(scipy_optimize.OptimizeResult(fun=12.5, nit=3))
 
         assert stop is False, "the callback never halts the search"
-        assert progress.generations == 3
-        assert "Generation 3" in caplog.text
-        assert "12.5" in caplog.text
-        assert "1 evaluation" in caplog.text
+        assert callback.generations == 3
+        assert "Generation 3" in progress_log.text
+        assert "12.5" in progress_log.text
+        assert "1 evaluation" in progress_log.text
+        # A record without an objective is not the best one; a callback that
+        # read it as a candidate would end the search it is only watching.
+        assert "best NSE n/a" in progress_log.text
         assert capfd.readouterr().out == "", "the library logs, it does not print"
+
+    @pytest.mark.unit
+    def test_the_generation_line_carries_the_best_efficiency_of_the_records(
+        self, tmp_path, progress_log
+    ):
+        evaluations = tmp_path / "evaluations"
+        evaluations.mkdir()
+        for name, objective_value, nse in (("a", 4.0, 0.25), ("b", 1.0, 0.75)):
+            (evaluations / f"{name}.json").write_text(
+                json.dumps({"id": name, "objective": objective_value, "nse": nse, "error": None}),
+                encoding="utf8",
+            )
+
+        _Progress(evaluations)(scipy_optimize.OptimizeResult(fun=1.0, nit=2))
+
+        # SciPy reports the objective; the efficiency behind it is read from
+        # the records, which is where the workers write it.
+        assert "Generation 2" in progress_log.text
+        assert "best NSE 0.750000" in progress_log.text
+        assert "2 evaluation(s) recorded" in progress_log.text
 
 
 class TestReproducibility:
@@ -530,6 +678,36 @@ class TestObservedSeries:
         assert with_extra.evaluations == exact.evaluations
 
     @pytest.mark.unit
+    def test_a_negative_observation_is_counted_as_a_gap_before_the_search(
+        self, dataset, broken_search, progress_log
+    ):
+        rows = dataset.observed.read_text(encoding="utf8").splitlines()
+        first = rows[1].split(";")
+        # The gauge of station 1 has no reading at the first step, written as
+        # the negative marker an observation table marks a gap with.
+        first[1] = "-1.5"
+        gapped = dataset.observed.with_name("gapped.csv")
+        gapped.write_text("\n".join([rows[0], ";".join(first), *rows[2:]]) + "\n", encoding="utf8")
+
+        with pytest.raises(RuntimeError, match="the search broke"):
+            dataset.calibrate(observed=gapped)
+
+        summarized = {
+            row["station"]: row for row in read_station_table(dataset.run_dir / "observed.csv")
+        }
+        # The negative value never reaches the statistics, and both the table
+        # and the line the run prints count it as a gap of that station alone.
+        assert summarized["1"]["dropped"] == "1"
+        assert summarized["1"]["pairs_in_window"] == str(TIMESTEPS - 1)
+        assert float(summarized["1"]["min"]) > 0.0
+        assert summarized["2"]["dropped"] == "0"
+        assert summarized["2"]["pairs_in_window"] == str(TIMESTEPS)
+        assert (
+            f"Station 1: {TIMESTEPS - 1} observed value(s) on the compared steps, "
+            "1 dropped as gaps." in progress_log.text
+        )
+
+    @pytest.mark.unit
     def test_the_stations_are_the_values_of_the_sample_locations_raster(self, dataset):
         samples = ModelConfiguration(
             dataset.config, validate_input=False
@@ -651,14 +829,25 @@ class TestEvaluationBudget:
         assert _population_size(CalibrationSettings(init=INIT)) == len(INIT)
 
     @pytest.mark.unit
+    def test_a_smaller_decision_space_needs_fewer_members(self):
+        # One fixed parameter takes a dimension out of the search, and the
+        # number of members follows it.
+        assert _population_size(CalibrationSettings(popsize=15), 7) == 128
+        assert _population_size(CalibrationSettings(popsize=15, init="latinhypercube"), 7) == 105
+        assert _population_size(CalibrationSettings(popsize=1, init="random"), 1) == 5
+
+    @pytest.mark.unit
     @pytest.mark.parametrize("popsize", [1, 5, 15, 16])
-    @pytest.mark.parametrize("init", ["sobol", "latinhypercube", "random"])
-    def test_the_announced_population_is_the_one_scipy_builds(self, popsize, init):
+    @pytest.mark.parametrize("init", ["sobol", "halton", "latinhypercube", "random"])
+    @pytest.mark.parametrize("dimension", [7, 8])
+    def test_the_announced_population_is_the_one_scipy_builds(self, popsize, init, dimension):
         # The announced number is what the command line reports as the budget,
-        # so it has to be SciPy's own arithmetic and not an approximation of it.
+        # so it has to be SciPy's own arithmetic and not an approximation of it:
+        # only ``sobol`` rounds the population up to a power of two, and the
+        # number of free parameters is a factor of it.
         optimum = scipy_optimize.differential_evolution(
             lambda vector: float(np.sum(vector)),
-            bounds(),
+            bounds()[:dimension],
             init=init,
             popsize=popsize,
             maxiter=0,
@@ -667,7 +856,7 @@ class TestEvaluationBudget:
         )
 
         assert len(optimum.population) == _population_size(
-            CalibrationSettings(popsize=popsize, init=init)
+            CalibrationSettings(popsize=popsize, init=init), dimension
         )
 
     @pytest.mark.unit
@@ -727,3 +916,318 @@ class TestOptionalDependency:
         )
 
         assert completed.stdout.strip() == "False"
+
+
+@pytest.fixture(scope="class")
+def calibrated_with_a_fixed_parameter(tmp_path_factory):
+    """One calibration in which ``x`` is pinned and only seven parameters are searched."""
+    data = Dataset(tmp_path_factory.mktemp("calibration-fixed"))
+    free = np.delete(INIT, FREE_PARAMETERS.index("x"), axis=1)
+    return data, data.calibrate(fixed={"x": 0.0}, init=free, stations=("1", "2"))
+
+
+class TestFixedParameters:
+    @pytest.mark.unit
+    def test_the_fixed_parameter_is_not_searched_and_is_in_every_candidate(
+        self, calibrated_with_a_fixed_parameter
+    ):
+        _, result = calibrated_with_a_fixed_parameter
+        rows = read_evaluations(result.evaluations_csv)
+
+        assert set(result.best_parameters) == set(CALIBRATION_PARAMETERS)
+        assert result.best_parameters["x"] == 0.0
+        assert rows, "the search ran"
+        assert [row["error"] for row in rows if row["error"]] == []
+        # Every candidate the search proposed carries the pinned value, and the
+        # column is still in the table: the parameter left the decision vector,
+        # not the model.
+        assert {row["x"] for row in rows} == {"0.0"}
+
+    @pytest.mark.unit
+    def test_the_summary_records_the_fixed_value_the_bounds_and_the_stations(
+        self, calibrated_with_a_fixed_parameter
+    ):
+        _, result = calibrated_with_a_fixed_parameter
+        settings = json.loads(result.result_json.read_text(encoding="utf-8"))["settings"]
+
+        assert settings["fixed"] == {"x": 0.0}
+        assert settings["stations"] == ["1", "2"]
+        assert list(settings["bounds"]) == [name for name in FREE_PARAMETERS if name != "x"]
+        assert settings["bounds"]["rcd"] == [1.0, 10.0]
+
+    @pytest.mark.unit
+    def test_the_calibrated_configuration_carries_the_fixed_value(
+        self, calibrated_with_a_fixed_parameter
+    ):
+        _, result = calibrated_with_a_fixed_parameter
+        configuration = ModelConfiguration(result.calibrated_config, validate_input=False)
+
+        assert configuration.calibration_parameters.model_dump()["x"] == 0.0
+
+    @pytest.mark.unit
+    def test_a_fixed_weight_replaces_the_constraint_with_a_narrowed_bound(
+        self, dataset, broken_search
+    ):
+        free = np.delete(INIT, FREE_PARAMETERS.index("w_1"), axis=1)
+
+        with pytest.raises(RuntimeError, match="the search broke"):
+            dataset.calibrate(fixed={"w_1": 0.7}, init=free)
+
+        searched = [name for name in FREE_PARAMETERS if name != "w_1"]
+        # One free weight is a bound, not a constraint: the argument is left out
+        # instead of being handed over as ``None``.
+        assert "constraints" not in broken_search
+        assert len(broken_search["bounds"]) == len(searched) == 7
+        assert broken_search["bounds"][searched.index("w_2")] == (0.0, pytest.approx(0.3))
+        assert len(broken_search["x0"]) == 7
+
+    @pytest.mark.unit
+    def test_a_decision_space_the_settings_cannot_describe_is_refused(self, dataset, no_pool):
+        with pytest.raises(ValueError, match="cannot be fixed"):
+            dataset.calibrate(fixed={"x": 5.0})
+
+        assert not dataset.run_dir.exists()
+        assert no_pool == []
+
+    @pytest.mark.unit
+    def test_an_initial_population_of_the_wrong_width_is_refused(self, dataset, no_pool):
+        # ``INIT`` has one column per parameter of the whole search, and the
+        # fixed one has left the decision vector.
+        with pytest.raises(ValueError, match="one column per free parameter") as failure:
+            dataset.calibrate(fixed={"x": 0.0})
+
+        assert "(5, 8)" in str(failure.value)
+        assert "7 free parameter(s)" in str(failure.value)
+        assert not dataset.run_dir.exists()
+        assert no_pool == []
+
+    @pytest.mark.unit
+    def test_an_initial_population_that_is_not_a_table_of_members_is_refused(
+        self, dataset, no_pool
+    ):
+        with pytest.raises(ValueError, match="two-dimensional array"):
+            dataset.calibrate(init=INIT[0])
+
+        assert not dataset.run_dir.exists()
+        assert no_pool == []
+
+
+class TestNarrowedBounds:
+    @pytest.mark.unit
+    def test_the_search_is_given_the_narrowed_bounds(self, dataset, broken_search):
+        with pytest.raises(RuntimeError, match="the search broke"):
+            dataset.calibrate(bounds={"rcd": (2.0, 5.0)})
+
+        expected = bounds()
+        expected[FREE_PARAMETERS.index("rcd")] = (2.0, 5.0)
+        assert broken_search["bounds"] == expected
+
+    @pytest.mark.unit
+    def test_a_starting_point_outside_a_narrowed_bound_is_moved_onto_it(
+        self, dataset, broken_search, caplog
+    ):
+        with caplog.at_level(logging.WARNING, logger="rubem.calibration.runner"):
+            with pytest.raises(RuntimeError, match="the search broke"):
+                dataset.calibrate(bounds={"alpha": (5.0, 8.0)})
+
+        # The configuration has alpha = 4.5, which this run does not search;
+        # SciPy refuses a starting point outside the bounds, so it is moved onto
+        # the bound and the move is reported instead of ending the run.
+        assert broken_search["x0"][FREE_PARAMETERS.index("alpha")] == 5.0
+        assert "alpha" in caplog.text
+        assert "4.5" in caplog.text
+
+    @pytest.mark.unit
+    def test_a_bound_that_does_not_narrow_the_settings_range_is_refused(self, dataset, no_pool):
+        with pytest.raises(ValueError, match="not a narrower range"):
+            dataset.calibrate(bounds={"rcd": (0.5, 12.0)})
+
+        assert not dataset.run_dir.exists()
+        assert no_pool == []
+
+
+class TestStationSelection:
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "stations",
+        [(), ("1", ""), ("1", 2), "12"],
+        ids=["empty", "a blank id", "not a string", "a bare string"],
+    )
+    def test_a_selection_that_names_no_station_is_refused(self, dataset, no_pool, stations):
+        with pytest.raises(CalibrationError):
+            dataset.calibrate(stations=stations)
+
+        assert not dataset.run_dir.exists()
+        assert no_pool == []
+
+    @pytest.mark.unit
+    def test_the_selected_stations_are_logged_before_the_search(
+        self, dataset, broken_search, caplog
+    ):
+        with caplog.at_level(logging.INFO, logger="rubem.calibration.runner"):
+            with pytest.raises(RuntimeError, match="the search broke"):
+                dataset.calibrate(stations=("1",))
+
+        assert "the station(s) 1" in caplog.text
+
+
+def _record_then_raise(error):
+    """A search that records one evaluation and then fails, without a worker.
+
+    The records are what an interrupted calibration has to leave behind, and
+    the failure has to happen where the real one does, inside the search. The
+    evaluations directory is read out of the objective the search was handed,
+    which is where the parent put it.
+    """
+
+    def stub(function, search_bounds, **kwargs):
+        evaluations_dir = Path(function.keywords["context"].evaluations_dir)
+        record = {
+            "id": "deadbeef",
+            "pid": 4321,
+            "started_at": "2000-01-01T00:00:00+00:00",
+            "parameters": dict.fromkeys(CALIBRATION_PARAMETERS, 0.5),
+            "nse": 0.25,
+            "station_nse": {"1": 0.25},
+            "station_metrics": {},
+            "objective": 5625000.0,
+            "elapsed_seconds": 1.5,
+            "error": None,
+        }
+        (evaluations_dir / "deadbeef.json").write_text(json.dumps(record), encoding="utf8")
+        raise error
+
+    return stub
+
+
+class TestInterruptedSearch:
+    @pytest.mark.unit
+    def test_an_interrupted_search_still_writes_the_evaluations_it_made(self, dataset, monkeypatch):
+        monkeypatch.setattr(
+            scipy_optimize, "differential_evolution", _record_then_raise(KeyboardInterrupt())
+        )
+
+        with pytest.raises(KeyboardInterrupt):
+            dataset.calibrate()
+
+        # The evaluations are hours of model runs on a real basin; a
+        # calibration that has to be stopped is read from them like any other.
+        rows = read_evaluations(dataset.run_dir / "evaluations.csv")
+        assert [row["id"] for row in rows] == ["deadbeef"]
+        assert rows[0]["started_at"] == "2000-01-01T00:00:00+00:00"
+        assert rows[0]["nse"] == repr(0.25)
+
+    @pytest.mark.unit
+    def test_a_crashed_search_still_writes_the_evaluations_it_made(self, dataset, monkeypatch):
+        monkeypatch.setattr(
+            scipy_optimize, "differential_evolution", _record_then_raise(RuntimeError("boom"))
+        )
+
+        with pytest.raises(RuntimeError, match="boom"):
+            dataset.calibrate()
+
+        assert read_evaluations(dataset.run_dir / "evaluations.csv")
+
+    @pytest.mark.unit
+    def test_a_search_that_recorded_nothing_leaves_no_table(self, dataset, broken_search):
+        with pytest.raises(RuntimeError, match="the search broke"):
+            dataset.calibrate()
+
+        assert not (dataset.run_dir / "evaluations.csv").exists()
+
+    @pytest.mark.unit
+    def test_a_worker_killed_by_the_system_is_reported_with_the_advice(self, dataset, monkeypatch):
+        monkeypatch.setattr(
+            scipy_optimize,
+            "differential_evolution",
+            _record_then_raise(BrokenProcessPool("A process in the process pool was terminated")),
+        )
+
+        with pytest.raises(CalibrationError, match="--workers") as failure:
+            dataset.calibrate()
+
+        message = str(failure.value)
+        assert "died before finishing" in message
+        assert "memory" in message
+        # The cause is kept, so the traceback still says what the pool reported.
+        assert isinstance(failure.value.__cause__, BrokenProcessPool)
+        assert read_evaluations(dataset.run_dir / "evaluations.csv")
+
+
+class TestProgressReporting:
+    @pytest.mark.unit
+    def test_the_budget_the_coverage_the_generations_and_the_summary_are_reported(
+        self, dataset, progress_log
+    ):
+        result = dataset.calibrate()
+
+        text = progress_log.text
+        # The budget, before anything is spent on it.
+        assert "8 free parameter(s)" in text
+        assert f"{len(INIT)} population member(s)" in text
+        assert "2 worker process(es)" in text
+        # The coverage of the compared window, per station.
+        assert f"compares {TIMESTEPS} time step(s)" in text
+        assert f"covers {TIMESTEPS} of them" in text
+        assert f"Station 1: {TIMESTEPS} observed value(s)" in text
+        assert "0 dropped as gaps" in text
+        # One line per generation, and the closing summary.
+        assert "Generation 1:" in text
+        assert "best NSE" in text
+        assert "Calibration finished after" in text
+        assert f"{result.evaluations} evaluation(s)" in text
+
+    @pytest.mark.unit
+    def test_the_progress_is_logged_and_never_printed(self, dataset, progress_log, capfd):
+        dataset.calibrate()
+
+        assert "Generation 1:" in progress_log.text
+        out, _ = capfd.readouterr()
+        assert out == "", "the library logs, the command line prints"
+
+
+class TestStationsOfTheObjective:
+    @pytest.mark.unit
+    def test_a_station_left_out_of_the_objective_is_measured_and_marked(self, dataset):
+        result = dataset.calibrate(stations=("1",))
+
+        observed = {
+            row["station"]: row for row in read_station_table(result.run_dir / "observed.csv")
+        }
+        stations = {row["station"]: row for row in read_station_table(result.stations_csv)}
+
+        assert observed["1"]["in_selection"] == "true"
+        assert observed["2"]["in_selection"] == "false"
+        # The station outside the objective is measured all the same: that is
+        # the validation half of a calibration/validation split.
+        assert stations["1"]["in_selection"] == "true"
+        assert stations["2"]["in_selection"] == "false"
+        assert float(stations["2"]["nse"]) == pytest.approx(1.0, abs=1e-12)
+        assert int(stations["2"]["pairs"]) == TIMESTEPS
+        assert json.loads(result.result_json.read_text(encoding="utf-8"))["settings"][
+            "stations"
+        ] == ["1"]
+
+    @pytest.mark.unit
+    def test_a_selection_of_stations_the_run_does_not_have_is_refused_before_the_search(
+        self, dataset, no_pool
+    ):
+        with pytest.raises(CalibrationError, match="none of the station") as failure:
+            dataset.calibrate(stations=("7", "8"))
+
+        # A misspelt id would otherwise fail every evaluation of the run and
+        # spend the whole budget finding out.
+        assert "7, 8" in str(failure.value)
+        assert "1, 2" in str(failure.value)
+        assert not dataset.run_dir.exists()
+        assert no_pool == []
+
+    @pytest.mark.unit
+    def test_a_selection_that_names_one_unknown_station_warns_and_keeps_the_rest(
+        self, dataset, broken_search, caplog
+    ):
+        with caplog.at_level(logging.WARNING, logger="rubem.calibration.runner"):
+            with pytest.raises(RuntimeError, match="the search broke"):
+                dataset.calibrate(stations=("1", "7"))
+
+        assert "does not have (7)" in caplog.text
