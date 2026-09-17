@@ -1,5 +1,7 @@
 """The calibration objective: masks, Nash-Sutcliffe efficiency, tables and alignment."""
 
+import dataclasses
+
 import numpy as np
 import pytest
 
@@ -8,10 +10,12 @@ from rubem.calibration.objective import (
     MISSING_VALUES,
     PCRASTER_MISSING,
     Series,
+    StationMetrics,
     evaluate_series,
     nash_sutcliffe,
     objective,
     read_series,
+    station_metrics,
     valid_mask,
 )
 
@@ -20,7 +24,12 @@ from rubem.calibration.objective import (
 FLOAT32_MISSING = float(np.float32(1e31))
 
 # Every gap marker, used wherever a test drops a pair through one of them.
-GAPS = (float("nan"), -9999.0, 1e31, FLOAT32_MISSING)
+GAPS = (float("nan"), -9999.0, -1.0, 1e31, FLOAT32_MISSING)
+
+
+def nse_of(metrics):
+    """The efficiency of every station of a mapping of :class:`StationMetrics`."""
+    return {station: measured.nse for station, measured in metrics.items()}
 
 
 def series(steps, **stations):
@@ -36,7 +45,19 @@ def series(steps, **stations):
 class TestValidMask:
     @pytest.mark.unit
     def test_ordinary_values_are_valid(self):
-        assert valid_mask(np.array([0.0, -1.5, 3.25, 1e29])).tolist() == [True] * 4
+        assert valid_mask(np.array([0.0, 1.5, 3.25, 1e29])).tolist() == [True] * 4
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("negative", [-1.0, -999.0, -0.5, -9999.0])
+    def test_a_negative_value_is_a_gap(self, negative):
+        # Every quantity the two series carry is a flux or a storage: a
+        # negative entry is a marker of a gap, whichever one a gauge writes.
+        assert valid_mask(np.array([negative])).tolist() == [False]
+
+    @pytest.mark.unit
+    def test_zero_is_a_value_and_not_a_gap(self):
+        # A station may record no flow at all; only the sign below zero is a gap.
+        assert valid_mask(np.array([0.0, -0.0])).tolist() == [True, True]
 
     @pytest.mark.unit
     @pytest.mark.parametrize("gap", GAPS)
@@ -251,17 +272,130 @@ class TestReadSeries:
         assert table.stations["22"].tolist() == [2.5, 4.5]
 
     @pytest.mark.unit
-    def test_a_pcraster_time_series_without_the_header(self, tmp_path):
-        # The form the model itself writes: every line is a data row and the
-        # stations are numbered in column order.
+    def test_a_pcraster_header_whose_count_carries_trailing_spaces(self, tmp_path):
+        # The number of columns is read from a line of its own, which a writer
+        # may pad; the title above it carries spaces of its own and is not read.
+        path = tmp_path / "observed.tss"
+        path.write_text(
+            "timeseries scalar\n3   \ntimestep\n11\n22\n1 1.5 2.5\n2 3.5 4.5\n",
+            encoding="utf8",
+        )
+
+        table = read_series(path)
+
+        assert sorted(table.stations) == ["11", "22"]
+        assert table.stations["22"].tolist() == [2.5, 4.5]
+
+    @pytest.mark.unit
+    def test_the_windows_line_endings_of_a_pcraster_time_series(self, tmp_path):
+        # The carriage return must not be taken for part of the number of
+        # columns, of a station id or of the last value of a row.
+        path = tmp_path / "observed.tss"
+        path.write_bytes(
+            b"timeseries scalar\r\n3\r\ntimestep\r\n11\r\n22\r\n1 1.5 2.5\r\n2 3.5 4.5\r\n"
+        )
+
+        table = read_series(path)
+
+        assert sorted(table.stations) == ["11", "22"]
+        assert table.steps.tolist() == [1, 2]
+        assert table.stations["22"].tolist() == [2.5, 4.5]
+
+    @pytest.mark.unit
+    def test_a_pcraster_time_series_without_the_header_is_refused(self, tmp_path):
+        # Numbering the columns 1..N would label them with a guess: the columns
+        # of a time series are stations, and nothing here says which.
         path = tmp_path / "observed.tss"
         path.write_text("1 1.5 2.5\n2 3.5 4.5\n", encoding="utf8")
+
+        with pytest.raises(ValueError, match="PCRaster time series files carry") as failure:
+            read_series(path)
+
+        message = str(failure.value)
+        assert "has no header" in message
+        assert "0;<id>;<id>..." in message, "the message names both accepted layouts"
+        assert "title line" in message
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "Observed streamflow\n1\ntimestep\n1 1.5\n",
+            "Observed streamflow\n3\ntimestep\n11\n",
+            "1 1.5 2.5\n",
+        ],
+        ids=["one column", "fewer names than the count", "a single row"],
+    )
+    def test_a_truncated_pcraster_header_is_refused(self, tmp_path, content):
+        path = tmp_path / "observed.tss"
+        path.write_text(content, encoding="utf8")
+
+        with pytest.raises(ValueError, match="PCRaster time series files carry"):
+            read_series(path)
+
+    @pytest.mark.unit
+    def test_a_csv_table_without_the_header_is_refused(self, tmp_path):
+        # The first record is already a time step, so the ids would be read
+        # from it and the first step would be lost from the series.
+        path = tmp_path / "observed.csv"
+        path.write_text("1;16.33;22.94\n2;14.86;19.95\n", encoding="utf8")
+
+        with pytest.raises(ValueError, match="has no header") as failure:
+            read_series(path)
+
+        message = str(failure.value)
+        assert "'1'" in message, "the message quotes the line it refused"
+        assert "0;<id>;<id>..." in message, "the message names both accepted layouts"
+        assert "PCRaster time series" in message
+
+    @pytest.mark.unit
+    def test_a_byte_order_mark_is_not_part_of_the_step_column_label(self, tmp_path):
+        # An editor that writes UTF-8 with a byte order mark puts it at the
+        # start of the first line, where it would otherwise become part of the
+        # first header cell.
+        path = tmp_path / "observed.csv"
+        path.write_bytes("﻿0;A;B\n1;1.5;2.5\n2;3.5;4.5\n".encode("utf8"))
+
+        table = read_series(path)
+
+        assert sorted(table.stations) == ["A", "B"]
+        assert table.steps.tolist() == [1, 2]
+        assert table.stations["A"].tolist() == [1.5, 3.5]
+
+    @pytest.mark.unit
+    def test_a_byte_order_mark_does_not_hide_a_missing_csv_header(self, tmp_path):
+        # The mark would turn the first time step into a word, and a word is
+        # the label of a step column: the refusal must not depend on it.
+        path = tmp_path / "observed.csv"
+        path.write_bytes("﻿1;16.33;22.94\n2;14.86;19.95\n".encode("utf8"))
+
+        with pytest.raises(ValueError, match="has no header") as failure:
+            read_series(path)
+
+        assert "'1'" in str(failure.value), "the mark is not part of the line it quotes"
+
+    @pytest.mark.unit
+    def test_a_byte_order_mark_before_the_title_of_a_time_series(self, tmp_path):
+        path = tmp_path / "observed.tss"
+        path.write_bytes(
+            "﻿timeseries scalar\n3\ntimestep\n11\n22\n1 1.5 2.5\n2 3.5 4.5\n".encode("utf8")
+        )
+
+        table = read_series(path)
+
+        assert sorted(table.stations) == ["11", "22"]
+        assert table.steps.tolist() == [1, 2]
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("label", ["0", "timestep", "step", ""])
+    def test_the_accepted_spellings_of_the_step_column_label(self, tmp_path, label):
+        path = tmp_path / "observed.csv"
+        path.write_text(f"{label};A\n1;1.0\n2;2.0\n", encoding="utf8")
 
         table = read_series(path)
 
         assert table.steps.tolist() == [1, 2]
-        assert sorted(table.stations) == ["1", "2"]
-        assert table.stations["2"].tolist() == [2.5, 4.5]
+        assert table.stations["A"].tolist() == [1.0, 2.0]
 
     @pytest.mark.unit
     def test_a_row_that_does_not_start_with_a_time_step_names_the_file(self, tmp_path):
@@ -306,7 +440,7 @@ class TestEvaluateSeries:
 
         mean, per_station = evaluate_series(simulated, observed)
 
-        assert per_station == {"A": 1.0, "B": -3.0}
+        assert nse_of(per_station) == {"A": 1.0, "B": -3.0}
         assert mean == -1.0
 
     @pytest.mark.unit
@@ -318,7 +452,8 @@ class TestEvaluateSeries:
 
         mean, per_station = evaluate_series(simulated, observed)
 
-        assert per_station == {"A": 1.0}
+        assert nse_of(per_station) == {"A": 1.0}
+        assert per_station["A"].pairs == 2, "only the shared steps are a pair"
         assert mean == 1.0
 
     @pytest.mark.unit
@@ -332,7 +467,7 @@ class TestEvaluateSeries:
 
         mean, per_station = evaluate_series(simulated, observed, spinup_steps=2)
 
-        assert per_station == {"A": -3.0}
+        assert nse_of(per_station) == {"A": -3.0}
         assert mean == -3.0
 
     @pytest.mark.unit
@@ -342,7 +477,7 @@ class TestEvaluateSeries:
 
         mean, per_station = evaluate_series(simulated, observed)
 
-        assert per_station == {"A": 1.0}
+        assert nse_of(per_station) == {"A": 1.0}
         assert mean == 1.0
 
     @pytest.mark.unit
@@ -354,7 +489,8 @@ class TestEvaluateSeries:
 
         mean, per_station = evaluate_series(simulated, observed)
 
-        assert per_station == {"A": 1.0, "B": None}
+        assert nse_of(per_station) == {"A": 1.0, "B": None}
+        assert per_station["B"].pairs == 3, "the station is measured even without an efficiency"
         assert mean == 1.0
 
     @pytest.mark.unit
@@ -394,3 +530,166 @@ class TestEvaluateSeries:
             evaluate_series(simulated, observed)
 
         assert "A, B" in str(error.value)
+
+
+class TestStationMetrics:
+    @pytest.mark.unit
+    def test_every_statistic_of_a_hand_computed_pair_of_series(self):
+        # observed [1, 2, 6], simulated [2, 2, 5].
+        # mean_observed = (1 + 2 + 6) / 3 = 3
+        # mean_simulated = (2 + 2 + 5) / 3 = 3
+        # deviations: observed [-2, -1, 3], simulated [-1, -1, 2]
+        # std_observed = sqrt((4 + 1 + 9) / 2) = sqrt(7)
+        # std_simulated = sqrt((1 + 1 + 4) / 2) = sqrt(3)
+        # r = (2 + 1 + 6) / sqrt(14 * 6) = 9 / sqrt(84)
+        # rmse = sqrt(((2-1)^2 + 0 + (5-6)^2) / 3) = sqrt(2/3)
+        # nse = 1 - (1 + 0 + 1) / 14 = 1 - 2/14 = 6/7
+        measured = station_metrics(np.array([2.0, 2.0, 5.0]), np.array([1.0, 2.0, 6.0]))
+
+        assert measured.pairs == 3
+        assert measured.mean_observed == pytest.approx(3.0)
+        assert measured.mean_simulated == pytest.approx(3.0)
+        assert measured.std_observed == pytest.approx(np.sqrt(7.0))
+        assert measured.std_simulated == pytest.approx(np.sqrt(3.0))
+        assert measured.r == pytest.approx(9.0 / np.sqrt(84.0))
+        assert measured.rmse == pytest.approx(np.sqrt(2.0 / 3.0))
+        assert measured.nse == pytest.approx(6.0 / 7.0)
+
+    @pytest.mark.unit
+    def test_it_is_a_frozen_record_of_eight_fields(self):
+        measured = station_metrics(np.array([1.0, 2.0]), np.array([1.0, 2.0]))
+
+        assert isinstance(measured, StationMetrics)
+        assert list(dataclasses.asdict(measured)) == [
+            "pairs",
+            "mean_observed",
+            "std_observed",
+            "mean_simulated",
+            "std_simulated",
+            "r",
+            "rmse",
+            "nse",
+        ]
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            measured.nse = 0.0
+
+    @pytest.mark.unit
+    def test_only_the_pairs_valid_in_both_series_are_measured(self):
+        # The third step is a gap in the simulation and the fourth a negative
+        # observation: the sample is observed [1, 3] and simulated [1, 3].
+        # mean 2 on both sides, std sqrt(((1)^2 + (1)^2) / 1) = sqrt(2)
+        measured = station_metrics(
+            np.array([1.0, 3.0, np.nan, 9.0]), np.array([1.0, 3.0, 8.0, -1.0])
+        )
+
+        assert measured.pairs == 2
+        assert measured.mean_observed == pytest.approx(2.0)
+        assert measured.std_observed == pytest.approx(np.sqrt(2.0))
+        assert measured.rmse == 0.0
+        assert measured.nse == 1.0
+
+    @pytest.mark.unit
+    def test_a_single_pair_has_a_mean_and_an_error_but_no_spread(self):
+        # One pair: the mean and the root mean squared error are defined, a
+        # standard deviation with one degree of freedom and an efficiency are not.
+        measured = station_metrics(np.array([3.0, np.nan]), np.array([1.0, 2.0]))
+
+        assert measured.pairs == 1
+        assert measured.mean_observed == 1.0
+        assert measured.mean_simulated == 3.0
+        assert measured.rmse == 2.0
+        assert measured.std_observed is None
+        assert measured.std_simulated is None
+        assert measured.r is None
+        assert measured.nse is None
+
+    @pytest.mark.unit
+    def test_a_station_without_one_valid_pair_has_nothing(self):
+        measured = station_metrics(np.array([1.0, -9999.0]), np.array([np.nan, 2.0]))
+
+        assert measured.pairs == 0
+        assert dataclasses.astuple(measured) == (0, None, None, None, None, None, None, None)
+
+    @pytest.mark.unit
+    def test_a_constant_series_has_no_correlation(self):
+        # The simulation never moves, so its own spread is zero and the
+        # correlation has no denominator; the efficiency is still defined,
+        # since the observations vary.
+        measured = station_metrics(np.array([2.0, 2.0, 2.0]), np.array([1.0, 2.0, 3.0]))
+
+        assert measured.std_simulated == 0.0
+        assert measured.r is None
+        assert measured.nse == 0.0
+
+    @pytest.mark.unit
+    def test_constant_observations_leave_neither_a_correlation_nor_an_efficiency(self):
+        measured = station_metrics(np.array([0.1, 0.2, 0.3]), np.array([0.1, 0.1, 0.1]))
+
+        # The spread of a constant series is only approximately zero in
+        # floating point, which is why the guards test the values themselves.
+        assert measured.std_observed == pytest.approx(0.0, abs=1e-15)
+        assert measured.r is None
+        assert measured.nse is None
+
+    @pytest.mark.unit
+    def test_series_of_different_lengths_are_refused(self):
+        with pytest.raises(ValueError, match="same shape"):
+            station_metrics(np.array([1.0, 2.0]), np.array([1.0, 2.0, 3.0]))
+
+
+class TestStationSelection:
+    @pytest.mark.unit
+    def test_the_mean_is_taken_over_the_selection_and_every_station_is_measured(self):
+        # Station A is exact -> 1.0, station B reversed -> -3.0, station C
+        # exact -> 1.0. The objective averages A and C: (1.0 + 1.0) / 2 = 1.0,
+        # and B is measured all the same.
+        simulated = series([1, 2, 3], A=[1.0, 2.0, 3.0], B=[3.0, 2.0, 1.0], C=[4.0, 5.0, 6.0])
+        observed = series([1, 2, 3], A=[1.0, 2.0, 3.0], B=[1.0, 2.0, 3.0], C=[4.0, 5.0, 6.0])
+
+        mean, per_station = evaluate_series(simulated, observed, stations=("A", "C"))
+
+        assert mean == 1.0
+        assert nse_of(per_station) == {"A": 1.0, "B": -3.0, "C": 1.0}
+
+    @pytest.mark.unit
+    def test_a_selected_station_without_an_efficiency_is_left_out_of_the_mean(self):
+        # B has constant observations and no efficiency, so the mean of the
+        # selection is that of A alone.
+        simulated = series([1, 2, 3], A=[1.0, 2.0, 3.0], B=[0.1, 0.2, 0.3])
+        observed = series([1, 2, 3], A=[1.0, 2.0, 3.0], B=[0.1, 0.1, 0.1])
+
+        mean, _ = evaluate_series(simulated, observed, stations=("A", "B"))
+
+        assert mean == 1.0
+
+    @pytest.mark.unit
+    def test_a_station_of_the_selection_the_series_do_not_share_is_ignored(self):
+        simulated = series([1, 2, 3], A=[1.0, 2.0, 3.0], B=[3.0, 2.0, 1.0])
+        observed = series([1, 2, 3], A=[1.0, 2.0, 3.0], B=[1.0, 2.0, 3.0])
+
+        mean, per_station = evaluate_series(simulated, observed, stations=("A", "Z"))
+
+        assert mean == 1.0
+        assert sorted(per_station) == ["A", "B"]
+
+    @pytest.mark.unit
+    def test_a_selection_that_names_no_shared_station_names_the_ids(self):
+        simulated = series([1, 2, 3], A=[1.0, 2.0, 3.0])
+        observed = series([1, 2, 3], A=[1.0, 2.0, 3.0])
+
+        with pytest.raises(ValueError, match="none of the stations") as failure:
+            evaluate_series(simulated, observed, stations=("Y", "Z"))
+
+        message = str(failure.value)
+        assert "Y, Z" in message
+        assert "A" in message
+
+    @pytest.mark.unit
+    def test_no_selected_station_with_an_efficiency_names_the_selection(self):
+        simulated = series([1, 2, 3], A=[1.0, 2.0, 3.0], B=[1.0, 2.0, 3.0])
+        observed = series([1, 2, 3], A=[5.0, 5.0, 5.0], B=[1.0, 2.0, 3.0])
+
+        with pytest.raises(ValueError, match="No station has a Nash-Sutcliffe") as failure:
+            evaluate_series(simulated, observed, stations=("A",))
+
+        assert "(A)" in str(failure.value), "only the selection is named"
