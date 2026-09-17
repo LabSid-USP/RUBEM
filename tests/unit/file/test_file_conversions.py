@@ -7,6 +7,16 @@ from rubem.file import _file_conversions
 from rubem.file._file_conversions import _reserve_stage, tss2csv
 
 
+def _read_exact(path):
+    """Return the text of ``path`` without newline translation.
+
+    ``Path.read_text`` accepts ``newline`` only from Python 3.13 on; the CSV
+    writer emits CRLF and the comparison must see it.
+    """
+    with path.open(encoding="utf8", newline="") as file:
+        return file.read()
+
+
 class FakeUUID:
     """A stand-in for ``uuid.uuid4()`` results with a fixed ``hex`` value."""
 
@@ -243,7 +253,7 @@ class TestTss2Csv:
 
         tss2csv([tss], ["1", "2"])
 
-        produced = (tmp_path / "tss_itp.csv").read_text(encoding="utf8", newline="")
+        produced = tmp_path / _read_exact("tss_itp.csv")
         assert produced == "0;1;2\r\n1;10.5;20.5\r\n2;11.0;21.0\r\n"
 
     @pytest.mark.unit
