@@ -8,6 +8,7 @@ from rubem.calibration.parameters import (
     DERIVED_PARAMETER,
     FREE_PARAMETERS,
     bounds,
+    decision_space,
     is_admissible,
     parameters_to_vector,
     vector_to_parameters,
@@ -225,3 +226,230 @@ class TestWeightsConstraint:
         vector = admissible_vector()
 
         assert np.asarray(constraint.A) @ vector == pytest.approx([0.666])
+
+
+class TestDefaultDecisionSpace:
+    @pytest.mark.unit
+    def test_a_space_without_arguments_is_the_whole_search(self):
+        space = decision_space()
+
+        assert space.free_names == FREE_PARAMETERS
+        assert space.fixed == {}
+        assert space.dimension == 8
+        assert list(space.bounds) == bounds()
+
+    @pytest.mark.unit
+    def test_the_module_level_functions_are_the_default_space(self):
+        space = decision_space()
+        vector = admissible_vector()
+        parameters = vector_to_parameters(vector)
+
+        assert space.to_parameters(vector) == parameters
+        assert space.from_parameters(parameters) == pytest.approx(parameters_to_vector(parameters))
+        assert space.is_admissible(vector) is is_admissible(vector) is True
+        assert np.array_equal(
+            np.asarray(space.weights_constraint().A), np.asarray(weights_constraint().A)
+        )
+
+
+class TestFixedParameters:
+    @pytest.mark.unit
+    def test_a_fixed_parameter_leaves_the_vector_and_stays_in_the_parameters(self):
+        space = decision_space(fixed={"x": 0.0})
+
+        assert space.free_names == tuple(name for name in FREE_PARAMETERS if name != "x")
+        assert space.dimension == 7
+        assert space.fixed == {"x": 0.0}
+        assert list(space.bounds) == [
+            SETTINGS_BOUNDS[name] for name in FREE_PARAMETERS if name != "x"
+        ]
+
+        parameters = space.to_parameters(np.delete(admissible_vector(), FREE_PARAMETERS.index("x")))
+
+        assert list(parameters) == list(CALIBRATION_PARAMETERS)
+        assert parameters["x"] == 0.0
+        assert parameters["alpha"] == 4.5
+        assert parameters["w_3"] == pytest.approx(1.0 - 0.666)
+
+    @pytest.mark.unit
+    def test_the_free_vector_of_a_space_with_fixed_parameters_round_trips(self):
+        space = decision_space(fixed={"x": 0.25, "alpha": 2.0})
+        parameters = vector_to_parameters(admissible_vector())
+
+        vector = space.from_parameters(parameters)
+
+        assert len(vector) == space.dimension == 6
+        # The fixed coordinates are dropped on the way in and restored, at the
+        # value they were pinned to, on the way out.
+        assert space.to_parameters(vector) == pytest.approx(
+            {**parameters, "x": 0.25, "alpha": 2.0}, abs=1e-12
+        )
+
+    @pytest.mark.unit
+    def test_the_legacy_spellings_name_the_parameter_that_is_fixed(self):
+        space = decision_space(fixed={"b": 0.25, "w1": 0.5})
+
+        assert space.fixed == {"beta": 0.25, "w_1": 0.5}
+        assert "beta" not in space.free_names
+
+    @pytest.mark.unit
+    def test_a_vector_of_the_wrong_size_names_the_free_parameters(self):
+        space = decision_space(fixed={"x": 0.0})
+
+        with pytest.raises(ValueError, match="must have 7 entries"):
+            space.to_parameters(admissible_vector())
+
+    @pytest.mark.unit
+    def test_the_derived_weight_cannot_be_fixed(self):
+        with pytest.raises(ValueError, match="w_3"):
+            decision_space(fixed={"w_3": 0.3})
+        with pytest.raises(ValueError, match="derived"):
+            decision_space(fixed={"w3": 0.3})
+
+    @pytest.mark.unit
+    def test_an_unknown_parameter_cannot_be_fixed(self):
+        with pytest.raises(ValueError, match="not a searched calibration parameter"):
+            decision_space(fixed={"gamma": 1.0})
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [-0.5, 1.5, float("nan")])
+    def test_a_fixed_value_outside_the_settings_range_is_refused(self, value):
+        with pytest.raises(ValueError, match=r"'x' cannot be fixed"):
+            decision_space(fixed={"x": value})
+
+    @pytest.mark.unit
+    def test_fixing_every_parameter_leaves_nothing_to_search(self):
+        every = {name: minimum for name, (minimum, _) in SETTINGS_BOUNDS.items()}
+        every.pop(DERIVED_PARAMETER)
+
+        with pytest.raises(ValueError, match="nothing to look for"):
+            decision_space(fixed=every)
+
+
+class TestFixedWeights:
+    @pytest.mark.unit
+    def test_a_weight_left_with_one_value_is_fixed_as_well(self):
+        """w_1 = 1 leaves w_2 no room: w_2 = 0 is fixed and leaves the vector.
+
+        The dimension, the budget and the initial population then describe the
+        search that runs, and no zero-width coordinate reaches the optimizer.
+        """
+        space = decision_space(fixed={"w_1": 1.0})
+
+        assert "w_2" not in space.free_names
+        assert space.fixed == {"w_1": 1.0, "w_2": 0.0}
+        assert space.dimension == 6
+        assert space.weights_constraint() is None
+        parameters = space.to_parameters([4.5, 0.5, 5.0, 0.5, 0.5, 0.5])
+        assert (parameters["w_1"], parameters["w_2"], parameters["w_3"]) == (1.0, 0.0, 0.0)
+
+    @pytest.mark.unit
+    def test_fixing_one_weight_narrows_the_other_instead_of_constraining_the_pair(self):
+        space = decision_space(fixed={"w_1": 0.7})
+        position = space.free_names.index("w_2")
+
+        # w_3 = 1 - w_1 - w_2 may not fall below its own minimum, so w_2 is
+        # searched in [0, 0.3] and the pair needs no constraint of its own.
+        assert space.bounds[position] == (0.0, pytest.approx(0.3))
+        assert space.weights_constraint() is None
+
+    @pytest.mark.unit
+    def test_the_narrowed_bound_keeps_the_override_when_the_override_is_tighter(self):
+        space = decision_space(fixed={"w_2": 0.5}, bounds={"w_1": (0.1, 0.2)})
+        position = space.free_names.index("w_1")
+
+        assert space.bounds[position] == (0.1, 0.2)
+
+    @pytest.mark.unit
+    def test_a_fixed_weight_that_leaves_the_other_no_value_is_refused(self):
+        with pytest.raises(ValueError, match="no value in its range"):
+            decision_space(fixed={"w_1": 0.9}, bounds={"w_2": (0.2, 0.5)})
+
+    @pytest.mark.unit
+    def test_fixing_both_weights_checks_the_derived_one(self):
+        space = decision_space(fixed={"w_1": 0.3, "w_2": 0.4})
+        vector = np.array([4.5, 0.5, 5.0, 0.5, 0.5, 0.5], dtype=np.float64)
+
+        assert space.free_names == ("alpha", "beta", "rcd", "f", "alpha_gw", "x")
+        assert space.weights_constraint() is None
+        assert space.to_parameters(vector)["w_3"] == pytest.approx(0.3)
+        assert space.is_admissible(vector)
+
+    @pytest.mark.unit
+    def test_two_fixed_weights_that_add_up_above_one_are_refused(self):
+        with pytest.raises(ValueError, match="derives w_3"):
+            decision_space(fixed={"w_1": 0.6, "w_2": 0.6})
+
+    @pytest.mark.unit
+    def test_the_constraint_follows_the_positions_of_the_weights_in_the_vector(self):
+        pytest.importorskip("scipy.optimize")
+        space = decision_space(fixed={"alpha": 5.0})
+        constraint = space.weights_constraint()
+
+        expected = np.zeros((1, space.dimension))
+        expected[0, space.free_names.index("w_1")] = 1.0
+        expected[0, space.free_names.index("w_2")] = 1.0
+        assert np.array_equal(np.asarray(constraint.A), expected)
+        assert np.all(np.asarray(constraint.ub) == 1.0)
+
+
+class TestOverriddenBounds:
+    @pytest.mark.unit
+    def test_an_override_narrows_the_range_of_the_settings(self):
+        space = decision_space(bounds={"rcd": (2.0, 5.0)})
+        position = space.free_names.index("rcd")
+
+        assert space.bounds[position] == (2.0, 5.0)
+        assert [
+            bound
+            for name, bound in zip(space.free_names, space.bounds, strict=True)
+            if name != "rcd"
+        ] == [SETTINGS_BOUNDS[name] for name in FREE_PARAMETERS if name != "rcd"]
+
+    @pytest.mark.unit
+    def test_a_candidate_outside_the_narrowed_bound_is_not_admissible(self):
+        space = decision_space(bounds={"rcd": (2.0, 5.0)})
+        vector = admissible_vector()
+
+        assert space.is_admissible(vector)
+        vector[FREE_PARAMETERS.index("rcd")] = 8.0
+        assert not space.is_admissible(vector)
+        # The same candidate is admissible in the default space: the refusal is
+        # the narrowed bound of this run and not a bound of the model.
+        assert is_admissible(vector)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "override",
+        [(0.5, 5.0), (2.0, 12.0), (5.0, 2.0), (3.0, 3.0), (float("nan"), 5.0)],
+        ids=["below", "above", "reversed", "empty", "not a number"],
+    )
+    def test_a_bound_that_does_not_narrow_the_settings_range_is_refused(self, override):
+        with pytest.raises(ValueError, match=r"of 'rcd' is not a narrower range") as failure:
+            decision_space(bounds={"rcd": override})
+
+        # Both ranges are named, so the message says what was asked and what is
+        # available.
+        assert "(1.0, 10.0)" in str(failure.value)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "override", [3.0, (3.0,), (1.0, 2.0, 3.0)], ids=["a number", "one value", "three values"]
+    )
+    def test_a_bound_that_is_not_a_pair_is_refused(self, override):
+        # A bound is a range: anything else is answered with the pair it needs
+        # and not with the error of the conversion it failed.
+        with pytest.raises(ValueError, match=r"bound of 'rcd' must be a \(minimum, maximum\) pair"):
+            decision_space(bounds={"rcd": override})
+
+    @pytest.mark.unit
+    def test_a_bound_of_the_derived_or_of_an_unknown_parameter_is_refused(self):
+        with pytest.raises(ValueError, match="derived"):
+            decision_space(bounds={"w_3": (0.1, 0.5)})
+        with pytest.raises(ValueError, match="not a searched calibration parameter"):
+            decision_space(bounds={"gamma": (0.1, 0.5)})
+
+    @pytest.mark.unit
+    def test_a_bound_of_a_fixed_parameter_has_nowhere_to_apply(self):
+        with pytest.raises(ValueError, match="nowhere to apply"):
+            decision_space(fixed={"rcd": 3.0}, bounds={"rcd": (2.0, 5.0)})
