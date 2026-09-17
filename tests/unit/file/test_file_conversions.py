@@ -253,7 +253,7 @@ class TestTss2Csv:
 
         tss2csv([tss], ["1", "2"])
 
-        produced = tmp_path / _read_exact("tss_itp.csv")
+        produced = _read_exact(tmp_path / "tss_itp.csv")
         assert produced == "0;1;2\r\n1;10.5;20.5\r\n2;11.0;21.0\r\n"
 
     @pytest.mark.unit
