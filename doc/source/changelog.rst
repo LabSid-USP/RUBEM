@@ -95,6 +95,12 @@ Added
 Changed
 ```````
 
+- The station time series the model keeps as PCRaster ``.tss`` files carry the
+  PCRaster header (title, number of columns, ``timestep`` line and one line per
+  station id), so PCRaster's own tools read them; the CSV conversion reads the
+  header, refuses a file without it or whose ids differ from the configured
+  stations, and converts the data rows only, leaving the CSV tables unchanged
+  (`#347 <https://github.com/LabSid-USP/RUBEM/issues/347>`__).
 - The impervious area interception ``i_imp`` must lie between 1 and 3 mm, the range of the
   published formulation (`#327 <https://github.com/LabSid-USP/RUBEM/issues/327>`__);
   the model overview and the user guide state the same range.
