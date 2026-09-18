@@ -66,8 +66,13 @@ preprocessing = [
   "pykrige>=1.7",
   "scikit-gstat>=1.0",
 ]
+# 1.16.2 is the first release with CPython 3.14 wheels for Linux and Windows,
+# the range of interpreters this project supports.
+calibration = [
+  "scipy>=1.16.2",
+]
 dev = [
-  "rubem[test,docs,preprocessing]",
+  "rubem[test,docs,preprocessing,calibration]",
   "build",
   "codespell",
   "pre-commit",
@@ -90,6 +95,7 @@ markers = [
   "unit: mark a test as a unit test.",
   "integration: mark a test as a integration test.",
   "exact: mark a test that reproduces the goldens byte-for-byte on the golden environment.",
+  "dataset: mark a test that needs the published datasets (RUBEM_DATASET_DIR).",
 ]
 
 [tool.coverage.run]

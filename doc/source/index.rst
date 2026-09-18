@@ -32,6 +32,7 @@ All development activity is coordinated via the `RUBEM Github page <https://gith
    fileformats.rst
    datasets.rst
    preprocessing.rst
+   calibration.rst
    api.rst
    changelog.rst
    code-of-conduct.rst
