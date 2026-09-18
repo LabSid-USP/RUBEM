@@ -34,6 +34,7 @@ from ..configuration.raster_series_resolver import (
     validate_resolved_series,
 )
 from ..configuration.simulation_period import SimulationPeriod
+from ..validation.grid_cell_size import check_grid_cell_size
 from ..validation.lookup_tables import check_lookup_tables, check_runoff_coefficient_domain
 
 
@@ -250,6 +251,7 @@ class ModelConfiguration:
             must_match=[("clone", self.raster_files.clone)],
             allow_rotation=OutputFileFormat.PCRASTER not in output_formats,
         )
+        self.__check_grid_cell_size(validate_input)
 
     def __build_from_v1(self, validate_input: bool) -> None:
         self.logger.debug("Loading configuration (format 1.0)...")
@@ -387,6 +389,28 @@ class ModelConfiguration:
             must_match=[("clone", self.raster_files.clone)],
             allow_rotation=OutputFileFormat.PCRASTER not in output_formats,
         )
+        self.__check_grid_cell_size(validate_input)
+
+    def __check_grid_cell_size(self, validate_input: bool) -> None:
+        """Compare the declared cell size with the geometry of the clone.
+
+        Part of the raster validation tier: skipped when ``validate_input`` is
+        ``False``. :class:`~rubem.configuration.output_raster_base.OutputRasterBase`
+        refuses a clone that does not share the geometry of the DEM, so the
+        affine transform it read is the clone's as well.
+        """
+        if not validate_input:
+            return
+        transformation = self.output_raster_base.transformation
+        problem = check_grid_cell_size(
+            self.grid.size,
+            transformation[1],
+            transformation[5],
+            self.reference_crs,
+            self.raster_files.clone,
+        )
+        if problem is not None:
+            self.problems.append(problem)
 
     def write_metadata(self) -> None:
         """Write ``metadata.json`` next to the outputs of a format 1.0 run.

@@ -13,6 +13,12 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added the comparison of ``GRID.grid`` (``raster_info.grid_size``) with the pixel size of the
+  clone when the reference coordinate reference system is projected: the linear unit is
+  converted to metres and a relative difference above ``1e-6`` on either axis blocks the run;
+  a geographic or absent system leaves the declared value as given and logs the raster
+  resolution (skipped with ``-s``; `#329 <https://github.com/LabSid-USP/RUBEM/issues/329>`__).
+  The user guide states that ``grid`` is the metric cell size the user asserts.
 - Added the ``paper`` conformity tests (``tests/paper``, marker ``paper``):
   equation tests of the process functions against the journal supplement
   (S3, S5 to S20 and S22 to S33), model-level tests of the rules the model
