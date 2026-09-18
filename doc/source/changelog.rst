@@ -13,6 +13,12 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added ``rubem preprocess kp``, which builds the Class A pan coefficient series from wind
+  speed and relative humidity raster series and a fetch distance with the formula of the
+  published model (supplement S29), through the shared raster I/O of the preprocessing tools;
+  a member with a non-positive coefficient refuses the whole run, cells above the configured
+  ``kp`` range are warned about. The model's ``get_pan_coef_et_open_water_area`` now delegates
+  to the same implementation (`#330 <https://github.com/LabSid-USP/RUBEM/issues/330>`__).
 - Added the comparison of ``GRID.grid`` (``raster_info.grid_size``) with the pixel size of the
   clone when the reference coordinate reference system is projected: the linear unit is
   converted to metres and a relative difference above ``1e-6`` on either axis blocks the run;

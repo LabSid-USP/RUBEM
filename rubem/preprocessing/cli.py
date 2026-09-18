@@ -293,6 +293,81 @@ def krige_command(
         print(path)
 
 
+@app.command("kp")
+def kp_command(
+    wind: Annotated[
+        list[Path],
+        typer.Option(
+            "--wind",
+            exists=True,
+            help="Wind speed at 2 m [m/s]: GeoTIFF files or directories of them (the series).",
+        ),
+    ],
+    humidity: Annotated[
+        list[Path],
+        typer.Option(
+            "--humidity",
+            exists=True,
+            help="Relative humidity [%]: GeoTIFF files or directories of them (the series).",
+        ),
+    ],
+    output_dir: Annotated[
+        Path, typer.Option("-o", "--output-dir", help="Where to write the kp series.")
+    ],
+    prefix: Annotated[
+        str,
+        typer.Option("--prefix", help="Series prefix (at most 7 characters, 9 with --format tif)."),
+    ],
+    fetch: Annotated[
+        float | None,
+        typer.Option(
+            "--fetch",
+            help="Fetch distance (Class A pan border width) in m, 20 to 30, for the whole grid.",
+        ),
+    ] = None,
+    fetch_raster: Annotated[
+        Path | None,
+        typer.Option(
+            "--fetch-raster",
+            exists=True,
+            dir_okay=False,
+            help="Raster of the fetch distance in m, instead of --fetch.",
+        ),
+    ] = None,
+    output_format: Annotated[
+        str,
+        typer.Option("--format", help="Format of the members: map (PCRaster) or tif (GeoTIFF)."),
+    ] = "map",
+    first_step: Annotated[
+        int, typer.Option("--first-step", min=1, help="Step number of the first member.")
+    ] = 1,
+    nodata: Annotated[
+        float, typer.Option("--nodata", help="Missing value written to the members.")
+    ] = -9999.0,
+) -> None:
+    """Build the Class A pan coefficient (kp) series from wind speed and relative humidity."""
+    from .._deps import require_runtime_deps
+
+    require_runtime_deps()
+    from .pan_coefficient_series import OutputFormat, kp_series
+
+    def operation():
+        return kp_series(
+            wind,
+            humidity,
+            output_dir,
+            prefix,
+            fetch_distance=fetch,
+            fetch_raster=fetch_raster,
+            output_format=OutputFormat(output_format),
+            first_step=first_step,
+            nodata=nodata,
+        )
+
+    for path in _run(operation):
+        print(path)
+
+
 def _run(operation):
     """Run a tool, turning its input errors into a clean exit."""
     import logging

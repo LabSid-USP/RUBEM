@@ -695,7 +695,7 @@ Mandatory path to a directory containing the Monthly Potential Evapotranspiratio
 :raw-html:`Class A Pan Coefficient (K<sub>P</sub>)`
 ````````````````````````````````````````````````````
 
-Mandatory path to a directory containing the Class A Pan Coefficient map-series format[mm/month]. The directory containing these files must contain the maps representing the mean monthly :raw-html:`K<sub>P</sub>`, where each map represents the variable's value at a particular time step. If some file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series. :ref:`See more. <class-a-pan-coefficient-raster-series>`
+Mandatory path to a directory containing the Class A Pan Coefficient map-series format[mm/month]. The directory containing these files must contain the maps representing the mean monthly :raw-html:`K<sub>P</sub>`, where each map represents the variable's value at a particular time step. If some file is missing, the map of the previous step will be used. Must be a valid path to an existing directory. Note that it is also necessary to indicate the prefix of the filenames of the series. :ref:`See more. <class-a-pan-coefficient-raster-series>` If only wind speed and relative humidity raster series are available, ``rubem preprocess kp`` computes this series from them, see :ref:`Class A Pan Coefficient (Kp) Series <preprocessing:Class A Pan Coefficient (Kp) Series>`.
 
 .. code-block:: json
 
