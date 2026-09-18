@@ -231,6 +231,44 @@ class TestIsolatedRuns:
             assert math.isfinite(result.elapsed_seconds) and result.elapsed_seconds >= 0
 
     @pytest.mark.unit
+    def test_reusing_the_dictionary_for_another_model_leaves_the_first_run_alone(self, tmp_path):
+        """A batch that edits one dictionary per experiment must not redirect an earlier model."""
+        config = write_synthetic_dataset(str(tmp_path))
+        first = Model.from_config(config)
+        other_output = tmp_path / "other"
+        config["DIRECTORIES"]["output"] = str(other_output)
+        Model.from_config(config)
+
+        result = first.run_isolated()
+
+        assert result.output_directory == tmp_path / "out"
+        assert not missing_files(result)
+        assert list(other_output.iterdir()) == [], "the first run wrote to the second directory"
+
+    @pytest.mark.unit
+    def test_each_model_submits_the_document_it_was_built_from(self, tmp_path, mocker):
+        """Both execution modes must run the same parameters, those of the load."""
+        config = write_synthetic_dataset(str(tmp_path))
+        first = Model.from_config(config, validate_input=False)
+        config["CALIBRATION"]["alpha"] = 9.0
+        second = Model.from_config(config, validate_input=False)
+        executor = mocker.MagicMock()
+        executor.submit.return_value.result.return_value = api._result_to_json(
+            api._describe_run(first.configuration, 0.0)
+        )
+        mocker.patch.object(api, "ProcessPoolExecutor", return_value=executor)
+
+        first.run_isolated()
+        second.run_isolated()
+
+        submitted = [
+            call.args[1]["CALIBRATION"]["alpha"] for call in executor.submit.call_args_list
+        ]
+        assert submitted == [4.5, 9.0]
+        assert first.configuration.calibration_parameters.alpha == 4.5
+        assert second.configuration.calibration_parameters.alpha == 9.0
+
+    @pytest.mark.unit
     def test_the_anchor_of_a_file_crosses_the_boundary(self, tmp_path, monkeypatch):
         """The child anchors on the directory of the file, not on its own cwd."""
         config_file = tmp_path / "config.json"

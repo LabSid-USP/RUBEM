@@ -153,7 +153,8 @@ class Model:
 
         :param config: The configuration document (legacy or format 1.0) as a
             dictionary, or an already loaded :class:`ModelConfiguration`, which
-            is used as it is.
+            is used as it is. A dictionary is copied, so it can be edited and
+            passed again for another model without changing this one.
         :param validate_input: Whether to validate the input files and their
             content. An already loaded configuration is not validated again;
             the flag then only says whether an isolated run revalidates when it
@@ -204,12 +205,12 @@ class Model:
     def run_isolated(self) -> RunResult:
         """Run the simulation in a fresh spawned subprocess.
 
-        The configuration crosses as its document plus its base directory and
-        the validation flag, and is rebuilt on the other side; the result
-        crosses as plain data. The subprocess is started for this call only and
-        the executor is shut down before returning, so the PCRaster state of the
-        run leaves nothing behind. Every call therefore pays a full interpreter
-        start-up.
+        The configuration crosses as its document (the copy taken when it was
+        loaded) plus its base directory and the validation flag, and is rebuilt
+        on the other side; the result crosses as plain data. The subprocess is
+        started for this call only and the executor is shut down before
+        returning, so the PCRaster state of the run leaves nothing behind. Every
+        call therefore pays a full interpreter start-up.
 
         The spawn start method imports the main module of the caller in the
         subprocess, so a script that calls this method must guard its entry

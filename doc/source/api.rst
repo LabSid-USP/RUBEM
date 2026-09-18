@@ -33,6 +33,10 @@ of its own, so ``base_dir`` anchors its relative paths:
            print(problem)
        raise
 
+The dictionary is copied when it is loaded, so it can be edited and passed
+again to configure another model: each model keeps the document it was built
+from, and runs it in either mode.
+
 Both loaders validate the input files and their content unless
 ``validate_input=False`` is passed, and both raise ``ConfigurationError`` when
 the validation finds blocking problems, a missing member of an input raster
