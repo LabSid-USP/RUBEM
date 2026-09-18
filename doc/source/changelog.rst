@@ -13,6 +13,13 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added the ``paper`` conformity tests (``tests/paper``, marker ``paper``):
+  equation tests of the process functions against the journal supplement
+  (S3, S5 to S20 and S22 to S33), model-level tests of the rules the model
+  applies inline (open water, impervious and saturated cells, total and
+  routed discharge, crop coefficient threshold) and an independent float64
+  reference of one monthly step compared cell by cell with the model on the
+  synthetic dataset (`#332 <https://github.com/LabSid-USP/RUBEM/issues/332>`__).
 - Added the validation of the weighted runoff coefficient domain
   ``C_wp <= 1``: for every pair of a land use class and a soil class the
   slope-free part of the coefficient is computed from the Manning roughness,
