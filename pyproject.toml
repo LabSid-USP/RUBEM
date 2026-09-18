@@ -95,6 +95,7 @@ markers = [
   "unit: mark a test as a unit test.",
   "integration: mark a test as a integration test.",
   "exact: mark a test that reproduces the goldens byte-for-byte on the golden environment.",
+  "dataset: mark a test that needs the published datasets (RUBEM_DATASET_DIR).",
 ]
 
 [tool.coverage.run]
