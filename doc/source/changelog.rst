@@ -102,6 +102,13 @@ Added
 Changed
 ```````
 
+- The model overview states, next to the equations they modify, the six rules the model applies
+  beyond the published formulation and confirmed by the model authors: the zero floor of the
+  root zone storage, the saturated root zone of open water cells, the saturation-excess runoff
+  ``SR = P - I``, the cap of the open water evapotranspiration at the precipitation and the zero
+  floor of the open water runoff, the constant impervious evapotranspiration ``i_imp`` (1 to
+  3 mm), and the domains ``kp > 0`` and ``0 <= C_wp <= 1``
+  (`#331 <https://github.com/LabSid-USP/RUBEM/issues/331>`__).
 - The station time series the model keeps as PCRaster ``.tss`` files carry the
   PCRaster header (title, number of columns, ``timestep`` line and one line per
   station id), so PCRaster's own tools read them; the CSV conversion reads the

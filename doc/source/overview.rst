@@ -133,10 +133,6 @@ where:
 - :math:`\alpha_A` – Water area fraction (%);
 - :math:`\alpha_I` – Impervious area fraction (%).
 
-.. note::
-
-   If :math:`\alpha_A = 1` and :math:`ET_{R,A} > P_m` then :math:`ET_{R,A} = P_m`.
-
 
 Vegetated Area Fraction
 ''''''''''''''''''''''''
@@ -214,6 +210,21 @@ where:
 - :math:`ET_p` – Potential evapotranspiration (mm);
 - :math:`kp` – Pan Coefficient (-).
 
+.. note::
+
+   In a cell fully covered by water (:math:`\alpha_A = 1`), the evapotranspiration of the water
+   area is capped at the precipitation of the time step, so that
+   :math:`ET_{R,A} = \min\left(\frac{ET_p}{kp}, P_m\right)`. The cap keeps a water cell from
+   evaporating more water than it receives, which would otherwise make the surface runoff of the
+   cell negative. Equation S28 of [MELLOJUNIOR2022]_ states no such cap.
+
+.. note::
+
+   Because :math:`kp` divides the potential evapotranspiration in equation :eq:`etra`, its
+   physical domain is :math:`kp > 0`. The model reads :math:`kp` as an input raster series and
+   relies on the input validation, which rejects non-positive cells before the simulation
+   starts unless the validation is disabled; equation :eq:`etra` applies no guard at run time.
+
 Impervious Area Fraction
 ''''''''''''''''''''''''
 
@@ -227,6 +238,17 @@ where:
 
 - :math:`I_I` – Interception for impervious areas (1 to 3 mm);
 - :math:`ET_{R,I}` – Real evapotranspiration at the impervious area (mm).
+
+.. note::
+
+   :math:`I_I` is the ``i_imp`` constant of the configuration file, a value chosen by the user
+   in the 1 to 3 mm range, and not the vegetation interception :math:`I` of equation
+   :eq:`interception`: an impervious surface has no canopy, so the term stands for the water
+   held by the surface itself and returned to the atmosphere. It is applied in the time steps
+   with precipitation, that is, :math:`ET_{R,I} = I_I` where :math:`P_m \neq 0` and
+   :math:`ET_{R,I} = 0` elsewhere. Equation S30 of [MELLOJUNIOR2022]_ writes
+   :math:`ET_{R,I} = I`, reusing the symbol of the vegetation interception for a quantity its
+   symbol list gives as 1 to 3 mm.
 
 Surface Runoff
 ```````````````
@@ -246,7 +268,7 @@ where:
 - :math:`P_m` – Total monthly precipitation (mm);
 - :math:`I`– Total interception (mm).
 
-:math:`C_{SR}` is a real flow coefficient, obtained through a flow coefficient which considers pervious and impervious areas and adjusted by the mean monthly precipitation. :math:`C_h` is related to soil moisture conditions. When the soil is saturated at the current time step, surface runoff is calculated as the difference between precipitation and interception.
+:math:`C_{SR}` is a real flow coefficient, obtained through a flow coefficient which considers pervious and impervious areas and adjusted by the mean monthly precipitation. :math:`C_h` is related to soil moisture conditions. When the root zone enters the time step saturated, that is, when the moisture content carried over from the previous time step satisfies :math:`TU_{R,T-1} = TU_{SAT}`, surface runoff is calculated as the difference between precipitation and interception, :math:`SR = P_m - I`, and neither :math:`C_{SR}` nor :math:`C_h` is applied: a saturated soil accepts no more water, so all the effective precipitation runs off. Equation :eq:`surfacerunoff` (S4 of [MELLOJUNIOR2022]_) states no such exception. Cells fully covered by water follow the rule for water cells given below instead.
 
 
 .. math::
@@ -318,11 +340,27 @@ where:
 
 .. note::
 
+   The potential runoff coefficient of equation :eq:`cwp` has :math:`0 \leq C_{wp} \leq 1` as
+   its physical domain, being a runoff coefficient, that is, a fraction of the precipitation
+   that runs off. Within that domain the denominator of equation :eq:`csr` is the weighted
+   average of the average daily rain and of :math:`RCD` with weights :math:`C_{wp}` and
+   :math:`1 - C_{wp}`, so it lies between the two and stays positive whenever both are, which
+   keeps :math:`C_{SR}` well defined. This is a domain statement on equation :eq:`csr` (S5 of
+   [MELLOJUNIOR2022]_), which states no such bound.
+
+.. note::
+
    If :math:`\theta_{TUR} > \theta_{POR}` then :math:`\theta_{TUR} = \theta_{POR}`.
 
 .. note::
 
-   If :math:`\alpha_A = 1` then :math:`SR = P_m - ET_{R,A}`.
+   In a cell fully covered by water (:math:`\alpha_A = 1`), the surface runoff is the
+   precipitation left over after the evapotranspiration of the water area, floored at zero:
+   :math:`SR = \max(P_m - ET_{R,A}, 0)`. The floor, together with the cap
+   :math:`ET_{R,A} \leq P_m` stated with equation :eq:`etra`, keeps a water cell from
+   contributing a negative flow to the total discharge of equation :eq:`qtot` and to its
+   accumulation along the drainage network. Equation S13 of [MELLOJUNIOR2022]_ states the
+   difference without the floor.
 
 
 Lateral Flow
@@ -447,7 +485,22 @@ where:
 
 .. note::
 
-   If :math:`\alpha_A = 1` then :math:`TU_R = TU_{SAT}`.
+   The root zone moisture content of equation :eq:`tur` is bounded on both sides. A balance
+   above saturation is truncated at :math:`TU_R = TU_{SAT}`, which is the storage counterpart
+   of the limit :math:`\theta_{TUR} \leq \theta_{POR}` noted with equation :eq:`thetatur`,
+   because :math:`TU_{SAT}` is itself :math:`\theta_{POR} \cdot d_g \cdot Z_r \cdot 10`; the
+   published formulation states that limit as its equation S12 [MELLOJUNIOR2022]_. In addition,
+   and without a counterpart in the published formulation, a negative balance is closed at
+   zero, :math:`TU_R = 0`, because the root zone cannot hold a negative water storage.
+
+.. note::
+
+   If :math:`\alpha_A = 1` then :math:`TU_R = TU_{SAT}`: a cell fully covered by water is kept
+   saturated at every time step, and its root zone moisture content is not obtained from the
+   balance of equation :eq:`tur`. The saturated cell is not coupled to the saturated zone
+   content :math:`TU_S`, which follows equation :eq:`tus` on its own; the reading
+   :math:`TU_R = TU_S` of the text accompanying S1 in [MELLOJUNIOR2022]_ is not the intended
+   coupling of the two layers.
 
 In the root zone, the surface runoff relies on the soil moisture conditions, based on the lateral flow, recharge, and evapotranspiration. The saturated zone of the soil affected the calculation of the base flow and recharge parameters. The water balance equation adopted in RUBEM aims to calculate the total superficial flow.
 
@@ -674,6 +727,8 @@ References
 .. [MACHADO2017] Machado, A.R. (2017). Alternativas de restauração de florestas ripárias para o fornecimento de serviços ecossistêmicos. 149 p. Tese (Doutorado em Engenharia de Recursos Hídricos) – Escola politécnica, Universidade de São Paulo, São Paulo, 2017.
 
 .. [MCCUEN2006] McCuen, R.H.; Knight, Z; Cutter, A.G. (2006). "Evaluation of the Nash–Sutcliffe efficiency index". Journal of Hydrologic Engineering. v. 11, n. 6, 2006.
+
+.. [MELLOJUNIOR2022] Méllo Júnior, A.V.; Olivos, L.M.O.; Billerbeck, C.; Marcellini, S.S.; Vichete, W.D.; Pasetti, D.M.; da Silva, L.M.; Soares, G.A.d.S.; Tercini, J.R.B. (2022). Rainfall Runoff Balance Enhanced Model Applied to Tropical Hydrology. Water, v. 14, n. 12, 1958. https://doi.org/10.3390/w14121958. Equations S1 to S35 are those of the supplementary document, https://doi.org/10.5281/zenodo.6614981.
 
 .. [OLIVOS2017] Olivos, L.M. (2017). Sustentabilidade do uso de recursos hídricos superficiais e subterrâneos no município de São Carlos, SP. 2017. Dissertação (Mestrado em Recursos Hídricos) – Escola Politécnica, Universidade de São Paulo, São Paulo, Brazil.
 
