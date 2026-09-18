@@ -23,6 +23,34 @@ Added
   ``ConfigurationError`` now survives pickling with its problems
   (`#341 <https://github.com/LabSid-USP/RUBEM/issues/341>`__). The Python API
   page documents the stability policy and the process model.
+- Added ``rubem preprocess kp``, which builds the Class A pan coefficient series from wind
+  speed and relative humidity raster series and a fetch distance with the formula of the
+  published model (supplement S29), through the shared raster I/O of the preprocessing tools;
+  a member with a non-positive coefficient refuses the whole run, cells above the configured
+  ``kp`` range are warned about. The model's ``get_pan_coef_et_open_water_area`` now delegates
+  to the same implementation (`#330 <https://github.com/LabSid-USP/RUBEM/issues/330>`__).
+- Added the comparison of ``GRID.grid`` (``raster_info.grid_size``) with the pixel size of the
+  clone when the reference coordinate reference system is projected: the linear unit is
+  converted to metres and a relative difference above ``1e-6`` on either axis blocks the run;
+  a geographic or absent system leaves the declared value as given and logs the raster
+  resolution (skipped with ``-s``; `#329 <https://github.com/LabSid-USP/RUBEM/issues/329>`__).
+  The user guide states that ``grid`` is the metric cell size the user asserts.
+- Added the ``paper`` conformity tests (``tests/paper``, marker ``paper``):
+  equation tests of the process functions against the journal supplement
+  (S3, S5 to S20 and S22 to S33), model-level tests of the rules the model
+  applies inline (open water, impervious and saturated cells, total and
+  routed discharge, crop coefficient threshold) and an independent float64
+  reference of one monthly step compared cell by cell with the model on the
+  synthetic dataset (`#332 <https://github.com/LabSid-USP/RUBEM/issues/332>`__).
+- Added the validation of the weighted runoff coefficient domain
+  ``C_wp <= 1``: for every pair of a land use class and a soil class the
+  slope-free part of the coefficient is computed from the Manning roughness,
+  the wilting point, the impervious and open water fractions and the weights
+  ``w1``, ``w2`` and ``w3``; a pair at or above 1 blocks the run, a pair that
+  only the slope term can push above 1 is reported with the slope threshold,
+  and a wilting point at or above 1 blocks (skipped with ``-s``;
+  `#328 <https://github.com/LabSid-USP/RUBEM/issues/328>`__). The user guide
+  states the domain next to the weights.
 - Added the optional ``RASTERS.georeference`` raster whose coordinate
   reference system is written to the GeoTIFF outputs; the clone and the
   georeference must share the DEM geometry, rotated grids are refused when
@@ -96,6 +124,22 @@ Added
 Changed
 ```````
 
+- The model overview states, next to the equations they modify, the six rules the model applies
+  beyond the published formulation and confirmed by the model authors: the zero floor of the
+  root zone storage, the saturated root zone of open water cells, the saturation-excess runoff
+  ``SR = P - I``, the cap of the open water evapotranspiration at the precipitation and the zero
+  floor of the open water runoff, the constant impervious evapotranspiration ``i_imp`` (1 to
+  3 mm), and the domains ``kp > 0`` and ``0 <= C_wp <= 1``
+  (`#331 <https://github.com/LabSid-USP/RUBEM/issues/331>`__).
+- The station time series the model keeps as PCRaster ``.tss`` files carry the
+  PCRaster header (title, number of columns, ``timestep`` line and one line per
+  station id), so PCRaster's own tools read them; the CSV conversion reads the
+  header, refuses a file without it or whose ids differ from the configured
+  stations, and converts the data rows only, leaving the CSV tables unchanged
+  (`#347 <https://github.com/LabSid-USP/RUBEM/issues/347>`__).
+- The impervious area interception ``i_imp`` must lie between 1 and 3 mm, the range of the
+  published formulation (`#327 <https://github.com/LabSid-USP/RUBEM/issues/327>`__);
+  the model overview and the user guide state the same range.
 - Packaged RUBEM with ``pyproject.toml``: ``pip install`` support, the
   ``rubem`` console script and a single PEP 440 version source.
 - Stated the license expression consistently as ``GPL-3.0-or-later`` (the

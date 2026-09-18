@@ -1,6 +1,8 @@
 import pcraster as pcr
 from pcraster._pcraster import Field
 
+from ._pan_coefficient import pan_coefficient
+
 
 class Evapotranspiration:
     """Class to calculate evapotranspiration.
@@ -67,24 +69,24 @@ class Evapotranspiration:
     ) -> Field:
         """Return pan coefficient (Kp) for evapotranspiration of open water area.
 
-        :param fetch_distance: Fetch distance
+        The model reads ``kp`` as an input raster series; this method keeps the
+        formula of the supplement (S29) available to build that series, and
+        delegates to :func:`rubem.hydrological_processes._pan_coefficient.pan_coefficient`,
+        the single implementation the ``rubem preprocess kp`` tool also uses.
+
+        :param fetch_distance: Fetch distance, the Class A pan border width (B) [m]
         :type fetch_distance: int
 
-        :param wind_speed: Wind speed at 2 meters [m/s-1]
+        :param wind_speed: Wind speed at 2 meters (U2) [m/s]
         :type wind_speed: float
 
-        :param relative_humidity: Relative humidity [%]
+        :param relative_humidity: Relative humidity (UR) [%]
         :type relative_humidity: float
 
         :returns: pan coefficient (Kp) []
         :rtype: float
         """
-        return (
-            0.482
-            + 0.024 * pcr.ln(fetch_distance)
-            - 0.000376 * wind_speed
-            + 0.0045 * relative_humidity
-        )
+        return pan_coefficient(fetch_distance, wind_speed, relative_humidity, log=pcr.ln)
 
     @staticmethod
     def get_actual_et_open_water_area(
