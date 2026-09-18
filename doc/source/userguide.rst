@@ -135,7 +135,7 @@ Mandatory if ``Export Results to Station Locations`` is enabled. Path to Station
 Grid
 `````
 
-Mandatory cell dimension value in meters. Value has to correspond to the pixel resolution of the dataset's DEM map file.
+Mandatory cell dimension value in meters. It is the metric cell size the user asserts for the dataset: the cell area it defines converts the accumulated runoff from millimeters to cubic meters per second, so it has to correspond to the pixel resolution of the dataset's rasters.
 
 .. code-block:: json
 
@@ -144,6 +144,26 @@ Mandatory cell dimension value in meters. Value has to correspond to the pixel r
          "grid": 500.0,
       },
    }
+
+When the coordinate reference system of the dataset is a projected one, the
+value is compared with the pixel size of the clone during the validation of the
+input rasters (skipped by ``--skip-inputs-validation``): the linear unit of the
+system is converted to meters, and a relative difference above ``1e-6`` on
+either axis blocks the simulation. The system taken as the reference is the
+clone's own one, or, when the clone carries none, the one of the georeference
+raster, or the one of the DEM. When that system is a geographic one (degrees,
+as the published basins are) the metric cell size cannot be derived from the
+rasters, so no comparison is made and the declared value is used as given; the
+same holds when none of those rasters carries a coordinate reference system, as
+happens with a dataset made only of PCRaster maps. In both cases an
+informational message states the declared cell size and the resolution of the
+raster.
+
+.. tip::
+
+   ``rubem preprocess info <raster>`` prints the pixel size of a raster, which
+   is the value to declare here when the raster is in a projected coordinate
+   reference system.
 
 Simulation Period
 `````````````````
@@ -586,7 +606,7 @@ Mandatory maximum float value [dimensionless quantity] that characterizes plant 
 
 Mandatory float value [mm] that represents the rainfall interception in impervious areas.
 
-.. math:: 1 < I_I < 3
+.. math:: 1 \leq I_I \leq 3
 
 .. code-block:: json
 
@@ -812,6 +832,8 @@ Weight Factors
 Land Use (:math:`w_1`), Soil Moisture (:math:`w_2`) and Slope (:math:`w_3`) are the weight factors for the three components contributing to the runoff coefficient for permeable areas, used in surface runoff formulation. Their sum must be equal to 1.
 
 .. math:: w_1 + w_2 + w_3 = 1
+
+Together with Manning's roughness coefficient, the wilting point and the impervious and open water area fractions, these weights must keep the weighted runoff coefficient of every land use and soil class pair within its domain, :math:`C_{wp} \le 1`, since above 1 the denominator of the actual runoff coefficient crosses zero and the surface runoff can exceed the precipitation. The input validation reports the pairs of land use and soil classes that violate this domain: blocking when the part of :math:`C_{wp}` that does not depend on the slope already reaches 1, and as a warning naming the slope above which the coefficient reaches 1 otherwise.
 
 :raw-html:`Land Use Factor Weight (w<sub>1</sub>)`
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
