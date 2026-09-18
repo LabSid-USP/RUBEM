@@ -177,6 +177,28 @@ class TestDynamicModelBehavior:
         assert not (tmp_path / "out" / "stale.csv").exists()
 
     @pytest.mark.unit
+    def test_a_kept_tss_file_carries_the_pcraster_header(self, tmp_path):
+        """The kept time series are in the form PCRaster's own tools read."""
+        from rubem.configuration.model_configuration_file import ModelConfigurationFile
+        from rubem.configuration.model_configuration_file_v1 import ModelConfigurationFileV1
+
+        legacy = ModelConfigurationFile.model_validate(write_synthetic_dataset(str(tmp_path)))
+        document = ModelConfigurationFileV1.from_legacy(legacy).to_dict()
+        document["model_simulation_output"]["time_series_samples"]["formats"] = ["PCRasterTSS"]
+
+        DynamicFrameworkWrapper.load(ModelConfiguration(document)).run()
+
+        tss = tmp_path / "out" / "tss_arn.tss"
+        lines = tss.read_text(encoding="utf8").splitlines()
+        # Title, number of columns (the time step column included), the
+        # ``timestep`` line and one line per station id of the dataset.
+        assert lines[:4] == ["timeseries scalar", "3", "timestep", "1"]
+        assert lines[3:5] == ["1", "2"]
+        data = [line.split() for line in lines[5:] if line.strip()]
+        assert [row[0] for row in data] == ["1", "2"]
+        assert all(len(row) == 3 for row in data)
+
+    @pytest.mark.unit
     def test_missing_first_ndvi_step_raises_a_clear_error(self, tmp_path):
         config = write_synthetic_dataset(str(tmp_path))
         os.remove(tmp_path / "maps" / "ndvi" / "ndvi0000.001")

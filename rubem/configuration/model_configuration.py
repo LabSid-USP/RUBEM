@@ -34,7 +34,7 @@ from ..configuration.raster_series_resolver import (
     validate_resolved_series,
 )
 from ..configuration.simulation_period import SimulationPeriod
-from ..validation.lookup_tables import check_lookup_tables
+from ..validation.lookup_tables import check_lookup_tables, check_runoff_coefficient_domain
 
 
 class ModelConfiguration:
@@ -109,6 +109,14 @@ class ModelConfiguration:
         self.problems.extend(self.raster_files.problems)
         if validate_input:
             self.problems.extend(check_lookup_tables(self.lookuptable_files))
+            self.problems.extend(
+                check_runoff_coefficient_domain(
+                    self.lookuptable_files,
+                    self.calibration_parameters.w_1,
+                    self.calibration_parameters.w_2,
+                    self.calibration_parameters.w_3,
+                )
+            )
         self.__check_inconsistencies()
 
     def __parse(self, data: dict, duplicates: list[str]) -> None:

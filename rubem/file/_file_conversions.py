@@ -159,6 +159,75 @@ def _undo_installs(installs: list[tuple[str, str | None]]) -> None:
             logger.error("Error while restoring file %s. %s", dst_file_path, e)
 
 
+def _is_numeric(token: str) -> bool:
+    """Whether ``token`` reads as a number, which a title line never does."""
+    try:
+        float(token)
+    except ValueError:
+        return False
+    return True
+
+
+def _split_header(lines: list[str], tss_file: str, cols_names: list[str]) -> list[str]:
+    """Return the data rows of ``lines``, after checking the PCRaster header.
+
+    The header the model writes is the one :class:`TimeoutputTimeseries`
+    produces: a title line (``timeseries scalar``), the number of columns (the
+    time step column included), a ``timestep`` line and one line per station
+    id. The ids are checked against ``cols_names`` so that a file written for
+    other stations is never converted under the wrong column names.
+
+    :raises ValueError: If the file carries no header, or if its header does
+        not describe the given column names.
+    """
+    stripped = [line.strip() for line in lines]
+    headerless = (
+        f"The time series file {tss_file} has no PCRaster header; the model writes "
+        "headed time series files."
+    )
+    if not stripped or not stripped[0] or _is_numeric(stripped[0].split()[0]):
+        logger.error("The time series file %s has no PCRaster header.", tss_file)
+        raise ValueError(headerless)
+    try:
+        number_of_columns = int(stripped[1])
+    except (IndexError, ValueError):
+        logger.error("The time series file %s has no PCRaster header.", tss_file)
+        raise ValueError(headerless) from None
+    # A header always announces at least the time step column, so a count
+    # below one is not a column count and the second line is not a header one.
+    if number_of_columns < 1:
+        logger.error("The time series file %s has no PCRaster header.", tss_file)
+        raise ValueError(headerless)
+
+    ids = stripped[3 : 3 + number_of_columns - 1]
+    # A data row where an id line is expected means the header stops short of
+    # the announced column count.
+    if len(stripped) < 3 or len(ids) != number_of_columns - 1 or any(" " in id_ for id_ in ids):
+        logger.error("The time series file %s has a truncated PCRaster header.", tss_file)
+        raise ValueError(
+            f"The PCRaster header of the time series file {tss_file} is truncated: it "
+            f"announces {number_of_columns} column(s) but does not list "
+            f"{number_of_columns - 1} station id(s)."
+        )
+    if number_of_columns - 1 != len(cols_names):
+        logger.error(
+            "The number of columns in the header of %s is different from the number of "
+            "column names.",
+            tss_file,
+        )
+        raise ValueError(
+            f"The PCRaster header of the time series file {tss_file} announces "
+            f"{number_of_columns} column(s), the column names give {len(cols_names) + 1}."
+        )
+    if ids != list(cols_names):
+        logger.error("The station ids in the header of %s are not the configured ones.", tss_file)
+        raise ValueError(
+            f"The station ids in the PCRaster header of the time series file {tss_file} "
+            f"are {ids}, the column names give {list(cols_names)}."
+        )
+    return lines[3 + number_of_columns - 1 :]
+
+
 def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True) -> None:
     """Convert the given PCRaster Time Series (``*.tss``) files to ``*.csv``.
 
@@ -176,15 +245,26 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
     backup names are allocated so that unrelated files next to a destination
     are never overwritten.
 
-    :raises ValueError: If the column names are empty, if a source has no data
-        rows, or if a source has a different number of columns.
+    Every source must carry the PCRaster header the model writes (a title
+    line, the number of columns, the ``timestep`` line and one line per
+    station id): the header is checked against the column names given here and
+    only the data rows below it are converted, so the CSV keeps its ``0;<id>``
+    header and one row per time step.
+
+    :raises ValueError: If the column names are empty, if a source carries no
+        PCRaster header, if its header does not describe the given column
+        names, if a source has no data rows, or if a source has a different
+        number of columns.
     :raises IsADirectoryError: If a destination path is an existing directory.
 
     :param tss_files: Paths of the ``.tss`` files to convert. Each item accepts
         anything :func:`rubem._paths.as_path` does, ``bytes`` included.
     :type tss_files: list
 
-    :param cols_names: List of strings of aliases for the column names.
+    :param cols_names: Station ids of the columns, in the order the time
+        series holds them. They name the columns of the CSV and are checked
+        against the station ids the PCRaster header of each source lists, so
+        they are those ids and not free aliases.
     :type cols_names: list[str]
 
     :param should_delete_src_tss: Remove the source files after conversion, defaults to ``True``.
@@ -210,7 +290,8 @@ def tss2csv(tss_files, cols_names: list[str], should_delete_src_tss: bool = True
             with Path(tss_file).open(encoding="utf8") as f:
                 lines = f.readlines()
 
-            data = [line.split() for line in lines if line.strip()]
+            rows = _split_header(lines, tss_file, cols_names)
+            data = [line.split() for line in rows if line.strip()]
             if not data:
                 logger.error("The time series file %s has no data rows.", tss_file)
                 raise ValueError(
