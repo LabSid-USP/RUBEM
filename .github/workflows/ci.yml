@@ -113,7 +113,7 @@ jobs:
           MATRIX_PYTHON: ${{ matrix.python }}
         shell: bash -el {0}
       - name: Install RUBEM with test dependencies
-        run: pip install -e ".[test,docs]"
+        run: pip install -e ".[test,docs,calibration]"
         shell: bash -el {0}
       - name: Run the test suite
         run: pytest -n auto -ra --cov=rubem --cov-report=xml --junitxml="TestResults-Rubem.xml"
