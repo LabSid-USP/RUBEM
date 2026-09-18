@@ -606,7 +606,7 @@ Mandatory maximum float value [dimensionless quantity] that characterizes plant 
 
 Mandatory float value [mm] that represents the rainfall interception in impervious areas.
 
-.. math:: 1 < I_I < 3
+.. math:: 1 \leq I_I \leq 3
 
 .. code-block:: json
 
@@ -832,6 +832,8 @@ Weight Factors
 Land Use (:math:`w_1`), Soil Moisture (:math:`w_2`) and Slope (:math:`w_3`) are the weight factors for the three components contributing to the runoff coefficient for permeable areas, used in surface runoff formulation. Their sum must be equal to 1.
 
 .. math:: w_1 + w_2 + w_3 = 1
+
+Together with Manning's roughness coefficient, the wilting point and the impervious and open water area fractions, these weights must keep the weighted runoff coefficient of every land use and soil class pair within its domain, :math:`C_{wp} \le 1`, since above 1 the denominator of the actual runoff coefficient crosses zero and the surface runoff can exceed the precipitation. The input validation reports the pairs of land use and soil classes that violate this domain: blocking when the part of :math:`C_{wp}` that does not depend on the slope already reaches 1, and as a warning naming the slope above which the coefficient reaches 1 otherwise.
 
 :raw-html:`Land Use Factor Weight (w<sub>1</sub>)`
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
