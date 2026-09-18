@@ -590,6 +590,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         """Initial setup of timeoutput timeseries.
 
         Initialize Tss report at sample locations or pits for each enabled output variable.
+        Every file is written with the PCRaster header (title, number of
+        columns, ``timestep`` line and one line per station id), which is the
+        form PCRaster's own tools read.
         """
         point_map = self.config.output_variables.aggregation == "point" and not is_geotiff(
             self.config.raster_files.sample_locations
@@ -600,7 +603,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                 str(Path(self.config.output_directory.path) / var.table_filename_prefix),
                 self,
                 id_map,
-                noHeader=True,
+                noHeader=False,
             )
             self.sample_time_series_dict[var.id] = tss_file.sample
         if point_map:

@@ -187,3 +187,20 @@ class TestModelConstants:
     def test_out_of_range_interception_is_rejected(self):
         with pytest.raises(ValueError, match="i_imp"):
             ModelConstants(**{**CONSTANTS, "impervious_area_interception": 3.5})
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [0.0, 0.5, 0.999])
+    def test_interception_below_one_millimetre_is_rejected(self, value):
+        """The published formulation gives the impervious area 1 to 3 mm."""
+        with pytest.raises(ValueError, match=r"i_imp.*\[1\.0, 3\.0\]"):
+            ModelConstants(**{**CONSTANTS, "impervious_area_interception": value})
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [1.0, 3.0])
+    def test_interception_bounds_are_accepted(self, value):
+        assert (
+            ModelConstants(
+                **{**CONSTANTS, "impervious_area_interception": value}
+            ).impervious_area_interception
+            == value
+        )

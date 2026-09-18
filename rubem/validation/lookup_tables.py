@@ -4,6 +4,12 @@ A PCRaster lookup table is a whitespace-separated text file whose last column
 is the value and whose preceding columns are keys; a key is a single number or
 an interval such as ``[1,3]``, ``<1,3]`` or ``[1,>``. The model's tables use
 one key column (a land use or soil class, or a month).
+
+:func:`check_lookup_tables` checks each table on its own and the relations
+between tables; :func:`check_runoff_coefficient_domain` additionally checks the
+domain of the weighted runoff coefficient ``C_wp <= 1`` (supplement S5 to S9)
+for every pair of a land use class and a soil class, which also needs the
+calibration weights ``w1``, ``w2`` and ``w3``.
 """
 
 import logging
@@ -310,3 +316,139 @@ def _check_fractions(paths: Iterable, problems: list[Problem]) -> None:
                     False,
                 )
             )
+
+
+def _class_name(key: tuple[str, ...]) -> str:
+    return " ".join(key)
+
+
+def _readable_soil_classes(path, problems: list[Problem]) -> dict[tuple[str, ...], float]:
+    """The soil classes usable in S9, reporting the ones whose wilting point is not below 1."""
+    values = _values_by_key(path)
+    usable: dict[tuple[str, ...], float] = {}
+    for key in sorted(values):
+        t_w = values[key]
+        if not math.isfinite(t_w):
+            continue  # Reported by check_lookup_tables.
+        if t_w >= 1:
+            problems.append(
+                Problem(
+                    description="Wilting point (Tw) is not below 1.",
+                    reason=(
+                        f"Soil class {_class_name(key)} has Tw = {t_w:g}, so the soil term "
+                        "Tw / (1 - Tw) of the permeable runoff coefficient C_per (S9) is "
+                        "infinite at Tw = 1 and negative above it."
+                    ),
+                    implication=(
+                        "The weighted runoff coefficient C_wp cannot be evaluated for this "
+                        "soil class."
+                    ),
+                    file=str(path),
+                    blocking=True,
+                )
+            )
+            continue
+        usable[key] = t_w
+    return usable
+
+
+def check_runoff_coefficient_domain(tables, w1, w2, w3) -> list[Problem]:
+    """Check that the weighted runoff coefficient stays inside its domain.
+
+    The actual runoff coefficient is ``C_SR = C_wp P_MD / (C_wp P_MD - RCD C_wp + RCD)``
+    (S5); its denominator ``C_wp P_MD + RCD (1 - C_wp)`` stays non-negative for every
+    ``P_MD >= 0`` and ``RCD >= 1`` only while ``C_wp <= 1``, and vanishes there only in
+    the corner ``C_wp = 1`` with ``P_MD = 0``. With ``A = a_i + a_o`` (S8),
+    ``C_wp = (1 - A) C_per + A 0.09 exp(2.4 A)`` (S6 and S7) and
+    ``C_per = w1 0.02 / n + w2 T_w / (1 - T_w) + w3 S / (10 + S)`` (S9), every term
+    but the slope one comes from the lookup tables and the calibration weights. The
+    slope-free part is
+
+        ``B = (1 - A) (w1 0.02 / n + w2 T_w / (1 - T_w)) + A 0.09 exp(2.4 A)``
+
+    and the slope term adds a value in ``[0, (1 - A) w3)``.
+
+    Blocking: ``B >= 1`` for a pair of a land use class and a soil class, and a
+    wilting point ``T_w >= 1``. Warning: ``B < 1 <= B + (1 - A) w3``, where the
+    coefficient reaches 1 above the slope ``S* = 10 r / (1 - r)`` with
+    ``r = (1 - B) / ((1 - A) w3)``.
+
+    Land use classes with ``A >= 1`` (fully impervious or open water) carry no
+    permeable term and are skipped, as are classes whose roughness or area
+    fractions are outside their own domain: those are reported by
+    :func:`check_lookup_tables`.
+
+    :param tables: An :class:`~rubem.configuration.input_table_files.InputTableFiles`.
+    :param w1: Land use factor weight.
+    :param w2: Soil factor weight.
+    :param w3: Slope factor weight.
+    :return: The problems found, blocking ones flagged.
+    """
+    problems: list[Problem] = []
+    try:
+        manning = _values_by_key(tables.manning)
+        impervious = _values_by_key(tables.a_i)
+        open_water = _values_by_key(tables.a_o)
+        soils = _readable_soil_classes(tables.t_wp, problems)
+    except (OSError, LookupTableError):
+        return problems  # Already reported by check_lookup_tables.
+
+    for land_use in sorted(set(manning) & set(impervious) & set(open_water)):
+        roughness = manning[land_use]
+        fractions = (impervious[land_use], open_water[land_use])
+        if not math.isfinite(roughness) or roughness <= 0:
+            continue  # Reported by check_lookup_tables.
+        if not all(math.isfinite(value) and 0 <= value <= 1 for value in fractions):
+            continue  # Reported by check_lookup_tables.
+        area = sum(fractions)
+        if area >= 1:
+            continue
+        impervious_term = area * 0.09 * math.exp(2.4 * area)
+        slope_room = (1 - area) * w3
+        for soil, t_w in soils.items():
+            b = (1 - area) * (w1 * 0.02 / roughness + w2 * t_w / (1 - t_w)) + impervious_term
+            if b >= 1:
+                problems.append(
+                    Problem(
+                        description="Weighted runoff coefficient exceeds 1.",
+                        reason=(
+                            f"Land use class {_class_name(land_use)} and soil class "
+                            f"{_class_name(soil)}: C_wp is {b:.4f} without the slope term "
+                            "of S9, at or above 1 whatever the slope."
+                        ),
+                        implication=(
+                            "The denominator of the actual runoff coefficient C_SR (S5) "
+                            "crosses zero: the coefficient becomes negative or infinite and "
+                            "the surface runoff exceeds the precipitation."
+                        ),
+                        file=str(tables.manning),
+                        blocking=True,
+                    )
+                )
+            elif b + slope_room >= 1:
+                ratio = (1 - b) / slope_room
+                threshold = (
+                    "only in the limit of an infinite slope"
+                    if ratio >= 1
+                    else f"above the slope {10 * ratio / (1 - ratio):.4f}"
+                )
+                problems.append(
+                    Problem(
+                        description="Weighted runoff coefficient may exceed 1 on steep cells.",
+                        reason=(
+                            f"Land use class {_class_name(land_use)} and soil class "
+                            f"{_class_name(soil)}: C_wp is {b:.4f} without the slope term of "
+                            f"S9 and the slope term adds up to {slope_room:.4f}, so C_wp "
+                            f"reaches 1 {threshold}, in the slope units the model computes "
+                            "(PCRaster slope of the DEM)."
+                        ),
+                        implication=(
+                            "On those cells the denominator of the actual runoff coefficient "
+                            "C_SR (S5) crosses zero and the surface runoff can exceed the "
+                            "precipitation."
+                        ),
+                        file=str(tables.manning),
+                        blocking=False,
+                    )
+                )
+    return problems
