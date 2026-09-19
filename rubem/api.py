@@ -20,8 +20,11 @@ Process limitation
     same time, in several threads, share that state and fail or, on the same
     grid, may write wrong results without any error.
     :meth:`Model.run_isolated` runs the simulation in a fresh spawned
-    subprocess instead, at the cost of an interpreter start-up per call; it is
-    the form to use for repeated runs and the only one for parallel runs.
+    subprocess instead, at the cost of an interpreter start-up per call, and
+    keeps that state out of the caller. Parallel runs need one process each:
+    the form to use is a process pool of the caller
+    (:class:`concurrent.futures.ProcessPoolExecutor`) whose workers call
+    :meth:`Model.run`, not a thread pool.
 
 Importing this module does not require PCRaster or GDAL; running the model
 does, and raises :class:`ImportError` with the installation guidance when they

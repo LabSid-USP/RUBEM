@@ -22,7 +22,8 @@ Added
   without them raises ``ImportError`` with the installation guidance.
   ``ConfigurationError`` now survives pickling with its problems
   (`#341 <https://github.com/LabSid-USP/RUBEM/issues/341>`__). The Python API
-  page documents the stability policy and the process model.
+  page documents the stability policy, the process model and how to run in
+  parallel.
 - Added ``rubem preprocess kp``, which builds the Class A pan coefficient series from wind
   speed and relative humidity raster series and a fetch distance with the formula of the
   published model (supplement S29), through the shared raster I/O of the preprocessing tools;

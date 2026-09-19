@@ -111,8 +111,8 @@ crosses as plain data. A ``ConfigurationError`` raised while the subprocess
 rebuilds the configuration reaches the caller as the same exception, with its
 problems; any other exception of the run propagates as itself, and a subprocess
 that dies before the run finishes is reported as a ``RuntimeError``. Every call
-pays a full interpreter start-up, which is the price of running repeatedly
-without growing the memory of the caller, or in parallel.
+pays a full interpreter start-up, which is the price of keeping the state of
+PCRaster out of the caller.
 
 A caller that only uses ``run_isolated`` never loads PCRaster itself: the
 library is imported in the subprocess alone. GDAL is a different matter:
@@ -144,6 +144,47 @@ started) is raised only after the subprocess has finished the run.
 Importing ``rubem.api`` does not require PCRaster or GDAL; running the model
 does. Without them, loading a configuration or running raises ``ImportError``
 with the same installation guidance the command line prints.
+
+Parallel runs
+-------------
+
+Parallel runs need one process each. The form to use is a process pool of the
+caller, with ``Model.run`` called inside every worker:
+
+.. code-block:: python
+
+   import multiprocessing
+   from concurrent.futures import ProcessPoolExecutor
+
+   from rubem.api import Model
+
+
+   def simulate(path):
+       return Model.from_file(path).run()
+
+
+   if __name__ == "__main__":
+       paths = ["basin_a/config.json", "basin_b/config.json", "basin_c/config.json"]
+       context = multiprocessing.get_context("spawn")
+       with ProcessPoolExecutor(max_workers=2, mp_context=context) as pool:
+           for result in pool.map(simulate, paths):
+               print(result.output_directory)
+
+The model is built inside the worker, so what crosses the boundary is the path
+(or the configuration dictionary) on the way in and the ``RunResult`` on the way
+back; a ``ConfigurationError`` of a worker reaches the caller as itself, with
+its problems. Give every run its own output directory.
+
+A worker is reused from one run to the next, on the same grid or on another, so
+the interpreter start-up is paid once per worker and not once per run, which is
+what makes the pool cheaper than calling ``run_isolated`` from several threads.
+The memory of a reused worker grows with its runs, as it does for any
+in-process run; ``max_tasks_per_child`` bounds it. ``spawn`` is the start method
+``run_isolated`` uses and the one available on every platform, and the entry
+point guard above applies to it.
+
+A thread pool is not a substitute: threads that call ``Model.run`` share the
+state of PCRaster, with the consequences described above.
 
 Logging
 -------

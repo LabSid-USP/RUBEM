@@ -1,4 +1,7 @@
-"""Entry points the spawned subprocess of ``Model.run_isolated`` imports by name.
+"""Entry points a spawned subprocess imports by name.
+
+Those of ``Model.run_isolated``, and the worker of the process pool a caller
+builds for its parallel runs.
 
 A subprocess entry point is pickled by reference, so the child imports this
 module to find the function it has to call. Nothing here imports the model at
@@ -35,6 +38,17 @@ def record_and_run(document, base_dir, validate_input):
     marker = Path(document["DIRECTORIES"]["output"]) / MARKER_FILENAME
     marker.write_text(json.dumps({"pid": os.getpid(), "preloaded": preloaded}), encoding="utf8")
     return result
+
+
+def simulate(config):
+    """Build the model in this worker and run it here, as the documented pool does.
+
+    :param config: The configuration document.
+    :return: The pid of the worker and the result of the run.
+    """
+    from rubem.api import Model
+
+    return os.getpid(), Model.from_config(config).run()
 
 
 def die(document, base_dir, validate_input):

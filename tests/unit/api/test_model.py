@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from inspect import signature
 
@@ -426,6 +427,42 @@ class TestIsolatedRuns:
         raised = [line for line in completed.stderr.splitlines() if "Model.run_isolated()" in line]
         assert raised, completed.stderr
         assert '__name__ == "__main__"' in raised[-1]
+
+
+class TestParallelRuns:
+    @pytest.mark.unit
+    def test_a_process_pool_of_the_caller_runs_in_parallel(self, tmp_path):
+        """One process per run at a time; reused workers change grid between their runs."""
+        references = {
+            "small": written_bytes(
+                Model.from_config(write_synthetic_dataset(str(tmp_path / "small"))).run()
+            ),
+            "large": written_bytes(
+                Model.from_config(base_model_config(str(tmp_path / "large"))).run()
+            ),
+        }
+        grids, jobs = [], []
+        for number in range(6):
+            grid = "small" if number % 2 else "large"
+            base = tmp_path / f"job{number}"
+            base.mkdir()
+            config = (
+                write_synthetic_dataset(str(base))
+                if grid == "small"
+                else base_model_config(str(base / "out"))
+            )
+            grids.append(grid)
+            jobs.append(config)
+
+        context = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=2, mp_context=context) as pool:
+            outcomes = list(pool.map(_child.simulate, jobs))
+
+        workers = {pid for pid, _ in outcomes}
+        assert os.getpid() not in workers
+        assert len(workers) <= 2, "the workers are reused from one run to the next"
+        for grid, (_, result) in zip(grids, outcomes, strict=True):
+            assert written_bytes(result) == references[grid]
 
 
 class TestDocumentedLoaderFailures:
