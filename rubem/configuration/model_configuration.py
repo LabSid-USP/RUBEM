@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import os
@@ -45,7 +46,8 @@ class ModelConfiguration:
     required for running the model. It supports loading configuration from either a dictionary or a JSON file.
 
     :param config_input: The configuration input: a dictionary with the legacy sections, or the
-        path of a legacy JSON file.
+        path of a legacy JSON file. A dictionary is copied, so changing it after the load does not
+        change the loaded configuration.
     :param validate_input: Whether to validate the input files and their content. Defaults to `True`.
     :type validate_input: bool, optional
     :param base_dir: Directory the relative paths of the configuration are anchored on. Defaults to
@@ -75,8 +77,11 @@ class ModelConfiguration:
             self.file_v1 = None
             if isinstance(config_input, dict):
                 self.logger.debug("Reading configuration from dictionary")
-                self.config = config_input
-                self.__parse(config_input, duplicates=[])
+                # The document outlives the load (an isolated run rebuilds the
+                # configuration from it), so it must not follow what the caller
+                # does to the dictionary afterwards.
+                self.config = copy.deepcopy(config_input)
+                self.__parse(self.config, duplicates=[])
             elif isinstance(config_input, (str, bytes, os.PathLike)):
                 config_input_path = as_path(config_input)
                 config_input_str = str(config_input_path)

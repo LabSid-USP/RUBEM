@@ -6,20 +6,51 @@ _CONDA_ONLY_DEPENDENCIES = ("pcraster", "osgeo")
 _ENVIRONMENT_YML_URL = "https://github.com/LabSid-USP/RUBEM/blob/main/environment.yml"
 
 
+def missing_runtime_deps() -> list[str]:
+    """Return the conda-only runtime dependencies that are not importable.
+
+    A dependency whose lookup itself fails (a broken installation whose parent
+    package raises on import) counts as missing: the run would not get past it
+    either.
+
+    :return: The missing dependency names, in the order they are checked.
+    """
+    missing = []
+    for name in _CONDA_ONLY_DEPENDENCIES:
+        try:
+            found = importlib.util.find_spec(name) is not None
+        except (ImportError, ValueError):
+            found = False
+        if not found:
+            missing.append(name)
+    return missing
+
+
+def runtime_deps_message(missing: list[str]) -> str:
+    """Return the installation guidance for the missing runtime dependencies.
+
+    The command line raises it as ``SystemExit`` and the Python API as
+    ``ImportError``, so both front ends give the same instructions.
+
+    :param missing: The missing dependency names, see :func:`missing_runtime_deps`.
+    """
+    return (
+        "RUBEM cannot run because the following conda-only dependencies are "
+        f"not installed: {', '.join(missing)}. Install them from conda-forge, "
+        "for example with 'conda install -c conda-forge pcraster gdal' (or the "
+        "micromamba equivalent), and run RUBEM from that environment. The pinned "
+        f"specification is environment.yml: {_ENVIRONMENT_YML_URL}"
+    )
+
+
 def require_runtime_deps() -> None:
     """Fail fast with guidance when pcraster or GDAL are not importable.
 
     :raises SystemExit: If any conda-only dependency is missing.
     """
-    missing = [name for name in _CONDA_ONLY_DEPENDENCIES if importlib.util.find_spec(name) is None]
+    missing = missing_runtime_deps()
     if missing:
-        raise SystemExit(
-            "RUBEM cannot run because the following conda-only dependencies are "
-            f"not installed: {', '.join(missing)}. Install them from conda-forge, "
-            "for example with 'conda install -c conda-forge pcraster gdal' (or the "
-            "micromamba equivalent), and run RUBEM from that environment. The pinned "
-            f"specification is environment.yml: {_ENVIRONMENT_YML_URL}"
-        )
+        raise SystemExit(runtime_deps_message(missing))
 
 
 _PREPROCESSING_DEPENDENCIES = ("pykrige", "skgstat")

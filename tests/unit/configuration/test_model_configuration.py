@@ -8,6 +8,7 @@ from rubem.configuration.app_settings import DEFAULT_SETTINGS_FILE
 from rubem.configuration.input_raster_series import InputRasterSeries
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.configuration.raster_map import RasterBand
+from tests.helpers.synthetic import write_synthetic_dataset
 
 
 class TestModelConfiguration:
@@ -299,3 +300,18 @@ class TestModelConfiguration:
         )
         with pytest.raises(Exception):
             _ = ModelConfiguration("/test_path/config.json")
+
+
+class TestTheLoadedDocumentIsOwned:
+    @pytest.mark.unit
+    def test_changing_the_dictionary_afterwards_leaves_the_loaded_document_alone(self, tmp_path):
+        """The document feeds the rebuild of an isolated run, long after the load."""
+        document = write_synthetic_dataset(str(tmp_path))
+
+        loaded = ModelConfiguration(document, validate_input=False)
+        document["CALIBRATION"]["alpha"] = 9.0
+        document["DIRECTORIES"]["output"] = str(tmp_path / "elsewhere")
+
+        assert loaded.config is not document
+        assert loaded.config["CALIBRATION"]["alpha"] == 4.5
+        assert loaded.config["DIRECTORIES"]["output"] == str(tmp_path / "out")

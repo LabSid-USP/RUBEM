@@ -13,6 +13,17 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added ``rubem.api``, the public Python surface: ``Model.from_file`` and
+  ``Model.from_config`` load a configuration file or document, ``Model.run()``
+  runs the simulation in the current process and ``Model.run_isolated()`` in a
+  fresh spawned subprocess, both returning a ``RunResult`` that lists the
+  rasters, time series and metadata the run wrote, enumerated from the
+  configuration. Importing the module needs neither PCRaster nor GDAL; running
+  without them raises ``ImportError`` with the installation guidance.
+  ``ConfigurationError`` now survives pickling with its problems
+  (`#341 <https://github.com/LabSid-USP/RUBEM/issues/341>`__). The Python API
+  page documents the stability policy, the process model and how to run in
+  parallel.
 - Added ``rubem preprocess kp``, which builds the Class A pan coefficient series from wind
   speed and relative humidity raster series and a fetch distance with the formula of the
   published model (supplement S29), through the shared raster I/O of the preprocessing tools;
