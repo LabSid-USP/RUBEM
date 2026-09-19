@@ -96,7 +96,12 @@ and the raster memory of a run is not reclaimed. Two consequences follow for
 ``Model.run``, which runs in the calling process:
 
 * successive runs in one interpreter grow the resident memory;
-* successive runs share the clone, so they must use the same grid.
+* two runs must not happen at the same time in one process. Every run sets the
+  clone for itself, so runs on different grids may follow one another; runs
+  started from several threads, though, share that state while they are under
+  way. On different grids one of them fails; on the same grid they may all
+  finish and write wrong results, without any error. Parallel runs need one
+  process each.
 
 ``Model.run_isolated`` avoids both: it runs the simulation in a subprocess
 started with the ``spawn`` method, used for that one run and shut down before
@@ -106,8 +111,8 @@ crosses as plain data. A ``ConfigurationError`` raised while the subprocess
 rebuilds the configuration reaches the caller as the same exception, with its
 problems; any other exception of the run propagates as itself, and a subprocess
 that dies before the run finishes is reported as a ``RuntimeError``. Every call
-pays a full interpreter start-up, which is the price of running repeatedly, on
-different grids, or in parallel.
+pays a full interpreter start-up, which is the price of running repeatedly
+without growing the memory of the caller, or in parallel.
 
 A caller that only uses ``run_isolated`` never loads PCRaster itself: the
 library is imported in the subprocess alone. GDAL is a different matter:
@@ -121,6 +126,20 @@ as it does for any :mod:`multiprocessing` worker, so a script that calls
 
    if __name__ == "__main__":
        result = Model.from_file("config.json").run_isolated()
+
+For the same reason the script must be a file. One read from standard input
+(``python - < script.py``) has no file for the subprocess to import, and on
+Python 3.13 and 3.14 the subprocess fails at start-up; a command passed with
+``-c`` is fine. Both mistakes, the missing guard and the script on standard
+input, kill the subprocess before the run starts and reach the caller as the
+``RuntimeError`` above, whose message names them; the error of the subprocess
+itself is on standard error.
+
+``run_isolated`` waits for its subprocess. An interrupt that reaches the
+subprocess as well, as Ctrl-C in a terminal does, stops the run and raises
+``KeyboardInterrupt`` at once. An interrupt delivered to the calling process
+alone (``kill -INT`` on its pid, or a scheduler that signals only the process it
+started) is raised only after the subprocess has finished the run.
 
 Importing ``rubem.api`` does not require PCRaster or GDAL; running the model
 does. Without them, loading a configuration or running raises ``ImportError``
@@ -149,10 +168,12 @@ not.
 Two things on standard output are not this package's to suppress. The PCRaster
 framework registers an ``atexit`` hook that writes a single newline when the
 interpreter exits, in the caller for an in-process run and in the subprocess
-for an isolated one. And at level ``DEBUG`` an in-process run asks the
-framework for its own progress output, which it writes to standard output as
-one dot per time step; at ``INFO`` it is silent, and an isolated run is silent
-at any level, its subprocess starting from the default configuration.
+for an isolated one; the subprocess shares the standard output of the caller
+and exits with every call, so a batch of isolated runs writes one newline per
+run. And at level ``DEBUG`` an in-process run asks the framework for its own
+progress output, which it writes to standard output as one dot per time step;
+at ``INFO`` it is silent, and an isolated run is silent at any level, its
+subprocess starting from the default configuration.
 
 Module reference
 ----------------

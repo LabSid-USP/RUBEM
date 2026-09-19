@@ -22,7 +22,7 @@ from rubem.configuration._problems import Problem
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.configuration.model_configuration_file import ModelConfigurationFile
 from rubem.configuration.model_configuration_file_v1 import ModelConfigurationFileV1
-from tests.helpers.config import REPO_ROOT
+from tests.helpers.config import REPO_ROOT, base_model_config
 from tests.helpers.synthetic import MISSING, series_name, write_synthetic_dataset
 from tests.unit.api import _child
 from tests.unit.core.test_aggregation import write_zones
@@ -44,6 +44,11 @@ def reported_names(result):
 
 def missing_files(result):
     return [str(path) for path in reported_paths(result) if not path.is_file()]
+
+
+def written_bytes(result):
+    """The content of every file a result reports, by file name."""
+    return {path.name: path.read_bytes() for path in reported_paths(result)}
 
 
 def break_kp(config):
@@ -203,6 +208,22 @@ class TestInProcessRuns:
         assert not missing_files(result)
         assert (result.output_directory / "zones_mapping.csv").is_file()
         assert "zones_mapping.csv" not in reported_names(result)
+
+    @pytest.mark.unit
+    def test_runs_on_different_grids_follow_one_another_in_one_process(self, tmp_path):
+        """Every run sets the clone for itself, so the grid of the last one is no constraint."""
+        small = Model.from_config(write_synthetic_dataset(str(tmp_path / "small")))
+        large = Model.from_config(base_model_config(str(tmp_path / "large")))
+        small_alone = written_bytes(small.run())
+        large_alone = written_bytes(large.run())
+
+        small_after_large = written_bytes(small.run())
+        large_after_small = written_bytes(large.run())
+
+        member = series_name("itp", 1)
+        assert len(small_alone[member]) != len(large_alone[member]), "the grids must differ"
+        assert small_after_large == small_alone
+        assert large_after_small == large_alone
 
     @pytest.mark.unit
     def test_a_run_writes_nothing_to_stdout(self, tmp_path, capsys):
@@ -374,10 +395,37 @@ class TestIsolatedRuns:
         executor.submit.return_value.result.side_effect = BrokenProcessPool("killed")
         mocker.patch.object(api, "ProcessPoolExecutor", return_value=executor)
 
-        with pytest.raises(RuntimeError, match="Model.run_isolated"):
+        with pytest.raises(RuntimeError, match="Model.run_isolated") as error:
             model.run_isolated()
 
         executor.shutdown.assert_called_once_with(wait=True)
+        # A death at start-up is the caller's script far more often than a crash.
+        assert '__name__ == "__main__"' in str(error.value)
+        assert "standard input" in str(error.value)
+
+    @pytest.mark.unit
+    def test_a_script_without_the_entry_point_guard_is_told_so(self, tmp_path):
+        """The child dies re-importing the script; the caller must learn why, and not hang."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps(write_synthetic_dataset(str(tmp_path))), encoding="utf8")
+        script = tmp_path / "unguarded.py"
+        script.write_text(_UNGUARDED_SCRIPT, encoding="utf8")
+
+        completed = subprocess.run(
+            [sys.executable, str(script), str(config_file)],
+            cwd=REPO_ROOT,
+            env={**os.environ, "PYTHONPATH": REPO_ROOT},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=300,
+        )
+
+        assert completed.returncode != 0
+        assert "finished" not in completed.stdout
+        raised = [line for line in completed.stderr.splitlines() if "Model.run_isolated()" in line]
+        assert raised, completed.stderr
+        assert '__name__ == "__main__"' in raised[-1]
 
 
 class TestDocumentedLoaderFailures:
@@ -480,6 +528,18 @@ _ISOLATION_OF_THE_CALLER = textwrap.dedent(
     result = model.run_isolated()
     assert result.rasters, "the isolated run must report what it wrote"
     print(json.dumps({name: name in sys.modules for name in ("pcraster", "osgeo")}))
+    """
+)
+
+
+_UNGUARDED_SCRIPT = textwrap.dedent(
+    """
+    import sys
+
+    from rubem.api import Model
+
+    Model.from_file(sys.argv[1], validate_input=False).run_isolated()
+    print("finished")
     """
 )
 

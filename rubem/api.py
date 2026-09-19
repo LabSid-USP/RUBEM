@@ -15,10 +15,13 @@ Process limitation
     PCRaster keeps the clone and the raster memory process-wide (``setclone``
     is global to the process and the memory of a run is not reclaimed), so
     repeated :meth:`Model.run` calls in one interpreter grow the resident
-    memory and must share the same grid. :meth:`Model.run_isolated` runs the
-    simulation in a fresh spawned subprocess instead, at the cost of an
-    interpreter start-up per call; it is the form to use for repeated runs,
-    for runs on different grids and for parallel runs.
+    memory and must not overlap: every run sets the clone for itself, which
+    lets runs on different grids follow one another, but runs under way at the
+    same time, in several threads, share that state and fail or, on the same
+    grid, may write wrong results without any error.
+    :meth:`Model.run_isolated` runs the simulation in a fresh spawned
+    subprocess instead, at the cost of an interpreter start-up per call; it is
+    the form to use for repeated runs and the only one for parallel runs.
 
 Importing this module does not require PCRaster or GDAL; running the model
 does, and raises :class:`ImportError` with the installation guidance when they
@@ -185,9 +188,11 @@ class Model:
     def run(self) -> RunResult:
         """Run the simulation in the current process.
 
-        A fresh model framework is built for every call. PCRaster state is
-        process-wide, so successive calls in one interpreter share the clone
-        and grow the resident memory; see :meth:`run_isolated`.
+        A fresh model framework is built for every call, and sets the clone of
+        its own grid. PCRaster state is process-wide all the same, so successive
+        calls in one interpreter grow the resident memory, and calls must not
+        run at the same time in several threads: they fail or, on the same grid,
+        may write wrong results without any error. See :meth:`run_isolated`.
 
         :return: What the run wrote.
         :raises ImportError: If PCRaster or GDAL are not installed.
@@ -214,7 +219,14 @@ class Model:
 
         The spawn start method imports the main module of the caller in the
         subprocess, so a script that calls this method must guard its entry
-        point with ``if __name__ == "__main__":`` to avoid re-running itself.
+        point with ``if __name__ == "__main__":`` to avoid re-running itself,
+        and must be a file: a script read from standard input cannot be
+        imported again. Either mistake kills the subprocess at start-up and is
+        reported as the ``RuntimeError`` below.
+
+        The call waits for the subprocess. An interrupt that reaches the
+        subprocess as well (Ctrl-C in a terminal) stops the run; one delivered
+        to the calling process alone is raised only after the run has finished.
 
         A configuration problem found while the subprocess rebuilds the
         configuration reaches the caller as the same
@@ -246,8 +258,13 @@ class Model:
             document = future.result()
         except BrokenProcessPool as error:
             raise RuntimeError(
-                "The subprocess of Model.run_isolated() died before the run finished; "
-                "it was killed from outside or the native libraries crashed it."
+                "The subprocess of Model.run_isolated() died before the run finished. When "
+                "it dies at start-up the cause is usually the calling script: the spawn start "
+                "method imports it again, so the call must sit under an "
+                '`if __name__ == "__main__":` guard, and a script read from standard input '
+                "cannot be imported again at all; the error of the subprocess is on standard "
+                "error. Otherwise the subprocess was killed from outside or the native "
+                "libraries crashed it."
             ) from error
         finally:
             executor.shutdown(wait=True)
