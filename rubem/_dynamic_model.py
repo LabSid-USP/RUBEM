@@ -148,6 +148,17 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.ndvi_max
         )
 
+        if self.config.constants.leaf_area_interception_max_from_table:
+            self.logger.info(
+                "Maximum leaf area index (LAI_max) read per land use class from '%s'...",
+                self.config.lookuptable_files.lai_max,
+            )
+        else:
+            self.logger.info(
+                "Maximum leaf area index (LAI_max) constant %s used for every land use class...",
+                self.config.constants.leaf_area_interception_max,
+            )
+
         self.logger.info("Reading soil attributes...")
         soil = self.__read_raster(self.config.raster_files.soil, FieldScale.NOMINAL)
 

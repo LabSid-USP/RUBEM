@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 
@@ -305,6 +306,26 @@ class TestStateRelease:
             name = series_name("itp", step)
             result = compare_rasters(reference / "out" / name, tabled / "out" / name)
             assert not result.equal, f"{name} did not change with the land use LAI_max"
+
+    @pytest.mark.unit
+    def test_the_run_states_where_the_maximum_leaf_area_index_comes_from(self, tmp_path, caplog):
+        constant = tmp_path / "constant"
+        with caplog.at_level(logging.INFO, logger="rubem._dynamic_model"):
+            run_model(str(constant))
+        assert "Maximum leaf area index (LAI_max) constant 12.0 used" in caplog.text
+
+        caplog.clear()
+        tabled = tmp_path / "table"
+        config = write_synthetic_dataset(str(tabled))
+        table = write_lai_max_table(config)
+        config["TABLES"]["lai_max"] = table
+        config["CONSTANTS"]["lai_max_from_table"] = True
+        with caplog.at_level(logging.INFO, logger="rubem._dynamic_model"):
+            run_model(str(tabled), config=config)
+        assert (
+            f"Maximum leaf area index (LAI_max) read per land use class from '{table}'"
+            in caplog.text
+        )
 
 
 class TestSampleMapRelease:
