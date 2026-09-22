@@ -52,12 +52,18 @@ class ModelConfiguration:
     :type validate_input: bool, optional
     :param base_dir: Directory the relative paths of the configuration are anchored on. Defaults to
         the directory of the JSON file, or to ``None`` (paths kept as given) for a dictionary.
+    :param allow_blocking_problems: Whether to keep going when the inputs carry blocking
+        problems: the checks still run and every problem is kept in :attr:`problems`, the
+        blocking ones are logged as errors and the configuration loads instead of raising
+        :class:`~rubem.configuration._problems.ConfigurationError`. Defaults to ``False``.
+    :type allow_blocking_problems: bool, optional
 
     :raises FileNotFoundError: If the specified config file is not found.
     :raises ValueError: If the config file type is not supported, or a setting is missing or invalid
         (``pydantic.ValidationError`` is a ``ValueError``).
     :raises json.JSONDecodeError: If the JSON file is not valid.
-    :raises ConfigurationError: If the inputs carry blocking problems.
+    :raises ConfigurationError: If the inputs carry blocking problems, unless
+        ``allow_blocking_problems`` is set.
     """
 
     def __init__(
@@ -65,6 +71,7 @@ class ModelConfiguration:
         config_input: dict | PathInput,
         validate_input: bool = True,
         base_dir: PathInput | None = None,
+        allow_blocking_problems: bool = False,
     ):
         self.logger = logging.getLogger(__name__)
         self.problems = []
@@ -114,7 +121,12 @@ class ModelConfiguration:
         self.problems.extend(self._series_problems)
         self.problems.extend(self.raster_files.problems)
         if validate_input:
-            self.problems.extend(check_lookup_tables(self.lookuptable_files))
+            self.problems.extend(
+                check_lookup_tables(
+                    self.lookuptable_files,
+                    lai_max_from_table=self.constants.leaf_area_interception_max_from_table,
+                )
+            )
             self.problems.extend(
                 check_runoff_coefficient_domain(
                     self.lookuptable_files,
@@ -123,7 +135,7 @@ class ModelConfiguration:
                     self.calibration_parameters.w_3,
                 )
             )
-        self.__check_inconsistencies()
+        self.__check_inconsistencies(allow_blocking_problems)
 
     def __parse(self, data: dict, duplicates: list[str]) -> None:
         """Validate the document as format 1.0 (``version`` present) or legacy."""
@@ -172,6 +184,7 @@ class ModelConfiguration:
             fraction_photo_active_radiation_max=file.constants.fpar_max,
             fraction_photo_active_radiation_min=file.constants.fpar_min,
             leaf_area_interception_max=file.constants.lai_max,
+            leaf_area_interception_max_from_table=file.constants.lai_max_from_table,
             impervious_area_interception=file.constants.i_imp,
         )
         self.output_directory = OutputDataDirectory(file.directories.output).ensure_exists()
@@ -246,6 +259,7 @@ class ModelConfiguration:
             rootzone_depth=file.tables.rootzone_depth,
             kc_min=file.tables.k_c_min,
             kc_max=file.tables.k_c_max,
+            lai_max=file.tables.lai_max,
             validate_input=validate_input,
         )
         self._series_problems = list(self.raster_series.problems)
@@ -290,6 +304,7 @@ class ModelConfiguration:
             fraction_photo_active_radiation_max=constants.fpar_max,
             fraction_photo_active_radiation_min=constants.fpar_min,
             leaf_area_interception_max=constants.lai_max,
+            leaf_area_interception_max_from_table=constants.lai_max_from_table,
             impervious_area_interception=constants.i_imp,
         )
         output = file.model_simulation_output
@@ -353,6 +368,7 @@ class ModelConfiguration:
             rootzone_depth=tables.rootzone_depth,
             kc_min=tables.kc_min,
             kc_max=tables.kc_max,
+            lai_max=tables.lai_max,
             validate_input=validate_input,
         )
         self.series_resolvers = resolvers_from_v1(file)
@@ -452,16 +468,23 @@ class ModelConfiguration:
         config_input: dict | PathInput,
         validate_input: bool = True,
         base_dir: PathInput | None = None,
+        allow_blocking_problems: bool = False,
     ) -> "ModelConfiguration":
         """Load a legacy configuration from a dictionary or a JSON file.
 
         Relative paths are anchored on the directory of the JSON file, or on
         ``base_dir`` when given (a dictionary has no anchor unless ``base_dir``
-        is passed).
+        is passed). ``allow_blocking_problems`` is passed through to the
+        constructor.
         """
-        return cls(config_input, validate_input=validate_input, base_dir=base_dir)
+        return cls(
+            config_input,
+            validate_input=validate_input,
+            base_dir=base_dir,
+            allow_blocking_problems=allow_blocking_problems,
+        )
 
-    def __check_inconsistencies(self):
+    def __check_inconsistencies(self, allow_blocking_problems: bool):
         if self.output_variables.any_enabled() and not self.output_variables.file_formats:
             raise ValueError(
                 "No raster file format is enabled: set RASTER_FILE_FORMAT.map_raster_series "
@@ -504,12 +527,53 @@ class ModelConfiguration:
                 )
             )
 
+        if self.constants.leaf_area_interception_max_from_table:
+            if not self.lookuptable_files.lai_max:
+                self.problems.append(
+                    Problem(
+                        description="Maximum leaf area index lookup table is not set.",
+                        reason=(
+                            "CONSTANTS.lai_max_from_table (model_constants.lai_max_from_table in "
+                            "format 1.0) is true but TABLES.lai_max (lookup_tables.lai_max) is "
+                            "not given."
+                        ),
+                        implication=(
+                            "The maximum leaf area index cannot be read per land use class."
+                        ),
+                        blocking=True,
+                    )
+                )
+        elif self.lookuptable_files.lai_max:
+            self.problems.append(
+                Problem(
+                    description="Maximum leaf area index lookup table is ignored.",
+                    reason=(
+                        "TABLES.lai_max (lookup_tables.lai_max in format 1.0) is given but "
+                        "CONSTANTS.lai_max_from_table (model_constants.lai_max_from_table) is "
+                        f"false: the constant lai_max={self.constants.leaf_area_interception_max} "
+                        "is used and the content of the table is not checked."
+                    ),
+                    file=self.lookuptable_files.lai_max,
+                )
+            )
+
         if self.problems:
             self.logger.warning("Configuration problems found: %d", len(self.problems))
             for problem in self.problems:
-                self.logger.warning("Configuration problem: %s", problem)
-        if any(problem.blocking for problem in self.problems):
+                # A blocking problem the caller chose to run past is an error the
+                # log must keep; by default it is listed again by the exception.
+                level = (
+                    logging.ERROR
+                    if allow_blocking_problems and problem.blocking
+                    else logging.WARNING
+                )
+                self.logger.log(level, "Configuration problem: %s", problem)
+        blocking = sum(1 for problem in self.problems if problem.blocking)
+        if not blocking:
+            return
+        if not allow_blocking_problems:
             raise ConfigurationError(self.problems)
+        self.logger.error("Simulation continues despite %d blocking problem(s).", blocking)
 
     def __read_json(self, file_path: PathInput, duplicates: list[str]):
         self.logger.debug("Reading JSON file: %s", file_path)

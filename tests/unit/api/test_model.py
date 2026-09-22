@@ -1,6 +1,7 @@
 """The public Python API: loading a configuration, running it, and what it reports."""
 
 import json
+import logging
 import math
 import multiprocessing
 import os
@@ -227,6 +228,35 @@ class TestInProcessRuns:
         assert large_after_small == large_alone
 
     @pytest.mark.unit
+    def test_allowing_blocking_problems_loads_reports_and_runs(self, tmp_path, caplog):
+        config = write_synthetic_dataset(str(tmp_path))
+        break_kp(config)
+        with pytest.raises(ConfigurationError):
+            Model.from_config(config)
+
+        with caplog.at_level(logging.ERROR, logger="rubem.configuration"):
+            model = Model.from_config(config, allow_blocking_problems=True)
+        result = model.run()
+
+        assert any(p.blocking and "not positive" in str(p) for p in model.configuration.problems)
+        assert "Simulation continues despite 1 blocking problem(s)." in caplog.text
+        assert not missing_files(result)
+
+    @pytest.mark.unit
+    def test_a_file_is_loaded_with_the_same_leniency(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        break_kp(config)
+        path = tmp_path / "config.json"
+        path.write_text(json.dumps(config), encoding="utf8")
+        with pytest.raises(ConfigurationError):
+            Model.from_file(path)
+
+        model = Model.from_file(path, allow_blocking_problems=True)
+
+        assert any(problem.blocking for problem in model.configuration.problems)
+        assert not missing_files(model.run())
+
+    @pytest.mark.unit
     def test_a_run_writes_nothing_to_stdout(self, tmp_path, capsys):
         """The library only logs; a front end is what prints."""
         Model.from_config(write_synthetic_dataset(str(tmp_path))).run()
@@ -386,6 +416,30 @@ class TestIsolatedRuns:
             Model.from_config(config)
 
         result = Model.from_config(config, validate_input=False).run_isolated()
+
+        assert not missing_files(result)
+
+    @pytest.mark.unit
+    def test_allowing_blocking_problems_crosses_the_boundary_too(self, tmp_path):
+        """The subprocess rebuilds the configuration with the same leniency."""
+        config = write_synthetic_dataset(str(tmp_path))
+        break_kp(config)
+        model = Model.from_config(config, allow_blocking_problems=True)
+
+        result = model.run_isolated()
+
+        assert not missing_files(result)
+
+    @pytest.mark.unit
+    def test_a_loaded_configuration_carries_the_leniency_the_caller_states(self, tmp_path):
+        """A configuration loaded elsewhere is not checked again; the flag rules the rebuild."""
+        config = write_synthetic_dataset(str(tmp_path))
+        break_kp(config)
+        loaded = ModelConfiguration(config, allow_blocking_problems=True)
+
+        with pytest.raises(ConfigurationError):
+            Model.from_config(loaded).run_isolated()
+        result = Model.from_config(loaded, allow_blocking_problems=True).run_isolated()
 
         assert not missing_files(result)
 
@@ -647,15 +701,18 @@ class TestPublicSurface:
     @pytest.mark.unit
     def test_the_signatures_are_the_documented_ones(self):
         assert str(signature(Model.__init__)) == (
-            "(self, configuration: 'ModelConfiguration', *, validate_input: bool = True) -> None"
+            "(self, configuration: 'ModelConfiguration', *, validate_input: bool = True,"
+            " allow_blocking_problems: bool = False) -> None"
         )
         assert str(signature(Model.from_file)) == (
             "(path: str | os.PathLike[str] | bytes, *, validate_input: bool = True,"
-            " base_dir: str | os.PathLike[str] | bytes | None = None) -> 'Model'"
+            " base_dir: str | os.PathLike[str] | bytes | None = None,"
+            " allow_blocking_problems: bool = False) -> 'Model'"
         )
         assert str(signature(Model.from_config)) == (
             "(config: 'dict | ModelConfiguration', *, validate_input: bool = True,"
-            " base_dir: str | os.PathLike[str] | bytes | None = None) -> 'Model'"
+            " base_dir: str | os.PathLike[str] | bytes | None = None,"
+            " allow_blocking_problems: bool = False) -> 'Model'"
         )
         assert str(signature(Model.run)) == "(self) -> rubem.api.RunResult"
         assert str(signature(Model.run_isolated)) == "(self) -> rubem.api.RunResult"

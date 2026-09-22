@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 
@@ -5,8 +6,15 @@ import pytest
 
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.core import DynamicFrameworkWrapper
-from tests.helpers.compare import compare_rasters
-from tests.helpers.synthetic import COLS, MISSING, ROWS, series_name, write_synthetic_dataset
+from tests.helpers.compare import compare_csv, compare_rasters
+from tests.helpers.synthetic import (
+    COLS,
+    MISSING,
+    ROWS,
+    series_name,
+    write_lai_max_table,
+    write_synthetic_dataset,
+)
 from tests.unit.core.test_core import expected_outputs, run_model
 
 STEP_FLUXES = (
@@ -262,6 +270,83 @@ class TestStateRelease:
                 continue
             result = compare_rasters(released / "out" / name, reference / "out" / name)
             assert result.equal, f"{name}:\n{result.report()}"
+
+
+class TestLeafAreaIndexMaxTable:
+    """The maximum leaf area index of each land use class comes from the table."""
+
+    @pytest.mark.unit
+    def test_a_lai_max_table_equal_to_the_constant_reproduces_the_constant_run(self, tmp_path):
+        """Reading the maximum leaf area index from the table must not move
+        any output when every land use class carries the constant."""
+        reference = tmp_path / "constant"
+        run_model(str(reference))
+
+        tabled = tmp_path / "table"
+        config = write_synthetic_dataset(str(tabled))
+        constant = config["CONSTANTS"]["lai_max"]
+        config["TABLES"]["lai_max"] = write_lai_max_table(config, {3: constant, 4: constant})
+        config["CONSTANTS"]["lai_max_from_table"] = True
+        run_model(str(tabled), config=config)
+
+        for name in expected_outputs():
+            compare = compare_csv if name.endswith(".csv") else compare_rasters
+            result = compare(reference / "out" / name, tabled / "out" / name, rtol=0.0, atol=0.0)
+            assert result.equal, f"{name}:\n{result.report()}"
+
+    @pytest.mark.unit
+    def test_a_lai_max_table_gives_each_land_use_class_its_own_maximum(self, tmp_path):
+        """Step 1 is land use class 3 and step 2 class 4. With the table {3: 9, 4: 4}
+        the first step must reproduce every output of a run with the constant 9,
+        and the interception of the second step the one of a run with the
+        constant 4: the interception of a step depends on the inputs of the step
+        only, not on the state carried from the previous one."""
+        runs = {}
+        for constant in (12.0, 9.0, 4.0):
+            base = tmp_path / f"constant_{constant:g}"
+            config = write_synthetic_dataset(str(base))
+            config["CONSTANTS"]["lai_max"] = constant
+            run_model(str(base), config=config)
+            runs[constant] = base / "out"
+
+        tabled = tmp_path / "table"
+        config = write_synthetic_dataset(str(tabled))
+        config["TABLES"]["lai_max"] = write_lai_max_table(config, {3: 9.0, 4: 4.0})
+        config["CONSTANTS"]["lai_max_from_table"] = True
+        run_model(str(tabled), config=config)
+        out = tabled / "out"
+
+        for name in expected_outputs(timesteps=1):
+            if name.endswith(".csv"):
+                continue
+            result = compare_rasters(runs[9.0] / name, out / name, rtol=0.0, atol=0.0)
+            assert result.equal, f"{name}:\n{result.report()}"
+        second = series_name("itp", 2)
+        result = compare_rasters(runs[4.0] / second, out / second, rtol=0.0, atol=0.0)
+        assert result.equal, f"{second}:\n{result.report()}"
+        for step in (1, 2):
+            name = series_name("itp", step)
+            assert not compare_rasters(runs[12.0] / name, out / name).equal, name
+
+    @pytest.mark.unit
+    def test_the_run_states_where_the_maximum_leaf_area_index_comes_from(self, tmp_path, caplog):
+        constant = tmp_path / "constant"
+        with caplog.at_level(logging.INFO, logger="rubem._dynamic_model"):
+            run_model(str(constant))
+        assert "Maximum leaf area index (LAI_max) constant 12.0 used" in caplog.text
+
+        caplog.clear()
+        tabled = tmp_path / "table"
+        config = write_synthetic_dataset(str(tabled))
+        table = write_lai_max_table(config)
+        config["TABLES"]["lai_max"] = table
+        config["CONSTANTS"]["lai_max_from_table"] = True
+        with caplog.at_level(logging.INFO, logger="rubem._dynamic_model"):
+            run_model(str(tabled), config=config)
+        assert (
+            f"Maximum leaf area index (LAI_max) read per land use class from '{table}'"
+            in caplog.text
+        )
 
 
 class TestSampleMapRelease:

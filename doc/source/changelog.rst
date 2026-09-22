@@ -31,6 +31,17 @@ Added
   on ``arn`` needs and the process model; a ``dataset`` pytest marker with the
   ``RUBEM_DATASET_DIR`` convention carries a smoke test on the Ipojuca basin
   (`#343 <https://github.com/LabSid-USP/RUBEM/issues/343>`__).
+- Added ``rubem run --allow-blocking-problems``, which runs the model even when the input
+  validation finds blocking problems: the same checks run, every problem is still reported
+  (the non-blocking ones as warnings, the blocking ones as errors, followed by one error line
+  stating that the simulation continues despite them) and the run goes on instead of stopping
+  with exit code 1. The option cannot be combined with ``-s``, which skips the checks it
+  reports (usage error, exit code 2), and the deprecated ``rubem -c <config>`` spelling does
+  not take it. ``ModelConfiguration(..., allow_blocking_problems=False)`` is the library
+  counterpart and keeps the full list in ``ModelConfiguration.problems``; ``Model.from_file``
+  and ``Model.from_config`` of ``rubem.api`` take the same keyword and an isolated run
+  rebuilds the configuration with it
+  (`#352 <https://github.com/LabSid-USP/RUBEM/issues/352>`__).
 - Added ``rubem.api``, the public Python surface: ``Model.from_file`` and
   ``Model.from_config`` load a configuration file or document, ``Model.run()``
   runs the simulation in the current process and ``Model.run_isolated()`` in a
@@ -139,6 +150,15 @@ Added
   ``zones`` (a ``rasters.zones`` raster, ids remapped to ``1..N`` and
   recorded in ``zones_mapping.csv``); non-point tables are named
   ``tss_<variable>_<aggregation>``.
+- Added the optional ``lai_max`` lookup table (``TABLES.lai_max``, format 1.0
+  ``lookup_tables.lai_max``) with the maximum leaf area index of each land use
+  class, selected by the constant ``lai_max_from_table`` (default ``false``:
+  the ``lai_max`` constant is used as before). When read, the table must be
+  positive, at most the admissible maximum of the constant and keyed by the
+  classes of the area fraction tables (skipped with ``-s``); the switch
+  without a table blocks the run even with ``-s``, and a table without the
+  switch is reported as ignored
+  (`#353 <https://github.com/LabSid-USP/RUBEM/issues/353>`__).
 
 Changed
 ```````

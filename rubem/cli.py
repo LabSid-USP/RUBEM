@@ -1,10 +1,10 @@
 """The ``rubem`` command line.
 
-``rubem run -c <config.json> [-s]`` runs a simulation; ``rubem calibrate``
-fits the calibration parameters to an observed series; ``rubem config schema``
-prints the JSON Schema of the configuration file. The former ``rubem -c
-<config.json>`` spelling still works for one minor release and emits a
-``DeprecationWarning``.
+``rubem run -c <config.json> [-s | --allow-blocking-problems]`` runs a
+simulation; ``rubem calibrate`` fits the calibration parameters to an observed
+series; ``rubem config schema`` prints the JSON Schema of the configuration
+file. The former ``rubem -c <config.json>`` spelling still works for one minor
+release and emits a ``DeprecationWarning``.
 """
 
 import json
@@ -240,8 +240,25 @@ def run(
             help="Disable input files validation before running the model.",
         ),
     ] = False,
+    allow_blocking_problems: Annotated[
+        bool,
+        typer.Option(
+            "--allow-blocking-problems",
+            help=(
+                "Run the model even if the input validation finds blocking problems; "
+                "they are logged as errors instead of stopping the run."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Run a simulation from a configuration file."""
+    if skip_inputs_validation and allow_blocking_problems:
+        # ``-s`` skips the very checks this option exists to report.
+        raise typer.BadParameter(
+            "cannot be combined with '-s' / '--skip-inputs-validation': the problems "
+            "it allows are found by the validation that option skips.",
+            param_hint="'--allow-blocking-problems'",
+        )
     require_runtime_deps()
 
     validate_input = not skip_inputs_validation
@@ -258,7 +275,9 @@ def run(
         # embedded run stays silent unless its host configures logging.
         validating = " and validating inputs" if validate_input else ""
         print(f"Loading configuration{validating}...", flush=True)
-        model_config = ModelConfiguration(configfile, validate_input)
+        model_config = ModelConfiguration(
+            configfile, validate_input, allow_blocking_problems=allow_blocking_problems
+        )
         model = DynamicFrameworkWrapper.load(model_config)
     except (ConfigurationError, ValidationError, ValueError) as e:
         # A configuration the user can fix: no traceback, the message says what.

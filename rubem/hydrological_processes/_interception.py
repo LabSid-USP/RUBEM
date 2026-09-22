@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import warnings
 
 import pcraster as pcr
@@ -105,7 +107,7 @@ class Interception:
     def get_leaf_area_index(
         fpar: Field,
         fpar_max: float,
-        leaf_area_index_max: float,
+        leaf_area_index_max: float | Field,
     ) -> Field:
         """Return Leaf Area Index (LAI).
 
@@ -115,8 +117,9 @@ class Interception:
         :param fpar_max: Maximum Fraction of Photosynthetically Active Radiation (FPAR) [-]
         :type fpar_max: float
 
-        :param leaf_area_index_max: Maximum Leaf Area Index [-]
-        :type leaf_area_index_max: float
+        :param leaf_area_index_max: Maximum Leaf Area Index [-], a constant or a field with
+            the maximum of each land use class
+        :type leaf_area_index_max: float or Field ``PCRASTER_VALUESCALE=VS_SCALAR``
 
         :returns: Leaf Area Index (LAI) [-]
         :rtype:Field ``PCRASTER_VALUESCALE=VS_SCALAR``

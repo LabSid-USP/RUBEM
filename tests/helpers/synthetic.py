@@ -300,3 +300,22 @@ def write_synthetic_dataset(base_dir, timesteps=2, raster_format="map"):
         },
         "RASTER_FILE_FORMAT": {"map_raster_series": True, "tiff_raster_series": True},
     }
+
+
+def write_lai_max_table(config, values=None):
+    """Write a ``lai_max`` lookup table next to the land use tables and return its path.
+
+    The table is not part of the configuration returned by
+    :func:`write_synthetic_dataset`; a test sets ``TABLES.lai_max`` and
+    ``CONSTANTS.lai_max_from_table`` itself.
+
+    :param config: The configuration returned by :func:`write_synthetic_dataset`.
+    :param values: ``{land use class: LAI_max}``; by default a distinct value per class.
+    """
+    if values is None:
+        values = {3: 9.0, 4: 4.0}
+    path = os.path.join(os.path.dirname(config["TABLES"]["a_v"]), "lai_max.txt")
+    with open(path, "w", encoding="utf8") as f:
+        for lulc_class, value in values.items():
+            f.write(f"{lulc_class} {value}\n")
+    return path

@@ -589,7 +589,7 @@ Mandatory path to a tabular file with values of minimum crop coefficient for eac
 :raw-html:`Maximum Leaf Area Index (LAI<sub>MAX</sub>)`
 ````````````````````````````````````````````````````````````````````````
 
-Mandatory maximum float value [dimensionless quantity] that characterizes plant canopies. It is defined as the one-sided green leaf area per unit ground surface area.
+Mandatory maximum float value [dimensionless quantity] that characterizes plant canopies. It is defined as the one-sided green leaf area per unit ground surface area. When ``lai_max_from_table`` is ``true`` (see below) the value no longer enters the LAI, which takes the maximum of each land-use class from the ``lai_max`` table; ``lai_max`` remains a mandatory constant and is still validated against its range.
 
 .. math:: 1 \leq LAI_{MAX} \leq 12
 
@@ -598,6 +598,25 @@ Mandatory maximum float value [dimensionless quantity] that characterizes plant 
    {
       "CONSTANTS": {
          "lai_max": 12.0,
+      },
+   }
+
+:raw-html:`Maximum Leaf Area Index (LAI<sub>MAX</sub>) table`
+```````````````````````````````````````````````````````````````````````````````
+
+Optional path to a tabular file with values of maximum leaf area index for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <maximum-leaf-area-index-table>`
+
+The table is an opt-in extension of the published formulation, in which :math:`LAI_{MAX}` is a single value for the whole catchment. It is read only when the constant ``lai_max_from_table`` is ``true``; the table is then mandatory and the ``lai_max`` constant no longer enters the LAI (it remains mandatory and validated). With ``lai_max_from_table`` absent or ``false`` (the default) the constant is used; a table that is given must exist but is otherwise ignored, which is reported. When the table is read, its values must be positive and at most 12, and it must list, one per row, the land-use classes of the area fraction tables.
+
+.. code-block:: json
+
+   {
+      "TABLES": {
+         "lai_max": "/Dataset/UIGCRB/input/txt/landuse/lai_max.txt",
+      },
+      "CONSTANTS": {
+         "lai_max": 12.0,
+         "lai_max_from_table": true,
       },
    }
 
@@ -1194,6 +1213,9 @@ Use ``-h`` or ``--help`` to get a brief description of each command and its argu
                                    [required]
      -s, --skip-inputs-validation  Disable input files validation before running
                                    the model.
+     --allow-blocking-problems     Run the model even if the input validation
+                                   finds blocking problems; they are logged as
+                                   errors instead of stopping the run.
      -h, --help                    Show this message and exit.
 
 .. code-block:: console
@@ -1331,3 +1353,37 @@ Use ``-c`` or ``--configfile`` to set the path of the RUBEM configuration file.
    .## Timestep 22 of 24
    .## Timestep 23 of 24
    .## Timestep 24 of 24
+
+Use ``-s`` or ``--skip-inputs-validation`` to skip the validation of the
+content of the input files: the checks do not run at all, so the run neither
+stops on a blocking problem nor reports one. Use ``--allow-blocking-problems``
+instead to keep the checks and their report, but not the stop: every problem is
+still logged, the non-blocking ones as warnings and the blocking ones as
+errors, followed by one error line stating that the simulation continues
+despite them, and the run goes on. Exploring a dataset, or reproducing a
+published run whose inputs fail a check, are the cases the option is meant
+for. The two options cannot be combined, since ``-s`` skips the very checks
+the other one reports: doing so is a usage error (exit code 2). A run forced
+this way exits with 0 when it completes and with 1 when it fails, as it does
+when a structural problem (a missing member of a raster series, a member on
+another grid) is reached by the simulation. Failures that are not validation
+problems still stop the run before it starts: a configuration file that does
+not match the schema, a lookup table file that is not there, no raster format
+enabled, or a DEM, clone and georeference that do not share their geometry.
+
+.. code-block:: console
+
+   $ rubem run -c project-config.json --allow-blocking-problems
+   Loading configuration and validating inputs...
+   2026-09-22T10:27:30-0300.119 [WRN] rubem.configuration.model_configuration: Configuration problems found: 1
+   2026-09-22T10:27:30-0300.119 [ERR] rubem.configuration.model_configuration: Configuration problem: Rainy days lookup table does not cover every month.: Missing months: [12]. The simulation cannot run with this table. /path/to/rainydays.txt
+   2026-09-22T10:27:30-0300.119 [ERR] rubem.configuration.model_configuration: Simulation continues despite 1 blocking problem(s).
+   Simulation started...
+   .## Timestep 1 of 24
+   .## Timestep 2 of 24
+
+   -- Omitted for brevity --
+
+   .## Timestep 24 of 24
+   Simulation finished successfully!
+   Elapsed time: 12 seconds
