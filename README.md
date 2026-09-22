@@ -112,6 +112,17 @@ RUBEM depends on [PCRaster](https://pcraster.geo.uu.nl/) and [GDAL](https://gdal
    rubem -h
    ```
 
+- Python usage example
+
+   ```python
+   from rubem.api import Model
+
+   result = Model.from_file("config.json").run()
+   print(result.output_directory)
+   ```
+
+   `rubem.api` is the supported programmatic surface: see the [Python API page](https://rubem.readthedocs.io/en/latest/api.html) for the result it returns, the stability policy and how to run repeated simulations in separate processes.
+
 _For more examples, please refer to the [user guide](https://rubem.readthedocs.io/en/latest/userguide.html) and [tutorials](https://rubem.readthedocs.io/en/latest/tutorials.html)._
 
 <!-- ROADMAP -->
