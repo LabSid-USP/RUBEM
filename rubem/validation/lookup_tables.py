@@ -19,6 +19,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from ..configuration._problems import Problem
+from ..configuration._ranges import variable_range
 
 logger = logging.getLogger(__name__)
 
@@ -184,9 +185,11 @@ def check_lookup_tables(tables) -> list[Problem]:
     Blocking: unreadable tables; ``dg``, ``Zr``, ``Tsat``, ``manning`` and the
     rainy days must be positive; ``Tcc > Tw`` for every class, with the same
     classes in both tables; the rainy days table must cover the twelve
-    months. Warning: ``kc_max < kc_min`` for a class, and the area fractions
-    ``a_i``, ``a_o``, ``a_s`` and ``a_v`` of a land use class not adding up
-    to one.
+    months; the optional ``lai_max`` table must be positive, at most the
+    admissible maximum of the ``lai_max`` constant and keyed by the classes of
+    the vegetated area fraction table. Warning: ``kc_max < kc_min`` for a
+    class, and the area fractions ``a_i``, ``a_o``, ``a_s`` and ``a_v`` of a
+    land use class not adding up to one.
 
     :param tables: An :class:`~rubem.configuration.input_table_files.InputTableFiles`.
     :return: The problems found, blocking ones flagged.
@@ -253,6 +256,8 @@ def check_lookup_tables(tables) -> list[Problem]:
         (tables.a_i, tables.a_o, tables.a_s, tables.a_v),
         problems,
     )
+    if tables.lai_max is not None:
+        _check_leaf_area_index_max(tables, problems)
     return problems
 
 
@@ -316,6 +321,55 @@ def _check_fractions(paths: Iterable, problems: list[Problem]) -> None:
                     False,
                 )
             )
+
+
+def _check_same_keys(
+    label: str, path, reference_label: str, reference_path, problems: list[Problem]
+) -> None:
+    """Report, as blocking, the keys that ``path`` and ``reference_path`` do not share."""
+    try:
+        keys = set(_values_by_key(path))
+        reference = set(_values_by_key(reference_path))
+    except (OSError, LookupTableError):
+        return  # Already reported by the single-table checks.
+    missing = sorted(reference - keys)
+    extra = sorted(keys - reference)
+    if missing or extra:
+        problems.append(
+            _problem(
+                f"{label} lookup table does not share its keys with the {reference_label} table.",
+                f"Keys missing from the table: {[' '.join(k) for k in missing]}; keys absent "
+                f"from the {reference_label} table: {[' '.join(k) for k in extra]}.",
+                path,
+                True,
+            )
+        )
+
+
+def _check_leaf_area_index_max(tables, problems: list[Problem]) -> None:
+    """Check the optional maximum leaf area index table.
+
+    Blocking: an unreadable table, values that are not positive or above the
+    admissible maximum of the ``lai_max`` constant, and land use classes that
+    differ from the ones of the vegetated area fraction table: a class absent
+    from the table gives a missing value in the LAI and in the interception.
+    """
+    label = "Maximum leaf area index (LAI_max)"
+    values = _check_positive(label, tables.lai_max, problems)
+    if values is None:
+        return
+    _, upper = variable_range("leaf_area_interception_max")
+    bad = [k for k, v in values.items() if v > upper]
+    if bad:
+        problems.append(
+            _problem(
+                f"{label} lookup table has values above {upper:g}.",
+                f"Keys with values > {upper:g}: {[' '.join(k) for k in bad]}.",
+                tables.lai_max,
+                True,
+            )
+        )
+    _check_same_keys(label, tables.lai_max, "vegetated area fraction (a_v)", tables.a_v, problems)
 
 
 def _class_name(key: tuple[str, ...]) -> str:
