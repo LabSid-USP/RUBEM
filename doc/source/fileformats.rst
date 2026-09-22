@@ -653,7 +653,7 @@ Optional table with the maximum leaf area index of each land use class, read ins
 - Restrictions:
 
   - :math:`0 < LAI_{MAX} \leq 12`;
-  - The land use classes must be the ones of the area fraction tables.
+  - One row per land use class, the classes of the area fraction tables (an interval key is not matched against the classes).
 
 - Dimensions:
 
