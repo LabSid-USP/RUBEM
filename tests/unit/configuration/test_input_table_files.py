@@ -1,8 +1,9 @@
 import os
+from pathlib import Path
 
 import pytest
 
-from rubem.configuration.input_table_files import InputTableFiles
+from rubem.configuration.input_table_files import TABLE_FIELDS, InputTableFiles
 
 
 class TestInputTables:
@@ -89,3 +90,58 @@ class TestInputTables:
                 kc_max="/path/to/kc_max.csv",
                 validate_input=True,
             )
+
+
+def required_tables(fs):
+    """Create the required tables on the fake filesystem and return their paths."""
+    paths = {name: f"/path/to/{name}.csv" for name in TABLE_FIELDS}
+    for path in paths.values():
+        fs.create_file(path, contents="42")
+    return paths
+
+
+class TestLeafAreaIndexMaxTable:
+    """``lai_max`` is optional: an empty setting means not specified."""
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [None, "", b""])
+    def test_an_empty_setting_means_not_specified(self, fs, value):
+        tables = InputTableFiles(**required_tables(fs), lai_max=value)
+
+        assert tables.lai_max is None
+        assert "Max. Leaf Area Index (LAI_max): Not specified." in str(tables)
+
+    @pytest.mark.unit
+    def test_the_path_is_normalised_like_the_other_tables(self, fs):
+        fs.create_file("/path/to/lai_max.txt", contents="1 12.0")
+
+        tables = InputTableFiles(**required_tables(fs), lai_max=Path("/path/to/lai_max.txt"))
+
+        assert tables.lai_max == str(Path("/path/to/lai_max.txt"))
+        assert f"Max. Leaf Area Index (LAI_max): {tables.lai_max}" in str(tables)
+
+    @pytest.mark.unit
+    def test_a_missing_table_is_refused(self, fs):
+        with pytest.raises(FileNotFoundError, match="lai_max"):
+            InputTableFiles(**required_tables(fs), lai_max="/path/to/lai_max.txt")
+
+    @pytest.mark.unit
+    def test_an_empty_table_is_refused(self, fs):
+        fs.create_file("/path/to/lai_max.txt")
+
+        with pytest.raises(ValueError, match="Empty input lookuptable file"):
+            InputTableFiles(**required_tables(fs), lai_max="/path/to/lai_max.txt")
+
+    @pytest.mark.unit
+    def test_skipping_validation_accepts_a_missing_table(self, fs):
+        tables = InputTableFiles(
+            **required_tables(fs), lai_max="/path/to/lai_max.txt", validate_input=False
+        )
+
+        assert tables.lai_max == str(Path("/path/to/lai_max.txt"))
+
+    @pytest.mark.unit
+    def test_an_empty_required_table_is_still_refused(self, fs):
+        """The optional table must not loosen the required ones."""
+        with pytest.raises(FileNotFoundError):
+            InputTableFiles(**{**required_tables(fs), "rainy_days": ""})

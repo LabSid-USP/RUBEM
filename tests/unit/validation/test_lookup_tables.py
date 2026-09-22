@@ -4,7 +4,7 @@ import pytest
 
 from rubem.configuration.input_table_files import InputTableFiles
 from rubem.validation.lookup_tables import LookupTableError, check_lookup_tables, read_lookup_table
-from tests.helpers.synthetic import write_synthetic_dataset
+from tests.helpers.synthetic import write_lai_max_table, write_synthetic_dataset
 
 
 def tables_of(config):
@@ -24,6 +24,7 @@ def tables_of(config):
         rootzone_depth=t["rootzone_depth"],
         kc_min=t["k_c_min"],
         kc_max=t["k_c_max"],
+        lai_max=t.get("lai_max"),
     )
 
 
@@ -188,3 +189,58 @@ class TestKeySpellings:
         assert fraction_problems and Path(fraction_problems[0].file) == Path(
             config["TABLES"]["a_o"]
         )
+
+
+class TestLeafAreaIndexMaxTable:
+    """The optional ``lai_max`` table: positive, at most the constant's maximum,
+    keyed by the land use classes of the area fraction tables."""
+
+    @pytest.mark.unit
+    def test_a_valid_table_is_clean(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        config["TABLES"]["lai_max"] = write_lai_max_table(config)
+
+        assert check_lookup_tables(tables_of(config)) == []
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "text, description",
+        [
+            ("3 0\n4 4.0\n", "non-positive"),
+            ("3 -1\n4 4.0\n", "non-positive"),
+            ("3 12.5\n4 4.0\n", "above 12"),
+            ("3 9.0\n", "does not share its keys"),
+            ("3 9.0\n4 4.0\n5 2.0\n", "does not share its keys"),
+            ("3 nope\n", "cannot be read"),
+        ],
+    )
+    def test_blocking_rules(self, tmp_path, text, description):
+        config = write_synthetic_dataset(str(tmp_path))
+        config["TABLES"]["lai_max"] = write_lai_max_table(config)
+        rewrite(config["TABLES"]["lai_max"], text)
+
+        problems = check_lookup_tables(tables_of(config))
+
+        matching = [p for p in problems if description in p.description or description in p.reason]
+        assert matching, [str(p) for p in problems]
+        assert all(p.blocking for p in matching)
+        assert all(Path(p.file) == Path(config["TABLES"]["lai_max"]) for p in matching)
+
+    @pytest.mark.unit
+    def test_the_key_check_names_the_missing_and_the_extra_classes(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        config["TABLES"]["lai_max"] = write_lai_max_table(config, {3: 9.0, 5: 2.0})
+
+        problems = check_lookup_tables(tables_of(config))
+
+        assert len(problems) == 1
+        assert "missing from the table: ['4']" in problems[0].reason
+        assert "absent from the vegetated area fraction (a_v) table: ['5']" in problems[0].reason
+
+    @pytest.mark.unit
+    def test_the_table_is_read_with_the_same_key_spellings(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        config["TABLES"]["lai_max"] = write_lai_max_table(config)
+        rewrite(config["TABLES"]["lai_max"], "03 9.0\n4.0 4.0\n")
+
+        assert check_lookup_tables(tables_of(config)) == []

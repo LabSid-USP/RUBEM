@@ -5,8 +5,15 @@ import pytest
 
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.core import DynamicFrameworkWrapper
-from tests.helpers.compare import compare_rasters
-from tests.helpers.synthetic import COLS, MISSING, ROWS, series_name, write_synthetic_dataset
+from tests.helpers.compare import compare_csv, compare_rasters
+from tests.helpers.synthetic import (
+    COLS,
+    MISSING,
+    ROWS,
+    series_name,
+    write_lai_max_table,
+    write_synthetic_dataset,
+)
 from tests.unit.core.test_core import expected_outputs, run_model
 
 STEP_FLUXES = (
@@ -262,6 +269,42 @@ class TestStateRelease:
                 continue
             result = compare_rasters(released / "out" / name, reference / "out" / name)
             assert result.equal, f"{name}:\n{result.report()}"
+
+    @pytest.mark.unit
+    def test_a_lai_max_table_equal_to_the_constant_reproduces_the_constant_run(self, tmp_path):
+        """Reading the maximum leaf area index from the table must not move
+        any output when every land use class carries the constant."""
+        reference = tmp_path / "constant"
+        run_model(str(reference))
+
+        tabled = tmp_path / "table"
+        config = write_synthetic_dataset(str(tabled))
+        constant = config["CONSTANTS"]["lai_max"]
+        config["TABLES"]["lai_max"] = write_lai_max_table(config, {3: constant, 4: constant})
+        config["CONSTANTS"]["lai_max_from_table"] = True
+        run_model(str(tabled), config=config)
+
+        for name in expected_outputs():
+            compare = compare_csv if name.endswith(".csv") else compare_rasters
+            result = compare(reference / "out" / name, tabled / "out" / name, rtol=0.0, atol=0.0)
+            assert result.equal, f"{name}:\n{result.report()}"
+
+    @pytest.mark.unit
+    def test_a_lai_max_table_changes_the_interception_of_each_land_use_class(self, tmp_path):
+        reference = tmp_path / "constant"
+        run_model(str(reference))
+
+        tabled = tmp_path / "table"
+        config = write_synthetic_dataset(str(tabled))
+        config["TABLES"]["lai_max"] = write_lai_max_table(config, {3: 9.0, 4: 4.0})
+        config["CONSTANTS"]["lai_max_from_table"] = True
+        run_model(str(tabled), config=config)
+
+        # Step 1 is land use class 3, step 2 class 4: both maxima differ from the constant.
+        for step in (1, 2):
+            name = series_name("itp", step)
+            result = compare_rasters(reference / "out" / name, tabled / "out" / name)
+            assert not result.equal, f"{name} did not change with the land use LAI_max"
 
 
 class TestSampleMapRelease:
