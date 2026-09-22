@@ -18,7 +18,7 @@ from pathlib import Path
 MARKER_FILENAME = "child.json"
 
 
-def record_and_run(document, base_dir, validate_input):
+def record_and_run(document, base_dir, validate_input, allow_blocking_problems):
     """Record who runs the simulation, then delegate to the real entry point.
 
     Installed over ``rubem.api._run_document`` in the parent; the child
@@ -28,13 +28,14 @@ def record_and_run(document, base_dir, validate_input):
     :param document: The configuration document.
     :param base_dir: Directory the relative paths of the document are anchored on.
     :param validate_input: Whether to validate the input files and their content.
+    :param allow_blocking_problems: Whether to run past blocking problems.
     :return: The result of the run, as the plain data the boundary carries.
     """
     preloaded = sorted(name for name in ("pcraster", "osgeo") if name in sys.modules)
 
     from rubem import api
 
-    result = api._run_document(document, base_dir, validate_input)
+    result = api._run_document(document, base_dir, validate_input, allow_blocking_problems)
     marker = Path(document["DIRECTORIES"]["output"]) / MARKER_FILENAME
     marker.write_text(json.dumps({"pid": os.getpid(), "preloaded": preloaded}), encoding="utf8")
     return result
@@ -51,7 +52,7 @@ def simulate(config):
     return os.getpid(), Model.from_config(config).run()
 
 
-def die(document, base_dir, validate_input):
+def die(document, base_dir, validate_input, allow_blocking_problems):
     """Kill the subprocess the way a crashing native library does.
 
     ``os._exit`` leaves no exception for the executor to send back, which is
