@@ -6,7 +6,7 @@ import pytest
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.core import DynamicFrameworkWrapper
 from tests.helpers.compare import compare_rasters
-from tests.helpers.synthetic import series_name, write_synthetic_dataset
+from tests.helpers.synthetic import COLS, MISSING, ROWS, series_name, write_synthetic_dataset
 from tests.unit.core.test_core import expected_outputs, run_model
 
 STEP_FLUXES = (
@@ -92,6 +92,56 @@ class TestDynamicModelBehavior:
         ), "the fallback reproduced the second-step NDVI instead of the first"
 
     @pytest.mark.unit
+    def test_ndvi_at_the_crop_coefficient_threshold_takes_the_minimum_branch(self, tmp_path):
+        """A cell whose NDVI equals 1.1 * NDVI_min gets kc = kc_min (issue #320).
+
+        The documented rule is kc = kc_min whenever NDVI <= 1.1 * NDVI_min, so
+        the first-step evapotranspiration of a run whose NDVI sits exactly on
+        the threshold must reproduce the run whose NDVI equals NDVI_min. Two
+        strict comparisons around the threshold left that cell with kc = 0 and
+        no vegetated-area evapotranspiration at all. A third run above the
+        threshold, whose kc is interpolated, must differ, so that a constant
+        output cannot pass.
+        """
+        import numpy as np
+        import pcraster as pcr
+
+        threshold_dir = tmp_path / "threshold"
+        below_dir = tmp_path / "below"
+        above_dir = tmp_path / "above"
+
+        runs = [
+            (directory, write_synthetic_dataset(str(directory)))
+            for directory in (threshold_dir, below_dir, above_dir)
+        ]
+        # The threshold is the Float32 product PCRaster evaluates from the
+        # ndvi_min raster the model reads: the Python literal 1.1 * 0.2 rounds
+        # to a Float32 below it and would take the kc_min branch with any
+        # comparison operator.
+        ndvi_min = pcr.readmap(str(threshold_dir / "maps" / "ndvi" / "ndvi_min.map"))
+        threshold = float(pcr.pcr2numpy(1.1 * ndvi_min, np.nan)[0, 0])
+        below = float(pcr.pcr2numpy(ndvi_min, np.nan)[0, 0])
+        # Write every step-1 NDVI raster while the synthetic clone is still set;
+        # each model run replaces the PCRaster clone.
+        for (directory, _), value in zip(runs, (threshold, below, 0.6), strict=True):
+            ndvi = pcr.numpy2pcr(
+                pcr.Scalar, np.full((ROWS, COLS), value, dtype=np.float32), MISSING
+            )
+            pcr.report(ndvi, str(directory / "maps" / "ndvi" / series_name("ndvi", 1)))
+        for directory, config in runs:
+            run_model(str(directory), config=config)
+
+        name = series_name("eta", 1)
+        same = compare_rasters(threshold_dir / "out" / name, below_dir / "out" / name)
+        assert same.equal, (
+            f"{name} at NDVI = 1.1 * NDVI_min differs from the NDVI = NDVI_min control:\n"
+            f"{same.report()}"
+        )
+        assert not compare_rasters(threshold_dir / "out" / name, above_dir / "out" / name).equal, (
+            "the threshold run reproduced the interpolated kc of the above-threshold control"
+        )
+
+    @pytest.mark.unit
     def test_disabling_tss_produces_no_time_series(self, tmp_path):
         config = write_synthetic_dataset(str(tmp_path))
         config["GENERATE_FILE"]["tss"] = False
@@ -125,6 +175,28 @@ class TestDynamicModelBehavior:
 
         assert stale.exists()
         assert not (tmp_path / "out" / "stale.csv").exists()
+
+    @pytest.mark.unit
+    def test_a_kept_tss_file_carries_the_pcraster_header(self, tmp_path):
+        """The kept time series are in the form PCRaster's own tools read."""
+        from rubem.configuration.model_configuration_file import ModelConfigurationFile
+        from rubem.configuration.model_configuration_file_v1 import ModelConfigurationFileV1
+
+        legacy = ModelConfigurationFile.model_validate(write_synthetic_dataset(str(tmp_path)))
+        document = ModelConfigurationFileV1.from_legacy(legacy).to_dict()
+        document["model_simulation_output"]["time_series_samples"]["formats"] = ["PCRasterTSS"]
+
+        DynamicFrameworkWrapper.load(ModelConfiguration(document)).run()
+
+        tss = tmp_path / "out" / "tss_arn.tss"
+        lines = tss.read_text(encoding="utf8").splitlines()
+        # Title, number of columns (the time step column included), the
+        # ``timestep`` line and one line per station id of the dataset.
+        assert lines[:4] == ["timeseries scalar", "3", "timestep", "1"]
+        assert lines[3:5] == ["1", "2"]
+        data = [line.split() for line in lines[5:] if line.strip()]
+        assert [row[0] for row in data] == ["1", "2"]
+        assert all(len(row) == 3 for row in data)
 
     @pytest.mark.unit
     def test_missing_first_ndvi_step_raises_a_clear_error(self, tmp_path):

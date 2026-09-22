@@ -390,11 +390,12 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         partial_crop_coef = Interception.get_crop_coef(
             current_ndvi, self.ndvi_min, self.ndvi_max, min_crop_coef, max_crop_coef
         )
-        # If NDVI < 1.1 * NDVI_min, kc = kc_min
-        crop_coef_lt_min_ndvi = pcrfw.scalar(current_ndvi < 1.1 * self.ndvi_min)
-        crop_coef_gt_min_ndvi = pcrfw.scalar(current_ndvi > 1.1 * self.ndvi_min)
-        current_crop_coef = pcr.scalar(
-            (crop_coef_gt_min_ndvi * partial_crop_coef) + (crop_coef_lt_min_ndvi * min_crop_coef)
+        # If NDVI <= 1.1 * NDVI_min, kc = kc_min
+
+        current_crop_coef = pcr.ifthenelse(
+            current_ndvi <= 1.1 * self.ndvi_min,
+            min_crop_coef,
+            partial_crop_coef,
         )
 
         water_stress_coef = pcr.scalar(
@@ -624,6 +625,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         """Initial setup of timeoutput timeseries.
 
         Initialize Tss report at sample locations or pits for each enabled output variable.
+        Every file is written with the PCRaster header (title, number of
+        columns, ``timestep`` line and one line per station id), which is the
+        form PCRaster's own tools read.
         """
         point_map = self.config.output_variables.aggregation == "point" and not is_geotiff(
             self.config.raster_files.sample_locations
@@ -634,7 +638,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                 str(Path(self.config.output_directory.path) / var.table_filename_prefix),
                 self,
                 id_map,
-                noHeader=True,
+                noHeader=False,
             )
             self.sample_time_series_dict[var.id] = tss_file.sample
         if point_map:
