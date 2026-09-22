@@ -14,6 +14,9 @@ class ModelConstants(BaseModel):
     :param fraction_photo_active_radiation_max: Maximum fraction of photosynthetically active radiation [-].
     :param fraction_photo_active_radiation_min: Minimum fraction of photosynthetically active radiation [-].
     :param leaf_area_interception_max: Maximum leaf area index [-].
+    :param leaf_area_interception_max_from_table: Whether the maximum leaf area index is read
+        per land use class from the ``lai_max`` lookup table instead of
+        ``leaf_area_interception_max``. Defaults to ``False``.
     :param impervious_area_interception: Impervious area interception [mm].
 
     :raises ValueError: If a value is outside the configured range, the FPAR bounds are not
@@ -73,5 +76,7 @@ class ModelConstants(BaseModel):
             f"Max. Frac. Photosynthetically Active Radiation (FPAR): {self.fraction_photo_active_radiation_max} [-]\n"
             f"Min. Frac. Photosynthetically Active Radiation (FPAR): {self.fraction_photo_active_radiation_min} [-]\n"
             f"Max. Leaf Area Index (LAI): {self.leaf_area_interception_max} [-]\n"
+            "Max. Leaf Area Index (LAI) from the land use table: "
+            f"{self.leaf_area_interception_max_from_table}\n"
             f"Impervious Area Interception: {self.impervious_area_interception} [mm]"
         )

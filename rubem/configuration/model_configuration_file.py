@@ -219,6 +219,11 @@ class Tables(_Section):
     k_c_max: str = Field(validation_alias=AliasChoices("k_c_max", "kc_max", "kcmax", "K_c_max"))
     lai_max: str | None = None
 
+    @field_validator("lai_max", mode="before")
+    @classmethod
+    def _empty_is_none(cls, value):
+        return None if value in ("", None) else value
+
 
 class Grid(_Section):
     grid: float
@@ -246,14 +251,8 @@ class InitialSoilConditionsSection(_Section):
 class Constants(_Section):
     fpar_max: float
     fpar_min: float
-    
-    # Valor fixo de LAI_max
     lai_max: float
-
-    # False = usa lai_max fixo
-    # True  = usa tabela associada ao landuse
     lai_max_from_table: bool = False
-    
     i_imp: float
 
 

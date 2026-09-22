@@ -163,20 +163,14 @@ class ModelConfiguration:
             baseflow_limit=file.initial_soil_conditions.bfw_lim,
             initial_saturated_zone_storage=file.initial_soil_conditions.s_sat_ini,
         )
-        
+
         self.constants = ModelConstants(
-        fraction_photo_active_radiation_max=file.constants.fpar_max,
-        fraction_photo_active_radiation_min=file.constants.fpar_min,
-
-        leaf_area_interception_max=file.constants.lai_max,
-
-        leaf_area_interception_max_from_table=(
-            file.constants.lai_max_from_table
-        ),
-
-        impervious_area_interception=file.constants.i_imp,
+            fraction_photo_active_radiation_max=file.constants.fpar_max,
+            fraction_photo_active_radiation_min=file.constants.fpar_min,
+            leaf_area_interception_max=file.constants.lai_max,
+            leaf_area_interception_max_from_table=file.constants.lai_max_from_table,
+            impervious_area_interception=file.constants.i_imp,
         )
-            
 
         self.output_directory = OutputDataDirectory(file.directories.output).ensure_exists()
 
@@ -251,7 +245,6 @@ class ModelConfiguration:
             kc_min=file.tables.k_c_min,
             kc_max=file.tables.k_c_max,
             lai_max=file.tables.lai_max,
-
             validate_input=validate_input,
         )
         self._series_problems = list(self.raster_series.problems)
@@ -296,6 +289,7 @@ class ModelConfiguration:
             fraction_photo_active_radiation_max=constants.fpar_max,
             fraction_photo_active_radiation_min=constants.fpar_min,
             leaf_area_interception_max=constants.lai_max,
+            leaf_area_interception_max_from_table=constants.lai_max_from_table,
             impervious_area_interception=constants.i_imp,
         )
         output = file.model_simulation_output
@@ -359,6 +353,7 @@ class ModelConfiguration:
             rootzone_depth=tables.rootzone_depth,
             kc_min=tables.kc_min,
             kc_max=tables.kc_max,
+            lai_max=tables.lai_max,
             validate_input=validate_input,
         )
         self.series_resolvers = resolvers_from_v1(file)
@@ -507,6 +502,34 @@ class ModelConfiguration:
                 Problem(
                     description="Simulation will not produce any Time Series tables.",
                     reason="Time Series generation was enabled but no Sample Locations raster was provided.",
+                )
+            )
+
+        if self.constants.leaf_area_interception_max_from_table:
+            if not self.lookuptable_files.lai_max:
+                self.problems.append(
+                    Problem(
+                        description="Maximum leaf area index lookup table is not set.",
+                        reason=(
+                            "CONSTANTS.lai_max_from_table is true but TABLES.lai_max "
+                            "(lookup_tables.lai_max in format 1.0) is not given."
+                        ),
+                        implication=(
+                            "The maximum leaf area index cannot be read per land use class."
+                        ),
+                        blocking=True,
+                    )
+                )
+        elif self.lookuptable_files.lai_max:
+            self.problems.append(
+                Problem(
+                    description="Maximum leaf area index lookup table is ignored.",
+                    reason=(
+                        "TABLES.lai_max is given but CONSTANTS.lai_max_from_table is false, "
+                        f"so the constant lai_max={self.constants.leaf_area_interception_max} "
+                        "is used."
+                    ),
+                    file=self.lookuptable_files.lai_max,
                 )
             )
 

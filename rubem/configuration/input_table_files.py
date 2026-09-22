@@ -25,9 +25,8 @@ TABLE_FIELDS = (
     "kc_max",
 )
 
-OPTIONAL_TABLE_FIELDS = (
-    "lai_max",
-)
+OPTIONAL_TABLE_FIELDS = ("lai_max",)
+
 
 class InputTableFiles(BaseModel):
     """
@@ -47,7 +46,10 @@ class InputTableFiles(BaseModel):
     :param rootzone_depth: Path to the rootzone depth lookup table file.
     :param kc_min: Path to the minimum crop coefficient lookup table file.
     :param kc_max: Path to the maximum crop coefficient lookup table file.
-    :param validate_input: If ``True``, checks that every file exists and is not empty. Defaults to ``True``.
+    :param lai_max: Path to the maximum leaf area index lookup table file, read per land use
+        class when ``ModelConstants.leaf_area_interception_max_from_table`` is ``True``.
+        Defaults to ``None``.
+    :param validate_input: If ``True``, checks that every file given exists and is not empty. Defaults to ``True``.
 
     :raises FileNotFoundError: If any of the input lookup table files does not exist.
     :raises ValueError: If any of the input lookup table files is empty.
@@ -75,40 +77,31 @@ class InputTableFiles(BaseModel):
     @field_validator(*TABLE_FIELDS, mode="before")
     @classmethod
     def _normalise(cls, value):
-        if value in (None, ""):
+        return str(as_path(value))
+
+    @field_validator(*OPTIONAL_TABLE_FIELDS, mode="before")
+    @classmethod
+    def _normalise_optional(cls, value):
+        # An empty setting means "not specified", as in the legacy configuration files.
+        if value is None or value == "" or value == b"":
             return None
         return str(as_path(value))
 
     @model_validator(mode="after")
     def _validate_files(self) -> Self:
-
         if not self.validate_input:
             logger.warning("Input lookup table files validation is disabled.")
             return self
-
         for name in TABLE_FIELDS + OPTIONAL_TABLE_FIELDS:
-
-            file_path = getattr(self, name)
-
-            # tabelas opcionais podem não existir na configuração
-            if file_path is None:
+            path = getattr(self, name)
+            if path is None:
                 continue
-
-            file = Path(file_path)
-
+            file = Path(path)
             if not file.is_file():
-                raise FileNotFoundError(
-                    f"Invalid input lookuptable file: {file}"
-                )
-
+                raise FileNotFoundError(f"Invalid input lookuptable file: {file}")
             if file.stat().st_size <= 0:
-                raise ValueError(
-                    f"Empty input lookuptable file: {file}"
-                )
-
+                raise ValueError(f"Empty input lookuptable file: {file}")
         return self
-
-
 
     def __str__(self) -> str:
         return (
@@ -125,5 +118,6 @@ class InputTableFiles(BaseModel):
             f"Wilting Point (T_wp): {self.t_wp}\n"
             f"Rootzone Depth: {self.rootzone_depth}\n"
             f"Min. Crop Coefficient (K_c_min): {self.kc_min}\n"
-            f"Max. Crop Coefficient (K_c_max): {self.kc_max}"
+            f"Max. Crop Coefficient (K_c_max): {self.kc_max}\n"
+            f"Max. Leaf Area Index (LAI_max): {self.lai_max if self.lai_max else 'Not specified.'}"
         )
