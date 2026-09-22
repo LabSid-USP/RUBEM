@@ -213,6 +213,7 @@ class TestCalibration:
         assert summary["settings"]["polish"] is False
         assert summary["settings"]["temp_dir"] == str(data.temp_dir)
         assert summary["settings"]["init"] == INIT.tolist()
+        assert summary["settings"]["allow_blocking_problems"] is False
 
     @pytest.mark.unit
     def test_the_calibrated_configuration_loads_with_the_best_parameters(self, calibrated):
@@ -776,6 +777,43 @@ class TestSettings:
         assert settings.recombination == 0.7
         assert settings.polish is False
         assert settings.workers is None
+        assert settings.allow_blocking_problems is False
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("allowed", [False, True])
+    def test_allow_blocking_problems_reaches_the_configuration_loader(
+        self, dataset, monkeypatch, allowed
+    ):
+        """The single load of a calibration carries the option to ``Model.from_file``.
+
+        The workers never revalidate, so this call is the only place the option
+        can have an effect, and the search itself is irrelevant to the question.
+        """
+        seen = {}
+        original = Model.from_file
+
+        def recording_from_file(path, **keywords):
+            seen.update(keywords)
+            return original(path, **keywords)
+
+        def stop(*_args, **_keywords):
+            raise RuntimeError("the load is all this test exercises")
+
+        monkeypatch.setattr(Model, "from_file", staticmethod(recording_from_file))
+        # The search that follows the load is irrelevant here, so the next step
+        # of the calibration ends it.
+        monkeypatch.setattr(runner, "read_series", stop)
+
+        with pytest.raises(RuntimeError, match="the load is all this test exercises"):
+            runner.calibrate(
+                dataset.config_file,
+                dataset.observed,
+                dataset.run_dir / "allowed",
+                CalibrationSettings(allow_blocking_problems=allowed),
+            )
+
+        assert seen["allow_blocking_problems"] is allowed
+        assert seen["validate_input"] is True
 
 
 @pytest.fixture(scope="class")

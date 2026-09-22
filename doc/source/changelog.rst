@@ -40,7 +40,11 @@ Added
   not take it. ``ModelConfiguration(..., allow_blocking_problems=False)`` is the library
   counterpart and keeps the full list in ``ModelConfiguration.problems``; ``Model.from_file``
   and ``Model.from_config`` of ``rubem.api`` take the same keyword and an isolated run
-  rebuilds the configuration with it
+  rebuilds the configuration with it. ``rubem calibrate --allow-blocking-problems``, and
+  ``CalibrationSettings(allow_blocking_problems=True)``, do the same for a calibration,
+  whose inputs are validated once before the search and never again by the workers; the
+  value is recorded under ``settings`` in :file:`result.json`, since the parameters it
+  reports were fitted on inputs the validation rejected
   (`#352 <https://github.com/LabSid-USP/RUBEM/issues/352>`__).
 - Added ``rubem.api``, the public Python surface: ``Model.from_file`` and
   ``Model.from_config`` load a configuration file or document, ``Model.run()``

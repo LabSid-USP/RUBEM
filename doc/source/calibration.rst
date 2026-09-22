@@ -570,6 +570,36 @@ subcatchments: the subcatchment of each sample location is delineated over the
 drainage network, so the areas the series are averaged over move with it, for
 every variable.
 
+Inputs the validation rejects
+`````````````````````````````
+
+The inputs are validated **once**, when the calibration loads the
+configuration; the worker processes never revalidate them, since they do not
+change during the search. A blocking problem therefore stops the calibration
+before the first model run, which is the point: a search is hundreds or
+thousands of runs, and an input the validation refuses would spend all of them
+on a result that cannot be trusted.
+
+``--allow-blocking-problems`` searches anyway. The checks still run and every
+problem is still reported — the non-blocking ones as warnings, the blocking
+ones as errors — and the search then starts instead of stopping. It is the
+counterpart of ``rubem run --allow-blocking-problems``, and there is no ``-s``
+on ``calibrate`` for it to conflict with.
+
+The value is written to :file:`result.json`, under ``settings``, because it
+changes what the numbers beside it mean: the parameters were fitted on inputs
+the validation rejected, and nothing else in the artifacts would say so.
+
+.. warning::
+
+   The option does not repair anything. A raster the validation blocks on still
+   reaches the model at every one of the evaluations, and the efficiency the
+   search maximizes is measured on what that produced. Whether the defect
+   reaches the compared stations is worth answering before the machine is
+   committed: a single ``rubem run --allow-blocking-problems`` writes the time
+   series of the stations, and values that are finite and plausible there say
+   the search has something real to fit.
+
 Artifacts of a run
 ------------------
 

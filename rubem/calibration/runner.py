@@ -216,6 +216,15 @@ class CalibrationSettings:
         ``None``, the default, uses every station the observed series and the
         run have in common.
     :type stations: tuple[str, ...] | None
+
+    :param allow_blocking_problems: Whether the calibration loads, and searches
+        on, a configuration whose inputs carry blocking problems. The checks
+        still run and every problem is still reported; the search then starts
+        instead of stopping. ``False``, the default, refuses such a
+        configuration, as a run of the model does. The value is recorded in
+        :file:`result.json`, since what the search fitted was measured on inputs
+        the validation rejected.
+    :type allow_blocking_problems: bool
     """
 
     variable: str = "arn"
@@ -233,6 +242,7 @@ class CalibrationSettings:
     bounds: dict[str, tuple[float, float]] | None = None
     fixed: dict[str, float] | None = None
     stations: tuple[str, ...] | None = None
+    allow_blocking_problems: bool = False
 
 
 @dataclass(frozen=True)
@@ -439,7 +449,14 @@ def calibrate(
             )
 
     config_file = as_path(config_path).absolute()
-    configuration = Model.from_file(config_file, validate_input=True).configuration
+    # The only validation of a whole calibration: the workers never revalidate,
+    # so this is where a blocking problem stops the search, and where
+    # ``allow_blocking_problems`` lets it start anyway.
+    configuration = Model.from_file(
+        config_file,
+        validate_input=True,
+        allow_blocking_problems=settings.allow_blocking_problems,
+    ).configuration
     file_v1 = _as_v1(configuration)
     _check_sample_locations(configuration, file_v1)
 
@@ -1340,6 +1357,7 @@ def _settings_document(
         },
         "fixed": dict(space.fixed),
         "stations": list(settings.stations) if settings.stations is not None else None,
+        "allow_blocking_problems": settings.allow_blocking_problems,
     }
 
 

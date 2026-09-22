@@ -388,6 +388,16 @@ def calibrate(
         bool,
         typer.Option("--polish/--no-polish", help="Refine the best candidate with a local search."),
     ] = False,
+    allow_blocking_problems: Annotated[
+        bool,
+        typer.Option(
+            "--allow-blocking-problems",
+            help=(
+                "Search even if the input validation finds blocking problems; "
+                "they are logged as errors instead of stopping the calibration."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Calibrate the model parameters against an observed series."""
     # The options that carry a small language of their own are read first, so
@@ -411,6 +421,7 @@ def calibrate(
         "init": init.value,
         "strategy": strategy,
         "polish": polish,
+        "allow_blocking_problems": allow_blocking_problems,
     }
     if workers is not None:
         settings_arguments["workers"] = workers

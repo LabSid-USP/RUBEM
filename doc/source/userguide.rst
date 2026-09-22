@@ -1258,6 +1258,10 @@ Use ``-h`` or ``--help`` to get a brief description of each command and its argu
                                      best1exp]
      --polish / --no-polish          Refine the best candidate with a local
                                      search.  [default: no-polish]
+     --allow-blocking-problems       Search even if the input validation finds
+                                     blocking problems; they are logged as
+                                     errors instead of stopping the
+                                     calibration.
      -h, --help                      Show this message and exit.
 
 ``calibrate`` needs SciPy, which comes with ``pip install
@@ -1269,7 +1273,10 @@ each station), ``best_<variable>.csv`` (its series beside the observed one),
 directory of per-evaluation records into the ``--run-dir``, which must be empty
 of earlier records. ``--bound`` and ``--fix`` are repeatable, one parameter
 each; ``--stations`` names the gauges the objective averages, and the others
-are still measured and reported. The method itself (the objective, the
+are still measured and reported. ``--allow-blocking-problems`` is the
+counterpart of the option of ``run``: the inputs are validated once, before the
+search, and the option lets a configuration whose inputs carry blocking
+problems be searched on anyway. The method itself (the objective, the
 parameter bounds, the derivation of ``w3``, how to budget the number of
 evaluations, what the run prints and what it needs from the configuration) is
 documented in :doc:`Calibration </calibration>`.

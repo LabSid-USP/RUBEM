@@ -105,6 +105,7 @@ class TestCliCalibrateArgumentsReachTheRunner:
         assert settings.bounds is None
         assert settings.fixed is None
         assert settings.stations is None
+        assert settings.allow_blocking_problems is False
 
     @pytest.mark.unit
     def test_every_option_reaches_the_settings(
@@ -555,6 +556,25 @@ class TestCliCalibrateDecisionSpaceOptions:
         )
 
         assert fake_calibration.calls[0][3].polish is False
+
+    @pytest.mark.unit
+    def test_allow_blocking_problems_reaches_the_settings(
+        self, config_path, observed_path, tmp_path, fake_calibration, restore_logging
+    ):
+        main(
+            [
+                "calibrate",
+                "-c",
+                str(config_path),
+                "--observed",
+                str(observed_path),
+                "-o",
+                str(tmp_path / "calibration"),
+                "--allow-blocking-problems",
+            ]
+        )
+
+        assert fake_calibration.calls[0][3].allow_blocking_problems is True
 
     @pytest.mark.unit
     @pytest.mark.parametrize(
