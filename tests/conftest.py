@@ -1,7 +1,67 @@
 import logging
 import os
+from pathlib import Path
 
 import pytest
+
+DATASET_DIR_VARIABLE = "RUBEM_DATASET_DIR"
+"""Environment variable pointing at the local copy of the published datasets.
+
+The directory it names holds the manifest ``<basin>_basin.json`` of every
+published basin beside the extracted ``<basin>_basin/`` directory of its inputs.
+The datasets are hundreds of megabytes and are not part of the repository, so
+the tests that need them are marked ``dataset`` and run only where the variable
+is set; everywhere else the suite stays self-contained.
+"""
+
+NO_DATASET_DIR = f"{DATASET_DIR_VARIABLE} is not set"
+"""The reason a test marked ``dataset`` is skipped with when the variable is unset."""
+
+
+def _dataset_dir() -> tuple[Path | None, str]:
+    """Return the datasets directory, or ``None`` and the reason it is not available.
+
+    An unset or empty variable means the published datasets are not on this
+    machine; a variable that names something other than a directory is reported
+    as such, so that a mistyped path or a mount that is not up does not read as
+    "not requested".
+    """
+    value = os.environ.get(DATASET_DIR_VARIABLE)
+    if not value:
+        return None, NO_DATASET_DIR
+    directory = Path(value)
+    if not directory.is_dir():
+        return None, f"{DATASET_DIR_VARIABLE}={value} is not a directory"
+    return directory, ""
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip every test marked ``dataset`` when the datasets are not there.
+
+    The marker alone is enough: a test that never asks for the ``dataset_dir``
+    fixture, because it reaches the datasets through another fixture or through
+    a helper, is skipped for the same reason as one that does.
+    """
+    directory, reason = _dataset_dir()
+    if directory is not None:
+        return
+    skip = pytest.mark.skip(reason=reason)
+    for item in items:
+        if item.get_closest_marker("dataset") is not None:
+            item.add_marker(skip)
+
+
+@pytest.fixture
+def dataset_dir():
+    """The directory of the published datasets, or a skipped test.
+
+    :return: The directory :data:`DATASET_DIR_VARIABLE` names.
+    :rtype: pathlib.Path
+    """
+    directory, reason = _dataset_dir()
+    if directory is None:
+        pytest.skip(reason)
+    return directory
 
 
 @pytest.fixture(autouse=True)

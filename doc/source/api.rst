@@ -196,6 +196,37 @@ point guard above applies to it.
 A thread pool is not a substitute: threads that call ``Model.run`` share the
 state of PCRaster, with the consequences described above.
 
+Calibration
+-----------
+
+``rubem calibrate`` is built on this API: each of its workers calls
+``Model.run()`` in its own process, on a configuration derived from the one
+being calibrated. The same search is available from Python as
+``rubem.calibration.runner.calibrate``, which takes the configuration file, the
+observed series, the run directory and a ``CalibrationSettings``:
+
+.. code-block:: python
+
+   from rubem.calibration.runner import CalibrationSettings, calibrate
+
+   if __name__ == "__main__":
+       result = calibrate(
+           "config.json",
+           "observed.csv",
+           "calibration",
+           CalibrationSettings(seed=42, maxiter=20, popsize=5),
+       )
+       print(result.best_parameters, result.best_nse)
+
+The entry point guard is required: the calibration starts its workers with the
+``spawn`` method, which imports the main module of the caller in every one of
+them. SciPy is needed as well, from the ``rubem[calibration]`` extra.
+
+``rubem.calibration`` is **not** part of the stable surface yet: only
+``rubem.api`` is, and the calibration package may change without a minor
+version bump until it is promoted. The method behind the command is documented
+in :doc:`Calibration </calibration>`.
+
 Logging
 -------
 

@@ -1168,9 +1168,11 @@ Configuration File Template
 Running RUBEM
 -------------
 
-The ``rubem`` command has two subcommands: ``run`` executes a simulation and
-``config schema`` prints the JSON Schema of the configuration file. Running it
-without arguments shows the available commands:
+The ``rubem`` command groups its work in subcommands: ``run`` executes a
+simulation, ``calibrate`` fits the calibration parameters to an observed
+series, ``config schema`` prints the JSON Schema of the configuration file and
+``preprocess`` prepares the input rasters. Running it without arguments shows
+the available commands:
 
 .. code-block:: console
 
@@ -1184,8 +1186,10 @@ without arguments shows the available commands:
      -h, --help     Show this message and exit.
 
    Commands:
-     run     Run a simulation from a configuration file.
-     config  Inspect the configuration file format.
+     run         Run a simulation from a configuration file.
+     calibrate   Calibrate the model parameters against an observed series.
+     config      Inspect the configuration file format.
+     preprocess  Prepare model inputs: inspect and convert rasters, build...
 
 .. note::
 
@@ -1213,6 +1217,93 @@ Use ``-h`` or ``--help`` to get a brief description of each command and its argu
                                    finds blocking problems; they are logged as
                                    errors instead of stopping the run.
      -h, --help                    Show this message and exit.
+
+.. code-block:: console
+
+   $ rubem calibrate -h
+   Usage: rubem calibrate [OPTIONS]
+
+     Calibrate the model parameters against an observed series.
+
+   Options:
+     -c, --configfile <path>         Path to the configuration file (JSON).
+                                     [required]
+     --observed <file>               Observed series at the sample stations (CSV
+                                     or PCRaster TSS).  [required]
+     -o, --run-dir <path>            Directory for the calibration artifacts.
+                                     [required]
+     --variable <str>                Output variable compared with the observed
+                                     series.  [default: arn]
+     --spinup-steps <int range>      Leading time steps excluded from the NSE.
+                                     [default: 0; x>=0]
+     --maxiter <int range>           Maximum number of generations.  [default:
+                                     100; x>=1]
+     --popsize <int range>           Population multiplier of the search.
+                                     [default: 15; x>=1]
+     --seed <int>                    Seed of the differential evolution.
+     --workers <int range>           Parallel evaluations (default: all cores but
+                                     one).  [x>=1]
+     --temp-dir <path>               Parent of the per-evaluation output
+                                     directories.
+     --bound <str>                   Narrow the range of one parameter:
+                                     NAME=MIN:MAX.
+     --fix <str>                     Keep one parameter out of the search:
+                                     NAME=VALUE.
+     --stations <str>                Station ids of the objective, comma-
+                                     separated (default: every shared station).
+     --init <sobol|latinhypercube|halton|random>
+                                     Initial population of the search.  [default:
+                                     sobol]
+     --strategy <str>                Differential evolution strategy.  [default:
+                                     best1exp]
+     --polish / --no-polish          Refine the best candidate with a local
+                                     search.  [default: no-polish]
+     --allow-blocking-problems       Search even if the input validation finds
+                                     blocking problems; they are logged as
+                                     errors instead of stopping the
+                                     calibration.
+     -h, --help                      Show this message and exit.
+
+``calibrate`` needs SciPy, which comes with ``pip install
+"rubem[calibration]"``. It writes ``observed.csv`` (what the observations offer
+at each station, before the search), ``evaluations.csv`` (one row per
+evaluation), ``stations.csv`` (the goodness of fit of the best candidate at
+each station), ``best_<variable>.csv`` (its series beside the observed one),
+``result.json``, ``<config>-calibrated.json`` and the ``evaluations/``
+directory of per-evaluation records into the ``--run-dir``, which must be empty
+of earlier records. ``--bound`` and ``--fix`` are repeatable, one parameter
+each; ``--stations`` names the gauges the objective averages, and the others
+are still measured and reported. ``--allow-blocking-problems`` is the
+counterpart of the option of ``run``: the inputs are validated once, before the
+search, and the option lets a configuration whose inputs carry blocking
+problems be searched on anyway. The method itself (the objective, the
+parameter bounds, the derivation of ``w3``, how to budget the number of
+evaluations, what the run prints and what it needs from the configuration) is
+documented in :doc:`Calibration </calibration>`.
+
+.. code-block:: console
+
+   $ rubem calibrate -c project-config.json --observed observed.csv -o calibration \
+       --spinup-steps 12
+   Loading configuration and validating inputs...
+   Calibration started...
+   The calibration compares 216 time step(s); the observed series covers 216 of them, the step(s) 13 to 228.
+   Station 1: 198 observed value(s) on the compared steps, 18 dropped as gaps.
+   Calibrating 8 free parameter(s) with 128 population member(s) per generation and at most 100 generation(s): up to 12928 model run(s), on 15 worker process(es).
+   Generation 1: best objective 1.60757e+06, best NSE 0.601240, 256 evaluation(s) recorded.
+   Generation 16: best objective 160757, best NSE 0.873210, 2048 evaluation(s) recorded.
+   Calibration finished after 2048 evaluation(s) in 16 generation(s): best objective 160757, best NSE 0.873210.
+   Calibration finished successfully!
+   Best NSE: 0.873210
+   Best objective: 160757
+   Evaluations: 2048
+   Generations: 16
+   Evaluations table: /basins/ipojuca/calibration/evaluations.csv
+   Result: /basins/ipojuca/calibration/result.json
+   Calibrated configuration: /basins/ipojuca/calibration/project-config-calibrated.json
+   Observed summary: /basins/ipojuca/calibration/observed.csv
+   Stations table: /basins/ipojuca/calibration/stations.csv
+   Best candidate series: /basins/ipojuca/calibration/best_arn.csv
 
 Use ``-V`` or ``--version`` to get the version of the RUBEM.
 

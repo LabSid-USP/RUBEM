@@ -13,6 +13,24 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added ``rubem calibrate``: a differential evolution (SciPy) over the free
+  calibration parameters, with ``w3`` derived from the other two weights,
+  minimizing ``1000 (100 (1 - NSE))^2`` on the station series of one output
+  variable (``arn`` by default) against an observed series given in the table
+  layout of the model's time series or as a PCRaster time series with its
+  header. Negative, ``-9999`` and PCRaster missing values are gaps; a spin-up
+  window, per-run bounds (``--bound``), fixed parameters (``--fix``), the
+  stations of the objective (``--stations``) and the initialization, strategy
+  and polishing of the search are options. Every candidate runs in a fresh
+  spawned worker through the Python API, and the run directory receives
+  ``observed.csv``, ``evaluations.csv``, ``stations.csv``,
+  ``best_<variable>.csv``, ``result.json`` and ``<config>-calibrated.json``,
+  with progress lines on the terminal. SciPy comes with the optional extra
+  ``rubem[calibration]``. The calibration page of the documentation describes
+  the method, the evaluation budget, the fixed drainage network a calibration
+  on ``arn`` needs and the process model; a ``dataset`` pytest marker with the
+  ``RUBEM_DATASET_DIR`` convention carries a smoke test on the Ipojuca basin
+  (`#343 <https://github.com/LabSid-USP/RUBEM/issues/343>`__).
 - Added ``rubem run --allow-blocking-problems``, which runs the model even when the input
   validation finds blocking problems: the same checks run, every problem is still reported
   (the non-blocking ones as warnings, the blocking ones as errors, followed by one error line
@@ -22,7 +40,11 @@ Added
   not take it. ``ModelConfiguration(..., allow_blocking_problems=False)`` is the library
   counterpart and keeps the full list in ``ModelConfiguration.problems``; ``Model.from_file``
   and ``Model.from_config`` of ``rubem.api`` take the same keyword and an isolated run
-  rebuilds the configuration with it
+  rebuilds the configuration with it. ``rubem calibrate --allow-blocking-problems``, and
+  ``CalibrationSettings(allow_blocking_problems=True)``, do the same for a calibration,
+  whose inputs are validated once before the search and never again by the workers; the
+  value is recorded under ``settings`` in :file:`result.json`, since the parameters it
+  reports were fitted on inputs the validation rejected
   (`#352 <https://github.com/LabSid-USP/RUBEM/issues/352>`__).
 - Added ``rubem.api``, the public Python surface: ``Model.from_file`` and
   ``Model.from_config`` load a configuration file or document, ``Model.run()``
