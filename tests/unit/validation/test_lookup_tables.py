@@ -212,6 +212,8 @@ class TestLeafAreaIndexMaxTable:
             ("3 9.0\n", "does not share its keys"),
             ("3 9.0\n4 4.0\n5 2.0\n", "does not share its keys"),
             ("3 nope\n", "cannot be read"),
+            # One row per class: an interval key is not matched against the classes.
+            ("[3,4] 9.0\n", "does not share its keys"),
         ],
     )
     def test_blocking_rules(self, tmp_path, text, description):
@@ -244,3 +246,11 @@ class TestLeafAreaIndexMaxTable:
         rewrite(config["TABLES"]["lai_max"], "03 9.0\n4.0 4.0\n")
 
         assert check_lookup_tables(tables_of(config)) == []
+
+    @pytest.mark.unit
+    def test_the_content_is_checked_only_when_the_run_reads_the_table(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        config["TABLES"]["lai_max"] = write_lai_max_table(config, {3: 0.0})
+
+        assert check_lookup_tables(tables_of(config), lai_max_from_table=False) == []
+        assert check_lookup_tables(tables_of(config)) != []

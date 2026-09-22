@@ -191,29 +191,51 @@ class TestLoaderBlocksOnContent:
         assert not any(problem.blocking for problem in loaded.problems)
 
 
+def both_formats(config):
+    """The legacy configuration and its format 1.0 document."""
+    legacy = ModelConfigurationFile.model_validate(config)
+    return (config, ModelConfigurationFileV1.from_legacy(legacy).to_dict())
+
+
 class TestLeafAreaIndexMaxTable:
-    """The ``lai_max`` table and its switch must agree, and the table is checked."""
+    """The ``lai_max`` table and its switch must agree, and the table read is checked."""
 
     @pytest.mark.unit
     @pytest.mark.parametrize("validate_input", [True, False])
     def test_the_switch_without_a_table_blocks_before_the_run(self, config, validate_input):
         config["CONSTANTS"]["lai_max_from_table"] = True
 
-        with pytest.raises(ConfigurationError) as error:
-            ModelConfiguration(config, validate_input=validate_input)
+        for source in both_formats(config):
+            with pytest.raises(ConfigurationError) as error:
+                ModelConfiguration(source, validate_input=validate_input)
 
-        assert any("lookup table is not set" in r for r in blocking_reasons(error.value))
+            assert any("lookup table is not set" in r for r in blocking_reasons(error.value))
 
     @pytest.mark.unit
     def test_a_table_without_the_switch_is_reported_as_ignored(self, config):
         config["TABLES"]["lai_max"] = write_lai_max_table(config)
 
+        for source in both_formats(config):
+            loaded = ModelConfiguration(source)
+
+            ignored = [p for p in loaded.problems if "lookup table is ignored" in p.description]
+            assert len(ignored) == 1 and not ignored[0].blocking
+            assert Path(ignored[0].file) == Path(config["TABLES"]["lai_max"])
+            assert loaded.constants.leaf_area_interception_max_from_table is False
+
+    @pytest.mark.unit
+    def test_the_content_of_an_ignored_table_is_not_checked(self, config):
+        """A declared table must exist, but with the switch off its content plays no part."""
+        table = write_lai_max_table(config, {3: 0.0})
+        config["TABLES"]["lai_max"] = table
+
         loaded = ModelConfiguration(config)
 
-        ignored = [p for p in loaded.problems if "lookup table is ignored" in p.description]
-        assert len(ignored) == 1 and not ignored[0].blocking
-        assert Path(ignored[0].file) == Path(config["TABLES"]["lai_max"])
-        assert loaded.constants.leaf_area_interception_max_from_table is False
+        assert not any(problem.blocking for problem in loaded.problems)
+        assert any("lookup table is ignored" in p.description for p in loaded.problems)
+        os.remove(table)
+        with pytest.raises(FileNotFoundError):
+            ModelConfiguration(config)
 
     @pytest.mark.unit
     def test_the_table_and_the_switch_reach_the_model_settings_in_both_formats(self, config):

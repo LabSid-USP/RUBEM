@@ -109,7 +109,12 @@ class ModelConfiguration:
         self.problems.extend(self._series_problems)
         self.problems.extend(self.raster_files.problems)
         if validate_input:
-            self.problems.extend(check_lookup_tables(self.lookuptable_files))
+            self.problems.extend(
+                check_lookup_tables(
+                    self.lookuptable_files,
+                    lai_max_from_table=self.constants.leaf_area_interception_max_from_table,
+                )
+            )
             self.problems.extend(
                 check_runoff_coefficient_domain(
                     self.lookuptable_files,
@@ -509,8 +514,9 @@ class ModelConfiguration:
                     Problem(
                         description="Maximum leaf area index lookup table is not set.",
                         reason=(
-                            "CONSTANTS.lai_max_from_table is true but TABLES.lai_max "
-                            "(lookup_tables.lai_max in format 1.0) is not given."
+                            "CONSTANTS.lai_max_from_table (model_constants.lai_max_from_table in "
+                            "format 1.0) is true but TABLES.lai_max (lookup_tables.lai_max) is "
+                            "not given."
                         ),
                         implication=(
                             "The maximum leaf area index cannot be read per land use class."
@@ -523,9 +529,10 @@ class ModelConfiguration:
                 Problem(
                     description="Maximum leaf area index lookup table is ignored.",
                     reason=(
-                        "TABLES.lai_max is given but CONSTANTS.lai_max_from_table is false, "
-                        f"so the constant lai_max={self.constants.leaf_area_interception_max} "
-                        "is used."
+                        "TABLES.lai_max (lookup_tables.lai_max in format 1.0) is given but "
+                        "CONSTANTS.lai_max_from_table (model_constants.lai_max_from_table) is "
+                        f"false: the constant lai_max={self.constants.leaf_area_interception_max} "
+                        "is used and the content of the table is not checked."
                     ),
                     file=self.lookuptable_files.lai_max,
                 )

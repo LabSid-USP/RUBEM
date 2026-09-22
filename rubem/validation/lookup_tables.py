@@ -179,19 +179,21 @@ def _check_pair(
         )
 
 
-def check_lookup_tables(tables) -> list[Problem]:
+def check_lookup_tables(tables, *, lai_max_from_table: bool = True) -> list[Problem]:
     """Check the content of the model's lookup tables.
 
     Blocking: unreadable tables; ``dg``, ``Zr``, ``Tsat``, ``manning`` and the
     rainy days must be positive; ``Tcc > Tw`` for every class, with the same
     classes in both tables; the rainy days table must cover the twelve
-    months; the optional ``lai_max`` table must be positive, at most the
-    admissible maximum of the ``lai_max`` constant and keyed by the classes of
-    the vegetated area fraction table. Warning: ``kc_max < kc_min`` for a
+    months; the ``lai_max`` table, when the run reads it, must be positive, at
+    most the admissible maximum of the ``lai_max`` constant and keyed by the
+    classes of the vegetated area fraction table. Warning: ``kc_max < kc_min`` for a
     class, and the area fractions ``a_i``, ``a_o``, ``a_s`` and ``a_v`` of a
     land use class not adding up to one.
 
     :param tables: An :class:`~rubem.configuration.input_table_files.InputTableFiles`.
+    :param lai_max_from_table: Whether the run reads the ``lai_max`` table; its content
+        is checked only then (the file must exist either way, like every table given).
     :return: The problems found, blocking ones flagged.
     """
     problems: list[Problem] = []
@@ -256,7 +258,7 @@ def check_lookup_tables(tables) -> list[Problem]:
         (tables.a_i, tables.a_o, tables.a_s, tables.a_v),
         problems,
     )
-    if tables.lai_max is not None:
+    if lai_max_from_table and tables.lai_max is not None:
         _check_leaf_area_index_max(tables, problems)
     return problems
 
