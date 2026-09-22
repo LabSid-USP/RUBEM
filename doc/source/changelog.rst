@@ -132,6 +132,15 @@ Added
   ``zones`` (a ``rasters.zones`` raster, ids remapped to ``1..N`` and
   recorded in ``zones_mapping.csv``); non-point tables are named
   ``tss_<variable>_<aggregation>``.
+- Added the optional ``lai_max`` lookup table (``TABLES.lai_max``, format 1.0
+  ``lookup_tables.lai_max``) with the maximum leaf area index of each land use
+  class, selected by the constant ``lai_max_from_table`` (default ``false``:
+  the ``lai_max`` constant is used as before). When read, the table must be
+  positive, at most the admissible maximum of the constant and keyed by the
+  classes of the area fraction tables (skipped with ``-s``); the switch
+  without a table blocks the run even with ``-s``, and a table without the
+  switch is reported as ignored
+  (`#353 <https://github.com/LabSid-USP/RUBEM/issues/353>`__).
 
 Changed
 ```````

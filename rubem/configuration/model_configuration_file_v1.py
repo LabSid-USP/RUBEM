@@ -191,6 +191,14 @@ class LookupTables(_Strict):
     rootzone_depth: str
     kc_min: str
     kc_max: str
+    lai_max: str | None = None
+
+    @field_validator("lai_max", mode="before")
+    @classmethod
+    def _empty_is_none(cls, value):
+        # An empty setting means not specified, as in the legacy file; anchoring it on the
+        # base directory would otherwise turn it into a directory path.
+        return None if value in ("", None) else value
 
 
 class RasterInfo(_Strict):
@@ -220,6 +228,7 @@ class Constants(_Strict):
     fpar_max: float
     fpar_min: float
     lai_max: float
+    lai_max_from_table: bool = False
     i_imp: float
 
 
@@ -471,6 +480,7 @@ class ModelConfigurationFileV1(_Strict):
                 "rootzone_depth": legacy.tables.rootzone_depth,
                 "kc_min": legacy.tables.k_c_min,
                 "kc_max": legacy.tables.k_c_max,
+                "lai_max": legacy.tables.lai_max,
             },
             "raster_info": {"grid_size": legacy.grid.grid},
             "model_calibration_parameters": legacy.calibration.model_dump(by_alias=True),
@@ -573,6 +583,7 @@ class ModelConfigurationFileV1(_Strict):
                 "rootzone_depth": self.lookup_tables.rootzone_depth,
                 "k_c_min": self.lookup_tables.kc_min,
                 "k_c_max": self.lookup_tables.kc_max,
+                "lai_max": self.lookup_tables.lai_max,
             },
             "GRID": {"grid": self.raster_info.grid_size},
             "CALIBRATION": self.model_calibration_parameters.model_dump(),

@@ -269,3 +269,16 @@ class TestInterceptionModule:
         )
         result = generalfunctions.getCellValue(field, 0, 0)
         assert result == pytest.approx(expected, rel=1e-2)
+
+    @pytest.mark.unit
+    def test_laiCalc_with_a_constant_and_with_a_field_lai_max_agree(self):
+        fpar = pcr.scalar(0.7)
+        fpar_max = pcr.scalar(0.9)
+
+        constant = Interception.get_leaf_area_index(fpar, fpar_max, 1.0)
+        field = Interception.get_leaf_area_index(fpar, fpar_max, pcr.scalar(1.0))
+
+        assert generalfunctions.getCellValue(constant, 0, 0) == pytest.approx(0.5228787660)
+        assert generalfunctions.getCellValue(field, 0, 0) == pytest.approx(
+            generalfunctions.getCellValue(constant, 0, 0)
+        )

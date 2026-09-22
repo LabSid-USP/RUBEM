@@ -13,7 +13,7 @@ from rubem.configuration.model_configuration_file_v1 import (
     RasterFormat,
     TimeSeriesFormat,
 )
-from tests.helpers.synthetic import write_synthetic_dataset
+from tests.helpers.synthetic import write_lai_max_table, write_synthetic_dataset
 
 
 @pytest.fixture(name="legacy")
@@ -412,3 +412,55 @@ class TestConversions:
 
         with pytest.raises(ValidationError):
             ModelConfigurationFileV1.from_json(file)
+
+
+class TestLeafAreaIndexMaxTable:
+    @pytest.mark.unit
+    def test_an_absent_table_is_left_out_of_the_document(self, document):
+        assert "lai_max" not in document["lookup_tables"]
+        assert document["model_constants"]["lai_max_from_table"] is False
+
+        model = ModelConfigurationFileV1.model_validate(document)
+
+        assert model.lookup_tables.lai_max is None
+
+    @pytest.mark.unit
+    def test_the_table_and_its_switch_round_trip_through_1_0(self, legacy):
+        config = legacy.to_dict()
+        table = write_lai_max_table(config)
+        config["TABLES"]["lai_max"] = table
+        config["CONSTANTS"]["lai_max_from_table"] = True
+        legacy = ModelConfigurationFile.model_validate(config)
+
+        v1 = ModelConfigurationFileV1.from_legacy(legacy)
+
+        assert v1.lookup_tables.lai_max == table
+        assert v1.model_constants.lai_max_from_table is True
+        assert v1.to_dict()["lookup_tables"]["lai_max"] == table
+        assert v1.to_dict()["model_constants"]["lai_max_from_table"] is True
+        assert v1.to_legacy() == legacy
+
+    @pytest.mark.unit
+    def test_an_empty_table_setting_means_not_specified(self, tmp_path, document):
+        document["lookup_tables"]["lai_max"] = ""
+
+        model = ModelConfigurationFileV1.model_validate(document)
+
+        assert model.lookup_tables.lai_max is None
+        assert model.resolve_paths(tmp_path).lookup_tables.lai_max is None
+        assert "lai_max" not in model.to_dict()["lookup_tables"]
+
+    @pytest.mark.unit
+    def test_a_relative_table_is_anchored_on_the_base_directory(self, tmp_path, document):
+        document["lookup_tables"]["lai_max"] = "txt/lulc/lai_max.txt"
+
+        anchored = ModelConfigurationFileV1.model_validate(document).resolve_paths(tmp_path)
+
+        assert Path(anchored.lookup_tables.lai_max) == tmp_path / "txt" / "lulc" / "lai_max.txt"
+
+    @pytest.mark.unit
+    def test_the_schema_documents_the_table_and_its_switch(self):
+        schema = ModelConfigurationFileV1.model_json_schema(by_alias=True)
+
+        assert "lai_max" in schema["$defs"]["LookupTables"]["properties"]
+        assert "lai_max_from_table" in schema["$defs"]["Constants"]["properties"]
