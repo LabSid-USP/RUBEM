@@ -193,6 +193,13 @@ class LookupTables(_Strict):
     kc_max: str
     lai_max: str | None = None
 
+    @field_validator("lai_max", mode="before")
+    @classmethod
+    def _empty_is_none(cls, value):
+        # An empty setting means not specified, as in the legacy file; anchoring it on the
+        # base directory would otherwise turn it into a directory path.
+        return None if value in ("", None) else value
+
 
 class RasterInfo(_Strict):
     grid_size: float

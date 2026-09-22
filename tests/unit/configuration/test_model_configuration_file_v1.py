@@ -441,6 +441,16 @@ class TestLeafAreaIndexMaxTable:
         assert v1.to_legacy() == legacy
 
     @pytest.mark.unit
+    def test_an_empty_table_setting_means_not_specified(self, tmp_path, document):
+        document["lookup_tables"]["lai_max"] = ""
+
+        model = ModelConfigurationFileV1.model_validate(document)
+
+        assert model.lookup_tables.lai_max is None
+        assert model.resolve_paths(tmp_path).lookup_tables.lai_max is None
+        assert "lai_max" not in model.to_dict()["lookup_tables"]
+
+    @pytest.mark.unit
     def test_a_relative_table_is_anchored_on_the_base_directory(self, tmp_path, document):
         document["lookup_tables"]["lai_max"] = "txt/lulc/lai_max.txt"
 
