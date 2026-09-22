@@ -48,6 +48,15 @@ configuration is built, so they raise ``FileNotFoundError`` whether or not the
 input is validated; with the validation off the other missing inputs surface
 only when the run reaches them.
 
+Pass ``allow_blocking_problems=True`` to either loader to run past those
+problems, the counterpart of ``rubem run --allow-blocking-problems``: the
+checks still run, every problem is kept in ``model.configuration.problems``,
+the blocking ones are logged as errors followed by one error line stating that
+the simulation continues despite them, and the model loads and runs instead of
+raising. The failures that are not problems (a document that does not match
+the schema, a missing file) raise as before. Pass ``validate_input=False``
+instead to skip the checks altogether.
+
 An already loaded ``ModelConfiguration`` may be passed to ``Model.from_config``
 as well, and is used as it is, neither validated again nor re-anchored.
 
@@ -106,7 +115,8 @@ and the raster memory of a run is not reclaimed. Two consequences follow for
 ``Model.run_isolated`` avoids both: it runs the simulation in a subprocess
 started with the ``spawn`` method, used for that one run and shut down before
 the call returns. The configuration crosses as its document, its base
-directory and the validation flag, and is rebuilt on the other side; the result
+directory and the validation flags (``validate_input`` and
+``allow_blocking_problems``), and is rebuilt on the other side; the result
 crosses as plain data. A ``ConfigurationError`` raised while the subprocess
 rebuilds the configuration reaches the caller as the same exception, with its
 problems; any other exception of the run propagates as itself, and a subprocess

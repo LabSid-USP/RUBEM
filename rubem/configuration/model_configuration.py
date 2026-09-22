@@ -52,12 +52,18 @@ class ModelConfiguration:
     :type validate_input: bool, optional
     :param base_dir: Directory the relative paths of the configuration are anchored on. Defaults to
         the directory of the JSON file, or to ``None`` (paths kept as given) for a dictionary.
+    :param allow_blocking_problems: Whether to keep going when the inputs carry blocking
+        problems: the checks still run and every problem is kept in :attr:`problems`, the
+        blocking ones are logged as errors and the configuration loads instead of raising
+        :class:`~rubem.configuration._problems.ConfigurationError`. Defaults to ``False``.
+    :type allow_blocking_problems: bool, optional
 
     :raises FileNotFoundError: If the specified config file is not found.
     :raises ValueError: If the config file type is not supported, or a setting is missing or invalid
         (``pydantic.ValidationError`` is a ``ValueError``).
     :raises json.JSONDecodeError: If the JSON file is not valid.
-    :raises ConfigurationError: If the inputs carry blocking problems.
+    :raises ConfigurationError: If the inputs carry blocking problems, unless
+        ``allow_blocking_problems`` is set.
     """
 
     def __init__(
@@ -65,6 +71,7 @@ class ModelConfiguration:
         config_input: dict | PathInput,
         validate_input: bool = True,
         base_dir: PathInput | None = None,
+        allow_blocking_problems: bool = False,
     ):
         self.logger = logging.getLogger(__name__)
         self.problems = []
@@ -128,7 +135,7 @@ class ModelConfiguration:
                     self.calibration_parameters.w_3,
                 )
             )
-        self.__check_inconsistencies()
+        self.__check_inconsistencies(allow_blocking_problems)
 
     def __parse(self, data: dict, duplicates: list[str]) -> None:
         """Validate the document as format 1.0 (``version`` present) or legacy."""
@@ -461,16 +468,23 @@ class ModelConfiguration:
         config_input: dict | PathInput,
         validate_input: bool = True,
         base_dir: PathInput | None = None,
+        allow_blocking_problems: bool = False,
     ) -> "ModelConfiguration":
         """Load a legacy configuration from a dictionary or a JSON file.
 
         Relative paths are anchored on the directory of the JSON file, or on
         ``base_dir`` when given (a dictionary has no anchor unless ``base_dir``
-        is passed).
+        is passed). ``allow_blocking_problems`` is passed through to the
+        constructor.
         """
-        return cls(config_input, validate_input=validate_input, base_dir=base_dir)
+        return cls(
+            config_input,
+            validate_input=validate_input,
+            base_dir=base_dir,
+            allow_blocking_problems=allow_blocking_problems,
+        )
 
-    def __check_inconsistencies(self):
+    def __check_inconsistencies(self, allow_blocking_problems: bool):
         if self.output_variables.any_enabled() and not self.output_variables.file_formats:
             raise ValueError(
                 "No raster file format is enabled: set RASTER_FILE_FORMAT.map_raster_series "
@@ -546,9 +560,20 @@ class ModelConfiguration:
         if self.problems:
             self.logger.warning("Configuration problems found: %d", len(self.problems))
             for problem in self.problems:
-                self.logger.warning("Configuration problem: %s", problem)
-        if any(problem.blocking for problem in self.problems):
+                # A blocking problem the caller chose to run past is an error the
+                # log must keep; by default it is listed again by the exception.
+                level = (
+                    logging.ERROR
+                    if allow_blocking_problems and problem.blocking
+                    else logging.WARNING
+                )
+                self.logger.log(level, "Configuration problem: %s", problem)
+        blocking = sum(1 for problem in self.problems if problem.blocking)
+        if not blocking:
+            return
+        if not allow_blocking_problems:
             raise ConfigurationError(self.problems)
+        self.logger.error("Simulation continues despite %d blocking problem(s).", blocking)
 
     def __read_json(self, file_path: PathInput, duplicates: list[str]):
         self.logger.debug("Reading JSON file: %s", file_path)

@@ -157,6 +157,9 @@ class TestCliApp:
 
         run_cli("run", *cli_flags, "-c", config_path)
 
+        self._compare_with_goldens(temp_dir)
+
+    def _compare_with_goldens(self, temp_dir):
         for raster_file in RASTER_GOLDENS + TIFF_GOLDENS:
             candidate = os.path.join(temp_dir, raster_file)
             assert os.path.exists(candidate), f"missing output {raster_file}"
@@ -208,6 +211,53 @@ class TestCliApp:
     def test_cli_app_skip_input_data_validation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             self._run_and_compare(temp_dir, "-s")
+
+    @pytest.mark.integration
+    def test_cli_app_refuses_allowing_blocking_problems_with_skipped_validation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, "config.json")
+            with open(file=config_path, mode="w", encoding="utf8") as f:
+                f.write(json.dumps(base_model_config(temp_dir)))
+
+            result = run_cli_capture("run", "-s", "--allow-blocking-problems", "-c", config_path)
+
+        assert result.returncode == 2
+        assert "Invalid value for '--allow-blocking-problems'" in result.stderr
+        assert "Loading configuration" not in result.stdout
+
+    @pytest.mark.slow
+    @pytest.mark.integration
+    def test_cli_app_allows_blocking_problems(self):
+        """A forced run over a table that fails a check the run never reads.
+
+        The rainy days table lacks December, which the January and February
+        run does not use, so the outputs still match the goldens.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = base_model_config(temp_dir)
+            rainy_days = os.path.join(temp_dir, "rainydays.txt")
+            # The line endings of the fixture are kept as they are on every platform.
+            with open(config["TABLES"]["rainydays"], encoding="utf8", newline="") as source:
+                rows = [line for line in source if not line.startswith("12")]
+            with open(rainy_days, "w", encoding="utf8", newline="") as f:
+                f.writelines(rows)
+            config["TABLES"]["rainydays"] = rainy_days
+            config_path = os.path.join(temp_dir, "config.json")
+            with open(file=config_path, mode="w", encoding="utf8") as f:
+                f.write(json.dumps(config))
+
+            refused = run_cli_capture("run", "-c", config_path)
+            assert refused.returncode == 1
+            assert "The configuration has 1 blocking problem(s)" in refused.stderr
+
+            result = run_cli_capture("run", "--allow-blocking-problems", "-c", config_path)
+
+            assert result.returncode == 0, result.stderr
+            assert "Simulation finished successfully!" in result.stdout
+            assert "[ERR]" in result.stderr
+            assert "Rainy days lookup table does not cover every month" in result.stderr
+            assert "Simulation continues despite 1 blocking problem(s)." in result.stderr
+            self._compare_with_goldens(temp_dir)
 
     @pytest.mark.slow
     @pytest.mark.integration

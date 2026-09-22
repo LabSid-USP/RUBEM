@@ -114,11 +114,23 @@ class Model:
         and their content when it rebuilds the configuration. It has no effect
         on ``configuration``, which is already loaded; pass the value the
         configuration was loaded with.
+    :param allow_blocking_problems: Whether an isolated run keeps going when the
+        configuration it rebuilds carries blocking problems, as
+        :meth:`from_file` and :meth:`from_config` do with the same keyword. It
+        has no effect on ``configuration`` either; pass the value the
+        configuration was loaded with.
     """
 
-    def __init__(self, configuration: "ModelConfiguration", *, validate_input: bool = True) -> None:
+    def __init__(
+        self,
+        configuration: "ModelConfiguration",
+        *,
+        validate_input: bool = True,
+        allow_blocking_problems: bool = False,
+    ) -> None:
         self._configuration = configuration
         self._validate_input = bool(validate_input)
+        self._allow_blocking_problems = bool(allow_blocking_problems)
 
     @classmethod
     def from_file(
@@ -127,6 +139,7 @@ class Model:
         *,
         validate_input: bool = True,
         base_dir: PathInput | None = None,
+        allow_blocking_problems: bool = False,
     ) -> "Model":
         """Load a configuration file and return the model it configures.
 
@@ -134,18 +147,30 @@ class Model:
         :param validate_input: Whether to validate the input files and their content.
         :param base_dir: Directory the relative paths of the configuration are
             anchored on. Defaults to the directory of the file.
+        :param allow_blocking_problems: Whether to load, and run, a configuration
+            whose inputs carry blocking problems. The checks still run and every
+            problem is kept in ``configuration.problems``; the blocking ones are
+            logged as errors instead of raising :class:`ConfigurationError`. An
+            isolated run rebuilds the configuration the same way.
         :raises ImportError: If PCRaster or GDAL are not installed.
         :raises FileNotFoundError: If ``path``, or a raster or table it names,
             is not there.
         :raises json.JSONDecodeError: If the file is not JSON.
         :raises pydantic.ValidationError: If the document does not match the schema.
-        :raises ConfigurationError: If the inputs carry blocking problems.
+        :raises ConfigurationError: If the inputs carry blocking problems, unless
+            ``allow_blocking_problems`` is set.
         """
         _require_runtime_deps()
         from .configuration.model_configuration import ModelConfiguration
 
-        configuration = ModelConfiguration(path, validate_input, base_dir)
-        return cls(configuration, validate_input=validate_input)
+        configuration = ModelConfiguration(
+            path, validate_input, base_dir, allow_blocking_problems=allow_blocking_problems
+        )
+        return cls(
+            configuration,
+            validate_input=validate_input,
+            allow_blocking_problems=allow_blocking_problems,
+        )
 
     @classmethod
     def from_config(
@@ -154,6 +179,7 @@ class Model:
         *,
         validate_input: bool = True,
         base_dir: PathInput | None = None,
+        allow_blocking_problems: bool = False,
     ) -> "Model":
         """Return the model a configuration document, or a loaded configuration, configures.
 
@@ -168,19 +194,26 @@ class Model:
         :param base_dir: Directory the relative paths of the document are
             anchored on. A dictionary has no anchor unless this is passed.
             Ignored when ``config`` is already loaded.
+        :param allow_blocking_problems: Whether to load, and run, a document
+            whose inputs carry blocking problems, as in :meth:`from_file`. For an
+            already loaded configuration the flag only says whether an isolated
+            run keeps going when it rebuilds the configuration.
         :raises ImportError: If PCRaster or GDAL are not installed.
         :raises FileNotFoundError: If a raster or table the document names is
             not there.
         :raises pydantic.ValidationError: If the document does not match the schema.
-        :raises ConfigurationError: If the inputs carry blocking problems.
+        :raises ConfigurationError: If the inputs carry blocking problems, unless
+            ``allow_blocking_problems`` is set.
         """
         _require_runtime_deps()
         from .configuration.model_configuration import ModelConfiguration
 
-        if isinstance(config, ModelConfiguration):
-            return cls(config, validate_input=validate_input)
+        if not isinstance(config, ModelConfiguration):
+            config = ModelConfiguration(
+                config, validate_input, base_dir, allow_blocking_problems=allow_blocking_problems
+            )
         return cls(
-            ModelConfiguration(config, validate_input, base_dir), validate_input=validate_input
+            config, validate_input=validate_input, allow_blocking_problems=allow_blocking_problems
         )
 
     @property
@@ -214,8 +247,8 @@ class Model:
         """Run the simulation in a fresh spawned subprocess.
 
         The configuration crosses as its document (the copy taken when it was
-        loaded) plus its base directory and the validation flag, and is rebuilt
-        on the other side; the result crosses as plain data. The subprocess is
+        loaded) plus its base directory and the validation flags, and is
+        rebuilt on the other side; the result crosses as plain data. The subprocess is
         started for this call only and the executor is shut down before
         returning, so the PCRaster state of the run leaves nothing behind. Every
         call therefore pays a full interpreter start-up.
@@ -233,8 +266,9 @@ class Model:
 
         A configuration problem found while the subprocess rebuilds the
         configuration reaches the caller as the same
-        :class:`ConfigurationError`, with its problems; any other exception of
-        the run propagates as itself.
+        :class:`ConfigurationError`, with its problems, unless the model was
+        built with ``allow_blocking_problems``; any other exception of the run
+        propagates as itself.
 
         The log records of the simulation are emitted in the subprocess, which
         starts from the default logging configuration: the handlers of the
@@ -257,6 +291,7 @@ class Model:
                 self._configuration.config,
                 self._configuration.base_dir,
                 self._validate_input,
+                self._allow_blocking_problems,
             )
             document = future.result()
         except BrokenProcessPool as error:
@@ -274,7 +309,9 @@ class Model:
         return _result_from_json(document)
 
 
-def _run_document(document: dict, base_dir: str | None, validate_input: bool) -> dict[str, Any]:
+def _run_document(
+    document: dict, base_dir: str | None, validate_input: bool, allow_blocking_problems: bool
+) -> dict[str, Any]:
     """Rebuild a configuration, run it, and return the result as plain data.
 
     The entry point of the subprocess of :meth:`Model.run_isolated`. It lives at
@@ -284,12 +321,15 @@ def _run_document(document: dict, base_dir: str | None, validate_input: bool) ->
     :param document: The configuration document, legacy or format 1.0.
     :param base_dir: Directory the relative paths of the document are anchored on.
     :param validate_input: Whether to validate the input files and their content.
+    :param allow_blocking_problems: Whether to run past blocking problems.
     :return: The :class:`RunResult` of the run, as a JSON-able dictionary.
     """
     from .configuration.model_configuration import ModelConfiguration
     from .core import DynamicFrameworkWrapper
 
-    configuration = ModelConfiguration(document, validate_input, base_dir)
+    configuration = ModelConfiguration(
+        document, validate_input, base_dir, allow_blocking_problems=allow_blocking_problems
+    )
     started = time.perf_counter()
     DynamicFrameworkWrapper(configuration).run()
     elapsed = time.perf_counter() - started

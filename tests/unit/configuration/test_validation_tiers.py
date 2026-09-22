@@ -1,5 +1,7 @@
 """End-to-end behaviour of the content validation through the loader."""
 
+import json
+import logging
 import os
 from pathlib import Path
 
@@ -273,3 +275,61 @@ class TestLeafAreaIndexMaxTable:
             ModelConfiguration(config)
 
         assert any(description in r for r in blocking_reasons(error.value))
+
+
+class TestAllowBlockingProblems:
+    """``allow_blocking_problems`` keeps the checks and their report, but not the exception."""
+
+    @pytest.mark.unit
+    def test_blocking_problems_are_kept_and_logged_as_errors(self, config, caplog):
+        with open(config["TABLES"]["t_sat"], "w", encoding="utf8") as f:
+            f.write("1 0\n")
+        os.remove(os.path.join(config["DIRECTORIES"]["prec"], series_name("prec", 2)))
+        os.remove(os.path.join(config["DIRECTORIES"]["ndvi"], series_name("ndvi", 2)))
+
+        with caplog.at_level(logging.WARNING, logger="rubem.configuration.model_configuration"):
+            loaded = ModelConfiguration(config, allow_blocking_problems=True)
+
+        blocking = [str(p) for p in loaded.problems if p.blocking]
+        assert any("non-positive" in reason for reason in blocking)
+        assert any("precipitation raster series is incomplete" in reason for reason in blocking)
+        assert any(
+            "ndvi raster series has gaps" in str(p) and not p.blocking for p in loaded.problems
+        )
+
+        errors = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
+        warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+        assert any("Tsat" in message and "non-positive" in message for message in errors)
+        assert any("precipitation raster series is incomplete" in message for message in errors)
+        assert errors[-1] == f"Simulation continues despite {len(blocking)} blocking problem(s)."
+        assert any("ndvi raster series has gaps" in message for message in warnings)
+        assert not any("ndvi raster series has gaps" in message for message in errors)
+
+    @pytest.mark.unit
+    def test_the_default_still_raises(self, config):
+        with open(config["TABLES"]["t_sat"], "w", encoding="utf8") as f:
+            f.write("1 0\n")
+
+        with pytest.raises(ConfigurationError):
+            ModelConfiguration(config, allow_blocking_problems=False)
+
+    @pytest.mark.unit
+    def test_nothing_is_reported_without_blocking_problems(self, config, caplog):
+        with caplog.at_level(logging.WARNING, logger="rubem.configuration.model_configuration"):
+            loaded = ModelConfiguration(config, allow_blocking_problems=True)
+
+        assert not any(problem.blocking for problem in loaded.problems)
+        assert not any(r.levelno == logging.ERROR for r in caplog.records)
+
+    @pytest.mark.unit
+    def test_load_passes_the_keyword_through(self, tmp_path, config):
+        with open(config["TABLES"]["t_sat"], "w", encoding="utf8") as f:
+            f.write("1 0\n")
+        path = tmp_path / "config.json"
+        path.write_text(json.dumps(config), encoding="utf8")
+
+        with pytest.raises(ConfigurationError):
+            ModelConfiguration.load(path)
+        loaded = ModelConfiguration.load(path, allow_blocking_problems=True)
+
+        assert any(problem.blocking for problem in loaded.problems)

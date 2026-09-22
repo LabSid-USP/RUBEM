@@ -13,6 +13,17 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added ``rubem run --allow-blocking-problems``, which runs the model even when the input
+  validation finds blocking problems: the same checks run, every problem is still reported
+  (the non-blocking ones as warnings, the blocking ones as errors, followed by one error line
+  stating that the simulation continues despite them) and the run goes on instead of stopping
+  with exit code 1. The option cannot be combined with ``-s``, which skips the checks it
+  reports (usage error, exit code 2), and the deprecated ``rubem -c <config>`` spelling does
+  not take it. ``ModelConfiguration(..., allow_blocking_problems=False)`` is the library
+  counterpart and keeps the full list in ``ModelConfiguration.problems``; ``Model.from_file``
+  and ``Model.from_config`` of ``rubem.api`` take the same keyword and an isolated run
+  rebuilds the configuration with it
+  (`#352 <https://github.com/LabSid-USP/RUBEM/issues/352>`__).
 - Added ``rubem.api``, the public Python surface: ``Model.from_file`` and
   ``Model.from_config`` load a configuration file or document, ``Model.run()``
   runs the simulation in the current process and ``Model.run_isolated()`` in a
