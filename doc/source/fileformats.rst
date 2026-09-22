@@ -200,7 +200,7 @@ These files are the result of pre-processing the TIFF/GeoTIFF raster file series
   - ``PCRASTER_VALUESCALE`` = ``VS_NOMINAL``;
   - None of the pixels in the raster must contain ``NO_DATA`` value;
   - Raster pixels cannot consist entirely of ``0.0`` values;
-  - LULC map values must adhere strictly to values specified within the land use parameters tables (:ref:`Manning's Roughness Coefficient <fileformats:Manning's Roughness Coefficient table>`, :ref:`Impervious Area Fraction <impervious-area-fraction-table>`, :ref:`Open Water Area Fraction <open-water-area-fraction-table>`, :ref:`Bare Soil Area Fraction <bare-soil-area-fraction-table>`, :ref:`Vegetated Area Fraction <vegetated-area-fraction-table>`, :ref:`Max. Crop Coefficient <maximum-crop-coefficient-table>` and :ref:`Min. Crop Coefficient <minimum-crop-coefficient-table>`), without exceptions;
+  - LULC map values must adhere strictly to values specified within the land use parameters tables (:ref:`Manning's Roughness Coefficient <fileformats:Manning's Roughness Coefficient table>`, :ref:`Impervious Area Fraction <impervious-area-fraction-table>`, :ref:`Open Water Area Fraction <open-water-area-fraction-table>`, :ref:`Bare Soil Area Fraction <bare-soil-area-fraction-table>`, :ref:`Vegetated Area Fraction <vegetated-area-fraction-table>`, :ref:`Max. Crop Coefficient <maximum-crop-coefficient-table>`, :ref:`Min. Crop Coefficient <minimum-crop-coefficient-table>` and, when it is enabled, :ref:`Max. Leaf Area Index <maximum-leaf-area-index-table>`), without exceptions;
   - A LULC raster file is required for each timestep of the historical series.
 
 - Dimensions:
@@ -625,6 +625,35 @@ Maximum Crop Coefficient (:raw-html:`K<sub>C<sub>MAX</sub></sub>`) table
 - Restrictions:
 
   - :math:`K_{C_{MAX}} > K_{C_{MIN}}`
+
+- Dimensions:
+
+  - Rows =  Number of land use classes;
+  - Columns = 2.
+
+.. list-table:: Basic file structure:
+   :header-rows: 1
+
+   * - Coverage Type
+     - Value
+
+   * - Int <1-\*>
+     - Float <\*>
+
+.. _maximum-leaf-area-index-table:
+
+Maximum Leaf Area Index (:raw-html:`LAI<sub>MAX</sub>`) table
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Optional table with the maximum leaf area index of each land use class, read instead of the ``lai_max`` constant when ``lai_max_from_table`` is ``true`` (an opt-in extension of the published formulation, which uses a single value).
+
+- Filetype: Text :file:`*.txt` or Comma-separated values (CSV) :file:`*.csv` file.
+- Unit: Dimensionless
+
+- Restrictions:
+
+  - :math:`0 < LAI_{MAX} \leq 12`;
+  - The land use classes must be the ones of the area fraction tables.
 
 - Dimensions:
 

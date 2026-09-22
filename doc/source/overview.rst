@@ -108,6 +108,14 @@ where:
 
    If :math:`P_m = 0` then :math:`I_R = 0`.
 
+.. note::
+
+   :math:`LAI_{max}` is the ``lai_max`` constant of the configuration, one value for the whole
+   catchment as in the published formulation. Without a counterpart in the published
+   formulation, it may instead be read for each land use class from the optional ``lai_max``
+   lookup table (``lai_max_from_table``), so that each class reaches its own maximum leaf area
+   index at :math:`FPAR_{max}`.
+
 
 Evapotranspiration
 ```````````````````

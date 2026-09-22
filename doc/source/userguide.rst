@@ -589,7 +589,7 @@ Mandatory path to a tabular file with values of minimum crop coefficient for eac
 :raw-html:`Maximum Leaf Area Index (LAI<sub>MAX</sub>)`
 ````````````````````````````````````````````````````````````````````````
 
-Mandatory maximum float value [dimensionless quantity] that characterizes plant canopies. It is defined as the one-sided green leaf area per unit ground surface area.
+Mandatory maximum float value [dimensionless quantity] that characterizes plant canopies. It is defined as the one-sided green leaf area per unit ground surface area. When ``lai_max_from_table`` is ``true`` (see below) the value is not used: the maximum is read for each land-use class from the ``lai_max`` table.
 
 .. math:: 1 \leq LAI_{MAX} \leq 12
 
@@ -598,6 +598,25 @@ Mandatory maximum float value [dimensionless quantity] that characterizes plant 
    {
       "CONSTANTS": {
          "lai_max": 12.0,
+      },
+   }
+
+:raw-html:`Maximum Leaf Area Index (LAI<sub>MAX</sub>) table`
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Optional path to a tabular file with values of maximum leaf area index for each land-use class. Must be a valid path to an existing text file :file:`*.txt` or comma-separated values (CSV) file :file:`*.csv`. :ref:`See more. <maximum-leaf-area-index-table>`
+
+The table is an opt-in extension of the published formulation, in which :math:`LAI_{MAX}` is a single value for the whole catchment. It is read only when the constant ``lai_max_from_table`` is ``true``; the table is then mandatory and the ``lai_max`` constant is not used. With ``lai_max_from_table`` absent or ``false`` (the default) the constant is used, and a table that is given is reported as ignored. The values of the table must be positive and at most 12, and its land-use classes must be the ones of the area fraction tables.
+
+.. code-block:: json
+
+   {
+      "TABLES": {
+         "lai_max": "/Dataset/UIGCRB/input/txt/landuse/lai_max.txt",
+      },
+      "CONSTANTS": {
+         "lai_max": 12.0,
+         "lai_max_from_table": true,
       },
    }
 
