@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import os
@@ -34,7 +35,8 @@ from ..configuration.raster_series_resolver import (
     validate_resolved_series,
 )
 from ..configuration.simulation_period import SimulationPeriod
-from ..validation.lookup_tables import check_lookup_tables
+from ..validation.grid_cell_size import check_grid_cell_size
+from ..validation.lookup_tables import check_lookup_tables, check_runoff_coefficient_domain
 
 
 class ModelConfiguration:
@@ -44,7 +46,8 @@ class ModelConfiguration:
     required for running the model. It supports loading configuration from either a dictionary or a JSON file.
 
     :param config_input: The configuration input: a dictionary with the legacy sections, or the
-        path of a legacy JSON file.
+        path of a legacy JSON file. A dictionary is copied, so changing it after the load does not
+        change the loaded configuration.
     :param validate_input: Whether to validate the input files and their content. Defaults to `True`.
     :type validate_input: bool, optional
     :param base_dir: Directory the relative paths of the configuration are anchored on. Defaults to
@@ -74,8 +77,11 @@ class ModelConfiguration:
             self.file_v1 = None
             if isinstance(config_input, dict):
                 self.logger.debug("Reading configuration from dictionary")
-                self.config = config_input
-                self.__parse(config_input, duplicates=[])
+                # The document outlives the load (an isolated run rebuilds the
+                # configuration from it), so it must not follow what the caller
+                # does to the dictionary afterwards.
+                self.config = copy.deepcopy(config_input)
+                self.__parse(self.config, duplicates=[])
             elif isinstance(config_input, (str, bytes, os.PathLike)):
                 config_input_path = as_path(config_input)
                 config_input_str = str(config_input_path)
@@ -109,6 +115,14 @@ class ModelConfiguration:
         self.problems.extend(self.raster_files.problems)
         if validate_input:
             self.problems.extend(check_lookup_tables(self.lookuptable_files))
+            self.problems.extend(
+                check_runoff_coefficient_domain(
+                    self.lookuptable_files,
+                    self.calibration_parameters.w_1,
+                    self.calibration_parameters.w_2,
+                    self.calibration_parameters.w_3,
+                )
+            )
         self.__check_inconsistencies()
 
     def __parse(self, data: dict, duplicates: list[str]) -> None:
@@ -242,6 +256,7 @@ class ModelConfiguration:
             must_match=[("clone", self.raster_files.clone)],
             allow_rotation=OutputFileFormat.PCRASTER not in output_formats,
         )
+        self.__check_grid_cell_size(validate_input)
 
     def __build_from_v1(self, validate_input: bool) -> None:
         self.logger.debug("Loading configuration (format 1.0)...")
@@ -379,6 +394,28 @@ class ModelConfiguration:
             must_match=[("clone", self.raster_files.clone)],
             allow_rotation=OutputFileFormat.PCRASTER not in output_formats,
         )
+        self.__check_grid_cell_size(validate_input)
+
+    def __check_grid_cell_size(self, validate_input: bool) -> None:
+        """Compare the declared cell size with the geometry of the clone.
+
+        Part of the raster validation tier: skipped when ``validate_input`` is
+        ``False``. :class:`~rubem.configuration.output_raster_base.OutputRasterBase`
+        refuses a clone that does not share the geometry of the DEM, so the
+        affine transform it read is the clone's as well.
+        """
+        if not validate_input:
+            return
+        transformation = self.output_raster_base.transformation
+        problem = check_grid_cell_size(
+            self.grid.size,
+            transformation[1],
+            transformation[5],
+            self.reference_crs,
+            self.raster_files.clone,
+        )
+        if problem is not None:
+            self.problems.append(problem)
 
     def write_metadata(self) -> None:
         """Write ``metadata.json`` next to the outputs of a format 1.0 run.

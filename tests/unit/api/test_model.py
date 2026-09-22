@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from inspect import signature
 
@@ -22,7 +23,7 @@ from rubem.configuration._problems import Problem
 from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.configuration.model_configuration_file import ModelConfigurationFile
 from rubem.configuration.model_configuration_file_v1 import ModelConfigurationFileV1
-from tests.helpers.config import REPO_ROOT
+from tests.helpers.config import REPO_ROOT, base_model_config
 from tests.helpers.synthetic import MISSING, series_name, write_synthetic_dataset
 from tests.unit.api import _child
 from tests.unit.core.test_aggregation import write_zones
@@ -44,6 +45,11 @@ def reported_names(result):
 
 def missing_files(result):
     return [str(path) for path in reported_paths(result) if not path.is_file()]
+
+
+def written_bytes(result):
+    """The content of every file a result reports, by file name."""
+    return {path.name: path.read_bytes() for path in reported_paths(result)}
 
 
 def break_kp(config):
@@ -205,6 +211,22 @@ class TestInProcessRuns:
         assert "zones_mapping.csv" not in reported_names(result)
 
     @pytest.mark.unit
+    def test_runs_on_different_grids_follow_one_another_in_one_process(self, tmp_path):
+        """Every run sets the clone for itself, so the grid of the last one is no constraint."""
+        small = Model.from_config(write_synthetic_dataset(str(tmp_path / "small")))
+        large = Model.from_config(base_model_config(str(tmp_path / "large")))
+        small_alone = written_bytes(small.run())
+        large_alone = written_bytes(large.run())
+
+        small_after_large = written_bytes(small.run())
+        large_after_small = written_bytes(large.run())
+
+        member = series_name("itp", 1)
+        assert len(small_alone[member]) != len(large_alone[member]), "the grids must differ"
+        assert small_after_large == small_alone
+        assert large_after_small == large_alone
+
+    @pytest.mark.unit
     def test_a_run_writes_nothing_to_stdout(self, tmp_path, capsys):
         """The library only logs; a front end is what prints."""
         Model.from_config(write_synthetic_dataset(str(tmp_path))).run()
@@ -229,6 +251,44 @@ class TestIsolatedRuns:
             assert not missing_files(result)
             assert (result.first_step, result.last_step) == (1, 2)
             assert math.isfinite(result.elapsed_seconds) and result.elapsed_seconds >= 0
+
+    @pytest.mark.unit
+    def test_reusing_the_dictionary_for_another_model_leaves_the_first_run_alone(self, tmp_path):
+        """A batch that edits one dictionary per experiment must not redirect an earlier model."""
+        config = write_synthetic_dataset(str(tmp_path))
+        first = Model.from_config(config)
+        other_output = tmp_path / "other"
+        config["DIRECTORIES"]["output"] = str(other_output)
+        Model.from_config(config)
+
+        result = first.run_isolated()
+
+        assert result.output_directory == tmp_path / "out"
+        assert not missing_files(result)
+        assert list(other_output.iterdir()) == [], "the first run wrote to the second directory"
+
+    @pytest.mark.unit
+    def test_each_model_submits_the_document_it_was_built_from(self, tmp_path, mocker):
+        """Both execution modes must run the same parameters, those of the load."""
+        config = write_synthetic_dataset(str(tmp_path))
+        first = Model.from_config(config, validate_input=False)
+        config["CALIBRATION"]["alpha"] = 9.0
+        second = Model.from_config(config, validate_input=False)
+        executor = mocker.MagicMock()
+        executor.submit.return_value.result.return_value = api._result_to_json(
+            api._describe_run(first.configuration, 0.0)
+        )
+        mocker.patch.object(api, "ProcessPoolExecutor", return_value=executor)
+
+        first.run_isolated()
+        second.run_isolated()
+
+        submitted = [
+            call.args[1]["CALIBRATION"]["alpha"] for call in executor.submit.call_args_list
+        ]
+        assert submitted == [4.5, 9.0]
+        assert first.configuration.calibration_parameters.alpha == 4.5
+        assert second.configuration.calibration_parameters.alpha == 9.0
 
     @pytest.mark.unit
     def test_the_anchor_of_a_file_crosses_the_boundary(self, tmp_path, monkeypatch):
@@ -336,10 +396,73 @@ class TestIsolatedRuns:
         executor.submit.return_value.result.side_effect = BrokenProcessPool("killed")
         mocker.patch.object(api, "ProcessPoolExecutor", return_value=executor)
 
-        with pytest.raises(RuntimeError, match="Model.run_isolated"):
+        with pytest.raises(RuntimeError, match="Model.run_isolated") as error:
             model.run_isolated()
 
         executor.shutdown.assert_called_once_with(wait=True)
+        # A death at start-up is the caller's script far more often than a crash.
+        assert '__name__ == "__main__"' in str(error.value)
+        assert "standard input" in str(error.value)
+
+    @pytest.mark.unit
+    def test_a_script_without_the_entry_point_guard_is_told_so(self, tmp_path):
+        """The child dies re-importing the script; the caller must learn why, and not hang."""
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps(write_synthetic_dataset(str(tmp_path))), encoding="utf8")
+        script = tmp_path / "unguarded.py"
+        script.write_text(_UNGUARDED_SCRIPT, encoding="utf8")
+
+        completed = subprocess.run(
+            [sys.executable, str(script), str(config_file)],
+            cwd=REPO_ROOT,
+            env={**os.environ, "PYTHONPATH": REPO_ROOT},
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=300,
+        )
+
+        assert completed.returncode != 0
+        assert "finished" not in completed.stdout
+        raised = [line for line in completed.stderr.splitlines() if "Model.run_isolated()" in line]
+        assert raised, completed.stderr
+        assert '__name__ == "__main__"' in raised[-1]
+
+
+class TestParallelRuns:
+    @pytest.mark.unit
+    def test_a_process_pool_of_the_caller_runs_in_parallel(self, tmp_path):
+        """One process per run at a time; reused workers change grid between their runs."""
+        references = {
+            "small": written_bytes(
+                Model.from_config(write_synthetic_dataset(str(tmp_path / "small"))).run()
+            ),
+            "large": written_bytes(
+                Model.from_config(base_model_config(str(tmp_path / "large"))).run()
+            ),
+        }
+        grids, jobs = [], []
+        for number in range(6):
+            grid = "small" if number % 2 else "large"
+            base = tmp_path / f"job{number}"
+            base.mkdir()
+            config = (
+                write_synthetic_dataset(str(base))
+                if grid == "small"
+                else base_model_config(str(base / "out"))
+            )
+            grids.append(grid)
+            jobs.append(config)
+
+        context = multiprocessing.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=2, mp_context=context) as pool:
+            outcomes = list(pool.map(_child.simulate, jobs))
+
+        workers = {pid for pid, _ in outcomes}
+        assert os.getpid() not in workers
+        assert len(workers) <= 2, "the workers are reused from one run to the next"
+        for grid, (_, result) in zip(grids, outcomes, strict=True):
+            assert written_bytes(result) == references[grid]
 
 
 class TestDocumentedLoaderFailures:
@@ -442,6 +565,18 @@ _ISOLATION_OF_THE_CALLER = textwrap.dedent(
     result = model.run_isolated()
     assert result.rasters, "the isolated run must report what it wrote"
     print(json.dumps({name: name in sys.modules for name in ("pcraster", "osgeo")}))
+    """
+)
+
+
+_UNGUARDED_SCRIPT = textwrap.dedent(
+    """
+    import sys
+
+    from rubem.api import Model
+
+    Model.from_file(sys.argv[1], validate_input=False).run_isolated()
+    print("finished")
     """
 )
 

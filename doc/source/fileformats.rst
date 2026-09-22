@@ -162,7 +162,7 @@ Class A Pan Coefficient (:raw-html:`K<sub>P</sub>`) raster series
 
 These files are the result of pre-processing the TIFF/GeoTIFF raster file series through PCRaster.
 
-:raw-html:`K<sub>P</sub>` is interpolated by kriging of weather stations.
+:raw-html:`K<sub>P</sub>` is interpolated by kriging of weather stations. It can also be computed from wind speed and relative humidity raster series with ``rubem preprocess kp``, see :ref:`Class A Pan Coefficient (Kp) Series <preprocessing:Class A Pan Coefficient (Kp) Series>`.
 
 - Filetype: PCRaster map format (:file:`kpc00000.001`- :file:`kpc99999.999` raster map series).
 - Unit: Dimensionless
@@ -762,6 +762,36 @@ Resulting maps of Accumulated Total Runoff [:raw-html:`m<sup>3</sup>s<sup>-1</su
   - Rows = :ref:`clone rows <fileformats:Mask of Catchment (Clone) raster>`;
   - Columns = :ref:`clone columns<fileformats:Mask of Catchment (Clone) raster>`;
   - Cell Size = :ref:`clone cell size<fileformats:Mask of Catchment (Clone) raster>`.
+
+Time series of the sampling stations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The time series of the sampling stations are written by PCRaster as
+:file:`*.tss` files and can be kept as such, converted to Comma-Separated
+Values (CSV) :file:`*.csv` files, or both, according to the time series formats
+of the results specification.
+
+A kept :file:`*.tss` file carries the PCRaster header:
+
+#. the title line, ``timeseries scalar``;
+#. the number of columns, the time step column included;
+#. the line ``timestep``;
+#. one line per sampling station, with its identifier: the identifier of the
+   station in the :ref:`stations map <fileformats:Stations (samples) raster>`
+   for the ``point`` and ``subcatchment`` aggregations, or the renumbered zone
+   column (``1`` to the number of zones, whose correspondence with the zone
+   identifiers is written to :file:`zones_mapping.csv`) for the ``zones``
+   aggregation.
+
+The data rows follow the header, one per time step: the step number and one
+value per station, in the order of the identifiers above. Because the header is
+present, these files are read by PCRaster's own tools, Aguila included.
+
+The CSV of each variable is derived from the data rows of the corresponding
+:file:`*.tss` file: its first line names the columns (``0`` for the time step,
+then the station identifiers) and each following line is one data row of the
+time series, with the values as PCRaster wrote them. The tables described below
+are these CSV files.
 
 Total Interception table
 ^^^^^^^^^^^^^^^^^^^^^^^^^
