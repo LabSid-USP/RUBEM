@@ -8,7 +8,7 @@ import pytest
 from rubem import __release__
 from rubem.cli import main
 from rubem.configuration.app_settings import AppSettings
-from tests.helpers.synthetic import write_synthetic_dataset
+from tests.helpers.synthetic import series_name, write_synthetic_dataset
 
 
 class SettingsOverride:
@@ -33,11 +33,24 @@ class SettingsOverride:
         return self.packaged.get_setting(key)
 
 
+@pytest.fixture(name="config")
+def config_fixture(tmp_path):
+    return write_synthetic_dataset(str(tmp_path))
+
+
 @pytest.fixture(name="config_path")
-def config_path_fixture(tmp_path):
+def config_path_fixture(tmp_path, config):
     path = tmp_path / "config.json"
-    path.write_text(json.dumps(write_synthetic_dataset(str(tmp_path))), encoding="utf8")
+    path.write_text(json.dumps(config), encoding="utf8")
     return path
+
+
+def drop_december_from_rainy_days(config):
+    """Leave the rainy days table without December: a blocking problem the
+    two-step run (January and February) never reads."""
+    with open(config["TABLES"]["rainydays"], "w", encoding="utf8") as f:
+        for month in range(1, 12):
+            f.write(f"{month}\t{10 + month % 3}\n")
 
 
 @pytest.fixture(name="english_humanize")
@@ -183,6 +196,132 @@ class TestCliRun:
         assert error.value.code == 2
         assert "RUBEM was interrupted by the user." in captured.err
         assert "Elapsed time:" in captured.out
+
+
+class TestCliAllowBlockingProblems:
+    """``--allow-blocking-problems`` reports the blocking problems and runs anyway."""
+
+    @pytest.mark.unit
+    def test_a_blocking_problem_stops_the_run_by_default(
+        self, config, config_path, capsys, restore_logging
+    ):
+        drop_december_from_rainy_days(config)
+
+        with pytest.raises(SystemExit) as error:
+            main(["run", "-c", str(config_path)])
+
+        captured = capsys.readouterr()
+        assert error.value.code == 1
+        assert "Invalid configuration: The configuration has 1 blocking problem(s):" in captured.err
+        assert "Rainy days lookup table does not cover every month" in captured.err
+        assert "Simulation started..." not in captured.out
+
+    @pytest.mark.unit
+    def test_the_option_logs_the_blocking_problems_as_errors_and_runs(
+        self, tmp_path, config, config_path, capsys, restore_logging
+    ):
+        drop_december_from_rainy_days(config)
+
+        main(["run", "-c", str(config_path), "--allow-blocking-problems"])
+
+        captured = capsys.readouterr()
+        assert "Loading configuration and validating inputs..." in captured.out
+        assert "Simulation started..." in captured.out
+        assert "Simulation finished successfully!" in captured.out
+        assert (tmp_path / "out" / "tss_itp.csv").is_file()
+        assert (
+            "[ERR] rubem.configuration.model_configuration: Configuration problem: "
+            "Rainy days lookup table does not cover every month.: Missing months: [12]."
+        ) in captured.err
+        assert (
+            "[ERR] rubem.configuration.model_configuration: "
+            "Simulation continues despite 1 blocking problem(s)."
+        ) in captured.err
+        assert "Invalid configuration" not in captured.err
+
+    @pytest.mark.unit
+    def test_the_option_stays_silent_without_blocking_problems(
+        self, config_path, capsys, restore_logging
+    ):
+        main(["run", "-c", str(config_path), "--allow-blocking-problems"])
+
+        captured = capsys.readouterr()
+        assert "Simulation finished successfully!" in captured.out
+        assert "[ERR]" not in captured.err
+        assert "continues despite" not in captured.err
+
+    @pytest.mark.unit
+    def test_a_forced_run_that_fails_exits_with_one(
+        self, config, config_path, capsys, restore_logging
+    ):
+        """A structural problem forced past validation fails inside the run."""
+        import os
+
+        os.remove(os.path.join(config["DIRECTORIES"]["prec"], series_name("prec", 2)))
+
+        with pytest.raises(SystemExit) as error:
+            main(["run", "-c", str(config_path), "--allow-blocking-problems"])
+
+        captured = capsys.readouterr()
+        assert error.value.code == 1
+        assert "precipitation raster series is incomplete" in captured.err
+        assert "Simulation continues despite 1 blocking problem(s)." in captured.err
+        assert "Simulation started..." in captured.out
+        assert "Simulation finished successfully!" not in captured.out
+        assert "RUBEM unexpectedly quit." in captured.err
+
+    @pytest.mark.unit
+    def test_a_configuration_that_does_not_parse_is_still_fatal(
+        self, tmp_path, capsys, restore_logging
+    ):
+        config_path = tmp_path / "config.json"
+        config_path.write_text(json.dumps({}), encoding="utf8")
+
+        with pytest.raises(SystemExit) as error:
+            main(["run", "-c", str(config_path), "--allow-blocking-problems"])
+
+        captured = capsys.readouterr()
+        assert error.value.code == 1
+        assert "Invalid configuration:" in captured.err
+        assert "Simulation started..." not in captured.out
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("skip", ["-s", "--skip-inputs-validation"])
+    def test_the_option_cannot_be_combined_with_skipping_the_validation(
+        self, config_path, capsys, restore_logging, skip
+    ):
+        with pytest.raises(SystemExit) as error:
+            main(["run", "-c", str(config_path), skip, "--allow-blocking-problems"])
+
+        captured = capsys.readouterr()
+        assert error.value.code == 2
+        assert "Usage: rubem run [OPTIONS]" in captured.err
+        assert (
+            "Invalid value for '--allow-blocking-problems': cannot be combined with "
+            "'-s' / '--skip-inputs-validation'"
+        ) in captured.err
+        assert "Loading configuration" not in captured.out
+
+    @pytest.mark.unit
+    def test_the_legacy_spelling_does_not_take_the_option(
+        self, config_path, capsys, restore_logging
+    ):
+        """``rubem -c <config> --allow-blocking-problems`` is not mapped to ``run``."""
+        with pytest.raises(SystemExit) as error:
+            main(["-c", str(config_path), "--allow-blocking-problems"])
+
+        captured = capsys.readouterr()
+        assert error.value.code == 2
+        assert "No such option" in captured.err
+        assert "Loading configuration" not in captured.out
+
+    @pytest.mark.unit
+    def test_the_help_describes_the_option(self, capsys, restore_logging):
+        with pytest.raises(SystemExit) as error:
+            main(["run", "-h"])
+
+        assert error.value.code == 0
+        assert "--allow-blocking-problems" in capsys.readouterr().out
 
 
 class TestCliArguments:
