@@ -1,13 +1,16 @@
 """End-to-end behaviour of the content validation through the loader."""
 
 import os
+from pathlib import Path
 
 import numpy as np
 import pytest
 
 from rubem.configuration._problems import ConfigurationError
 from rubem.configuration.model_configuration import ModelConfiguration
-from tests.helpers.synthetic import series_name, write_synthetic_dataset
+from rubem.configuration.model_configuration_file import ModelConfigurationFile
+from rubem.configuration.model_configuration_file_v1 import ModelConfigurationFileV1
+from tests.helpers.synthetic import series_name, write_lai_max_table, write_synthetic_dataset
 
 
 def rewrite_map(path, values, scale):
@@ -186,3 +189,87 @@ class TestLoaderBlocksOnContent:
         loaded = ModelConfiguration(config, validate_input=False)
 
         assert not any(problem.blocking for problem in loaded.problems)
+
+
+def both_formats(config):
+    """The legacy configuration and its format 1.0 document."""
+    legacy = ModelConfigurationFile.model_validate(config)
+    return (config, ModelConfigurationFileV1.from_legacy(legacy).to_dict())
+
+
+class TestLeafAreaIndexMaxTable:
+    """The ``lai_max`` table and its switch must agree, and the table read is checked."""
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("validate_input", [True, False])
+    def test_the_switch_without_a_table_blocks_before_the_run(self, config, validate_input):
+        config["CONSTANTS"]["lai_max_from_table"] = True
+
+        for source in both_formats(config):
+            with pytest.raises(ConfigurationError) as error:
+                ModelConfiguration(source, validate_input=validate_input)
+
+            assert any("lookup table is not set" in r for r in blocking_reasons(error.value))
+
+    @pytest.mark.unit
+    def test_a_table_without_the_switch_is_reported_as_ignored(self, config):
+        config["TABLES"]["lai_max"] = write_lai_max_table(config)
+
+        for source in both_formats(config):
+            loaded = ModelConfiguration(source)
+
+            ignored = [p for p in loaded.problems if "lookup table is ignored" in p.description]
+            assert len(ignored) == 1 and not ignored[0].blocking
+            assert Path(ignored[0].file) == Path(config["TABLES"]["lai_max"])
+            assert loaded.constants.leaf_area_interception_max_from_table is False
+
+    @pytest.mark.unit
+    def test_the_content_of_an_ignored_table_is_not_checked(self, config):
+        """A declared table must exist, but with the switch off its content plays no part."""
+        table = write_lai_max_table(config, {3: 0.0})
+        config["TABLES"]["lai_max"] = table
+
+        loaded = ModelConfiguration(config)
+
+        assert not any(problem.blocking for problem in loaded.problems)
+        assert any("lookup table is ignored" in p.description for p in loaded.problems)
+        os.remove(table)
+        with pytest.raises(FileNotFoundError):
+            ModelConfiguration(config)
+
+    @pytest.mark.unit
+    def test_the_table_and_the_switch_reach_the_model_settings_in_both_formats(self, config):
+        table = write_lai_max_table(config)
+        config["TABLES"]["lai_max"] = table
+        config["CONSTANTS"]["lai_max_from_table"] = True
+        legacy = ModelConfigurationFile.model_validate(config)
+        document = ModelConfigurationFileV1.from_legacy(legacy).to_dict()
+
+        for source in (config, document):
+            loaded = ModelConfiguration(source)
+
+            assert loaded.constants.leaf_area_interception_max_from_table is True
+            assert Path(loaded.lookuptable_files.lai_max) == Path(table)
+            assert not any(problem.blocking for problem in loaded.problems)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "text, description",
+        [
+            ("3 0\n4 4.0\n", "non-positive"),
+            ("3 12.5\n4 4.0\n", "above 12"),
+            ("3 9.0\n", "does not share its keys"),
+            ("3 nope\n", "cannot be read"),
+        ],
+    )
+    def test_a_bad_table_blocks(self, config, text, description):
+        table = write_lai_max_table(config)
+        with open(table, "w", encoding="utf8") as f:
+            f.write(text)
+        config["TABLES"]["lai_max"] = table
+        config["CONSTANTS"]["lai_max_from_table"] = True
+
+        with pytest.raises(ConfigurationError) as error:
+            ModelConfiguration(config)
+
+        assert any(description in r for r in blocking_reasons(error.value))

@@ -78,7 +78,7 @@ class TestModelConfigurationFile:
         canonical = file.to_dict()
 
         assert canonical["SIM_TIME"]["start"] == config["SIM_TIME"]["start"]
-        assert canonical["TABLES"] == config["TABLES"]
+        assert canonical["TABLES"] == {**config["TABLES"], "lai_max": None}
         assert canonical["GENERATE_FILE"]["tss"] is True
         assert ModelConfigurationFile.model_validate(canonical) == file
 
@@ -121,7 +121,7 @@ class TestModelConfigurationFile:
 
         canonical = ModelConfigurationFile.model_validate(config).to_dict()
 
-        assert canonical["TABLES"] == tables
+        assert canonical["TABLES"] == {**tables, "lai_max": None}
         assert canonical["CALIBRATION"] == calibration
         assert set(canonical["INITIAL_SOIL_CONDITIONS"]) == {
             "t_ini",
@@ -317,3 +317,38 @@ class TestLoaderAnchoring:
         assert isinstance(loaded.file, ModelConfigurationFile)
         assert loaded.file.to_dict()["GRID"] == {"grid": 500.0}
         assert loaded.base_dir is None
+
+
+class TestLeafAreaIndexMaxTable:
+    @pytest.mark.unit
+    def test_the_table_and_its_switch_are_optional(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+
+        file = ModelConfigurationFile.model_validate(config)
+
+        assert file.tables.lai_max is None
+        assert file.constants.lai_max_from_table is False
+
+    @pytest.mark.unit
+    def test_an_empty_table_setting_and_a_string_switch_are_accepted(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        config["TABLES"]["lai_max"] = ""
+        config["CONSTANTS"]["lai_max_from_table"] = "true"
+
+        file = ModelConfigurationFile.model_validate(config)
+
+        assert file.tables.lai_max is None
+        assert file.constants.lai_max_from_table is True
+
+    @pytest.mark.unit
+    def test_the_table_is_written_canonically_and_anchored(self, tmp_path):
+        config = write_synthetic_dataset(str(tmp_path))
+        config["TABLES"]["lai_max"] = "txt/lulc/lai_max.txt"
+        config["CONSTANTS"]["lai_max_from_table"] = True
+
+        file = ModelConfigurationFile.model_validate(config)
+
+        assert file.to_dict()["TABLES"]["lai_max"] == "txt/lulc/lai_max.txt"
+        assert file.to_dict()["CONSTANTS"]["lai_max_from_table"] is True
+        anchored = file.resolve_paths(tmp_path)
+        assert Path(anchored.tables.lai_max) == tmp_path / "txt" / "lulc" / "lai_max.txt"

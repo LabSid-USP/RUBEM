@@ -51,3 +51,28 @@ class TestModelConstants:
             leaf_area_interception_max=lai_max,
             impervious_area_interception=imp_int,
         )
+
+    @pytest.mark.unit
+    def test_the_maximum_leaf_area_index_comes_from_the_constant_by_default(self):
+        constants = ModelConstants(
+            fraction_photo_active_radiation_max=0.95,
+            fraction_photo_active_radiation_min=0.001,
+            leaf_area_interception_max=12.0,
+            impervious_area_interception=2.5,
+        )
+
+        assert constants.leaf_area_interception_max_from_table is False
+        assert "Max. Leaf Area Index (LAI) from the land use table: False" in str(constants)
+
+    @pytest.mark.unit
+    def test_the_maximum_leaf_area_index_can_come_from_the_land_use_table(self):
+        constants = ModelConstants(
+            fraction_photo_active_radiation_max=0.95,
+            fraction_photo_active_radiation_min=0.001,
+            leaf_area_interception_max=12.0,
+            leaf_area_interception_max_from_table=True,
+            impervious_area_interception=2.5,
+        )
+
+        assert constants.leaf_area_interception_max_from_table is True
+        assert "Max. Leaf Area Index (LAI) from the land use table: True" in str(constants)

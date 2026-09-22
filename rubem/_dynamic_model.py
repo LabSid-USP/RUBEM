@@ -148,6 +148,17 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.ndvi_max
         )
 
+        if self.config.constants.leaf_area_interception_max_from_table:
+            self.logger.info(
+                "Maximum leaf area index (LAI_max) read per land use class from '%s'...",
+                self.config.lookuptable_files.lai_max,
+            )
+        else:
+            self.logger.info(
+                "Maximum leaf area index (LAI_max) constant %s used for every land use class...",
+                self.config.constants.leaf_area_interception_max,
+            )
+
         self.logger.info("Reading soil attributes...")
         soil = self.__read_raster(self.config.raster_files.soil, FieldScale.NOMINAL)
 
@@ -328,6 +339,16 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             lookup_func=pcrfw.lookupscalar,
         )
 
+        if self.config.constants.leaf_area_interception_max_from_table:
+            self.logger.debug("Reading landuse attributes: LAI_max...")
+            current_lai_max = self.__lookup_wrapper(
+                file_path=self.config.lookuptable_files.lai_max,
+                lookup_value=current_landuse,
+                lookup_func=pcrfw.lookupscalar,
+            )
+        else:
+            current_lai_max = self.config.constants.leaf_area_interception_max
+
         self.logger.debug("Interception")
         current_reflectances_simple_ratio = Interception.get_reflectances_simple_ratio(current_ndvi)
         current_fpar = Interception.get_fpar(
@@ -340,7 +361,7 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         current_leaf_area_index = Interception.get_leaf_area_index(
             current_fpar,
             self.config.constants.fraction_photo_active_radiation_max,
-            self.config.constants.leaf_area_interception_max,
+            current_lai_max,
         )
         self.current_interception = Interception.get_interception(
             self.config.calibration_parameters.alpha,

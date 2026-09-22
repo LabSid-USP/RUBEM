@@ -114,7 +114,12 @@ class ModelConfiguration:
         self.problems.extend(self._series_problems)
         self.problems.extend(self.raster_files.problems)
         if validate_input:
-            self.problems.extend(check_lookup_tables(self.lookuptable_files))
+            self.problems.extend(
+                check_lookup_tables(
+                    self.lookuptable_files,
+                    lai_max_from_table=self.constants.leaf_area_interception_max_from_table,
+                )
+            )
             self.problems.extend(
                 check_runoff_coefficient_domain(
                     self.lookuptable_files,
@@ -172,6 +177,7 @@ class ModelConfiguration:
             fraction_photo_active_radiation_max=file.constants.fpar_max,
             fraction_photo_active_radiation_min=file.constants.fpar_min,
             leaf_area_interception_max=file.constants.lai_max,
+            leaf_area_interception_max_from_table=file.constants.lai_max_from_table,
             impervious_area_interception=file.constants.i_imp,
         )
         self.output_directory = OutputDataDirectory(file.directories.output).ensure_exists()
@@ -246,6 +252,7 @@ class ModelConfiguration:
             rootzone_depth=file.tables.rootzone_depth,
             kc_min=file.tables.k_c_min,
             kc_max=file.tables.k_c_max,
+            lai_max=file.tables.lai_max,
             validate_input=validate_input,
         )
         self._series_problems = list(self.raster_series.problems)
@@ -290,6 +297,7 @@ class ModelConfiguration:
             fraction_photo_active_radiation_max=constants.fpar_max,
             fraction_photo_active_radiation_min=constants.fpar_min,
             leaf_area_interception_max=constants.lai_max,
+            leaf_area_interception_max_from_table=constants.lai_max_from_table,
             impervious_area_interception=constants.i_imp,
         )
         output = file.model_simulation_output
@@ -353,6 +361,7 @@ class ModelConfiguration:
             rootzone_depth=tables.rootzone_depth,
             kc_min=tables.kc_min,
             kc_max=tables.kc_max,
+            lai_max=tables.lai_max,
             validate_input=validate_input,
         )
         self.series_resolvers = resolvers_from_v1(file)
@@ -501,6 +510,36 @@ class ModelConfiguration:
                 Problem(
                     description="Simulation will not produce any Time Series tables.",
                     reason="Time Series generation was enabled but no Sample Locations raster was provided.",
+                )
+            )
+
+        if self.constants.leaf_area_interception_max_from_table:
+            if not self.lookuptable_files.lai_max:
+                self.problems.append(
+                    Problem(
+                        description="Maximum leaf area index lookup table is not set.",
+                        reason=(
+                            "CONSTANTS.lai_max_from_table (model_constants.lai_max_from_table in "
+                            "format 1.0) is true but TABLES.lai_max (lookup_tables.lai_max) is "
+                            "not given."
+                        ),
+                        implication=(
+                            "The maximum leaf area index cannot be read per land use class."
+                        ),
+                        blocking=True,
+                    )
+                )
+        elif self.lookuptable_files.lai_max:
+            self.problems.append(
+                Problem(
+                    description="Maximum leaf area index lookup table is ignored.",
+                    reason=(
+                        "TABLES.lai_max (lookup_tables.lai_max in format 1.0) is given but "
+                        "CONSTANTS.lai_max_from_table (model_constants.lai_max_from_table) is "
+                        f"false: the constant lai_max={self.constants.leaf_area_interception_max} "
+                        "is used and the content of the table is not checked."
+                    ),
+                    file=self.lookuptable_files.lai_max,
                 )
             )
 
