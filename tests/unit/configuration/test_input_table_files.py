@@ -112,10 +112,11 @@ class TestLeafAreaIndexMaxTable:
         assert "Max. Leaf Area Index (LAI_max): Not specified." in str(tables)
 
     @pytest.mark.unit
-    def test_the_path_is_normalised_like_the_other_tables(self, fs):
+    @pytest.mark.parametrize("value", [Path("/path/to/lai_max.txt"), "/path/to/./lai_max.txt"])
+    def test_the_path_is_normalised_like_the_other_tables(self, fs, value):
         fs.create_file("/path/to/lai_max.txt", contents="1 12.0")
 
-        tables = InputTableFiles(**required_tables(fs), lai_max=Path("/path/to/lai_max.txt"))
+        tables = InputTableFiles(**required_tables(fs), lai_max=value)
 
         assert tables.lai_max == str(Path("/path/to/lai_max.txt"))
         assert f"Max. Leaf Area Index (LAI_max): {tables.lai_max}" in str(tables)
