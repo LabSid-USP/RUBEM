@@ -363,7 +363,6 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             self.config.constants.fraction_photo_active_radiation_max,
             current_lai_max,
         )
-
         self.current_interception = Interception.get_interception(
             self.config.calibration_parameters.alpha,
             current_leaf_area_index,

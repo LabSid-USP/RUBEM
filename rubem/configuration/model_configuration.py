@@ -163,7 +163,6 @@ class ModelConfiguration:
             baseflow_limit=file.initial_soil_conditions.bfw_lim,
             initial_saturated_zone_storage=file.initial_soil_conditions.s_sat_ini,
         )
-
         self.constants = ModelConstants(
             fraction_photo_active_radiation_max=file.constants.fpar_max,
             fraction_photo_active_radiation_min=file.constants.fpar_min,
@@ -171,7 +170,6 @@ class ModelConfiguration:
             leaf_area_interception_max_from_table=file.constants.lai_max_from_table,
             impervious_area_interception=file.constants.i_imp,
         )
-
         self.output_directory = OutputDataDirectory(file.directories.output).ensure_exists()
 
         output_formats = OutputFileFormat(0)
