@@ -399,6 +399,35 @@ class TestLayerValues:
         )
         assert problems[0].reason.startswith("2 of 9 active cells")
 
+    @pytest.mark.unit
+    def test_a_no_data_sentinel_in_an_active_cell_is_blocking(self, config):
+        path = sibling(config, "head_sentinel.map")
+        write_grid_map(path, grid(MODFLOW_HEAD, at=ROW_2_COLUMN_3, value=-888.0))
+        config["MODFLOW"]["layers"][1]["initial_head"] = path
+
+        problems = check(config)
+
+        assert len(problems) == 1 and problems[0].blocking
+        assert problems[0].description == (
+            "MODFLOW initial head of layer 2 (layer2) holds a no-data sentinel in active cells."
+        )
+        assert problems[0].reason == (
+            "1 of 9 active cells hold the value -888, a MODFLOW no-data marker, not a head; "
+            "the first at row 2, column 3."
+        )
+        assert Path(problems[0].file) == Path(path)
+
+    @pytest.mark.unit
+    def test_a_no_data_sentinel_in_an_inactive_cell_is_accepted(self, config):
+        boundary = sibling(config, "bound_hole.map")
+        write_grid_map(boundary, grid(1, at=ROW_2_COLUMN_3, value=0), nominal=True)
+        path = sibling(config, "head_sentinel.map")
+        write_grid_map(path, grid(MODFLOW_HEAD, at=ROW_2_COLUMN_3, value=-999.99))
+        config["MODFLOW"]["layers"][1]["boundary"] = boundary
+        config["MODFLOW"]["layers"][1]["initial_head"] = path
+
+        assert check(config) == []
+
 
 class TestConductivityClasses:
     @pytest.mark.unit

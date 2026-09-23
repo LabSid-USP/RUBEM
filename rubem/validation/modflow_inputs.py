@@ -155,6 +155,10 @@ def _check_files(settings: ModflowSettings) -> list[Problem]:
     return problems
 
 
+_HEAD_SENTINELS = (-888.0, -999.0, -999.9, -999.99, -9999.0)
+"""Values MODFLOW tools write for no-flow or dry cells (HNOFLO, HDRY) and common no-data markers."""
+
+
 def _first_cell(cells: np.ndarray) -> str:
     row, column = (int(index) + 1 for index in np.argwhere(cells)[0])
     return f"row {row}, column {column}"
@@ -352,7 +356,8 @@ class _ContentChecks:
             where,
             item.initial_head,
         ):
-            self._check_head_above_bottom(number, head)
+            sentinels = self._check_head_sentinels(number, head)
+            self._check_head_above_bottom(number, head, ignore=sentinels)
         properties = [
             ("vertical conductivity", item.vertical_conductivity),
             ("horizontal conductivity", item.horizontal_conductivity),
@@ -376,11 +381,50 @@ class _ContentChecks:
                         source,
                     )
 
-    def _check_head_above_bottom(self, number: int, head: np.ndarray) -> None:
+    def _check_head_sentinels(self, number: int, head: np.ndarray) -> np.ndarray:
+        """Report no-data markers read as heads; return the cells that hold them."""
+        active = self.active[number]
+        found: list[float] = []
+        sentinel = np.zeros(head.shape, dtype=bool)
+        for value in _HEAD_SENTINELS:
+            cells = active & np.isclose(head, value, rtol=0.0, atol=1e-3)
+            if cells.any():
+                found.append(value)
+                sentinel |= cells
+        if not found:
+            return sentinel
+        item = self.settings.layers[number - 1]
+        values = " and ".join(f"{value:g}" for value in found)
+        markers = (
+            "a MODFLOW no-data marker, not a head"
+            if len(found) == 1
+            else ("MODFLOW no-data markers, not heads")
+        )
+        self.problems.append(
+            _blocking(
+                f"MODFLOW initial head of {self._label(number)} holds a no-data sentinel in "
+                "active cells.",
+                f"{int(sentinel.sum())} of {int(active.sum())} active cells hold the "
+                f"value{'s' if len(found) > 1 else ''} {values}, {markers}; the first at "
+                f"{_first_cell(sentinel)}.",
+                item.initial_head,
+                implication=(
+                    "MODFLOW reads the marker as a head: those cells start dry and the value "
+                    "reaches the head outputs. Give them a head or make them inactive."
+                ),
+            )
+        )
+        return sentinel
+
+    def _check_head_above_bottom(
+        self, number: int, head: np.ndarray, ignore: np.ndarray | None = None
+    ) -> None:
         bottom = self.bottoms.get(number)
         if bottom is None:
             return
         cells = self.active[number] & np.isfinite(bottom)
+        if ignore is not None:
+            cells &= ~ignore
         below = cells & (head < bottom)
         count, total = int(below.sum()), int(cells.sum())
         if not count:

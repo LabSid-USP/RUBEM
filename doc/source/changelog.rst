@@ -24,7 +24,8 @@ Added
   lists for every package; the configuration refuses ``LAYCON`` 1 below the
   top layer, wetting on layers that are not ``LAYCON`` 1 or 3 and a transient
   layer without the storage its type reads, and the validation checks the
-  geometry, the heads against the bottoms, the conductivity tables, the
+  geometry, the heads against the bottoms and the no-data markers, the
+  conductivity tables, the
   package cells, reports river cells whose bed lies outside their layer, and
   blocks, even with ``-s``, a missing input file or a missing MODFLOW runtime
   (the extension and ``mf2005``, both in the conda-forge ``pcraster``

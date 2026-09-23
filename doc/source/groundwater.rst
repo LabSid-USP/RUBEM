@@ -750,6 +750,10 @@ Blocking:
 - an initial head, conductivity or (in a transient run) storage raster
   missing on an active cell of its layer;
 - an initial head below the layer bottom in every active cell of the layer;
+- an initial head equal to a MODFLOW no-data marker (``-888``, ``-999``,
+  ``-999.9``, ``-999.99`` or ``-9999``) in an active cell: the extension
+  would read it as a head, start the cell dry and carry the value into the
+  head outputs, so give the cell a head or make it inactive;
 - a conductivity class map in PCRaster format that is not nominal, or a
   class on an active cell that the lookup table does not give a positive
   value;
