@@ -157,6 +157,7 @@ class ModelConfiguration:
     def __build_from_legacy(self, validate_input: bool) -> None:
         self.logger.debug("Loading configuration...")
         file = self.file
+        self.modflow = file.modflow
         self.simulation_period = SimulationPeriod(
             start=file.sim_time.start,
             end=file.sim_time.end,
@@ -275,6 +276,7 @@ class ModelConfiguration:
     def __build_from_v1(self, validate_input: bool) -> None:
         self.logger.debug("Loading configuration (format 1.0)...")
         file = self.file_v1
+        self.modflow = file.modflow
         period = file.simulation_period
         self.simulation_period = SimulationPeriod(
             start=period.start, end=period.finish, alignment=period.alignment
@@ -433,6 +435,14 @@ class ModelConfiguration:
         if problem is not None:
             self.problems.append(problem)
 
+    @property
+    def modflow_enabled(self) -> bool:
+        """Whether the run is coupled to MODFLOW (the section is present and enabled).
+
+        :rtype: bool
+        """
+        return self.modflow is not None and self.modflow.enabled
+
     def write_metadata(self) -> None:
         """Write ``metadata.json`` next to the outputs of a format 1.0 run.
 
@@ -554,6 +564,18 @@ class ModelConfiguration:
                         "is used and the content of the table is not checked."
                     ),
                     file=self.lookuptable_files.lai_max,
+                )
+            )
+
+        if self.modflow is not None and not self.modflow.enabled:
+            self.problems.append(
+                Problem(
+                    description="MODFLOW section is ignored.",
+                    reason=(
+                        "The MODFLOW section (modflow in format 1.0) is given but its enabled "
+                        "key is false: the saturated zone is the lumped reservoir of RUBEM and "
+                        "the section is not checked."
+                    ),
                 )
             )
 

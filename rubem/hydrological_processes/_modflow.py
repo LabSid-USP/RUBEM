@@ -14,11 +14,12 @@ layer N is the uppermost layer.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import logging
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Mapping, Optional
+from typing import Any
 
 import numpy as np
 import pcraster as pcr
@@ -74,7 +75,7 @@ class ModflowGroundwater:
         self,
         config: Any,
         cell_area_m2: float,
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ) -> None:
         self.config = config
         self.logger = logger or logging.getLogger(__name__)
