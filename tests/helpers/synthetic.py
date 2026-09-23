@@ -48,6 +48,8 @@ _SOIL_TABLES = {
     "Tw": 0.12,
     "Zr": 150.39,
 }
+ROOTZONE_DEPTH = _SOIL_TABLES["Zr"]
+"""Rootzone depth (``Zr``) of the soil class [cm]."""
 
 
 def _as_tif(path):
@@ -435,3 +437,15 @@ def write_modflow_inputs(config, layers=3):
         },
         "drain": {"enabled": False, "entries": []},
     }
+
+
+def write_minimum_root_depth_table(config, value):
+    """Write a ``Dpz_min`` lookup table next to the soil tables and return its path.
+
+    :param config: The configuration returned by :func:`write_synthetic_dataset`.
+    :param value: Minimum root depth of the soil class, in the unit of ``Zr`` [cm].
+    """
+    path = os.path.join(os.path.dirname(config["TABLES"]["rootzone_depth"]), "Dpz_min.txt")
+    with open(path, "w", encoding="utf8") as f:
+        f.write(f"{_SOIL_CLASS} {value}\n")
+    return path

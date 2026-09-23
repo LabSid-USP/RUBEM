@@ -10,18 +10,35 @@ synthetic elevations of inactive columns.
 The three-layer cases check what one layer cannot show: the layer types
 (LAYCON) reach MODFLOW on the right layers, and class lookups and numbers give
 the same run as the equivalent maps.
+
+The full RUBEM runs couple the synthetic dataset to its three-layer section
+(:func:`write_modflow_inputs`) through the validated configuration.
 """
 
 import os
+import subprocess
+import sys
+from pathlib import Path
 
 import numpy as np
 import pcraster as pcr
 import pytest
 
 from rubem._deps import resolve_mf2005
+from rubem.configuration.model_configuration import ModelConfiguration
 from rubem.configuration.modflow_configuration import ModflowSettings
+from rubem.core import DynamicFrameworkWrapper
 from rubem.hydrological_processes._modflow import ModflowGroundwater
-from tests.helpers.synthetic import CELL_SIZE, write_modflow_inputs, write_synthetic_dataset
+from tests.helpers.synthetic import (
+    CELL_SIZE,
+    MODFLOW_HEAD,
+    MODFLOW_TOP,
+    geotiff_series_name,
+    series_name,
+    write_grid_map,
+    write_modflow_inputs,
+    write_synthetic_dataset,
+)
 
 pytestmark = [
     pytest.mark.integration,
@@ -369,3 +386,144 @@ def test_three_layer_constants_and_lookups_match_maps(tmp_path, directories, lay
     assert len(maps) == len(calibrated)
     for expected, actual in zip(maps, calibrated, strict=True):
         np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-6)
+
+
+MONTH_DAYS = {1: 31, 2: 29}  # January and February 2000
+
+
+def coupled_dataset(directory, **section_updates):
+    """The synthetic dataset coupled to MODFLOW, its river below the water table.
+
+    The river stage is 5 m below the initial head, so the aquifer drains into
+    the river and the baseflow is not zero.
+    """
+    config = write_synthetic_dataset(str(directory))
+    section = write_modflow_inputs(config)
+    river = section["river"]["entries"][0]
+    river["stage"] = write_grid_map(Path(river["stage"]), MODFLOW_HEAD - 5.0)
+    river["bottom"] = write_grid_map(Path(river["bottom"]), MODFLOW_TOP - 18.0)
+    section.update(section_updates)
+    config["MODFLOW"] = section
+    return config
+
+
+def run_rubem(config):
+    DynamicFrameworkWrapper.load(ModelConfiguration(config)).run()
+
+
+def read_map(path):
+    return pcr.pcr2numpy(pcr.scalar(pcr.readmap(str(path))), np.nan)
+
+
+class TestCoupledRun:
+    def test_the_baseflow_is_the_river_leakage_and_the_heads_are_written(
+        self, tmp_path, directories, monkeypatch
+    ):
+        config = coupled_dataset(tmp_path / "dataset")
+        output = Path(config["DIRECTORIES"]["output"])
+        run_directory, working_directory = directories
+        during = []
+        run_step = ModflowGroundwater.run_step
+
+        def observed_run_step(self, recharge_mm, days_in_period):
+            result = run_step(self, recharge_mm, days_in_period)
+            during.append(
+                (
+                    Path(self.run_directory),
+                    (output / "modflow" / "pcrmf.lst").is_file(),
+                    sorted(path.name for path in output.glob("pcrmf*")),
+                    os.listdir(working_directory),
+                )
+            )
+            return result
+
+        monkeypatch.setattr(ModflowGroundwater, "run_step", observed_run_step)
+
+        run_rubem(config)
+
+        assert during == [(output / "modflow", True, [], [])] * len(MONTH_DAYS)
+        assert not (output / "modflow").exists()
+        assert os.listdir(working_directory) == []
+        for step, days in MONTH_DAYS.items():
+            baseflow = read_map(output / series_name("bfw", step))
+            leakage = read_map(output / series_name("mfaq2rv", step))
+            assert leakage.max() > 0
+            np.testing.assert_allclose(
+                baseflow, leakage * days * 1000.0 / (CELL_SIZE * CELL_SIZE), rtol=1e-5, atol=1e-6
+            )
+            for number in (1, 2, 3):
+                prefix = f"mfh{number}"
+                assert (output / series_name(prefix, step)).is_file(), (prefix, step)
+                assert (output / geotiff_series_name(prefix, step)).is_file(), (prefix, step)
+                assert np.isfinite(read_map(output / series_name(prefix, step))).all()
+
+    def test_nothing_is_written_without_a_raster_format(self, tmp_path, directories):
+        config = coupled_dataset(tmp_path / "dataset")
+        config["RASTER_FILE_FORMAT"] = {"map_raster_series": False, "tiff_raster_series": False}
+        config["GENERATE_FILE"] = {key: False for key in config["GENERATE_FILE"]}
+
+        run_rubem(config)
+
+        assert os.listdir(config["DIRECTORIES"]["output"]) == []
+        assert os.listdir(directories[1]) == []
+
+    def test_non_convergence_stops_the_run_and_keeps_the_listing(self, tmp_path, directories):
+        config = coupled_dataset(
+            tmp_path / "dataset",
+            dis={"nstp": 1},
+            solver={"mxiter": 1, "iter1": 1, "hclose": 1e-12, "rclose": 1e-12},
+        )
+
+        with pytest.raises(RuntimeError, match="did not converge in stress period 1"):
+            run_rubem(config)
+
+        assert (Path(config["DIRECTORIES"]["output"]) / "modflow" / "pcrmf.lst").is_file()
+
+    def test_non_convergence_before_the_last_time_step_ends_the_process(self, tmp_path):
+        """Pins a known limitation of the extension, pending the maintainer's decision.
+
+        MODFLOW saves the heads only at the last time step of the period and
+        stops at the first time step that fails to converge. With the default
+        ``nstp`` (5) nothing is saved in the first period, and the extension
+        ends the process when it reads the missing head file, before
+        ``converged()`` can be asked. The run therefore happens in a child
+        process; this test turns red once that case raises instead.
+        """
+        assert ModflowSettings().dis.nstp > 1  # the child runs the default
+        root = Path(__file__).resolve().parents[2]
+        working_directory = tmp_path / "cwd"
+        working_directory.mkdir()
+        script = (
+            "import sys\n"
+            "from tests.integration.test_modflow_coupling import coupled_dataset, run_rubem\n"
+            "config = coupled_dataset(sys.argv[1], solver={'mxiter': 1, 'iter1': 1,"
+            " 'hclose': 1e-12, 'rclose': 1e-12})\n"
+            "assert 'dis' not in config['MODFLOW']\n"
+            "try:\n"
+            "    run_rubem(config)\n"
+            "except RuntimeError:\n"
+            "    print('RAISED')\n"
+            "else:\n"
+            "    print('RETURNED')\n"
+        )
+        environment = {**os.environ, "PYTHONPATH": os.pathsep.join([str(root), *sys.path])}
+
+        child = subprocess.run(
+            [sys.executable, "-c", script, str(tmp_path / "dataset")],
+            cwd=working_directory,
+            env=environment,
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=600,
+            check=False,
+        )
+
+        output = child.stdout + child.stderr
+        assert child.returncode != 0, output
+        assert "RAISED" not in child.stdout
+        assert "RETURNED" not in child.stdout
+        assert "MODFLOW failed to converge" in output
+        assert "Can not open head value result file" in output
+        listing = tmp_path / "dataset" / "out" / "modflow" / "pcrmf.lst"
+        assert "STOPPING SIMULATION" in listing.read_text(encoding="utf8", errors="replace")

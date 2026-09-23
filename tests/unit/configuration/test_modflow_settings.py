@@ -326,6 +326,30 @@ class TestEnabledRules:
         assert "'upper'" in refused(data)
 
     @pytest.mark.unit
+    def test_at_most_nine_layers_are_accepted(self):
+        # mfh1 at step 10 and mfh10 at step 1 would share one output name.
+        data = section()
+        data["layers"] += [
+            layer(f"deep{number}", f"modflow/bottom{number}.map", "modflow/head1.map")
+            for number in range(4, 11)
+        ]
+
+        message = refused(data)
+
+        assert "at most 9 layers" in message
+        assert "10" in message
+
+    @pytest.mark.unit
+    def test_nine_layers_are_accepted(self):
+        data = section()
+        data["layers"] += [
+            layer(f"deep{number}", f"modflow/bottom{number}.map", "modflow/head1.map")
+            for number in range(4, 10)
+        ]
+
+        assert len(ModflowSettings.model_validate(data).layers) == 9
+
+    @pytest.mark.unit
     def test_the_river_package_is_required(self):
         data = section()
         data["river"]["enabled"] = False

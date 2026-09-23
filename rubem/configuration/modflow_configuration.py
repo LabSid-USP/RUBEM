@@ -39,6 +39,11 @@ units digit (LAYCON) the layer type: 0 confined, 1 unconfined (top layer only),
 WETTING_LAYCONS = (1, 3)
 """LAYCON values for which BCF reads a WETDRY array."""
 
+MAX_LAYERS = 9
+"""Most layers a section may list: the per-layer output prefixes (``mfh<n>``)
+are followed by the zero-padded step, so ``mfh1`` and ``mfh10`` would give the
+same file name."""
+
 
 class _Strict(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -276,6 +281,12 @@ class ModflowSettings(_Strict):
             errors.append("an enabled section needs the model 'top'.")
         if not self.layers:
             errors.append("an enabled section needs at least one layer.")
+        if len(self.layers) > MAX_LAYERS:
+            errors.append(
+                f"{len(self.layers)} layers are listed; at most {MAX_LAYERS} layers are "
+                "supported, because the per-layer outputs mfh<n>, mfst<n> and mfdrn<n> of "
+                "layer 1 and layer 10 would share file names."
+            )
         names = [item.name for item in self.layers]
         repeated = sorted({name for name in names if names.count(name) > 1})
         if repeated:
