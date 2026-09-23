@@ -31,7 +31,7 @@ from .._deps import groundwater_deps_message, missing_groundwater_deps, missing_
 from ..configuration._problems import Problem
 from ..configuration.modflow_configuration import ConductivityLookup, transform_paths
 from ..file._readers import FieldScale, is_geotiff, read_field, set_clone
-from .lookup_tables import _INTERVAL, _NUMBER, LookupTableError, _in_interval, read_lookup_table
+from .lookup_tables import LookupTableError, _table_value, read_lookup_table
 
 if TYPE_CHECKING:
     from ..configuration.input_raster_files import InputRasterFiles
@@ -163,16 +163,6 @@ def _first_cell(cells: np.ndarray) -> str:
 def _numbers(values) -> list:
     """Values for a message: integers without a decimal part, the rest as floats."""
     return [int(value) if float(value).is_integer() else float(value) for value in values]
-
-
-def _table_value(rows, value: float) -> float | None:
-    """The value of the first row of a lookup table whose key matches ``value``."""
-    for (key,), result in rows:
-        if _NUMBER.match(key) and float(key) == value:
-            return result
-        if _INTERVAL.match(key) and _in_interval(value, key):
-            return result
-    return None
 
 
 def _blocking(description: str, reason: str, file, implication=_RASTER_IMPLICATION) -> Problem:
