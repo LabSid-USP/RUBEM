@@ -13,6 +13,31 @@ The format follows `Keep a Changelog <https://keepachangelog.com/en/1.1.0/>`__.
 Added
 `````
 
+- Added the optional coupling with MODFLOW-2005 through the PCRaster MODFLOW
+  extension (``MODFLOW`` section, format 1.0 ``modflow``; ignored when absent
+  or disabled, and reported as ignored when present but disabled). The
+  recharge of each step feeds the RCH package, one step being one stress
+  period of the days of its month, and the leakage from the aquifer to the RIV
+  cells becomes ``bfw``, in mm, while the saturated-zone reservoir is no
+  longer updated; GHB, DRN and BCF wetting shape the heads. Layers are listed
+  from the top down and numbered like MODFLOW (at most 9), with explicit layer
+  lists for every package; the configuration refuses ``LAYCON`` 1 below the
+  top layer, wetting on layers that are not ``LAYCON`` 1 or 3 and a transient
+  layer without the storage its type reads, and the validation checks the
+  geometry, the heads against the bottoms, the conductivity tables, the
+  package cells, reports river cells whose bed lies outside their layer, and
+  blocks, even with ``-s``, a missing input file or a missing MODFLOW runtime
+  (the extension and ``mf2005``, both in the conda-forge ``pcraster``
+  package). MODFLOW runs in ``<output>/modflow``, removed after the last step;
+  heads, river exchange, storage, drain flow and an experimental root-depth
+  coupling with the water table are written as raster series selected in the
+  section. ``rubem calibrate`` runs the coupled model whenever the
+  configuration enables it, and searches or fixes the MODFLOW parameters
+  named in ``--bound`` and ``--fix`` (``modflow.layers.<n>.specific_yield``,
+  ``modflow.layers.<n>.specific_storage``, ``modflow.layers.<n>.kh.<class>``,
+  ``modflow.river.<i>.conductance``). The new Groundwater Coupling page
+  documents the exchange, the keys, the rules, the outputs and the
+  limitations (`#356 <https://github.com/LabSid-USP/RUBEM/issues/356>`__).
 - Added ``rubem calibrate``: a differential evolution (SciPy) over the free
   calibration parameters, with ``w3`` derived from the other two weights,
   minimizing ``1000 (100 (1 - NSE))^2`` on the station series of one output
