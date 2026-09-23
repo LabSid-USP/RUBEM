@@ -319,3 +319,119 @@ def write_lai_max_table(config, values=None):
         for lulc_class, value in values.items():
             f.write(f"{lulc_class} {value}\n")
     return path
+
+
+MODFLOW_TOP = 100.0
+MODFLOW_LAYER_THICKNESS = 20.0
+MODFLOW_HEAD = 90.0
+MODFLOW_KH_TABLE = {1: 0.5, 2: 0.1}
+
+
+def write_grid_map(path, values, nominal=False):
+    """Write ``values`` (nine numbers, row by row) as a PCRaster map on the synthetic grid.
+
+    :param path: The map file; its directory is created.
+    :param values: A scalar broadcast to the grid, or ``ROWS * COLS`` values;
+        ``NaN`` and :data:`MISSING` cells are missing.
+    :param nominal: Whether the map is nominal (classes) instead of scalar.
+    :returns: ``path`` as a string.
+    """
+    import pcraster as pcr
+
+    pcr.setclone(ROWS, COLS, CELL_SIZE, WEST, NORTH)
+    array = np.broadcast_to(np.asarray(values, dtype=np.float64), (ROWS * COLS,))
+    array = np.where(np.isnan(array), MISSING, array).reshape(ROWS, COLS)
+    os.makedirs(os.path.dirname(str(path)), exist_ok=True)
+    if nominal:
+        field = pcr.numpy2pcr(pcr.Nominal, array.astype(np.int32), int(MISSING))
+    else:
+        field = pcr.numpy2pcr(pcr.Scalar, array.astype(np.float32), MISSING)
+    pcr.report(field, str(path))
+    return str(path)
+
+
+def write_modflow_inputs(config, layers=3):
+    """Write the inputs of a MODFLOW section on the synthetic grid and return the section.
+
+    The layers are listed top down under a flat model top at
+    :data:`MODFLOW_TOP`, each :data:`MODFLOW_LAYER_THICKNESS` thick and active
+    everywhere, with the initial head :data:`MODFLOW_HEAD` in every layer.
+    Layer 1 is unconfined (LAYCON 1) with its horizontal conductivity given by
+    classes (row 1 class 1, the other rows class 2, see
+    :data:`MODFLOW_KH_TABLE`) and its vertical conductivity by a map; the other
+    layers are convertible (LAYCON 2) with a conductivity map and a number. The
+    river lies on the middle column of layer 1 (numeric conductance and a
+    mask), the general head boundary on the left column of every layer, the
+    drain package is off and wetting applies to layer 1.
+
+    :param config: The configuration returned by :func:`write_synthetic_dataset`;
+        the files go to ``maps/modflow`` next to its rasters.
+    :param layers: Number of layers.
+    :returns: The ``MODFLOW`` section, with absolute paths.
+    """
+    maps = os.path.dirname(os.path.dirname(config["RASTERS"]["clone"]))
+    directory = os.path.join(maps, "modflow")
+
+    def grid(name, values, nominal=False):
+        return write_grid_map(os.path.join(directory, name), values, nominal)
+
+    left_column = [1.0 if index % COLS == 0 else 0.0 for index in range(ROWS * COLS)]
+    middle_column = [1.0 if index % COLS == 1 else 0.0 for index in range(ROWS * COLS)]
+    table = os.path.join(directory, "kh1.tbl")
+    os.makedirs(directory, exist_ok=True)
+    with open(table, "w", encoding="utf8") as f:
+        for kh_class, value in MODFLOW_KH_TABLE.items():
+            f.write(f"{kh_class} {value}\n")
+    boundary = grid("bound.map", 1, nominal=True)
+    head = grid("head.map", MODFLOW_HEAD)
+    section_layers = []
+    for number in range(1, layers + 1):
+        item = {
+            "name": f"layer{number}",
+            "bottom": grid(f"bottom{number}.map", MODFLOW_TOP - number * MODFLOW_LAYER_THICKNESS),
+            "initial_head": head,
+            "boundary": boundary,
+            "laytype": 2,
+            "horizontal_conductivity": grid("kh.map", 1.0),
+            "vertical_conductivity": 0.1,
+            "specific_yield": 0.15,
+            "specific_storage": 1e-5,
+        }
+        if number == 1:
+            classes = [1] * COLS + [2] * (ROWS - 1) * COLS
+            item["laytype"] = 1
+            item["horizontal_conductivity"] = {
+                "map": grid("kh_classes1.map", classes, nominal=True),
+                "table": table,
+            }
+            item["vertical_conductivity"] = grid("kv1.map", 0.1)
+        section_layers.append(item)
+    return {
+        "enabled": True,
+        "top": grid("top.map", MODFLOW_TOP),
+        "layers": section_layers,
+        "wetting": {"enabled": True, "map": grid("wet.map", 1.0), "layers": [1]},
+        "river": {
+            "enabled": True,
+            "entries": [
+                {
+                    "layers": [1],
+                    "stage": grid("riv_stage.map", MODFLOW_HEAD + 5.0),
+                    "bottom": grid("riv_bottom.map", MODFLOW_TOP - 10.0),
+                    "conductance": 10.0,
+                    "mask": grid("riv_mask.map", middle_column),
+                }
+            ],
+        },
+        "ghb": {
+            "enabled": True,
+            "entries": [
+                {
+                    "layers": list(range(1, layers + 1)),
+                    "head": grid("ghb_head.map", MODFLOW_HEAD),
+                    "conductance": grid("ghb_cond.map", left_column),
+                }
+            ],
+        },
+        "drain": {"enabled": False, "entries": []},
+    }

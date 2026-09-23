@@ -838,14 +838,19 @@ class TestModelConfiguration:
 
     @pytest.mark.unit
     def test_an_enabled_section_reaches_the_configuration_anchored(self, config, tmp_path):
+        """The section names files that do not exist: only their absence is reported."""
         config["MODFLOW"] = section()
 
         for source in both_formats(config):
-            loaded = ModelConfiguration(source, validate_input=False, base_dir=tmp_path)
+            loaded = ModelConfiguration(
+                source, validate_input=False, base_dir=tmp_path, allow_blocking_problems=True
+            )
 
             assert loaded.modflow_enabled is True
             assert Path(loaded.modflow.top) == tmp_path / "modflow" / "top_model.map"
-            assert not [p for p in loaded.problems if "MODFLOW" in p.description]
+            modflow = [p for p in loaded.problems if "MODFLOW" in p.description]
+            assert {p.description for p in modflow} == {"MODFLOW input file does not exist."}
+            assert Path(modflow[0].file) == tmp_path / "modflow" / "top_model.map"
 
     @pytest.mark.unit
     @pytest.mark.parametrize("validate_input", [True, False])

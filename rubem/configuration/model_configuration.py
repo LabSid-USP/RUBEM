@@ -37,6 +37,7 @@ from ..configuration.raster_series_resolver import (
 from ..configuration.simulation_period import SimulationPeriod
 from ..validation.grid_cell_size import check_grid_cell_size
 from ..validation.lookup_tables import check_lookup_tables, check_runoff_coefficient_domain
+from ..validation.modflow_inputs import check_modflow_inputs
 
 
 class ModelConfiguration:
@@ -133,6 +134,17 @@ class ModelConfiguration:
                     self.calibration_parameters.w_1,
                     self.calibration_parameters.w_2,
                     self.calibration_parameters.w_3,
+                )
+            )
+        if self.modflow_enabled:
+            # File existence and the MODFLOW runtime are checked whatever
+            # validate_input says; the content only with it.
+            self.problems.extend(
+                check_modflow_inputs(
+                    self.modflow,
+                    self.raster_files,
+                    validate_input,
+                    tables=self.lookuptable_files,
                 )
             )
         self.__check_inconsistencies(allow_blocking_problems)
