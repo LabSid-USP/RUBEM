@@ -1394,3 +1394,180 @@ enabled, or a DEM, clone and georeference that do not share their geometry.
    .## Timestep 24 of 24
    Simulation finished successfully!
    Elapsed time: 12 seconds
+
+MODFLOW general-head boundaries
+------------------------------
+
+When the optional MODFLOW module is enabled, general-head boundaries (GHB)
+can be configured with fixed PCRaster maps for each target layer. Add this
+block inside ``MODFLOW`` (or ``modflow`` in the v1 configuration):
+
+.. code-block:: json
+
+   "ghb": {
+       "enabled": 1,
+       "layers": [
+           {
+               "layer": 3,
+               "head": "input/modflow/ghb_head.map",
+               "conductance": "input/modflow/ghb_cond.map"
+           }
+       ]
+   }
+
+Layer numbers follow PCRaster MODFLOW: layer 1 is the deepest layer. Each
+layer may appear once and must exist in the model. Both inputs must be spatial
+scalar maps compatible with the clone. ``head`` is the external hydraulic head
+in metres, using the model's elevation datum; ``conductance`` is hydraulic
+conductance in square metres per day. Use positive conductance on GHB cells
+and zero elsewhere, with valid head values on GHB cells. The BAS boundary map
+should mark these cells as active (1).
+
+The module calls ``setGeneralHead(head, conductance, layer)`` before every
+MODFLOW stress-period run. GHB exchanges affect groundwater heads and the
+groundwater balance; RUBEM baseflow continues to come from the RIV package.
+GHB flow maps are not exported by the current output configuration.
+Table-based or time-varying GHB inputs are not supported. Omit ``ghb`` or use
+``"ghb": {"enabled": 0}`` to disable it. Relative map paths follow the same
+base-directory resolution as other MODFLOW inputs.
+
+See the `PCRaster GHB documentation
+<https://pcraster.geo.uu.nl/pcraster/4.4.2/documentation/modflow/ghb.html>`_
+for the underlying API (available since PCRaster 4.3).
+
+MODFLOW maps clipped to the model domain
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PCRaster MODFLOW requires DIS elevations across the entire rectangular clone,
+including cells outside the study area. RUBEM prepares these inputs in memory;
+the original raster files are not modified.
+
+The ``boundary`` maps define the groundwater domain. Missing boundary values
+are converted to 0 (inactive); active and constant-head cells are preserved.
+In columns inactive in every layer, RUBEM supplies synthetic elevations with
+positive layer thickness. All original elevations in columns active in any
+layer must be finite, and each top must be above the underlying surface;
+otherwise initialization reports the offending map, row and column.
+
+Missing initial heads, conductivities and storage inputs are filled only in
+inactive cells. Missing optional wetting values and recharge are filled with
+zero. For RIV and GHB, missing conductance means no boundary stress, and
+conductance is zeroed outside the layer's BAS domain. Head and river-bottom
+values are required wherever the resulting conductance is positive.
+
+Geographic raster coordinates and MODFLOW cell dimensions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Rasters may retain geographic coordinates in degrees. MODFLOW row and column
+widths are explicitly set in metres from the RUBEM grid size (``GRID.grid`` in
+legacy JSON), using PCRaster's ``setRowWidth`` and ``setColumnWidth`` methods.
+For a grid size of 30, every MODFLOW cell measures 30 by 30 metres and has an
+area of 900 square metres. Recharge volumes, storage and the conversion of
+river flow back to RUBEM water depth use this same metric cell area. Raster
+files, their alignment and the clone coordinates remain unchanged.
+
+This is a constant square-cell approximation, not a reprojection or a
+latitude-dependent calculation of physical pixel dimensions. A geographic
+pixel can have a different ground area from the configured RUBEM grid area.
+Elevation and head map values must still be in metres, conductivity in metres
+per day, and RIV/GHB conductance in square metres per day. Geographic raster
+coordinates do not change these physical input units.
+
+MODFLOW calibration inputs
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Each entry in ``MODFLOW.layers`` (``modflow.layers`` in v1) accepts a map
+path or a JSON number for ``specific_storage`` and ``specific_yield``.
+Numbers must be finite and non-negative; ``specific_yield`` must also be at
+most 1. Use numbers without quotes: ``0.00001`` is a constant, whereas
+``"ss.map"`` is a file path. Zero is accepted as a supplied value.
+Constants become spatial scalar PCRaster fields in memory; users do not need
+to generate or save constant ``.map`` files.
+
+Storage inputs keep the same interpretation as the existing map inputs:
+``specific_storage`` is passed directly as BCF primary storage (Sf1) for
+LAYCON 0, 2 and 3. It is **not** automatically multiplied by layer thickness.
+For LAYCON 1, ``specific_yield`` supplies primary storage; for LAYCON 2 and 3,
+it supplies secondary storage (Sf2). See the
+`PCRaster BCF documentation <https://pcraster.geo.uu.nl/pcraster/4.4.2/documentation/modflow/bcf.html>`_
+when choosing storage values.
+
+Horizontal conductivity can still be a scalar map path, or an object with
+``map`` (a nominal PCRaster class map) and ``table`` (an ASCII lookup table).
+For example, a layer entry can be written as follows; values are illustrative:
+
+.. code-block:: json
+
+   {
+     "name": "layer_1",
+     "top": "modflow/top1.map",
+     "boundary": "modflow/bound1.map",
+     "initial_head": "modflow/head1.map",
+     "horizontal_conductivity": {
+       "map": "modflow/classes1.map",
+       "table": "modflow/kh1.tbl"
+     },
+     "vertical_conductivity": "modflow/kv1.map",
+     "specific_storage": 0.00001,
+     "specific_yield": 0.15,
+     "laytype": 2,
+     "compute_conductivity": true
+   }
+
+For a three-layer model, configure each layer independently, for example
+``classes1.map`` / ``kh1.tbl``, ``classes2.map`` / ``kh2.tbl`` and
+``classes3.map`` / ``kh3.tbl``. Layer 1 remains the deepest layer.
+The lookup table has two columns, separated by spaces or tabs, without a
+header: class identifier followed by horizontal conductivity. Example:
+
+.. code-block:: text
+
+   1 0.25
+   2 1.50
+   3 4.00
+
+With ``compute_conductivity=true``, conductivity is in metres per day.
+The existing ``compute_conductivity=false`` convention still forwards the
+mapped values directly to MODFLOW. Lookup values must be positive and finite
+in every BAS cell whose boundary value is nonzero. Missing classes or missing
+map values in those cells stop initialization with the layer and cell location.
+Classes outside the active layer do not need table entries. Standard
+`PCRaster lookup syntax <https://pcraster.geo.uu.nl/pcraster/4.4.2/documentation/pcraster_manual/sphinx/op_lookup.html>`_
+is used, including interval keys and first matching row precedence.
+
+The RIV ``conductance`` field also accepts a finite, non-negative JSON number
+in square metres per day **per river cell**. A constant requires a ``mask``
+map specifying the river footprint:
+
+.. code-block:: json
+
+   "river": {
+     "enabled": 1,
+     "layers": [
+       {
+         "layer": 3,
+         "stage": "modflow/riv_stage.map",
+         "bottom": "modflow/riv_bot.map",
+         "conductance": 12.0,
+         "mask": "modflow/riv_cond.map"
+       }
+     ]
+   }
+
+Positive mask cells select rivers; zero, negative and NoData cells are
+excluded. Inactive BAS cells are also excluded. An existing river conductance
+map can be reused as the mask: its positive magnitudes are ignored and
+replaced by the constant. Stage and river-bottom elevations must be defined
+where the resulting conductance is positive. A zero constant disables river
+exchange for those cells. A map-valued conductance continues to work without
+a mask; if a mask is supplied, it restricts that map to selected cells.
+This implements the zero-conductance/no-river convention in the
+`PCRaster RIV documentation <https://pcraster.geo.uu.nl/pcraster/4.4.2/documentation/modflow/riv.html>`_.
+
+Relative map and table paths use the same base-directory resolution as other
+MODFLOW inputs in both configuration formats. For each calibration candidate,
+update the JSON numbers and lookup tables **before creating and initializing
+a new model run**. Horizontal conductivity and storage are fixed during that
+run. The lookup is evaluated from a temporary copy of the current table to
+avoid PCRaster's filename cache when several candidates run in one Python
+process; the temporary file is removed after reading.
