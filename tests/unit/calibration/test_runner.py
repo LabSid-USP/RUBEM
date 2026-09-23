@@ -45,7 +45,13 @@ from rubem.configuration.model_configuration_file_v1 import (
     ModelConfigurationFileV1,
 )
 from tests.helpers.config import REPO_ROOT
-from tests.helpers.synthetic import write_synthetic_dataset
+from tests.helpers.synthetic import (
+    MODFLOW_HEAD,
+    MODFLOW_KH_TABLE,
+    write_grid_map,
+    write_modflow_inputs,
+    write_synthetic_dataset,
+)
 
 # SciPy is the optional ``rubem[calibration]`` extra, and an environment
 # without it (the frozen one of the byte-exact job, for instance) still
@@ -1109,13 +1115,14 @@ class TestStationSelection:
         assert "the station(s) 1" in caplog.text
 
 
-def _record_then_raise(error):
+def _record_then_raise(error, modflow=None):
     """A search that records one evaluation and then fails, without a worker.
 
     The records are what an interrupted calibration has to leave behind, and
     the failure has to happen where the real one does, inside the search. The
     evaluations directory is read out of the objective the search was handed,
-    which is where the parent put it.
+    which is where the parent put it. ``modflow`` adds MODFLOW values to the
+    parameters of the record.
     """
 
     def stub(function, search_bounds, **kwargs):
@@ -1124,7 +1131,7 @@ def _record_then_raise(error):
             "id": "deadbeef",
             "pid": 4321,
             "started_at": "2000-01-01T00:00:00+00:00",
-            "parameters": dict.fromkeys(CALIBRATION_PARAMETERS, 0.5),
+            "parameters": {**dict.fromkeys(CALIBRATION_PARAMETERS, 0.5), **(modflow or {})},
             "nse": 0.25,
             "station_nse": {"1": 0.25},
             "station_metrics": {},
@@ -1190,6 +1197,14 @@ class TestInterruptedSearch:
         # The cause is kept, so the traceback still says what the pool reported.
         assert isinstance(failure.value.__cause__, BrokenProcessPool)
         assert read_evaluations(dataset.run_dir / "evaluations.csv")
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("function", ["_consolidate", "_write_evaluations_csv"])
+    def test_the_columns_of_the_table_are_always_given(self, function):
+        # A default would silently fall back to the nine parameters and drop the
+        # MODFLOW columns of the one path that forgot to pass them.
+        parameter = inspect.signature(getattr(runner, function)).parameters["columns"]
+        assert parameter.default is inspect.Parameter.empty
 
 
 class TestProgressReporting:
@@ -1269,3 +1284,451 @@ class TestStationsOfTheObjective:
                 dataset.calibrate(stations=("1", "7"))
 
         assert "does not have (7)" in caplog.text
+
+
+SPECIFIC_YIELD = "modflow.layers.1.specific_yield"
+KH = "modflow.layers.1.kh.2"
+
+needs_mf2005 = pytest.mark.skipif(
+    _deps.resolve_mf2005() is None, reason="the MODFLOW-2005 executable is not installed"
+)
+
+
+class ModflowDataset(Dataset):
+    """The synthetic dataset coupled to MODFLOW, and a series another candidate wrote.
+
+    The configuration under calibration has the specific yield 0.15 and the
+    class 2 conductivity 0.1 of :func:`write_modflow_inputs`; the observed
+    series is what the same configuration writes with ``truth`` instead, so a
+    search that finds the observations has to move the MODFLOW values.
+
+    The river stage lies below the initial head, so the aquifer drains into the
+    river and the baseflow, hence ``arn``, depends on the specific yield (with
+    the stage of :func:`write_modflow_inputs` above the heads the river only
+    loses water and the baseflow is zero whatever the MODFLOW values). The
+    default time discretization, one time step per stress period, is kept: a
+    worker whose MODFLOW run fails before the last time step of a period ends
+    its process, and the search could not tell that from a bug of the
+    calibration.
+
+    :param dis: The ``dis`` object of the section, when not the default.
+    """
+
+    def __init__(self, tmp_path, truth=None, dis=None):
+        self.config = write_synthetic_dataset(str(tmp_path), timesteps=TIMESTEPS)
+        section = write_modflow_inputs(self.config)
+        if dis is not None:
+            section["dis"] = dis
+        river = section["river"]["entries"][0]
+        directory = Path(section["top"]).parent
+        river["stage"] = write_grid_map(directory / "drained_stage.map", MODFLOW_HEAD - 5.0)
+        river["bottom"] = write_grid_map(directory / "drained_bottom.map", MODFLOW_HEAD - 8.0)
+        self.config["MODFLOW"] = section
+        self.config_file = tmp_path / "config.json"
+        self.config_file.write_text(json.dumps(self.config), encoding="utf8")
+        self.truth = truth or {}
+        observed_config = json.loads(json.dumps(self.config))
+        layer = observed_config["MODFLOW"]["layers"][0]
+        if SPECIFIC_YIELD in self.truth:
+            layer["specific_yield"] = self.truth[SPECIFIC_YIELD]
+        if KH in self.truth:
+            table = tmp_path / "kh_truth.tbl"
+            table.write_text(f"1 {MODFLOW_KH_TABLE[1]}\n2 {self.truth[KH]}\n", encoding="utf8")
+            layer["horizontal_conductivity"]["table"] = str(table)
+        written = Model.from_config(observed_config).run().time_series["arn"][0]
+        self.observed = tmp_path / "observed.csv"
+        shutil.copyfile(written, self.observed)
+        self.run_dir = tmp_path / "calibration"
+        self.temp_dir = tmp_path / "temp"
+        self.parameters = ModelConfiguration(
+            self.config, validate_input=False
+        ).calibration_parameters.model_dump()
+
+    def tmp_run_dir(self, name):
+        """A fresh run directory, for the tests that share one dataset."""
+        return self.run_dir.parent / f"calibration-{name}"
+
+    def init(self, columns):
+        """``INIT`` widened by one column per MODFLOW name, with one member at the truth.
+
+        The second member is the configuration's own eight free parameters with
+        the MODFLOW values of the observations, so the global optimum is in the
+        initial population and the search is deterministic.
+
+        :param columns: The five values of each MODFLOW name, in the order of
+            the decision vector.
+        """
+        rows = [
+            [*row, *(values[member] for values in columns.values())]
+            for member, row in enumerate(INIT.tolist())
+        ]
+        rows[1] = [
+            *parameters_to_vector(self.parameters).tolist(),
+            *(self.truth.get(name, values[1]) for name, values in columns.items()),
+        ]
+        return np.asarray(rows, dtype=np.float64)
+
+
+@pytest.fixture(scope="class")
+def calibrated_modflow(tmp_path_factory):
+    """One search of the specific yield of layer 1, with one class conductivity pinned.
+
+    The conductivity of a class barely moves ``arn`` on this grid (the sixth
+    significant digit), so it is fixed at the value of the observations rather
+    than searched; the fixed value still goes through every evaluation and into
+    the calibrated configuration.
+    """
+    data = ModflowDataset(
+        tmp_path_factory.mktemp("calibration-modflow"), truth={SPECIFIC_YIELD: 0.25, KH: 0.2}
+    )
+    result = data.calibrate(
+        bounds={SPECIFIC_YIELD: (0.05, 0.3)},
+        fixed={KH: 0.2},
+        init=data.init({SPECIFIC_YIELD: (0.1, 0.25, 0.2, 0.3, 0.05)}),
+    )
+    return data, result
+
+
+@needs_mf2005
+class TestModflowCalibration:
+    @pytest.mark.unit
+    def test_the_modflow_values_of_the_observations_are_found(self, calibrated_modflow):
+        data, result = calibrated_modflow
+
+        assert result.best_nse == pytest.approx(1.0, abs=1e-9)
+        assert result.best_parameters == pytest.approx(
+            {**data.parameters, SPECIFIC_YIELD: 0.25, KH: 0.2}, abs=1e-12
+        )
+        assert list(result.best_parameters) == [*CALIBRATION_PARAMETERS, SPECIFIC_YIELD, KH]
+
+    @pytest.mark.unit
+    def test_the_modflow_names_are_columns_of_the_table(self, calibrated_modflow):
+        _, result = calibrated_modflow
+        rows = read_evaluations(result.evaluations_csv)
+        columns = list(EVALUATION_COLUMNS)
+        columns[columns.index("x") + 1 : columns.index("x") + 1] = [SPECIFIC_YIELD, KH]
+
+        assert list(rows[0]) == columns
+        assert [row["error"] for row in rows if row["error"]] == []
+        assert all(row[SPECIFIC_YIELD] for row in rows)
+        assert len({row[SPECIFIC_YIELD] for row in rows}) > 1
+        assert {row[KH] for row in rows} == {"0.2"}
+
+    @pytest.mark.unit
+    def test_the_series_of_the_best_candidate_is_the_one_of_its_modflow_values(
+        self, calibrated_modflow
+    ):
+        _, result = calibrated_modflow
+
+        # The best candidate reproduces the observations only when it is run
+        # again with its own MODFLOW values, not the ones of the configuration.
+        rows = read_station_table(result.best_series)
+        assert rows
+        for row in rows:
+            for station in ("1", "2"):
+                assert float(row[f"simulated_{station}"]) == pytest.approx(
+                    float(row[f"observed_{station}"]), rel=1e-9, abs=1e-12
+                )
+
+    @pytest.mark.unit
+    def test_the_summary_lists_the_modflow_parameters(self, calibrated_modflow):
+        _, result = calibrated_modflow
+        summary = json.loads(result.result_json.read_text(encoding="utf-8"))
+
+        assert summary["best_parameters"][SPECIFIC_YIELD] == pytest.approx(0.25)
+        assert summary["best_parameters"][KH] == pytest.approx(0.2)
+        assert summary["settings"]["bounds"][SPECIFIC_YIELD] == [0.05, 0.3]
+        assert summary["settings"]["fixed"] == {KH: 0.2}
+
+    @pytest.mark.unit
+    def test_the_calibrated_configuration_carries_the_modflow_values(self, calibrated_modflow):
+        data, result = calibrated_modflow
+        table = result.run_dir / "config-calibrated-kh1.tbl"
+
+        document = json.loads(result.calibrated_config.read_text(encoding="utf-8"))
+        layer = document["MODFLOW"]["layers"][0]
+
+        assert layer["specific_yield"] == pytest.approx(0.25)
+        assert Path(layer["horizontal_conductivity"]["table"]) == table
+        assert table.read_text(encoding="utf8").split() == ["1", "0.5", "2", "0.2"]
+        # The configured table is left as it was.
+        configured = Path(data.config["MODFLOW"]["layers"][0]["horizontal_conductivity"]["table"])
+        assert configured.read_text(encoding="utf8").split() == ["1", "0.5", "2", "0.1"]
+        configuration = ModelConfiguration(result.calibrated_config, validate_input=False)
+        assert configuration.modflow.layers[0].specific_yield == pytest.approx(0.25)
+
+    @pytest.mark.unit
+    def test_no_modflow_directory_or_table_is_left_in_the_temporary_directory(
+        self, calibrated_modflow
+    ):
+        data, _ = calibrated_modflow
+
+        assert list(data.temp_dir.iterdir()) == []
+
+
+@pytest.fixture(scope="class")
+def calibrated_modflow_without_names(tmp_path_factory):
+    """A coupled configuration calibrated on the nine parameters only."""
+    data = ModflowDataset(tmp_path_factory.mktemp("calibration-modflow-nine"))
+    return data, data.calibrate()
+
+
+@needs_mf2005
+class TestModflowConfigurationWithoutModflowNames:
+    @pytest.mark.unit
+    def test_the_table_has_the_columns_of_today(self, calibrated_modflow_without_names):
+        _, result = calibrated_modflow_without_names
+        rows = read_evaluations(result.evaluations_csv)
+
+        assert list(rows[0]) == list(EVALUATION_COLUMNS)
+        assert [row["error"] for row in rows if row["error"]] == []
+
+    @pytest.mark.unit
+    def test_every_evaluation_runs_the_coupled_model(self, calibrated_modflow_without_names):
+        data, result = calibrated_modflow_without_names
+
+        # The observations are the coupled run of the configuration, so only a
+        # coupled evaluation of the configuration reproduces them.
+        assert result.best_nse == pytest.approx(1.0, abs=1e-9)
+        assert list(result.best_parameters) == list(CALIBRATION_PARAMETERS)
+        document = json.loads(result.calibrated_config.read_text(encoding="utf-8"))
+        assert document["MODFLOW"] == json.loads(
+            json.dumps(ModelConfiguration(data.config_file).modflow.model_dump(mode="json"))
+        )
+        assert not list(result.run_dir.glob("*.tbl"))
+
+
+@pytest.fixture(scope="class")
+def modflow_dataset(tmp_path_factory):
+    """A coupled dataset for the refusals, which never start a search."""
+    return ModflowDataset(tmp_path_factory.mktemp("modflow-refusals"))
+
+
+@needs_mf2005
+class TestModflowRefusals:
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        ("bound", "match"),
+        [
+            ({KH: (0.0, 0.5)}, "not a range inside"),
+            ({"modflow.layers.1.specific_storage": (1e-6, 1e-4)}, "calibratable MODFLOW"),
+            ({"modflow.layers.1.kh.9": (0.1, 0.2)}, "modflow.layers.1.kh.1"),
+        ],
+    )
+    def test_a_modflow_bound_the_configuration_cannot_take_is_refused_before_the_search(
+        self, modflow_dataset, no_pool, bound, match
+    ):
+        with pytest.raises(ValueError, match=match):
+            calibrate(
+                modflow_dataset.config_file,
+                modflow_dataset.observed,
+                modflow_dataset.run_dir,
+                modflow_dataset.settings(bounds=bound),
+            )
+
+        assert not modflow_dataset.run_dir.exists()
+        assert no_pool == []
+
+    @pytest.mark.unit
+    def test_the_search_starts_from_the_modflow_values_of_the_configuration(
+        self, modflow_dataset, broken_search
+    ):
+        init = modflow_dataset.init({KH: (0.1, 0.2, 0.3, 0.4, 0.5)})
+        with pytest.raises(RuntimeError, match="the search broke"):
+            calibrate(
+                modflow_dataset.config_file,
+                modflow_dataset.observed,
+                modflow_dataset.tmp_run_dir("start"),
+                modflow_dataset.settings(bounds={KH: (0.05, 0.5)}, init=init),
+            )
+
+        assert broken_search["bounds"][-1] == (0.05, 0.5)
+        assert len(broken_search["bounds"]) == 9
+        assert broken_search["x0"][-1] == pytest.approx(MODFLOW_KH_TABLE[2])
+
+    @pytest.mark.unit
+    def test_the_workers_find_mf2005_on_the_path_they_inherit(
+        self, modflow_dataset, broken_search, monkeypatch
+    ):
+        order = []
+        monkeypatch.setattr(_deps, "ensure_mf2005_on_path", lambda: order.append("path"))
+        built = runner._pool
+
+        def pool(workers):
+            order.append("pool")
+            return built(workers)
+
+        monkeypatch.setattr(runner, "_pool", pool)
+
+        with pytest.raises(RuntimeError, match="the search broke"):
+            calibrate(
+                modflow_dataset.config_file,
+                modflow_dataset.observed,
+                modflow_dataset.tmp_run_dir("path"),
+                modflow_dataset.settings(),
+            )
+
+        assert order == ["path", "pool"]
+
+    @pytest.mark.unit
+    def test_an_unreadable_conductivity_table_stops_the_calibration(
+        self, tmp_path, no_pool, caplog
+    ):
+        data = ModflowDataset(tmp_path)
+        table = Path(data.config["MODFLOW"]["layers"][0]["horizontal_conductivity"]["table"])
+        table.write_text("1 0.5\n2 fast\n", encoding="utf8")
+
+        with caplog.at_level(logging.CRITICAL):
+            with pytest.raises(CalibrationError, match="kh1.tbl"):
+                data.calibrate(allow_blocking_problems=True)
+
+        assert no_pool == []
+
+    @pytest.mark.unit
+    def test_a_dead_worker_of_a_coupled_run_names_the_modflow_cause(
+        self, modflow_dataset, monkeypatch
+    ):
+        monkeypatch.setattr(
+            scipy_optimize,
+            "differential_evolution",
+            _record_then_raise(BrokenProcessPool("A process in the process pool was terminated")),
+        )
+
+        with pytest.raises(CalibrationError, match="memory") as failure:
+            calibrate(
+                modflow_dataset.config_file,
+                modflow_dataset.observed,
+                modflow_dataset.tmp_run_dir("dead"),
+                modflow_dataset.settings(),
+            )
+
+        assert "dis.nstp" in str(failure.value)
+        assert "converge" in str(failure.value)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        ("error", "raised"),
+        [
+            (BrokenProcessPool("A process in the process pool was terminated"), CalibrationError),
+            (KeyboardInterrupt(), KeyboardInterrupt),
+        ],
+        ids=["dead-worker", "interrupted"],
+    )
+    def test_the_table_of_an_ended_search_keeps_the_modflow_columns(
+        self, modflow_dataset, monkeypatch, error, raised
+    ):
+        monkeypatch.setattr(
+            scipy_optimize,
+            "differential_evolution",
+            _record_then_raise(error, modflow={SPECIFIC_YIELD: 0.2}),
+        )
+        run_dir = modflow_dataset.tmp_run_dir(f"ended-{type(error).__name__}")
+
+        with pytest.raises(raised):
+            calibrate(
+                modflow_dataset.config_file,
+                modflow_dataset.observed,
+                run_dir,
+                modflow_dataset.settings(
+                    bounds={SPECIFIC_YIELD: (0.05, 0.3)},
+                    init=modflow_dataset.init({SPECIFIC_YIELD: (0.1, 0.25, 0.2, 0.3, 0.05)}),
+                ),
+            )
+
+        # The table the message points to carries what the evaluations searched.
+        with (run_dir / "evaluations.csv").open(encoding="utf-8", newline="") as table:
+            header = next(csv.reader(table))
+        position = EVALUATION_COLUMNS.index("x") + 1
+        assert header == [
+            *EVALUATION_COLUMNS[:position],
+            SPECIFIC_YIELD,
+            *EVALUATION_COLUMNS[position:],
+        ]
+        rows = read_evaluations(run_dir / "evaluations.csv")
+        assert [row[SPECIFIC_YIELD] for row in rows] == [repr(0.2)]
+
+
+@needs_mf2005
+class TestModflowTimeSteps:
+    @pytest.mark.unit
+    def test_several_time_steps_per_period_are_warned_about_before_the_search(
+        self, tmp_path, broken_search, caplog
+    ):
+        data = ModflowDataset(tmp_path, dis={"nstp": 5})
+
+        with caplog.at_level(logging.WARNING, logger="rubem.calibration.runner"):
+            with pytest.raises(RuntimeError, match="the search broke"):
+                data.calibrate()
+
+        warnings = [
+            record.getMessage()
+            for record in caplog.records
+            if record.levelno == logging.WARNING and "dis.nstp" in record.getMessage()
+        ]
+        assert len(warnings) == 1
+        assert "5" in warnings[0]
+        assert "worker" in warnings[0] and "converge" in warnings[0]
+
+    @pytest.mark.unit
+    def test_one_time_step_per_period_is_not_warned_about(
+        self, modflow_dataset, broken_search, caplog
+    ):
+        with caplog.at_level(logging.WARNING, logger="rubem.calibration.runner"):
+            with pytest.raises(RuntimeError, match="the search broke"):
+                calibrate(
+                    modflow_dataset.config_file,
+                    modflow_dataset.observed,
+                    modflow_dataset.tmp_run_dir("one-step"),
+                    modflow_dataset.settings(),
+                )
+
+        assert not [record for record in caplog.records if "dis.nstp" in record.getMessage()]
+
+
+class TestModflowNamesWithoutModflow:
+    @pytest.mark.unit
+    def test_a_modflow_name_is_refused_when_the_configuration_does_not_enable_it(
+        self, dataset, no_pool
+    ):
+        with pytest.raises(ValueError, match="does not enable MODFLOW"):
+            dataset.calibrate(bounds={SPECIFIC_YIELD: (0.05, 0.3)})
+
+        assert not dataset.run_dir.exists()
+        assert no_pool == []
+
+    @pytest.mark.unit
+    def test_a_run_without_modflow_leaves_the_path_alone(self, dataset, broken_search, monkeypatch):
+        calls = []
+        monkeypatch.setattr(_deps, "ensure_mf2005_on_path", lambda: calls.append("path"))
+
+        with pytest.raises(RuntimeError, match="the search broke"):
+            dataset.calibrate()
+
+        assert calls == []
+
+    @pytest.mark.unit
+    def test_the_message_of_a_dead_worker_is_the_one_of_today(self, dataset, monkeypatch):
+        monkeypatch.setattr(
+            scipy_optimize,
+            "differential_evolution",
+            _record_then_raise(BrokenProcessPool("A process in the process pool was terminated")),
+        )
+
+        with pytest.raises(CalibrationError) as failure:
+            dataset.calibrate()
+
+        assert "dis.nstp" not in str(failure.value)
+
+
+class TestRecordOrder:
+    @pytest.mark.unit
+    def test_the_modflow_values_order_candidates_that_share_the_nine_parameters(self):
+        nine = dict.fromkeys(CALIBRATION_PARAMETERS, 0.5)
+        records = [
+            {"id": "a", "parameters": {**nine, SPECIFIC_YIELD: 0.3}},
+            {"id": "b", "parameters": {**nine, SPECIFIC_YIELD: 0.1}},
+        ]
+
+        ordered = sorted(records, key=runner._record_order)
+
+        assert [record["id"] for record in ordered] == ["b", "a"]

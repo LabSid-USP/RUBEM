@@ -61,6 +61,7 @@ from typing import Any
 
 import numpy as np
 
+from .. import _deps
 from .._paths import PathInput, as_path
 from ..configuration._ranges import variable_range
 from ..configuration.model_configuration_file_v1 import (
@@ -68,7 +69,9 @@ from ..configuration.model_configuration_file_v1 import (
     Aggregation,
     ModelConfigurationFileV1,
 )
+from ..validation.lookup_tables import LookupTableError
 from ._worker import _INADMISSIBLE_ERROR, EvaluationContext, evaluate, simulate_best
+from .modflow_parameters import MODFLOW_PREFIX, ModflowCatalog, catalog
 from .objective import Series, align_series, read_series, valid_mask
 from .parameters import (
     CALIBRATION_PARAMETERS,
@@ -106,7 +109,8 @@ EVALUATION_COLUMNS = (
     "elapsed_seconds",
     "error",
 )
-"""The columns of ``evaluations.csv``, one row per evaluation."""
+"""The columns of ``evaluations.csv``, one row per evaluation, when the run
+calibrates no MODFLOW parameter; the MODFLOW parameters of a run follow ``x``."""
 
 OBSERVED_COLUMNS = (
     "station",
@@ -136,6 +140,14 @@ STATION_COLUMNS = (
 
 STATION_SEPARATOR = ";"
 """The separator of the per-station tables, the one the model writes its own tables with."""
+
+
+_MODFLOW_DEATH = (
+    " With MODFLOW, a run that does not converge before the last time step of a stress "
+    "period (dis.nstp > 1) also ends its worker process; dis.nstp = 1 turns it into a "
+    "failed evaluation."
+)
+"""What a dead worker of a coupled calibration may also mean."""
 
 
 class CalibrationError(RuntimeError):
@@ -250,7 +262,8 @@ class CalibrationResult:
     """What a finished calibration found and where it wrote it.
 
     :param best_parameters: The nine calibration parameters of the best
-        candidate, the derived ``w_3`` included.
+        candidate, the derived ``w_3`` included, followed by the MODFLOW
+        parameters the run searched or fixed.
     :type best_parameters: dict[str, float]
 
     :param best_nse: The mean Nash-Sutcliffe efficiency of the best candidate,
@@ -404,15 +417,17 @@ def calibrate(
     :raises CalibrationError: If SciPy is not installed, if the configuration
         cannot be calibrated as asked, if the observed series shares no time
         step or no station with what the configuration will sample, if the
-        station selection names none of those stations, if a worker process
+        station selection names none of those stations, if a conductivity
+        lookup table of the MODFLOW section cannot be read, if a worker process
         died before finishing its evaluation, or if every evaluation of the run
         failed. An interrupted or crashed search still leaves the table of the
         evaluations it made behind.
     :raises ValueError: If the decision space the settings describe is not a
         search (an unknown or derived parameter, a fixed value or an overridden
         bound outside the range of the application settings, every parameter
-        fixed), or if an explicit initial population does not have one column per
-        free parameter.
+        fixed, a MODFLOW name the configuration does not offer or a MODFLOW bound
+        outside the values of its parameter), or if an explicit initial
+        population does not have one column per free parameter.
     :raises ImportError: If PCRaster or GDAL are not installed.
     :raises FileNotFoundError: If the configuration or the observed series is
         not there.
@@ -437,17 +452,6 @@ def calibrate(
         )
     _check_stations(settings.stations)
 
-    space = decision_space(fixed=settings.fixed, bounds=settings.bounds)
-    if not isinstance(settings.init, str):
-        shape = np.shape(settings.init)
-        if len(shape) != 2 or shape[1] != space.dimension:
-            raise ValueError(
-                f"The initial population has the shape {shape} and the search has "
-                f"{space.dimension} free parameter(s) ({', '.join(space.free_names)}); it must "
-                f"be a two-dimensional array of {shape[0] if shape else 0} member(s) with one "
-                "column per free parameter."
-            )
-
     config_file = as_path(config_path).absolute()
     # The only validation of a whole calibration: the workers never revalidate,
     # so this is where a blocking problem stops the search, and where
@@ -458,6 +462,29 @@ def calibrate(
         allow_blocking_problems=settings.allow_blocking_problems,
     ).configuration
     file_v1 = _as_v1(configuration)
+    modflow = _modflow_catalog(configuration)
+    if modflow is not None and configuration.modflow.dis.nstp > 1:
+        # The extension ends the process, not the stress period, when MODFLOW
+        # stops before the last time step; the pool cannot replace that worker.
+        logger.warning(
+            "The MODFLOW section has dis.nstp %d: a candidate whose solver does not "
+            "converge before the last time step of a stress period ends its worker "
+            "process, and with it the calibration, instead of being ranked last as a "
+            "failed evaluation. Set dis.nstp to 1 to keep the search running past it.",
+            configuration.modflow.dis.nstp,
+        )
+    # The MODFLOW names can only be resolved once the configuration says which
+    # parameters its MODFLOW section offers.
+    space = decision_space(fixed=settings.fixed, bounds=settings.bounds, modflow=modflow)
+    if not isinstance(settings.init, str):
+        shape = np.shape(settings.init)
+        if len(shape) != 2 or shape[1] != space.dimension:
+            raise ValueError(
+                f"The initial population has the shape {shape} and the search has "
+                f"{space.dimension} free parameter(s) ({', '.join(space.free_names)}); it must "
+                f"be a two-dimensional array of {shape[0] if shape else 0} member(s) with one "
+                "column per free parameter."
+            )
     _check_sample_locations(configuration, file_v1)
 
     observed = read_series(observed_path)
@@ -481,7 +508,13 @@ def calibrate(
         station_ids=sampled_ids,
     )
     _check_station_selection(settings.stations, observed, sampled_ids)
-    x0 = _starting_point(space, configuration.calibration_parameters.model_dump())
+    x0 = _starting_point(
+        space,
+        {
+            **configuration.calibration_parameters.model_dump(),
+            **(modflow.values if modflow is not None else {}),
+        },
+    )
 
     run_directory = as_path(run_dir).absolute()
     evaluations_dir = run_directory / EVALUATIONS_DIRNAME
@@ -517,7 +550,9 @@ def calibrate(
         validate_input=False,
         space=space,
         stations=settings.stations,
+        modflow=modflow,
     )
+    columns = _evaluation_columns(space)
 
     planned_members = _population_size(settings, space.dimension)
     progress.info(
@@ -537,6 +572,10 @@ def calibrate(
     # out instead of being passed as ``None``.
     constraint = space.weights_constraint()
     callback = _Progress(evaluations_dir)
+    if modflow is not None:
+        # The extension launches mf2005 from PATH, and the spawned workers
+        # inherit the environment of this process.
+        _deps.ensure_mf2005_on_path()
     executor = _pool(workers)
     arguments: dict[str, Any] = {
         "strategy": settings.strategy,
@@ -568,18 +607,19 @@ def calibrate(
         # An interruption or a crash after the first evaluation still leaves a
         # table: the evaluations that were made are hours of model runs, and a
         # calibration that has to be stopped is read from them like any other.
-        _consolidate(evaluations_csv, evaluations_dir)
+        _consolidate(evaluations_csv, evaluations_dir, columns)
         if isinstance(error, BrokenProcessPool):
             raise CalibrationError(
                 "A worker process died before finishing its evaluation, most often "
                 "because the system killed it for lack of memory: every worker holds "
                 "the rasters of one model run. Run the calibration again with a lower "
-                f"--workers. The evaluations made so far are in {evaluations_csv}."
+                f"--workers.{_MODFLOW_DEATH if modflow is not None else ''} The evaluations "
+                f"made so far are in {evaluations_csv}."
             ) from error
         raise
 
     records = _read_records(evaluations_dir)
-    _write_evaluations_csv(evaluations_csv, records)
+    _write_evaluations_csv(evaluations_csv, records, columns)
 
     _report_failures(records)
     best = _best_record(records)
@@ -608,12 +648,13 @@ def calibrate(
     stations_csv = run_directory / STATIONS_CSV
     best_series = run_directory / f"best_{settings.variable}.csv"
     _write_stations_csv(stations_csv, best.get("station_metrics") or {}, settings.stations)
-    _write_calibrated_config(calibrated_config, configuration, file_v1, best_parameters)
+    _write_calibrated_config(calibrated_config, configuration, file_v1, best_parameters, modflow)
     _write_best_series(
         best_series,
         document=file_v1.to_dict(),
         base_dir=configuration.base_dir,
         parameters=best_parameters,
+        modflow=modflow,
         variable=settings.variable,
         observed=observed,
         spinup_steps=settings.spinup_steps,
@@ -727,7 +768,7 @@ def _pool(workers: int) -> ProcessPoolExecutor:
     )
 
 
-def _consolidate(evaluations_csv: Path, evaluations_dir: Path) -> None:
+def _consolidate(evaluations_csv: Path, evaluations_dir: Path, columns: tuple[str, ...]) -> None:
     """Write the table of the evaluations recorded so far, if there are any.
 
     This is what an interrupted or crashed search leaves behind: the records
@@ -739,7 +780,7 @@ def _consolidate(evaluations_csv: Path, evaluations_dir: Path) -> None:
     try:
         records = _read_records(evaluations_dir)
         if records:
-            _write_evaluations_csv(evaluations_csv, records)
+            _write_evaluations_csv(evaluations_csv, records, columns)
             logger.warning(
                 "The search ended early; the %d evaluation(s) it recorded are in %s.",
                 len(records),
@@ -852,10 +893,12 @@ def _report_decision_space(space: DecisionSpace, stations: tuple[str, ...] | Non
             "Fixed, not searched: %s.",
             ", ".join(f"{name} = {value:g}" for name, value in space.fixed.items()),
         )
+    # A MODFLOW parameter has no range in the application settings: its bound
+    # is always the caller's.
     narrowed = [
         (name, bound)
         for name, bound in zip(space.free_names, space.bounds, strict=True)
-        if bound != variable_range(name)
+        if name.startswith(MODFLOW_PREFIX) or bound != variable_range(name)
     ]
     if narrowed:
         logger.info(
@@ -1123,6 +1166,7 @@ def _write_best_series(
     document: dict,
     base_dir: str | None,
     parameters: dict[str, float],
+    modflow: ModflowCatalog | None,
     variable: str,
     observed: Series,
     spinup_steps: int,
@@ -1147,7 +1191,7 @@ def _write_best_series(
     executor = _pool(workers)
     try:
         table = executor.submit(
-            simulate_best, document, base_dir, parameters, str(output_dir), variable
+            simulate_best, document, base_dir, parameters, str(output_dir), variable, modflow
         ).result()
         simulated = read_series(table)
     except Exception as error:
@@ -1240,15 +1284,36 @@ def _record_order(record: dict[str, Any]) -> tuple[tuple[float, ...], str]:
     identifier only separates two evaluations of the very same candidate.
     """
     parameters = record.get("parameters") or {}
-    values = tuple(float(parameters.get(name, math.inf)) for name in CALIBRATION_PARAMETERS)
+    names = (
+        *CALIBRATION_PARAMETERS,
+        *sorted(name for name in parameters if name.startswith(MODFLOW_PREFIX)),
+    )
+    values = tuple(float(parameters.get(name, math.inf)) for name in names)
     return values, str(record.get("id", ""))
 
 
-def _write_evaluations_csv(path: Path, records: list[dict[str, Any]]) -> None:
-    """Write one row per evaluation, in the columns of :data:`EVALUATION_COLUMNS`."""
+def _evaluation_columns(space: DecisionSpace) -> tuple[str, ...]:
+    """Return the columns of ``evaluations.csv``: the MODFLOW parameters follow ``x``."""
+    position = EVALUATION_COLUMNS.index(CALIBRATION_PARAMETERS[-1]) + 1
+    return (
+        *EVALUATION_COLUMNS[:position],
+        *space.modflow_names,
+        *EVALUATION_COLUMNS[position:],
+    )
+
+
+def _write_evaluations_csv(
+    path: Path, records: list[dict[str, Any]], columns: tuple[str, ...]
+) -> None:
+    """Write one row per evaluation, in ``columns``, which :func:`_evaluation_columns` gives.
+
+    The columns are always given: a default of :data:`EVALUATION_COLUMNS` would
+    silently drop the MODFLOW parameters of a run on a path that forgot them.
+    """
+    names = columns[columns.index(CALIBRATION_PARAMETERS[0]) : columns.index("nse")]
     with path.open("w", encoding="utf-8", newline="") as table:
         writer = csv.writer(table)
-        writer.writerow(EVALUATION_COLUMNS)
+        writer.writerow(columns)
         for record in records:
             parameters = record.get("parameters") or {}
             writer.writerow(
@@ -1256,7 +1321,7 @@ def _write_evaluations_csv(path: Path, records: list[dict[str, Any]]) -> None:
                     record.get("id", ""),
                     record.get("pid", ""),
                     record.get("started_at", ""),
-                    *(_cell(parameters.get(name)) for name in CALIBRATION_PARAMETERS),
+                    *(_cell(parameters.get(name)) for name in names),
                     _cell(record.get("nse")),
                     _cell(record.get("objective")),
                     _cell(record.get("elapsed_seconds")),
@@ -1335,7 +1400,8 @@ def _settings_document(
     the run actually used, not the ``None`` the caller may have left them at, so
     that the summary describes a calibration that can be repeated: the bounds are
     the effective ones, one entry per searched parameter, the ranges of the
-    application settings narrowed by whatever the caller asked for.
+    application settings narrowed by whatever the caller asked for, and the
+    caller's own bound for a MODFLOW parameter.
     """
     init = settings.init if isinstance(settings.init, str) else np.asarray(settings.init).tolist()
     return {
@@ -1366,13 +1432,17 @@ def _write_calibrated_config(
     configuration,
     file_v1: ModelConfigurationFileV1,
     best_parameters: dict[str, float],
+    modflow: ModflowCatalog | None = None,
 ) -> None:
     """Write the calibrated configuration in the format the input was written in.
 
     The document goes through the configuration models, so what is written is a
     configuration the loader accepts. Its paths are the ones the loader resolved,
     which are absolute even when the input file wrote them relative to its own
-    directory.
+    directory. The MODFLOW values of the best candidate replace the ones of its
+    section, and a conductivity table with a calibrated class is written next
+    to the configuration as ``<name>-kh<n>.tbl``, ``<name>`` being the name of
+    the configuration without its extension.
     """
     calibrated = file_v1.model_copy(
         update={
@@ -1389,9 +1459,30 @@ def _write_calibrated_config(
             )
         }
     )
+    if modflow is not None:
+        patched = calibrated.to_dict()
+        modflow.apply(patched, best_parameters, path.parent, table_prefix=f"{path.stem}-kh")
+        calibrated = ModelConfigurationFileV1.model_validate(patched)
     document = (
         calibrated.to_dict()
         if configuration.file_v1 is not None
         else calibrated.to_legacy().to_dict()
     )
     path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+
+
+def _modflow_catalog(configuration) -> ModflowCatalog | None:
+    """Return the MODFLOW parameters of a configuration, ``None`` when it does not enable MODFLOW.
+
+    :raises CalibrationError: If a conductivity lookup table cannot be read,
+        which the validation reports as blocking and
+        ``allow_blocking_problems`` may have let through.
+    """
+    if not configuration.modflow_enabled:
+        return None
+    try:
+        return catalog(configuration.modflow)
+    except (OSError, LookupTableError) as error:
+        raise CalibrationError(
+            f"The MODFLOW parameters of the configuration cannot be read: {error}"
+        ) from error
