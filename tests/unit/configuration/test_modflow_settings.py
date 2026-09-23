@@ -443,6 +443,21 @@ class TestEnabledRules:
         assert ModflowSettings.model_validate(data).dis.steady_state is True
 
     @pytest.mark.unit
+    def test_storage_output_needs_a_transient_run(self):
+        # The extension ends the process when asked for storage in a steady-state run.
+        data = section(dis={"steady_state": True}, output={"storage": True})
+
+        message = refused(data)
+
+        assert "output.storage" in message and "steady_state" in message
+
+    @pytest.mark.unit
+    def test_storage_output_is_accepted_in_a_transient_run(self):
+        data = section(output={"storage": True})
+
+        assert ModflowSettings.model_validate(data).output.storage is True
+
+    @pytest.mark.unit
     @pytest.mark.parametrize("laytype", [1, 11, 21, 31])
     def test_laycon_1_is_valid_only_on_the_top_layer(self, laytype):
         data = section()

@@ -325,6 +325,12 @@ class ModflowSettings(_Strict):
 
     def _storage_errors(self) -> list[str]:
         if self.dis.steady_state:
+            # The extension ends the process when asked for storage in a steady run.
+            if self.output.storage:
+                return [
+                    "output.storage needs a transient run (dis.steady_state false): "
+                    "a steady-state period has no storage flow."
+                ]
             return []
         required = {
             0: ("specific_storage",),
