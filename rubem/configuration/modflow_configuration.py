@@ -53,7 +53,6 @@ class ModflowLayerConfiguration(_Strict):
     specific_storage: StorageInput | None = None
     specific_yield: YieldInput | None = None
 
-
     laytype: int = 0
     compute_conductivity: bool = True
 
@@ -61,19 +60,28 @@ class ModflowLayerConfiguration(_Strict):
     @classmethod
     def _check_laytype(cls, value: int) -> int:
         valid = {
-            0, 1, 2, 3,
-            10, 11, 12, 13,
-            20, 21, 22, 23,
-            30, 31, 32, 33,
+            0,
+            1,
+            2,
+            3,
+            10,
+            11,
+            12,
+            13,
+            20,
+            21,
+            22,
+            23,
+            30,
+            31,
+            32,
+            33,
         }
 
         if value not in valid:
-            raise ValueError(
-                f"Invalid MODFLOW LAYTYPE: {value}."
-            )
+            raise ValueError(f"Invalid MODFLOW LAYTYPE: {value}.")
 
         return value
-   
 
 
 class ModflowRechargeConfiguration(_Strict):
@@ -136,7 +144,6 @@ class ModflowWettingConfiguration(_Strict):
     iwetit: PositiveInt = 3
     ihdwet: Literal[0, 1] = 0
 
-
     @model_validator(mode="after")
     def _check_source(self) -> Self:
 
@@ -148,8 +155,7 @@ class ModflowWettingConfiguration(_Strict):
 
         if has_map == has_source:
             raise ValueError(
-                "wetting.enabled=1 requires exactly one of "
-                "'map' or 'source_boundary_layer'."
+                "wetting.enabled=1 requires exactly one of 'map' or 'source_boundary_layer'."
             )
 
         return self
@@ -265,31 +271,23 @@ class ModflowWaterTableConfiguration(_Strict):
 
     # Used only when method == "layer".
     layer: PositiveLayer | None = None
-    
-    
+
     @model_validator(mode="after")
     def _check_layer(self) -> Self:
 
         if self.method == "layer":
-
             if self.layer is None:
-                raise ValueError(
-                    "water_table.method='layer' requires 'layer'."
-                )
+                raise ValueError("water_table.method='layer' requires 'layer'.")
 
         elif self.layer is not None:
-
             raise ValueError(
-                "'water_table.layer' can only be provided "
-                "when water_table.method='layer'."
+                "'water_table.layer' can only be provided when water_table.method='layer'."
             )
 
         return self
 
-   
 
 class ModflowDynamicRootDepthConfiguration(_Strict):
-
     enabled: Literal[0, 1] = 0
 
     minimum_depth_table: str | None = None
@@ -302,20 +300,18 @@ class ModflowDynamicRootDepthConfiguration(_Strict):
     def _check_minimum_depth_table(self) -> Self:
 
         if self.enabled and not self.minimum_depth_table:
-            raise ValueError(
-                "dynamic_root_depth.enabled=1 requires "
-                "'minimum_depth_table'."
-            )
+            raise ValueError("dynamic_root_depth.enabled=1 requires 'minimum_depth_table'.")
 
         return self
 
-class ModflowCouplingConfiguration(_Strict):
 
+class ModflowCouplingConfiguration(_Strict):
     baseflow_from_river_leakage: bool = True
 
     dynamic_root_depth: ModflowDynamicRootDepthConfiguration = Field(
         default_factory=ModflowDynamicRootDepthConfiguration
     )
+
 
 class ModflowConfiguration(_Strict):
     """Complete optional MODFLOW section of the RUBEM configuration."""
@@ -328,34 +324,20 @@ class ModflowConfiguration(_Strict):
     # Ordered bottom -> top. The number of layers is len(layers).
     layers: list[ModflowLayerConfiguration] = Field(default_factory=list)
 
-    recharge: ModflowRechargeConfiguration = Field(
-        default_factory=ModflowRechargeConfiguration
-    )
+    recharge: ModflowRechargeConfiguration = Field(default_factory=ModflowRechargeConfiguration)
     dis: ModflowDisConfiguration = Field(default_factory=ModflowDisConfiguration)
-    solver: ModflowSolverConfiguration = Field(
-        default_factory=ModflowSolverConfiguration
-    )
-    wetting: ModflowWettingConfiguration = Field(
-        default_factory=ModflowWettingConfiguration
-    )
-    river: ModflowRiverConfiguration = Field(
-        default_factory=ModflowRiverConfiguration
-    )
-    
-    coupling: ModflowCouplingConfiguration = Field(
-    default_factory=ModflowCouplingConfiguration
-    )   
+    solver: ModflowSolverConfiguration = Field(default_factory=ModflowSolverConfiguration)
+    wetting: ModflowWettingConfiguration = Field(default_factory=ModflowWettingConfiguration)
+    river: ModflowRiverConfiguration = Field(default_factory=ModflowRiverConfiguration)
+
+    coupling: ModflowCouplingConfiguration = Field(default_factory=ModflowCouplingConfiguration)
 
     ghb: ModflowGhbConfiguration = Field(default_factory=ModflowGhbConfiguration)
     drain: ModflowDrainConfiguration = Field(default_factory=ModflowDrainConfiguration)
     # WEL remains reserved and raises when enabled.
-    wells: ModflowWellsConfiguration = Field(
-        default_factory=ModflowWellsConfiguration
-    )
+    wells: ModflowWellsConfiguration = Field(default_factory=ModflowWellsConfiguration)
 
-    output: ModflowOutputConfiguration = Field(
-        default_factory=ModflowOutputConfiguration
-    )
+    output: ModflowOutputConfiguration = Field(default_factory=ModflowOutputConfiguration)
 
     @model_validator(mode="after")
     def _check_enabled_configuration(self) -> Self:
@@ -367,11 +349,10 @@ class ModflowConfiguration(_Strict):
 
         if not self.layers:
             raise ValueError("modflow.enabled=1 requires at least one layer.")
-        
+
         if not self.coupling.baseflow_from_river_leakage:
             raise ValueError(
-                "This MODFLOW-RUBEM implementation requires "
-                "'baseflow_from_river_leakage=true'."
+                "This MODFLOW-RUBEM implementation requires 'baseflow_from_river_leakage=true'."
             )
 
         if not self.river.enabled:
@@ -384,25 +365,14 @@ class ModflowConfiguration(_Strict):
             self.coupling.dynamic_root_depth.enabled
             and not self.coupling.dynamic_root_depth.minimum_depth_table
         ):
-            raise ValueError(
-                "Dynamic root depth requires 'minimum_depth_table'."
-            )
-            
+            raise ValueError("Dynamic root depth requires 'minimum_depth_table'.")
+
         number_layers = len(self.layers)
-        
-        
+
         if self.coupling.dynamic_root_depth.enabled:
+            water_table_cfg = self.coupling.dynamic_root_depth.water_table
 
-            water_table_cfg = (
-                self.coupling
-                .dynamic_root_depth
-                .water_table
-            )
-
-            if (
-                water_table_cfg.method == "layer"
-                and water_table_cfg.layer > number_layers
-            ):
+            if water_table_cfg.method == "layer" and water_table_cfg.layer > number_layers:
                 raise ValueError(
                     f"Water-table source layer "
                     f"{water_table_cfg.layer} is outside "
@@ -410,10 +380,8 @@ class ModflowConfiguration(_Strict):
                 )
 
             if water_table_cfg.method == "highest_unconfined":
-
                 has_water_table_capable_layer = any(
-                    (layer.laytype % 10) in (1, 2, 3)
-                    for layer in self.layers
+                    (layer.laytype % 10) in (1, 2, 3) for layer in self.layers
                 )
 
                 if not has_water_table_capable_layer:
@@ -428,34 +396,25 @@ class ModflowConfiguration(_Strict):
 
         # Transient BCF storage parameters are required for every layer.
         if self.dis.steady_state == 0:
-
             for index, layer in enumerate(
                 self.layers,
                 start=1,
             ):
-
                 laycon = layer.laytype % 10
 
                 if laycon == 0:
-
                     if layer.specific_storage is None:
                         raise ValueError(
-                            f"MODFLOW layer {index} with "
-                            "LAYCON 0 requires "
-                            "'specific_storage'."
+                            f"MODFLOW layer {index} with LAYCON 0 requires 'specific_storage'."
                         )
 
                 elif laycon == 1:
-
                     if layer.specific_yield is None:
                         raise ValueError(
-                            f"MODFLOW layer {index} with "
-                            "LAYCON 1 requires "
-                            "'specific_yield'."
+                            f"MODFLOW layer {index} with LAYCON 1 requires 'specific_yield'."
                         )
 
                 elif laycon in (2, 3):
-
                     if layer.specific_storage is None:
                         raise ValueError(
                             f"MODFLOW layer {index} with "
@@ -465,54 +424,38 @@ class ModflowConfiguration(_Strict):
 
                     if layer.specific_yield is None:
                         raise ValueError(
-                            f"MODFLOW layer {index} with "
-                            f"LAYCON {laycon} requires "
-                            "'specific_yield'."
+                            f"MODFLOW layer {index} with LAYCON {laycon} requires 'specific_yield'."
                         )
         # Cross-check package layer numbers against the generic layer count.
         for river_layer in self.river.layers:
             if river_layer.layer > number_layers:
                 raise ValueError(
-                    f"RIV layer {river_layer.layer} is outside the valid "
-                    f"range 1-{number_layers}."
+                    f"RIV layer {river_layer.layer} is outside the valid range 1-{number_layers}."
                 )
 
-
         if self.wetting.enabled:
-
             if self.wetting.layers is None:
-
                 # Automatically use every layer that supports wetting.
                 wetting_layers = [
                     layer_number
-                    for layer_number, layer
-                    in enumerate(self.layers, start=1)
+                    for layer_number, layer in enumerate(self.layers, start=1)
                     if (layer.laytype % 10) in (1, 3)
                 ]
 
                 if not wetting_layers:
-                    raise ValueError(
-                        "Wetting is enabled, but no MODFLOW layer "
-                        "has LAYCON 1 or 3."
-                    )
+                    raise ValueError("Wetting is enabled, but no MODFLOW layer has LAYCON 1 or 3.")
 
             else:
-
                 wetting_layers = list(self.wetting.layers)
 
                 for layer_number in wetting_layers:
-
                     if layer_number > number_layers:
                         raise ValueError(
                             f"Wetting layer {layer_number} is outside "
                             f"the valid range 1-{number_layers}."
                         )
 
-                    laycon = (
-                        self.layers[layer_number - 1]
-                        .laytype
-                        % 10
-                    )
+                    laycon = self.layers[layer_number - 1].laytype % 10
 
                     if laycon not in (1, 3):
                         raise ValueError(
@@ -521,35 +464,29 @@ class ModflowConfiguration(_Strict):
                             "LAYCON 1 or 3."
                         )
 
-
-
         source = self.wetting.source_boundary_layer
         if isinstance(source, int) and source > number_layers:
             raise ValueError(
-                f"Wetting source layer {source} is outside the valid "
-                f"range 1-{number_layers}."
+                f"Wetting source layer {source} is outside the valid range 1-{number_layers}."
             )
 
         for ghb_layer in self.ghb.layers:
             layer_number = ghb_layer.layer
             if layer_number > number_layers:
                 raise ValueError(
-                    f"GHB layer {layer_number} is outside the valid "
-                    f"range 1-{number_layers}."
+                    f"GHB layer {layer_number} is outside the valid range 1-{number_layers}."
                 )
 
         for drain_layer in self.drain.layers:
             if drain_layer.layer > number_layers:
                 raise ValueError(
-                    f"DRN layer {drain_layer.layer} is outside the valid "
-                    f"range 1-{number_layers}."
+                    f"DRN layer {drain_layer.layer} is outside the valid range 1-{number_layers}."
                 )
 
         for layer_number in self.wells.layers:
             if layer_number > number_layers:
                 raise ValueError(
-                    f"WEL layer {layer_number} is outside the valid "
-                    f"range 1-{number_layers}."
+                    f"WEL layer {layer_number} is outside the valid range 1-{number_layers}."
                 )
 
         return self
@@ -605,10 +542,7 @@ class ModflowConfiguration(_Strict):
         wells["map"] = anchor(wells.get("map"))
         wells["table"] = anchor(wells.get("table"))
 
-
-        dynamic_root_depth = (
-            data["coupling"]["dynamic_root_depth"]
-        )
+        dynamic_root_depth = data["coupling"]["dynamic_root_depth"]
 
         dynamic_root_depth["minimum_depth_table"] = anchor(
             dynamic_root_depth.get("minimum_depth_table")

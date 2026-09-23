@@ -26,7 +26,6 @@ from pcraster import initialise
 from pcraster._pcraster import Field
 
 
-
 @dataclass
 class ModflowStepResult:
     converged: bool
@@ -42,6 +41,7 @@ class ModflowStepResult:
     storage: dict[int, Field] = field(default_factory=dict)
     # Signed MODFLOW flux: negative means aquifer -> drain (m3/day).
     drain_flow: dict[int, Field] = field(default_factory=dict)
+
 
 class ModflowGroundwater:
     """PCRaster MODFLOW groundwater component for RUBEM.
@@ -135,7 +135,6 @@ class ModflowGroundwater:
         self._setup_layer_properties()
         self._setup_wetting()
         self._setup_solver()
-        
 
         self._initialized = True
         self.logger.info("PCRaster MODFLOW initialization completed.")
@@ -198,8 +197,6 @@ class ModflowGroundwater:
                 nstp,
                 tsmult,
             )
-            
-
 
         # Stress packages can be changed every dynamic timestep.
         recharge_m_per_day = self.recharge_mm_to_modflow(
@@ -219,9 +216,7 @@ class ModflowGroundwater:
 
         converged = bool(self.mf.converged())
         solver_cfg = self._get(self.config, "solver", {})
-        fail_on_non_convergence = bool(
-            self._get(solver_cfg, "fail_on_non_convergence", True)
-        )
+        fail_on_non_convergence = bool(self._get(solver_cfg, "fail_on_non_convergence", True))
 
         if not converged:
             message = "PCRaster MODFLOW did not converge for the current stress period."
@@ -253,7 +248,6 @@ class ModflowGroundwater:
             water_table_head = self._get_water_table_head()
         else:
             water_table_head = None
-
 
         baseflow_mm = self.volume_rate_to_depth(
             exchange["aquifer_to_river"],
@@ -294,10 +288,7 @@ class ModflowGroundwater:
 
         self._validate_period_days(days_in_period)
         return (
-            pcr.scalar(volume_rate_m3_per_day)
-            * float(days_in_period)
-            * 1000.0
-            / self.cell_area_m2
+            pcr.scalar(volume_rate_m3_per_day) * float(days_in_period) * 1000.0 / self.cell_area_m2
         )
 
     # ------------------------------------------------------------------
@@ -319,7 +310,9 @@ class ModflowGroundwater:
                 try:
                     raster = pcr.lookupscalar(str(snapshot), classes)
                 except RuntimeError as error:
-                    raise ValueError(f"{label}: cannot read lookup table {table}: {error}") from error
+                    raise ValueError(
+                        f"{label}: cannot read lookup table {table}: {error}"
+                    ) from error
             label = f"{label} lookup (check class coverage in the map and table)"
         elif isinstance(path, (int, float)):
             self._validate_constant(path, label)
@@ -344,8 +337,7 @@ class ModflowGroundwater:
             if invalid.any():
                 row, column = np.argwhere(invalid)[0] + 1
                 raise ValueError(
-                    f"{label}: conductivity must be positive "
-                    f"(row {row}, column {column})."
+                    f"{label}: conductivity must be positive (row {row}, column {column})."
                 )
         return pcr.numpy2pcr(pcr.Scalar, np.where(finite, values, fill), np.nan)
 
@@ -422,13 +414,14 @@ class ModflowGroundwater:
         This preserves the configured constant-area approximation; it does
         not reproject rasters or compute geodesic cell dimensions.
         """
-        width_m = self.cell_area_m2 ** 0.5
+        width_m = self.cell_area_m2**0.5
         self.mf.setRowWidth([width_m] * pcr.clone().nrRows())
         self.mf.setColumnWidth([width_m] * pcr.clone().nrCols())
         self.logger.info(
             "MODFLOW cell dimensions: %.6g x %.6g metres (RUBEM grid area); "
             "raster coordinates are unchanged.",
-            width_m, width_m,
+            width_m,
+            width_m,
         )
 
     def _setup_dis(self, first_period_days: int) -> None:
@@ -445,13 +438,9 @@ class ModflowGroundwater:
         # This first version deliberately expects days/metres because all
         # coupling conversions below are defined in m/day.
         if time_unit != 4:
-            raise ValueError(
-                "MODFLOW.dis.time_unit must be 4 (days) in this first version."
-            )
+            raise ValueError("MODFLOW.dis.time_unit must be 4 (days) in this first version.")
         if length_unit != 2:
-            raise ValueError(
-                "MODFLOW.dis.length_unit must be 2 (metres) in this first version."
-            )
+            raise ValueError("MODFLOW.dis.length_unit must be 2 (metres) in this first version.")
 
         self.mf.setDISParameter(
             time_unit,
@@ -486,9 +475,7 @@ class ModflowGroundwater:
             )
 
             laytype = int(self._get(layer, "laytype", 0))
-            compute_conductivity = bool(
-                self._get(layer, "compute_conductivity", True)
-            )
+            compute_conductivity = bool(self._get(layer, "compute_conductivity", True))
 
             active = pcr.pcr2numpy(self._boundaries[layer_number], 0) != 0
             self.mf.setBoundary(self._boundaries[layer_number], layer_number)
@@ -504,23 +491,25 @@ class ModflowGroundwater:
             self.mf.setConductivity(
                 laytype,
                 self._read_scalar_input(
-                    horizontal_conductivity, f"Layer {layer_number}.horizontal_conductivity",
-                    active, fill=1.0,
+                    horizontal_conductivity,
+                    f"Layer {layer_number}.horizontal_conductivity",
+                    active,
+                    fill=1.0,
                 ),
                 self._read_scalar_input(
-                    vertical_conductivity, f"Layer {layer_number}.vertical_conductivity",
-                    active, fill=1.0,
+                    vertical_conductivity,
+                    f"Layer {layer_number}.vertical_conductivity",
+                    active,
+                    fill=1.0,
                 ),
                 layer_number,
                 compute_conductivity,
             )
 
             if transient:
-
                 laycon = laytype % 10
 
                 if laycon == 0:
-
                     # Confined.
                     primary_storage = self._required(
                         layer,
@@ -532,9 +521,7 @@ class ModflowGroundwater:
                     # but setStorage requires a second map.
                     secondary_storage = primary_storage
 
-
                 elif laycon == 1:
-
                     # Unconfined.
                     specific_yield = self._required(
                         layer,
@@ -545,9 +532,7 @@ class ModflowGroundwater:
                     primary_storage = specific_yield
                     secondary_storage = specific_yield
 
-
                 elif laycon in (2, 3):
-
                     # Convertible.
                     primary_storage = self._required(
                         layer,
@@ -561,13 +546,8 @@ class ModflowGroundwater:
                         f"MODFLOW.layers[{layer_number - 1}].specific_yield",
                     )
 
-
                 else:
-                    raise ValueError(
-                        f"Unsupported LAYCON {laycon} "
-                        f"for layer {layer_number}."
-                    )
-
+                    raise ValueError(f"Unsupported LAYCON {laycon} for layer {layer_number}.")
 
                 self.mf.setStorage(
                     self._read_scalar_input(
@@ -578,7 +558,6 @@ class ModflowGroundwater:
                     ),
                     layer_number,
                 )
-
 
     def _setup_wetting(self) -> None:
         """Configure optional BCF wetting capability."""
@@ -595,29 +574,17 @@ class ModflowGroundwater:
 
         layers = self._get(wetting_cfg, "layers", None)
         if layers is None:
-
             wetting_layers = [
                 layer_number
-                for layer_number, layer
-                in enumerate(self.layers, start=1)
-                if (
-                    int(self._get(layer, "laytype", 0))
-                    % 10
-                ) in (1, 3)
+                for layer_number, layer in enumerate(self.layers, start=1)
+                if (int(self._get(layer, "laytype", 0)) % 10) in (1, 3)
             ]
 
             if not wetting_layers:
-                raise ValueError(
-                    "Wetting is enabled, but no MODFLOW layer "
-                    "has LAYCON 1 or 3."
-                )
+                raise ValueError("Wetting is enabled, but no MODFLOW layer has LAYCON 1 or 3.")
 
         else:
-
-            wetting_layers = [
-                int(value)
-                for value in layers
-    ]
+            wetting_layers = [int(value) for value in layers]
 
         wetting_map_path = self._get(wetting_cfg, "map", None)
 
@@ -645,12 +612,11 @@ class ModflowGroundwater:
                 f"MODFLOW.layers[{source_layer - 1}].boundary",
             )
             multiplier = float(self._get(wetting_cfg, "multiplier", -1.0))
-            wetting_map = pcr.cover(
-                pcr.scalar(pcr.readmap(str(source_boundary))), pcr.scalar(0)
-            ) * multiplier
+            wetting_map = (
+                pcr.cover(pcr.scalar(pcr.readmap(str(source_boundary))), pcr.scalar(0)) * multiplier
+            )
 
         for layer_number in wetting_layers:
-
             self._validate_layer_number(
                 layer_number,
                 "wetting layer",
@@ -679,7 +645,6 @@ class ModflowGroundwater:
                 wetting_map,
                 layer_number,
             )
-
 
     def _setup_solver(self) -> None:
         """Configure the MODFLOW solver.  Version 1 supports PCG."""
@@ -714,9 +679,7 @@ class ModflowGroundwater:
         river_layers = list(self._get(river_cfg, "layers", []))
 
         for river_layer in river_layers:
-            layer_number = int(
-                self._required(river_layer, "layer", "MODFLOW.river.layers[].layer")
-            )
+            layer_number = int(self._required(river_layer, "layer", "MODFLOW.river.layers[].layer"))
             self._validate_layer_number(layer_number, "river layer")
 
             stage = self._required(
@@ -739,8 +702,12 @@ class ModflowGroundwater:
                 raise ValueError("Constant river conductance requires a 'mask' map.")
 
             cond, maps = self._read_stress_inputs(
-                f"MODFLOW.river.layer{layer_number}", layer_number, conductance,
-                mask=mask, stage=stage, bottom=bottom,
+                f"MODFLOW.river.layer{layer_number}",
+                layer_number,
+                conductance,
+                mask=mask,
+                stage=stage,
+                bottom=bottom,
             )
             self.mf.setRiver(
                 maps["stage"],
@@ -760,9 +727,7 @@ class ModflowGroundwater:
             return
 
         for ghb_layer in self._get(ghb_cfg, "layers", []):
-            layer_number = int(
-                self._required(ghb_layer, "layer", "MODFLOW.ghb.layers[].layer")
-            )
+            layer_number = int(self._required(ghb_layer, "layer", "MODFLOW.ghb.layers[].layer"))
             self._validate_layer_number(layer_number, "GHB layer")
             head = self._required(ghb_layer, "head", "MODFLOW.ghb.layers[].head")
             conductance = self._required(
@@ -781,18 +746,16 @@ class ModflowGroundwater:
 
         self._drain_active_layers.clear()
         for drain_layer in self._get(drain_cfg, "layers", []):
-            layer_number = int(
-                self._required(drain_layer, "layer", "MODFLOW.drain.layers[].layer")
-            )
+            layer_number = int(self._required(drain_layer, "layer", "MODFLOW.drain.layers[].layer"))
             self._validate_layer_number(layer_number, "DRN layer")
-            elevation = self._required(
-                drain_layer, "elevation", "MODFLOW.drain.layers[].elevation"
-            )
+            elevation = self._required(drain_layer, "elevation", "MODFLOW.drain.layers[].elevation")
             conductance = self._required(
                 drain_layer, "conductance", "MODFLOW.drain.layers[].conductance"
             )
             cond, maps = self._read_stress_inputs(
-                f"MODFLOW.drain.layer{layer_number}", layer_number, conductance,
+                f"MODFLOW.drain.layer{layer_number}",
+                layer_number,
+                conductance,
                 elevation=elevation,
             )
             values = pcr.pcr2numpy(cond, 0)
@@ -815,7 +778,8 @@ class ModflowGroundwater:
         for layer in self._get(drain_cfg, "layers", []):
             number = int(self._get(layer, "layer"))
             result[number] = (
-                self.mf.getDrain(number) if number in self._drain_active_layers
+                self.mf.getDrain(number)
+                if number in self._drain_active_layers
                 else pcr.spatial(pcr.scalar(0))
             )
         return result
@@ -873,9 +837,7 @@ class ModflowGroundwater:
 
         layer = self.layers[layer_number - 1]
 
-        head = pcr.scalar(
-            self.mf.getHeads(layer_number)
-        )
+        head = pcr.scalar(self.mf.getHeads(layer_number))
 
         boundary_path = self._required(
             layer,
@@ -883,21 +845,14 @@ class ModflowGroundwater:
             f"MODFLOW.layers[{layer_number - 1}].boundary",
         )
 
-        boundary = pcr.scalar(
-            pcr.readmap(str(boundary_path))
-        )
+        boundary = pcr.scalar(pcr.readmap(str(boundary_path)))
 
-        valid_head = (
-            pcr.defined(head)
-            & (boundary != 0)
-            & (head != self.dry_head)
-        )
+        valid_head = pcr.defined(head) & (boundary != 0) & (head != self.dry_head)
 
         return pcr.ifthen(
             valid_head,
             head,
         )
-
 
     def _get_water_table_head(self) -> Field:
         """Select groundwater head for RUBEM root-depth coupling."""
@@ -933,23 +888,18 @@ class ModflowGroundwater:
         }
 
         if method not in valid_methods:
-            raise ValueError(
-                f"Invalid water-table selection method: "
-                f"{method!r}."
-            )
+            raise ValueError(f"Invalid water-table selection method: {method!r}.")
 
         # -----------------------------------------------------
         # Explicit layer
         # -----------------------------------------------------
 
         if method == "layer":
-
             layer_number = int(
                 self._required(
                     water_table_cfg,
                     "layer",
-                    "MODFLOW.coupling.dynamic_root_depth."
-                    "water_table.layer",
+                    "MODFLOW.coupling.dynamic_root_depth.water_table.layer",
                 )
             )
 
@@ -958,10 +908,7 @@ class ModflowGroundwater:
                 "water-table source layer",
             )
 
-            return self._get_valid_head_for_layer(
-                layer_number
-            )
-
+            return self._get_valid_head_for_layer(layer_number)
 
         # -----------------------------------------------------
         # Search top -> bottom
@@ -974,7 +921,6 @@ class ModflowGroundwater:
             0,
             -1,
         ):
-
             layer = self.layers[layer_number - 1]
 
             laytype = int(
@@ -987,13 +933,9 @@ class ModflowGroundwater:
 
             laycon = laytype % 10
 
-            candidate = self._get_valid_head_for_layer(
-                layer_number
-            )
-
+            candidate = self._get_valid_head_for_layer(layer_number)
 
             if method == "highest_unconfined":
-
                 # LAYCON 0 is always confined.
                 if laycon == 0:
                     continue
@@ -1006,36 +948,27 @@ class ModflowGroundwater:
                 # They behave as unconfined where the head is at or below
                 # the top elevation of the layer.
                 elif laycon in (2, 3):
-
                     top_path = self._required(
                         layer,
                         "top",
                         f"MODFLOW.layers[{layer_number - 1}].top",
                     )
 
-                    layer_top = pcr.scalar(
-                        pcr.readmap(str(top_path))
-                    )
+                    layer_top = pcr.scalar(pcr.readmap(str(top_path)))
 
                     candidate = pcr.ifthen(
-                        pcr.defined(candidate)
-                        & (candidate <= layer_top),
+                        pcr.defined(candidate) & (candidate <= layer_top),
                         candidate,
                     )
 
-
-
             if selected_head is None:
-
                 selected_head = candidate
 
             else:
-
                 selected_head = pcr.cover(
                     selected_head,
                     candidate,
                 )
-
 
         if selected_head is None:
             raise RuntimeError(
@@ -1066,18 +999,14 @@ class ModflowGroundwater:
         recharge_option = int(self._get(recharge_cfg, "option", 3))
         if recharge_option != 3:
             raise ValueError(
-                "MODFLOW.recharge.option must be 3 "
-                "(recharge to the highest active cell)."
+                "MODFLOW.recharge.option must be 3 (recharge to the highest active cell)."
             )
-
 
         river_cfg = self._get(self.config, "river", {})
         if bool(self._get(river_cfg, "enabled", 0)):
             river_layers = list(self._get(river_cfg, "layers", []))
             if not river_layers:
-                raise ValueError(
-                    "MODFLOW.river.enabled is true but MODFLOW.river.layers is empty."
-                )
+                raise ValueError("MODFLOW.river.enabled is true but MODFLOW.river.layers is empty.")
 
             seen_layers: set[int] = set()
             for river_layer in river_layers:
@@ -1102,9 +1031,7 @@ class ModflowGroundwater:
                 raise ValueError("MODFLOW.ghb.enabled=1 requires at least one GHB layer.")
             seen_ghb_layers: set[int] = set()
             for ghb_layer in ghb_layers:
-                layer_number = int(
-                    self._required(ghb_layer, "layer", "MODFLOW.ghb.layers[].layer")
-                )
+                layer_number = int(self._required(ghb_layer, "layer", "MODFLOW.ghb.layers[].layer"))
                 self._validate_layer_number(layer_number, "GHB layer")
                 if layer_number in seen_ghb_layers:
                     raise ValueError(
@@ -1119,9 +1046,7 @@ class ModflowGroundwater:
                 raise ValueError("MODFLOW.drain.enabled=1 requires at least one DRN layer.")
             seen_drain_layers: set[int] = set()
             for drain_layer in drain_layers:
-                number = int(
-                    self._required(drain_layer, "layer", "MODFLOW.drain.layers[].layer")
-                )
+                number = int(self._required(drain_layer, "layer", "MODFLOW.drain.layers[].layer"))
                 self._validate_layer_number(number, "DRN layer")
                 if number in seen_drain_layers:
                     raise ValueError(f"MODFLOW DRN layer {number} is configured more than once.")
@@ -1155,11 +1080,9 @@ class ModflowGroundwater:
                     )
                 )
 
-
             dis_cfg = self._get(self.config, "dis", {})
 
             if int(self._get(dis_cfg, "steady_state", 0)) == 0:
-
                 laytype = int(
                     self._get(
                         layer,
@@ -1189,7 +1112,6 @@ class ModflowGroundwater:
                     ]
 
                 for key in storage_keys:
-
                     paths.append(
                         (
                             f"MODFLOW.layers[{index}].{key}",
@@ -1200,7 +1122,6 @@ class ModflowGroundwater:
                             ),
                         )
                     )
-
 
         if bool(self._get(river_cfg, "enabled", 0)):
             for index, river_layer in enumerate(self._get(river_cfg, "layers", [])):
@@ -1259,8 +1180,7 @@ class ModflowGroundwater:
     def _validate_layer_number(self, layer_number: int, label: str) -> None:
         if layer_number < 1 or layer_number > self.number_layers:
             raise ValueError(
-                f"Invalid {label} {layer_number}; valid range is "
-                f"1-{self.number_layers}."
+                f"Invalid {label} {layer_number}; valid range is 1-{self.number_layers}."
             )
 
     @staticmethod
