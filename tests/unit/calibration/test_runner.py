@@ -1305,16 +1305,20 @@ class ModflowDataset(Dataset):
     The river stage lies below the initial head, so the aquifer drains into the
     river and the baseflow, hence ``arn``, depends on the specific yield (with
     the stage of :func:`write_modflow_inputs` above the heads the river only
-    loses water and the baseflow is zero whatever the MODFLOW values). One time
-    step per stress period: a worker whose MODFLOW run fails before the last
-    time step of a period ends its process (phase 4 finding), and the search
-    could not tell that from a bug of the calibration.
+    loses water and the baseflow is zero whatever the MODFLOW values). The
+    default time discretization, one time step per stress period, is kept: a
+    worker whose MODFLOW run fails before the last time step of a period ends
+    its process, and the search could not tell that from a bug of the
+    calibration.
+
+    :param dis: The ``dis`` object of the section, when not the default.
     """
 
-    def __init__(self, tmp_path, truth=None):
+    def __init__(self, tmp_path, truth=None, dis=None):
         self.config = write_synthetic_dataset(str(tmp_path), timesteps=TIMESTEPS)
         section = write_modflow_inputs(self.config)
-        section["dis"] = {"nstp": 1}
+        if dis is not None:
+            section["dis"] = dis
         river = section["river"]["entries"][0]
         directory = Path(section["top"]).parent
         river["stage"] = write_grid_map(directory / "drained_stage.map", MODFLOW_HEAD - 5.0)
@@ -1642,6 +1646,43 @@ class TestModflowRefusals:
         ]
         rows = read_evaluations(run_dir / "evaluations.csv")
         assert [row[SPECIFIC_YIELD] for row in rows] == [repr(0.2)]
+
+
+@needs_mf2005
+class TestModflowTimeSteps:
+    @pytest.mark.unit
+    def test_several_time_steps_per_period_are_warned_about_before_the_search(
+        self, tmp_path, broken_search, caplog
+    ):
+        data = ModflowDataset(tmp_path, dis={"nstp": 5})
+
+        with caplog.at_level(logging.WARNING, logger="rubem.calibration.runner"):
+            with pytest.raises(RuntimeError, match="the search broke"):
+                data.calibrate()
+
+        warnings = [
+            record.getMessage()
+            for record in caplog.records
+            if record.levelno == logging.WARNING and "dis.nstp" in record.getMessage()
+        ]
+        assert len(warnings) == 1
+        assert "5" in warnings[0]
+        assert "worker" in warnings[0] and "converge" in warnings[0]
+
+    @pytest.mark.unit
+    def test_one_time_step_per_period_is_not_warned_about(
+        self, modflow_dataset, broken_search, caplog
+    ):
+        with caplog.at_level(logging.WARNING, logger="rubem.calibration.runner"):
+            with pytest.raises(RuntimeError, match="the search broke"):
+                calibrate(
+                    modflow_dataset.config_file,
+                    modflow_dataset.observed,
+                    modflow_dataset.tmp_run_dir("one-step"),
+                    modflow_dataset.settings(),
+                )
+
+        assert not [record for record in caplog.records if "dis.nstp" in record.getMessage()]
 
 
 class TestModflowNamesWithoutModflow:

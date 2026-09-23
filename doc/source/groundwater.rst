@@ -431,10 +431,11 @@ Time discretization
      - Unit
      - Description
    * - ``dis.nstp``
-     - integer ``>= 1``, default ``5``
+     - integer ``>= 1``, default ``1``
      - –
-     - Number of MODFLOW time steps in each stress period. See
-       `Limitations`_ about a solver failure before the last of them.
+     - Number of MODFLOW time steps in each stress period. With more than
+       one, a solver failure before the last of them ends the process instead
+       of raising an error; see `Limitations`_.
    * - ``dis.tsmult``
      - number ``> 0``, default ``1.0``
      - –
@@ -914,12 +915,13 @@ Limitations
   that names the period and the listing file, and the run stops, keeping its
   run directory; in a calibration the evaluation fails and is ranked behind
   every other. That holds when the solver fails at the last time step of the
-  period, which is always the case with ``dis.nstp`` 1. With more time steps,
-  a failure at an earlier one stops MODFLOW before it writes the heads of the
-  period, and the PCRaster MODFLOW extension then ends the whole process
-  (``Can not open head value result file``) instead of returning an error; the
-  run directory, with ``pcrmf.lst``, is kept. In a calibration that ends the
-  worker process, and with it the calibration.
+  period, which is always the case with the default ``dis.nstp`` of 1. With
+  more time steps, a failure at an earlier one stops MODFLOW before it writes
+  the heads of the period, and the PCRaster MODFLOW extension then ends the
+  whole process (``Can not open head value result file``) instead of
+  returning an error; the run directory, with ``pcrmf.lst``, is kept. In a
+  calibration that ends the worker process, and with it the calibration,
+  which is why ``rubem calibrate`` warns when ``dis.nstp`` is above 1.
 - The MODFLOW packages are DIS, BAS, BCF, RCH, RIV, GHB, DRN and the PCG
   solver, and no other: no well package (WEL), no other flow package or
   solver.

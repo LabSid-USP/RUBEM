@@ -31,8 +31,11 @@ Added
   package). MODFLOW runs in ``<output>/modflow``, removed after the last step;
   heads, river exchange, storage, drain flow and an experimental root-depth
   coupling with the water table are written as raster series selected in the
-  section. ``rubem calibrate`` runs the coupled model whenever the
-  configuration enables it, and searches or fixes the MODFLOW parameters
+  section. A stress period has one time step unless ``dis.nstp`` says
+  otherwise, so that a solver failure raises an error instead of ending the
+  process. ``rubem calibrate`` runs the coupled model whenever the
+  configuration enables it, warns when ``dis.nstp`` is above 1, and searches
+  or fixes the MODFLOW parameters
   named in ``--bound`` and ``--fix`` (``modflow.layers.<n>.specific_yield``,
   ``modflow.layers.<n>.specific_storage``, ``modflow.layers.<n>.kh.<class>``,
   ``modflow.river.<i>.conductance``). The new Groundwater Coupling page

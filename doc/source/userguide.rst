@@ -1161,7 +1161,7 @@ MODFLOW Time Discretization
 ```````````````````````````
 
 Optional object ``dis``: ``nstp``, the number of MODFLOW time steps in each
-stress period (default ``5``); ``tsmult``, their length multiplier (default
+stress period (default ``1``); ``tsmult``, their length multiplier (default
 ``1.0``); and ``steady_state`` (default ``false``). One RUBEM step is one
 stress period, whose length is the number of days of its month. With ``nstp``
 above 1, a solver failure before the last time step of a period ends the

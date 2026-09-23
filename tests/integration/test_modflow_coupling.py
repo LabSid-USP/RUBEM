@@ -15,6 +15,7 @@ The full RUBEM runs couple the synthetic dataset to its three-layer section
 (:func:`write_modflow_inputs`) through the validated configuration.
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -415,6 +416,45 @@ def read_map(path):
     return pcr.pcr2numpy(pcr.scalar(pcr.readmap(str(path))), np.nan)
 
 
+def run_broken_solver_in_a_child(tmp_path, dis=None):
+    """Run the coupled dataset with a solver that cannot converge, in a child process.
+
+    The child prints ``RAISED <message>`` when the run raises ``RuntimeError``
+    and ``RETURNED`` when it ends normally; a child the extension ends prints
+    neither.
+
+    :param dis: The ``dis`` object of the section; ``None`` leaves the default.
+    """
+    root = Path(__file__).resolve().parents[2]
+    working_directory = tmp_path / "cwd"
+    working_directory.mkdir()
+    script = (
+        "import json, sys\n"
+        "from tests.integration.test_modflow_coupling import coupled_dataset, run_rubem\n"
+        "dis = json.loads(sys.argv[2])\n"
+        "config = coupled_dataset(sys.argv[1], solver={'mxiter': 1, 'iter1': 1,"
+        " 'hclose': 1e-12, 'rclose': 1e-12}, **({'dis': dis} if dis else {}))\n"
+        "assert ('dis' in config['MODFLOW']) == bool(dis)\n"
+        "try:\n"
+        "    run_rubem(config)\n"
+        "except RuntimeError as error:\n"
+        "    print('RAISED', error)\n"
+        "else:\n"
+        "    print('RETURNED')\n"
+    )
+    environment = {**os.environ, "PYTHONPATH": os.pathsep.join([str(root), *sys.path])}
+    return subprocess.run(
+        [sys.executable, "-c", script, str(tmp_path / "dataset"), json.dumps(dis)],
+        cwd=working_directory,
+        env=environment,
+        capture_output=True,
+        text=True,
+        errors="replace",
+        timeout=600,
+        check=False,
+    )
+
+
 class TestCoupledRun:
     def test_the_baseflow_is_the_river_leakage_and_the_heads_are_written(
         self, tmp_path, directories, monkeypatch
@@ -479,45 +519,31 @@ class TestCoupledRun:
 
         assert (Path(config["DIRECTORIES"]["output"]) / "modflow" / "pcrmf.lst").is_file()
 
+    def test_non_convergence_with_the_default_time_steps_raises(self, tmp_path):
+        """The default ``dis`` (one time step per period) keeps the failure recoverable.
+
+        The run happens in a child process because the opposite outcome, the
+        extension ending the process, would take the test runner with it.
+        """
+        child = run_broken_solver_in_a_child(tmp_path)
+
+        output = child.stdout + child.stderr
+        assert child.returncode == 0, output
+        assert "RAISED MODFLOW did not converge in stress period 1" in child.stdout
+        assert "MODFLOW failed to converge" in output
+        listing = tmp_path / "dataset" / "out" / "modflow" / "pcrmf.lst"
+        assert "STOPPING SIMULATION" in listing.read_text(encoding="utf8", errors="replace")
+
     def test_non_convergence_before_the_last_time_step_ends_the_process(self, tmp_path):
-        """Pins a known limitation of the extension, pending the maintainer's decision.
+        """Pins the documented limitation of ``dis.nstp`` above 1.
 
         MODFLOW saves the heads only at the last time step of the period and
-        stops at the first time step that fails to converge. With the default
-        ``nstp`` (5) nothing is saved in the first period, and the extension
-        ends the process when it reads the missing head file, before
-        ``converged()`` can be asked. The run therefore happens in a child
-        process; this test turns red once that case raises instead.
+        stops at the first time step that fails to converge. With several time
+        steps nothing is saved in the first period, and the extension ends the
+        process when it reads the missing head file, before ``converged()``
+        can be asked. The run therefore happens in a child process.
         """
-        assert ModflowSettings().dis.nstp > 1  # the child runs the default
-        root = Path(__file__).resolve().parents[2]
-        working_directory = tmp_path / "cwd"
-        working_directory.mkdir()
-        script = (
-            "import sys\n"
-            "from tests.integration.test_modflow_coupling import coupled_dataset, run_rubem\n"
-            "config = coupled_dataset(sys.argv[1], solver={'mxiter': 1, 'iter1': 1,"
-            " 'hclose': 1e-12, 'rclose': 1e-12})\n"
-            "assert 'dis' not in config['MODFLOW']\n"
-            "try:\n"
-            "    run_rubem(config)\n"
-            "except RuntimeError:\n"
-            "    print('RAISED')\n"
-            "else:\n"
-            "    print('RETURNED')\n"
-        )
-        environment = {**os.environ, "PYTHONPATH": os.pathsep.join([str(root), *sys.path])}
-
-        child = subprocess.run(
-            [sys.executable, "-c", script, str(tmp_path / "dataset")],
-            cwd=working_directory,
-            env=environment,
-            capture_output=True,
-            text=True,
-            errors="replace",
-            timeout=600,
-            check=False,
-        )
+        child = run_broken_solver_in_a_child(tmp_path, dis={"nstp": 5})
 
         output = child.stdout + child.stderr
         assert child.returncode != 0, output

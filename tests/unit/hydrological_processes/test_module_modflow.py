@@ -309,7 +309,7 @@ class TestInitialize:
 
     def test_a_transient_run_starts_with_the_first_period(self, section, run_dir, mf):
         build(section, run_dir, days=28)
-        mf.setDISParameter.assert_called_once_with(4, 2, 28.0, 5, 1.0, 0)
+        mf.setDISParameter.assert_called_once_with(4, 2, 28.0, 1, 1.0, 0)
 
     def test_a_steady_run_sets_no_storage(self, section, run_dir, mf):
         section["dis"] = {"steady_state": True, "nstp": 2, "tsmult": 1.5}
@@ -459,7 +459,7 @@ class TestRunStep:
     def test_each_transient_period_takes_its_length(self, section, run_dir, mf):
         model = build(section, run_dir)
         model.run_step(pcr.scalar(0.0), 28)
-        mf.updateDISParameter.assert_called_once_with(28.0, 5, 1.0)
+        mf.updateDISParameter.assert_called_once_with(28.0, 1, 1.0)
 
     def test_a_steady_run_keeps_its_period(self, section, run_dir, mf):
         section["dis"] = {"steady_state": True}

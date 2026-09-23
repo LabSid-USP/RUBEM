@@ -107,12 +107,15 @@ class ModflowLayer(_Strict):
 class Dis(_Strict):
     """Time discretization of each stress period (one RUBEM step).
 
-    :param nstp: Number of time steps per stress period.
+    :param nstp: Number of time steps per stress period. One by default: the
+        extension reads the heads of a period only when its last time step
+        converged, so a solver failure at an earlier time step ends the whole
+        process instead of raising.
     :param tsmult: Time step multiplier.
     :param steady_state: Whether every stress period is steady state.
     """
 
-    nstp: PositiveInt = 5
+    nstp: PositiveInt = 1
     tsmult: PositiveFloat = 1.0
     steady_state: bool = False
 

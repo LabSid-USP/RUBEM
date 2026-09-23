@@ -422,7 +422,8 @@ were searched or fixed appear in :file:`evaluations.csv`, in
    With ``dis.nstp`` above 1, a candidate whose MODFLOW solver fails before
    the last time step of a stress period ends its worker process, and with it
    the calibration, instead of being recorded as a failed evaluation; see
-   :ref:`groundwater:Limitations`. With ``dis.nstp`` 1 such a candidate is a
+   :ref:`groundwater:Limitations`. The command warns about it before the
+   search starts. With the default ``dis.nstp`` of 1 such a candidate is a
    failed evaluation like any other.
 
 The search

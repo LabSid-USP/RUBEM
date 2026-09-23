@@ -126,13 +126,16 @@ class TestSchema:
         assert settings.dis.steady_state is False
 
     @pytest.mark.unit
-    def test_the_defaults_are_the_scientist_values(self):
+    def test_the_defaults_are_the_scientist_values_with_one_time_step(self):
+        # One time step per stress period: a solver failure then raises instead
+        # of ending the process (the extension reads the heads of the period
+        # only when its last time step converged).
         settings = ModflowSettings()
 
         assert settings.enabled is False
         assert settings.top is None and settings.layers == []
         assert (settings.dis.nstp, settings.dis.tsmult, settings.dis.steady_state) == (
-            5,
+            1,
             1.0,
             False,
         )
