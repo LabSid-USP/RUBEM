@@ -26,6 +26,7 @@ from pydantic import (
 
 from .._paths import PathInput, as_path
 from ._json import read_json
+from .modflow_configuration import ModflowSettings
 
 logger = logging.getLogger(__name__)
 
@@ -308,6 +309,7 @@ class ModelConfigurationFile(_Section):
     raster_file_format: RasterFileFormat = Field(
         alias="RASTER_FILE_FORMAT", default_factory=RasterFileFormat
     )
+    modflow: ModflowSettings | None = Field(alias="MODFLOW", default=None)
 
     @classmethod
     def from_json(cls, path: PathInput) -> Self:
@@ -336,8 +338,13 @@ class ModelConfigurationFile(_Section):
         data["DIRECTORIES"] = directories
         data["RASTERS"] = rasters
         data["TABLES"] = tables
+        if self.modflow is not None:
+            data["MODFLOW"] = self.modflow.resolve_paths(base)
         return type(self).model_validate(data)
 
     def to_dict(self) -> dict:
-        """The canonical legacy dictionary (upper-case sections, canonical keys)."""
+        """The canonical legacy dictionary (upper-case sections, canonical keys).
+
+        An absent optional section is written as ``null`` (``MODFLOW``).
+        """
         return self.model_dump(by_alias=True)

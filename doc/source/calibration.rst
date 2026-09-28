@@ -40,7 +40,9 @@ must be in the same quantity.
 
 Each evaluation runs the whole simulation period of the configuration. The
 calibration never changes the period, the inputs or the aggregation: of what
-the results depend on, it changes the nine parameters and nothing else.
+the results depend on, it changes the nine parameters and nothing else, apart
+from the parameters of the groundwater model a calibration of a coupled
+configuration names, see `MODFLOW parameters`_.
 
 The objective function
 ----------------------
@@ -329,6 +331,101 @@ that starting point which a narrowed bound excludes is moved onto the bound it
 crosses, and the move is logged: the run starts from the admissible point
 closest to the configuration rather than ending before its first evaluation.
 
+MODFLOW parameters
+------------------
+
+A configuration that enables the :doc:`MODFLOW coupling </groundwater>` is
+calibrated like any other: no option is needed, and every evaluation runs the
+coupled model. Its section also offers parameters of the groundwater model to
+the search. They are named after where they live in the section, with the
+layers numbered from the top down, as in the configuration:
+
+.. list-table:: MODFLOW parameters
+   :header-rows: 1
+   :widths: 34 36 12 18
+
+   * - Name
+     - Parameter
+     - Unit
+     - Values it may take
+   * - ``modflow.layers.<n>.specific_yield``
+     - Specific yield of layer ``n``
+     - –
+     - :math:`(0, 1]`
+   * - ``modflow.layers.<n>.specific_storage``
+     - Confined storage coefficient of layer ``n``
+     - –
+     - :math:`(0, \infty)`
+   * - ``modflow.layers.<n>.kh.<class>``
+     - Horizontal conductivity of one class of the lookup table of layer ``n``
+     - m/day
+     - :math:`(0, \infty)`
+   * - ``modflow.river.<i>.conductance``
+     - Conductance of every river cell of river entry ``i``, counted from 1
+     - :raw-html:`m<sup>2</sup>day<sup>-1</sup>`
+     - :math:`(0, \infty)`
+
+A name exists only where the configuration gives a number that the run reads;
+a raster is not a number to search:
+
+- the storage of a layer, when the section gives it as a number, the run is
+  transient and the layer type reads it: ``LAYCON`` 0 reads the specific
+  storage, ``LAYCON`` 1 the specific yield, ``LAYCON`` 2 and 3 both;
+- the conductivity of a class, when the horizontal conductivity of the layer
+  is a class ``map`` with a lookup ``table``: one name per class of the
+  table, spelt as a number in its shortest form (``01`` and ``1.0`` are class
+  ``1``). Only the row PCRaster reads for a class is named: an interval row
+  is not, nor a row whose class an earlier row, numeric or interval, already
+  matches;
+- the conductance of a river entry, when it is a number (with its ``mask``).
+
+A MODFLOW parameter is **never searched by default**. It joins the search only
+when ``--bound`` names it, and the bound is mandatory, since the application
+settings have no range for it: it must be finite, its minimum below its
+maximum, and both inside the values the parameter may take. ``--fix`` pins
+one at a value inside the same values instead, and naming a parameter in both
+is refused. A name that is not a MODFLOW parameter of the configuration is
+refused with the list of the ones it offers, and a MODFLOW name given for a
+configuration that does not enable MODFLOW is refused as well; all of that
+before the search starts.
+
+.. code-block:: console
+
+   $ rubem calibrate -c project-config.json --observed observed.csv -o calibration \
+       --bound modflow.layers.1.specific_yield=0.05:0.3 \
+       --bound modflow.layers.1.kh.2=0.05:0.5 --fix alpha_gw=0.5
+
+The searched MODFLOW parameters follow the eight parameters of the model in the
+decision vector, so each of them is one more dimension in
+`The evaluation budget`_, and a search may leave every parameter of the model
+fixed and search MODFLOW parameters only. The starting point takes their
+values from the configuration, moved onto the bound like the others.
+
+Every candidate carries its MODFLOW values into the configuration of its
+evaluation: the numbers replace the ones of the section, and the classes of a
+lookup table are written, with the other rows of the table unchanged, into
+:file:`kh_layer<n>.tbl` in the temporary directory of the evaluation, which the
+layer then reads; the configured table is never modified. The parameters that
+were searched or fixed appear in :file:`evaluations.csv`, in
+:file:`result.json` and in the calibrated configuration, see
+`Artifacts of a run`_.
+
+.. note::
+
+   In a coupled run the baseflow comes from MODFLOW, and the recession
+   coefficient :math:`\alpha_{GW}` has no effect on the simulation (see
+   :ref:`groundwater:The saturated zone`). Fix it, as in the example above,
+   so that the search does not spend a dimension on it.
+
+.. warning::
+
+   With ``dis.nstp`` above 1, a candidate whose MODFLOW solver fails before
+   the last time step of a stress period ends its worker process, and with it
+   the calibration, instead of being recorded as a failed evaluation; see
+   :ref:`groundwater:Limitations`. The command warns about it before the
+   search starts. With the default ``dis.nstp`` of 1 such a candidate is a
+   failed evaluation like any other.
+
 The search
 ----------
 
@@ -416,8 +513,9 @@ The number of population members is not ``--popsize``: it is
     \[members = \max\left(5,\ popsize \times N\right)\]
 
 with :math:`N` the number of free parameters — eight, minus one for every
-``--fix``. With ``--init sobol``, the default, that count is then rounded up to
-the next power of two, because a Sobol' sequence is balanced only over a
+``--fix``, plus one for every bounded parameter of `MODFLOW parameters`_. With
+``--init sobol``, the default, that count is then rounded up to the next power
+of two, because a Sobol' sequence is balanced only over a
 power-of-two sample; the other three initializations use it as it is. Every
 generation evaluates one candidate per member, and the initial population is
 one more round of evaluations on top of ``--maxiter`` generations, so
@@ -624,8 +722,9 @@ with; :file:`evaluations.csv` is comma-separated.
    One row per evaluation, with the columns ``id``, ``pid``, ``started_at``,
    ``alpha``, ``beta``, ``w_1``, ``w_2``, ``w_3``, ``rcd``, ``f``,
    ``alpha_gw``, ``x``, ``nse``, ``objective``, ``elapsed_seconds`` and
-   ``error``. ``id`` identifies the evaluation, ``pid`` the process that made
-   it and ``started_at`` the wall-clock moment it began, in UTC; ``nse`` is
+   ``error``; the `MODFLOW parameters`_ a run searched or fixed follow ``x``.
+   ``id`` identifies the evaluation, ``pid`` the process that made it and
+   ``started_at`` the wall-clock moment it began, in UTC; ``nse`` is
    empty for a candidate that produced no efficiency; ``error`` is empty for a
    successful evaluation, ``inadmissible`` for a candidate rejected without a
    run, and the type and message of the exception for a run that failed. The
@@ -659,10 +758,11 @@ with; :file:`evaluations.csv` is comma-separated.
 
 :file:`result.json`
    The summary: ``best_parameters`` (the nine parameters, the derived ``w_3``
-   included), ``best_nse``, ``best_objective``, ``nfev`` and ``nit`` (the
-   evaluations and generations the search spent), ``success`` and ``message``
-   from the optimizer, ``population_size``, an ``artifacts`` object naming
-   every file above, and a ``settings`` object with ``variable``,
+   included, then the MODFLOW parameters searched or fixed), ``best_nse``,
+   ``best_objective``, ``nfev`` and ``nit`` (the evaluations and generations
+   the search spent), ``success`` and ``message`` from the optimizer,
+   ``population_size``, an ``artifacts`` object naming every file above, and a
+   ``settings`` object with ``variable``,
    ``spinup_steps``, ``maxiter``, ``popsize``, ``seed``, ``workers``,
    ``temp_dir``, ``init``, ``strategy``, ``mutation``, ``recombination``,
    ``polish``, ``bounds``, ``fixed`` and ``stations``. The workers, the
@@ -676,7 +776,11 @@ with; :file:`evaluations.csv` is comma-separated.
    in place, written in the format the input was written in, legacy or
    format 1.0. Its paths are the ones the loader resolved, which are absolute
    even when the input file wrote them relative to its own directory; moving
-   the file to another machine therefore means fixing the paths.
+   the file to another machine therefore means fixing the paths. The MODFLOW
+   parameters of the best candidate replace the ones of its section, and a
+   conductivity table with a calibrated class is written next to it as
+   :file:`<config>-calibrated-kh<n>.tbl`, which the calibrated configuration
+   points at.
 
 Next to them, the :file:`evaluations/` directory holds one JSON record per
 evaluation, written by the worker that made it. A record carries what the CSV
@@ -722,8 +826,9 @@ candidate and exits. The generation is spread over as many such workers as
 ``--workers`` allows, which is also what makes the calibration parallel at all.
 
 Each worker builds the configuration of its candidate from the document of the
-calibrated configuration: the nine parameters become the candidate's, the
-output directory becomes a temporary directory of its own under ``--temp-dir``,
+calibrated configuration: the nine parameters become the candidate's (and so do
+the `MODFLOW parameters`_ of the run), the output directory becomes a temporary
+directory of its own under ``--temp-dir``,
 every raster series is disabled (an evaluation reads no raster of a previous
 run, and writing them would dominate the cost of the run) and the time series
 are reduced to the calibrated variable, as CSV. The aggregation the user
@@ -780,7 +885,9 @@ A worker that disappears before it finishes its evaluation ends the
 calibration, and the most common reason is the system killing it for lack of
 memory: every worker holds the rasters of one model run. The message says so,
 advises a lower ``--workers`` and names the table of the evaluations made up to
-that point, which is written on the way out.
+that point, which is written on the way out. With MODFLOW enabled it also names
+the other cause, a solver failure before the last time step of a stress period
+when ``dis.nstp`` is above 1 (see `MODFLOW parameters`_).
 
 Definitions worth knowing
 -------------------------

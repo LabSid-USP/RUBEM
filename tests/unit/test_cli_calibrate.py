@@ -539,6 +539,47 @@ class TestCliCalibrateDecisionSpaceOptions:
         assert settings.polish is True
 
     @pytest.mark.unit
+    def test_the_modflow_names_reach_the_settings_as_they_are_written(
+        self, config_path, observed_path, tmp_path, fake_calibration, restore_logging
+    ):
+        main(
+            [
+                "calibrate",
+                "-c",
+                str(config_path),
+                "--observed",
+                str(observed_path),
+                "-o",
+                str(tmp_path / "calibration"),
+                "--bound",
+                "modflow.layers.1.specific_yield=0.05:0.3",
+                "--bound",
+                "modflow.layers.1.kh.2=0.05:0.5",
+                "--fix",
+                "modflow.river.1.conductance=0.387",
+            ]
+        )
+
+        settings = fake_calibration.calls[0][3]
+        # The command line only parses; the calibration resolves the names
+        # against the MODFLOW section of the configuration.
+        assert settings.bounds == {
+            "modflow.layers.1.specific_yield": (0.05, 0.3),
+            "modflow.layers.1.kh.2": (0.05, 0.5),
+        }
+        assert settings.fixed == {"modflow.river.1.conductance": 0.387}
+
+    @pytest.mark.unit
+    def test_the_help_of_the_bounds_names_the_modflow_parameters(self, capsys, restore_logging):
+        with pytest.raises(SystemExit) as error:
+            main(["calibrate", "--help"])
+
+        assert error.value.code == 0
+        output = " ".join(capsys.readouterr().out.split())
+        assert "MODFLOW" in output
+        assert "modflow.layers" in output
+
+    @pytest.mark.unit
     def test_no_polish_is_the_default_and_can_be_written_out(
         self, config_path, observed_path, tmp_path, fake_calibration, restore_logging
     ):
