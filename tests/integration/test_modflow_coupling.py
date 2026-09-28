@@ -126,6 +126,40 @@ def assert_files_only_in_run_directory(run_directory, working_directory):
     assert os.listdir(working_directory) == []
 
 
+@pytest.mark.parametrize("multiplier", [1.0, 1.5])
+def test_substep_recharge_river_storage_balance(tmp_path, multiplier):
+    """Integrated leakage closes a transient budget, not just its final rate."""
+    grid = Grid(tmp_path, 30, False)
+    section = one_layer_section(
+        grid, 1, dis={"nstp": 5, "tsmult": multiplier}, output={"storage": True}
+    )
+    model = ModflowGroundwater(ModflowSettings.model_validate(section), CELL_AREA, tmp_path / "run")
+    model.initialize(DAYS)
+    durations = np.array([multiplier**i for i in range(5)])
+    durations *= DAYS / durations.sum()
+    previous_head = 50.0
+    for _ in range(2):
+        expected_head = previous_head
+        volume = 0.0
+        for duration in durations:
+            storage = 0.1 * CELL_AREA / duration
+            expected_head = (
+                RIVER_CONDUCTANCE * RIVER_STAGE + RECHARGE_FLOW + storage * expected_head
+            ) / (RIVER_CONDUCTANCE + storage)
+            volume += RIVER_CONDUCTANCE * (expected_head - RIVER_STAGE) * duration
+        result = model.run_step(grid.field(RECHARGE_MM), DAYS)
+        measured_volume = pcr.cellvalue(result.baseflow_mm, PROBE_CELL)[0] * CELL_AREA / 1000
+        measured_storage = -pcr.cellvalue(result.storage[1], PROBE_CELL)[0] * DAYS
+        # PCRaster serializes each new BAS initial head with six significant
+        # digits (5e-5 m here), so chained steps accumulate that quantization.
+        assert measured_volume == pytest.approx(volume, abs=0.02)
+        assert measured_volume + measured_storage == pytest.approx(RECHARGE_FLOW * DAYS, abs=0.003)
+        assert pcr.cellvalue(result.heads[1], PROBE_CELL)[0] == pytest.approx(
+            expected_head, abs=3e-4
+        )
+        previous_head = expected_head
+
+
 @pytest.mark.parametrize("external_head, conductance", [(60, 3), (40, 3), (60, 0)])
 @pytest.mark.parametrize("masked", [False, True])
 @pytest.mark.parametrize("transient", [False, True])
@@ -534,22 +568,86 @@ class TestCoupledRun:
         listing = tmp_path / "dataset" / "out" / "modflow" / "pcrmf.lst"
         assert "STOPPING SIMULATION" in listing.read_text(encoding="utf8", errors="replace")
 
-    def test_non_convergence_before_the_last_time_step_ends_the_process(self, tmp_path):
-        """Pins the documented limitation of ``dis.nstp`` above 1.
-
-        MODFLOW saves the heads only at the last time step of the period and
-        stops at the first time step that fails to converge. With several time
-        steps nothing is saved in the first period, and the extension ends the
-        process when it reads the missing head file, before ``converged()``
-        can be asked. The run therefore happens in a child process.
-        """
+    def test_non_convergence_before_the_last_time_step_raises(self, tmp_path):
+        """An early failed substep remains recoverable by a calibration worker."""
         child = run_broken_solver_in_a_child(tmp_path, dis={"nstp": 5})
 
         output = child.stdout + child.stderr
-        assert child.returncode != 0, output
-        assert "RAISED" not in child.stdout
+        assert child.returncode == 0, output
+        assert "RAISED MODFLOW did not converge in stress period 1" in child.stdout
+        assert "time step 1/5" in child.stdout
         assert "RETURNED" not in child.stdout
         assert "MODFLOW failed to converge" in output
-        assert "Can not open head value result file" in output
+        assert "Can not open head value result file" not in output
         listing = tmp_path / "dataset" / "out" / "modflow" / "pcrmf.lst"
         assert "STOPPING SIMULATION" in listing.read_text(encoding="utf8", errors="replace")
+
+
+@pytest.mark.parametrize("nstp", [1, 5])
+def test_a_dry_layer_can_rewet_in_a_later_stress_period(tmp_path, nstp):
+    """A dry IBOUND carried between native runs must retain BCF wetting capability."""
+    grid = Grid(tmp_path, 30, False)
+    layers = []
+    for number, bottom, initial_head, laytype in [(1, 10, 9, 3), (2, 0, 5, 0)]:
+        layers.append(
+            {
+                "name": f"layer{number}",
+                "bottom": grid.map(f"bottom{number}", bottom),
+                "initial_head": grid.map(f"initial{number}", initial_head),
+                "boundary": grid.map(f"boundary{number}", 1, nominal=True),
+                "laytype": laytype,
+                "horizontal_conductivity": 1.0,
+                "vertical_conductivity": 1.0,
+                "specific_storage": 0.001,
+                "specific_yield": 0.1,
+            }
+        )
+    settings = ModflowSettings.model_validate(
+        {
+            "enabled": True,
+            "top": grid.map("top", 20),
+            "layers": layers,
+            "dis": {"nstp": nstp},
+            "wetting": {
+                "enabled": True,
+                "map": grid.map("wet", -0.1),
+                "layers": [1],
+                "wetfct": 0.5,
+                "iwetit": 1,
+            },
+            "river": {
+                "enabled": True,
+                "entries": [
+                    {
+                        "layers": [2],
+                        "stage": grid.map("stage", 5),
+                        "bottom": grid.map("bed", 1),
+                        "conductance": grid.map("rivcond", 0.01),
+                    }
+                ],
+            },
+            "ghb": {
+                "enabled": True,
+                "entries": [
+                    {
+                        "layers": [2],
+                        "head": grid.map("ghbhead", 5),
+                        "conductance": grid.map("ghbcond", 100),
+                    }
+                ],
+            },
+            "solver": {"hclose": 1e-6, "rclose": 1e-6, "damp": 1},
+        }
+    )
+    model = ModflowGroundwater(settings, CELL_AREA, tmp_path / "run")
+    model.initialize(1)
+
+    dry = model.run_step(grid.field(0), 1)
+    assert not np.isfinite(pcr.pcr2numpy(dry.heads[1], np.nan)).any()
+    assert np.isfinite(pcr.pcr2numpy(dry.heads[2], np.nan)).all()
+
+    # Recharge enters the lower active layer until its head can rewet the top.
+    wet = model.run_step(grid.field(1000), 1)
+    heads = pcr.pcr2numpy(wet.heads[1], np.nan)
+    assert np.isfinite(heads).all()
+    assert (heads > 10.0).all()

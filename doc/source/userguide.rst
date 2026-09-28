@@ -1121,7 +1121,13 @@ object with a nominal class ``map`` and a lookup ``table``;
 is) and ``specific_yield`` [dimensionless quantity], each a raster path or a
 number; and ``compute_conductivity`` (default ``true``). A transient run needs
 ``specific_storage`` for ``LAYCON`` 0, ``specific_yield`` for ``LAYCON`` 1 and
-both for ``LAYCON`` 2 and 3. Numbers are written without quotes. :ref:`See more. <groundwater:Layer keys>`
+both for ``LAYCON`` 2 and 3. Every layer must have the same
+``compute_conductivity`` value, since the extension applies it globally.
+When it is ``false``, the inputs use the units of the BCF transmissivity,
+conductivity or vertical leakance arrays they replace. A source specific
+storage in :math:`m^{-1}` must first be multiplied by layer thickness to
+obtain the dimensionless ``specific_storage`` coefficient. Numbers are
+written without quotes. :ref:`See more. <groundwater:Layer keys>`
 
 .. code-block:: json
 
@@ -1163,9 +1169,12 @@ MODFLOW Time Discretization
 Optional object ``dis``: ``nstp``, the number of MODFLOW time steps in each
 stress period (default ``1``); ``tsmult``, their length multiplier (default
 ``1.0``); and ``steady_state`` (default ``false``). One RUBEM step is one
-stress period, whose length is the number of days of its month. With ``nstp``
-above 1, a solver failure before the last time step of a period ends the
-process instead of raising an error. :ref:`See more. <groundwater:Limitations>`
+monthly stress period, whose length is the number of days of its month.
+RUBEM runs each substep with native ``NSTP = 1`` and integrates the flow
+rates over the substep durations. A solver failure at any substep raises an
+error identifying the period and substep; calibration records it as a failed
+evaluation. A steady-state month is solved once; ``nstp`` and ``tsmult`` apply
+to transient runs. :ref:`See more. <groundwater:Time discretization>`
 
 .. code-block:: json
 
@@ -1201,7 +1210,9 @@ Optional object ``wetting`` for the rewetting of dry cells: ``enabled``
 when enabled; ``layers``, the layers it applies to (default ``null``: every
 layer whose ``LAYCON`` is 1 or 3; a listed layer must be of one of those
 types); ``wetfct`` (``1.0``), ``iwetit`` (``3``) and ``ihdwet`` (``0`` or
-``1``, default ``0``). :ref:`See more. <groundwater:Wetting>`
+``1``, default ``0``). The map must share the clone geometry. Its thresholds
+must be finite on active cells of the wetting layers; missing values mean
+no rewetting. :ref:`See more. <groundwater:Wetting>`
 
 .. code-block:: json
 
@@ -1224,7 +1235,10 @@ of the coupled run. Each of its ``entries`` lists its ``layers`` and the paths
 ``stage`` [m] and ``bottom`` (riverbed bottom) [m]; ``conductance``
 [:raw-html:`m<sup>2</sup>day<sup>-1</sup>`] is a raster path or a positive
 number, which then needs ``mask``, the path to a raster whose positive cells
-are the river cells. :ref:`See more. <groundwater:Rivers, general-head boundaries and drains>`
+are the river cells. Conductance maps must be finite and non-negative in those cells.
+The stage is prescribed; river-to-aquifer leakage is reported but is not
+deducted from RUBEM's routed river flow, so this coupling does not close the
+combined basin water balance. :ref:`See more. <groundwater:Rivers, general-head boundaries and drains>`
 
 .. code-block:: json
 
@@ -1330,8 +1344,10 @@ diagnostics written as raster series, in the raster formats of the run:
 [:raw-html:`m<sup>3</sup>day<sup>-1</sup>`]), ``storage`` (default ``false``,
 ``mfst<n>``, transient runs only), ``drain_flow`` (default ``false``,
 ``mfdrn<n>``) and ``root_depth`` (default ``false``, ``mfwt``, ``mfgwd``,
-``mfzr`` and ``mfzfrac``, with the root-depth coupling). No time series is
-written for them. :ref:`See more. <groundwater:Outputs of a coupled run>`
+``mfzr`` and ``mfzfrac``, with the root-depth coupling). River exchange,
+storage and drain outputs are duration-weighted monthly mean rates; heads
+are those of the final substep. No time series is written for them.
+:ref:`See more. <groundwater:Outputs of a coupled run>`
 
 .. code-block:: json
 

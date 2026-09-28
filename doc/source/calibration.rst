@@ -365,6 +365,10 @@ layers numbered from the top down, as in the configuration:
      - :raw-html:`m<sup>2</sup>day<sup>-1</sup>`
      - :math:`(0, \infty)`
 
+The conductivity units above assume ``compute_conductivity: true``. With
+``false``, lookup values use the horizontal BCF input units for that layer
+type, as described in :ref:`groundwater:Preparing conductivity and storage maps`.
+
 A name exists only where the configuration gives a number that the run reads;
 a raster is not a number to search:
 
@@ -376,7 +380,8 @@ a raster is not a number to search:
   table, spelt as a number in its shortest form (``01`` and ``1.0`` are class
   ``1``). Only the row PCRaster reads for a class is named: an interval row
   is not, nor a row whose class an earlier row, numeric or interval, already
-  matches;
+  matches. Universal interval rows such as ``[,]`` and ``<,>`` remain valid
+  fallbacks and are preserved when candidate tables are written;
 - the conductance of a river entry, when it is a number (with its ``mask``).
 
 A MODFLOW parameter is **never searched by default**. It joins the search only
@@ -417,14 +422,12 @@ were searched or fixed appear in :file:`evaluations.csv`, in
    :ref:`groundwater:The saturated zone`). Fix it, as in the example above,
    so that the search does not spend a dimension on it.
 
-.. warning::
-
-   With ``dis.nstp`` above 1, a candidate whose MODFLOW solver fails before
-   the last time step of a stress period ends its worker process, and with it
-   the calibration, instead of being recorded as a failed evaluation; see
-   :ref:`groundwater:Limitations`. The command warns about it before the
-   search starts. With the default ``dis.nstp`` of 1 such a candidate is a
-   failed evaluation like any other.
+Each groundwater substep is checked for convergence, including when
+``dis.nstp`` is above 1. A non-convergent substep raises an error identifying
+the month and substep; the candidate is recorded as a failed evaluation and
+the search continues. Successful runs integrate river exchange over every
+substep before returning monthly baseflow to RUBEM. See
+:ref:`groundwater:Time discretization` and :ref:`groundwater:Solver`.
 
 The search
 ----------
@@ -885,9 +888,9 @@ A worker that disappears before it finishes its evaluation ends the
 calibration, and the most common reason is the system killing it for lack of
 memory: every worker holds the rasters of one model run. The message says so,
 advises a lower ``--workers`` and names the table of the evaluations made up to
-that point, which is written on the way out. With MODFLOW enabled it also names
-the other cause, a solver failure before the last time step of a stress period
-when ``dis.nstp`` is above 1 (see `MODFLOW parameters`_).
+that point, which is written on the way out. MODFLOW non-convergence is
+handled as a failed evaluation at any configured substep; it does not require
+ending the worker or the search (see `MODFLOW parameters`_).
 
 Definitions worth knowing
 -------------------------

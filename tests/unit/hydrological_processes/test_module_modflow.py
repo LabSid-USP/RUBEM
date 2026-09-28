@@ -314,7 +314,7 @@ class TestInitialize:
     def test_a_steady_run_sets_no_storage(self, section, run_dir, mf):
         section["dis"] = {"steady_state": True, "nstp": 2, "tsmult": 1.5}
         build(section, run_dir)
-        mf.setDISParameter.assert_called_once_with(4, 2, 31.0, 2, 1.5, 1)
+        mf.setDISParameter.assert_called_once_with(4, 2, 31.0, 1, 1.0, 1)
         mf.setStorage.assert_not_called()
 
     @pytest.mark.parametrize("area", [900.0, CELL_AREA])
@@ -383,14 +383,22 @@ class TestInitialize:
         build(section, run_dir)
         assert np.isfinite(values(mf.setRiver.call_args.args[0])).all()
 
-    def test_non_positive_conductance_is_not_a_package_cell(self, section, run_dir, mf):
+    def test_negative_conductance_is_refused_even_without_preflight(self, section, run_dir, mf):
         conductance = section["ghb"]["entries"][0]["conductance"]
         rewrite(
             conductance, [-1.0 if index == 3 else value for index, value in enumerate(LEFT_COLUMN)]
         )
-        build(section, run_dir)
-        ghb = values(mf.setGeneralHead.call_args_list[0].args[1])
-        np.testing.assert_allclose(ghb[:, 0], [1.0, 0.0, 1.0])
+        with pytest.raises(ValueError, match="negative conductance"):
+            build(section, run_dir)
+
+    @pytest.mark.parametrize("value", [math.inf, -math.inf])
+    def test_infinite_conductance_is_refused_even_without_preflight(
+        self, section, run_dir, mf, value
+    ):
+        conductance = section["ghb"]["entries"][0]["conductance"]
+        rewrite(conductance, [value if index == 3 else 1.0 for index in range(9)])
+        with pytest.raises(ValueError, match="infinite conductance"):
+            build(section, run_dir)
 
     def test_a_package_layer_without_cells_is_not_set(self, section, run_dir, mf, caplog):
         empty = write_grid_map(Path(section["top"]).with_name("empty.map"), 0.0)
@@ -448,6 +456,44 @@ class TestRuntime:
 
 @pytest.mark.usefixtures("extension")
 class TestRunStep:
+    @pytest.mark.parametrize(
+        "multiplier, durations", [(1.0, [7, 7, 7]), (2.0, [3, 6, 12]), (0.5, [12, 6, 3])]
+    )
+    def test_substep_fluxes_are_integrated_before_sign_cancellation(
+        self, section, run_dir, mf, multiplier, durations
+    ):
+        section["dis"] = {"nstp": 3, "tsmult": multiplier}
+        section["output"] = {"storage": True}
+        mf.getRiverLeakage.side_effect = [pcr.scalar(-2), pcr.scalar(3), pcr.scalar(-4)]
+        mf.getStorage.side_effect = lambda layer: pcr.scalar(mf.run.call_count * layer)
+        model = build(section, run_dir, days=21)
+        result = model.run_step(pcr.scalar(21), 21)
+        assert [call.args for call in mf.updateDISParameter.call_args_list] == [
+            (pytest.approx(duration), 1, 1.0) for duration in durations
+        ]
+        outgoing = 2 * durations[0] + 4 * durations[2]
+        incoming = 3 * durations[1]
+        np.testing.assert_allclose(values(result.baseflow_mm), outgoing * 1000 / CELL_AREA)
+        np.testing.assert_allclose(values(result.aquifer_to_river_m3_per_day), outgoing / 21)
+        np.testing.assert_allclose(values(result.river_to_aquifer_m3_per_day), incoming / 21)
+        np.testing.assert_allclose(
+            values(result.net_river_leakage_m3_per_day), (incoming - outgoing) / 21
+        )
+        np.testing.assert_allclose(
+            values(result.storage[1]),
+            sum((i + 1) * 3 * d for i, d in enumerate(durations)) / 21,
+            rtol=2e-7,
+        )
+        assert mf.run.call_count == 3
+
+    def test_failure_in_a_substep_stops_before_the_next_native_run(self, section, run_dir, mf):
+        section["dis"] = {"nstp": 5}
+        mf.converged.side_effect = [True, False]
+        model = build(section, run_dir)
+        with pytest.raises(RuntimeError, match="stress period 1.*time step 2/5"):
+            model.run_step(pcr.scalar(0), DAYS)
+        assert mf.run.call_count == 2
+
     def test_recharge_goes_to_the_highest_active_cell_in_metres_per_day(self, section, run_dir, mf):
         model = build(section, run_dir)
         recharge = pcr.numpy2pcr(pcr.Scalar, grid([NAN] + [31.0] * 8), np.nan)

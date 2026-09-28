@@ -31,12 +31,16 @@ What the coupling exchanges
 One step, one stress period
 ```````````````````````````
 
-Every RUBEM time step is one MODFLOW stress period. RUBEM steps are months, so
-the length of a period, :math:`\Delta t`, is the number of days of the month
-of the step; in a transient run the period is divided into ``dis.nstp`` time
-steps. The groundwater model is built once, when the simulation starts, and
-kept for the whole run: the heads of a period are the initial heads of the
-next one.
+Every RUBEM time step defines a monthly groundwater stress period. Its length,
+:math:`\Delta t`, is the number of days of the month; in a transient run the
+period is divided into ``dis.nstp`` substeps. The groundwater model is built
+once and kept for the whole run: each substep starts from the preceding
+substep's heads, and the final heads of a month start the next month.
+
+RUBEM runs each substep separately through the extension, with native
+``NSTP = 1``. This lets it check convergence and collect flows after every
+substep. Recharge and the prescribed boundary maps hold throughout the month;
+the resulting flows are integrated over their substep durations.
 
 Recharge
 ````````
@@ -72,22 +76,35 @@ output variable ``bfw`` and its unit, millimetres per step.
    :label: groundwater-baseflow
    :nowrap:
 
-    \[BFW = \frac{1000 \cdot \Delta t}{A} \sum_{k} \max\left(-Q_{RIV,k},\ 0\right)\]
+    \[BFW = \frac{1000}{A} \sum_i \Delta t_i \sum_k \max\left(-Q_{RIV,k,i},\ 0\right)\]
 
 where:
 
 - :math:`BFW` – baseflow of the step [mm];
-- :math:`Q_{RIV,k}` – RIV leakage of the cell in layer :math:`k`, positive
+- :math:`Q_{RIV,k,i}` – RIV leakage of the cell in layer :math:`k` during
+  substep :math:`i`, positive
   into the aquifer [:raw-html:`m<sup>3</sup>day<sup>-1</sup>`]; the sum runs
   over the layers that hold river cells;
 - :math:`A` – area of a RUBEM cell, the square of ``GRID.grid``
   (``raster_info.grid_size`` in format 1.0) [:raw-html:`m<sup>2</sup>`];
-- :math:`\Delta t` – length of the stress period [days].
+- :math:`\Delta t_i` – duration of substep :math:`i` [days], whose sum is
+  the length of the month :math:`\Delta t`.
+
+The two flow directions are separated in each layer and substep before they
+are summed. A flow that reverses during the month therefore contributes to
+both directional diagnostics. Their duration-weighted monthly means, and the
+signed net mean, are reported in :raw-html:`m<sup>3</sup>day<sup>-1</sup>`.
+The rate at the end of the month alone does not determine the monthly volume.
 
 The baseflow enters the total runoff of the cell as it does without MODFLOW.
 The leakage in the opposite direction, from the river into the aquifer, is
 reported (``mfrv2aq``, see `Outputs of a coupled run`_) but is not taken from
-any RUBEM flux.
+any RUBEM flux. The river stage is prescribed independently of the routed
+RUBEM discharge, so an infiltrating RIV cell acts as an external water source
+to the groundwater model. The MODFLOW budget accounts for that inflow, but
+does not establish a closed water balance for the combined river-basin model.
+The present coupling returns aquifer discharge to the river without solving
+a river balance that debits the reverse exchange.
 
 The saturated zone
 ``````````````````
@@ -199,7 +216,7 @@ general-head boundaries on the three layers (format 1.0):
              "map": "input/modflow/kh_classes3.map",
              "table": "input/modflow/kh3.tbl"
            },
-           "vertical_conductivity": "input/modflow/KY3.map",
+           "vertical_conductivity": "input/modflow/kv3.map",
            "specific_yield": 0.15,
            "specific_storage": 1e-6
          },
@@ -213,7 +230,7 @@ general-head boundaries on the three layers (format 1.0):
              "map": "input/modflow/kh_classes2.map",
              "table": "input/modflow/kh2.tbl"
            },
-           "vertical_conductivity": "input/modflow/KY2.map",
+           "vertical_conductivity": "input/modflow/kv2.map",
            "specific_yield": 0.15,
            "specific_storage": 1e-6
          },
@@ -227,7 +244,7 @@ general-head boundaries on the three layers (format 1.0):
              "map": "input/modflow/kh_classes1.map",
              "table": "input/modflow/kh1.tbl"
            },
-           "vertical_conductivity": "input/modflow/KY1.map",
+           "vertical_conductivity": "input/modflow/kv1.map",
            "specific_yield": 0.15,
            "specific_storage": 1e-6
          }
@@ -389,7 +406,8 @@ Layer keys
      - Horizontal hydraulic conductivity. The object form takes a nominal map
        of classes (``map``) and a PCRaster lookup table (``table``) with one
        ``class value`` row per class; the first row that matches a class is
-       the one read, as in any PCRaster lookup.
+       the one read, as in any PCRaster lookup. Interval rows, including the
+       universal intervals ``[,]`` and ``<,>``, are accepted.
    * - ``vertical_conductivity``
      - raster or positive number
      - m/day
@@ -413,11 +431,40 @@ Layer keys
        are, instead of the transmissivity and vertical leakance computed
        from them (the ``COMPUTE`` flag of the extension's
        ``setConductivity``); their units are then those of the MODFLOW arrays
-       they replace.
+       they replace. Every layer must use the same value: the extension
+       applies this flag to the whole model.
 
 A transient run needs the storage its layer types read: ``specific_storage``
 for ``LAYCON`` 0, ``specific_yield`` for ``LAYCON`` 1, both for ``LAYCON`` 2
 and 3. A steady-state run reads neither.
+
+Preparing conductivity and storage maps
+```````````````````````````````````````
+
+With ``compute_conductivity: true``, provide horizontal conductivity
+:math:`K_h` and vertical conductivity :math:`K_v`, both in m/day. File names
+do not determine their meaning. The Batalha/Bauru example takes ``KY`` as
+:math:`K_h` and assumes the dimensionless anisotropy ``KX`` is the vertical
+ratio :math:`K_h/K_v`. Confirm the direction of an anisotropy ratio in the
+source model before converting it. Under that assumption, prepare a separate
+vertical-conductivity raster as
+:math:`K_v = KY/KX`; give ``KY`` as ``horizontal_conductivity`` and the
+derived raster as ``vertical_conductivity``. Do this for each corresponding
+physical layer, preserving the source rasters.
+
+The key ``specific_storage`` takes the dimensionless confined storage
+coefficient ``Sf1`` expected by BCF. If the source contains specific storage
+:math:`S_s` in :math:`m^{-1}`, first calculate
+:math:`Sf1 = S_s (z_{top} - z_{bottom})` for each layer. A spatially variable
+thickness requires a spatially variable ``Sf1`` even when :math:`S_s` is
+constant. RUBEM passes the configured coefficient through unchanged. See the
+`MODFLOW-2005 BCF storage definition
+<https://water.usgs.gov/ogw/modflow/MODFLOW-2005-Guide/bcf.html>`__.
+
+With ``compute_conductivity: false``, the horizontal input is transmissivity
+for ``LAYCON`` 0 or 2 and conductivity for ``LAYCON`` 1 or 3; the vertical
+input is vertical leakance. The flag does not convert storage inputs, and
+mixing its values across layers is refused.
 
 Time discretization
 ```````````````````
@@ -433,9 +480,9 @@ Time discretization
    * - ``dis.nstp``
      - integer ``>= 1``, default ``1``
      - –
-     - Number of MODFLOW time steps in each stress period. With more than
-       one, a solver failure before the last of them ends the process instead
-       of raising an error; see `Limitations`_.
+     - Number of groundwater substeps in each monthly stress period. Each
+       is run with one native MODFLOW time step; flows are integrated over
+       all of them and heads are taken from the final one.
    * - ``dis.tsmult``
      - number ``> 0``, default ``1.0``
      - –
@@ -444,11 +491,20 @@ Time discretization
      - boolean, default ``false``
      - –
      - With ``true`` every stress period is steady state: no storage is read
-       and the ``storage`` output cannot be enabled.
+       and the ``storage`` output cannot be enabled. Each month is solved
+       once; ``nstp`` and ``tsmult`` apply only to transient runs.
 
-In a transient run the length of each period is updated to the days of its
-month before it runs. The time unit (days) and the length unit (metres) are
-fixed.
+The transient substep durations form a geometric sequence with ratio
+``dis.tsmult`` and sum to the number of days in the month. A multiplier of
+1 gives equal durations. The recharge rate remains the monthly recharge
+divided by the month length for every substep. The time unit (days) and the
+length unit (metres) are fixed.
+
+Between native runs the PCRaster extension writes starting heads with six
+significant digits. A chain of substeps can therefore differ slightly from a
+single native run with several time steps, even with the same solver
+tolerances. This serialization precision also affects the monthly restart;
+check its effect against the head accuracy required by the study.
 
 Solver
 ``````
@@ -508,6 +564,12 @@ one the coupling configures. Its keys are those of ``setPCG`` of the extension:
 
 The head MODFLOW gives a cell that becomes dry (``HDRY``) is fixed at
 ``-999.9``.
+
+Convergence is checked after every substep. A failure raises an error that
+names the monthly period, the substep and ``pcrmf.lst``, and stops the run
+while keeping its run directory. This also applies with ``dis.nstp`` above
+1. In a calibration the candidate is recorded as a failed evaluation, so the
+search can continue.
 
 Wetting
 ```````
@@ -720,6 +782,7 @@ violation is listed in one message:
 - ``top`` and at least one layer are given, at most 9 layers, and the layer
   names are unique;
 - ``LAYCON`` 1 appears only on layer 1, as MODFLOW-2005 requires;
+- ``compute_conductivity`` has the same value in every layer;
 - ``river.enabled`` is ``true``, every enabled package has an entry, every
   layer number is a layer of the section and appears at most once per
   package, and a numeric river conductance comes with a ``mask``;
@@ -749,14 +812,21 @@ Blocking:
   layer and the first row and column);
 - an initial head, conductivity or (in a transient run) storage raster
   missing on an active cell of its layer;
+- a conductivity that is not positive, a negative confined storage
+  coefficient, or a specific yield outside ``[0, 1]`` on an active cell;
 - an initial head below the layer bottom in every active cell of the layer;
 - an initial head equal to a MODFLOW no-data marker (``-888``, ``-999``,
   ``-999.9``, ``-999.99`` or ``-9999``) in an active cell: the extension
   would read it as a head, start the cell dry and carry the value into the
   head outputs, so give the cell a head or make it inactive;
 - a conductivity class map in PCRaster format that is not nominal, or a
-  class on an active cell that the lookup table does not give a positive
-  value;
+  class on an active cell that the lookup table does not give a finite,
+  positive value representable as a PCRaster Float32 scalar;
+- an unreadable or geometrically incompatible ``WETDRY`` raster, or an
+  infinite threshold on an active cell of a layer with wetting; missing
+  thresholds remain accepted and mean no rewetting;
+- a negative or infinite package conductance within the boundary of a listed layer
+  and, for a masked river, within its mask;
 - an enabled package layer without any cell (the extension would end the
   process on it), or a stage, bottom, head or elevation missing on a cell of
   the package;
@@ -786,6 +856,11 @@ GeoTIFF for the head of layer 1 at step 1). They are selected by the
 is written for them, so a run that enables no raster format writes none of
 them.
 
+River, storage and drain diagnostics are duration-weighted mean rates over
+the month: :math:`\overline{Q} = \sum_i Q_i \Delta t_i / \Delta t`.
+Multiplying one of these rates by the days in the month gives its monthly
+volume. Head diagnostics are the final substep's heads.
+
 .. list-table::
    :header-rows: 1
    :widths: 18 22 14 46
@@ -797,29 +872,29 @@ them.
    * - ``mfh<n>``
      - ``output.heads``
      - m
-     - Head of layer ``n``. Dry cells have no value.
+     - Final head of layer ``n`` for the month. Dry cells have no value.
    * - ``mfaq2rv``
      - ``output.river_leakage``
      - :raw-html:`m<sup>3</sup>day<sup>-1</sup>`
-     - Leakage from the aquifer to the river, summed over the river layers;
-       ``bfw`` is this flux as a depth.
+     - Mean leakage from the aquifer to the river, summed over the river
+       layers; ``bfw`` is its monthly volume as a depth.
    * - ``mfrv2aq``
      - ``output.river_leakage``
      - :raw-html:`m<sup>3</sup>day<sup>-1</sup>`
-     - Leakage from the river to the aquifer.
+     - Mean leakage from the river to the aquifer.
    * - ``mfrvnet``
      - ``output.river_leakage``
      - :raw-html:`m<sup>3</sup>day<sup>-1</sup>`
-     - Net river leakage, positive into the aquifer.
+     - Mean net river leakage, positive into the aquifer.
    * - ``mfst<n>``
      - ``output.storage`` (transient)
      - :raw-html:`m<sup>3</sup>day<sup>-1</sup>`
-     - Storage flow of layer ``n``.
+     - Mean storage flow of layer ``n``.
    * - ``mfdrn<n>``
      - ``output.drain_flow``
      - :raw-html:`m<sup>3</sup>day<sup>-1</sup>`
-     - Drain flow of layer ``n``, negative out of the aquifer; one series per
-       layer of the drain entries.
+     - Mean drain flow of layer ``n``, negative out of the aquifer; one series
+       per layer of the drain entries.
    * - ``mfwt``
      - ``output.root_depth`` and the root-depth coupling
      - m
@@ -854,6 +929,10 @@ write, and removes it again when MODFLOW cannot start.
 A run that fails during the simulation keeps the directory, with the MODFLOW
 listing file ``pcrmf.lst``, for inspection; move or remove it before running
 into the same output directory again.
+
+The native files describe the most recent substep. Their budget is not the
+monthly aggregate when ``dis.nstp`` is above 1; the reported mean flow rasters
+include all substeps of the month.
 
 In a calibration each evaluation runs in its own temporary output directory
 under ``--temp-dir``, so its MODFLOW directory, and the conductivity tables of
@@ -915,17 +994,6 @@ them. :ref:`calibration:MODFLOW parameters` lists the names and the rules.
 Limitations
 -----------
 
-- **Solver failures.** A stress period that does not converge raises an error
-  that names the period and the listing file, and the run stops, keeping its
-  run directory; in a calibration the evaluation fails and is ranked behind
-  every other. That holds when the solver fails at the last time step of the
-  period, which is always the case with the default ``dis.nstp`` of 1. With
-  more time steps, a failure at an earlier one stops MODFLOW before it writes
-  the heads of the period, and the PCRaster MODFLOW extension then ends the
-  whole process (``Can not open head value result file``) instead of
-  returning an error; the run directory, with ``pcrmf.lst``, is kept. In a
-  calibration that ends the worker process, and with it the calibration,
-  which is why ``rubem calibrate`` warns when ``dis.nstp`` is above 1.
 - The MODFLOW packages are DIS, BAS, BCF, RCH, RIV, GHB, DRN and the PCG
   solver, and no other: no well package (WEL), no other flow package or
   solver.
@@ -944,8 +1012,10 @@ Limitations
   `Rivers, general-head boundaries and drains`_).
 - Wetting applies one ``WETDRY`` map to its layers, which must be ``LAYCON`` 1
   or 3.
-- The river-to-aquifer leakage adds water to the aquifer that no RUBEM flux
-  loses.
+- River stages are prescribed. River-to-aquifer leakage is an external input
+  to groundwater and is not deducted from RUBEM's routed flow. The coupling
+  therefore does not close the combined river-basin water balance; see
+  `Baseflow`_.
 
 References
 ----------

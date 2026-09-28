@@ -16,6 +16,29 @@ from rubem.configuration.modflow_configuration import ModflowSettings
 from tests.helpers.synthetic import write_synthetic_dataset
 
 
+def test_mixed_compute_conductivity_is_rejected():
+    data = section()
+    data["layers"][1]["compute_conductivity"] = False
+    with pytest.raises(ValueError, match="compute_conductivity.*same"):
+        ModflowSettings.model_validate(data)
+
+
+@pytest.mark.parametrize("key", ["horizontal_conductivity", "vertical_conductivity"])
+@pytest.mark.parametrize("value", [1e-100, 1e100])
+def test_numeric_conductivity_must_remain_positive_finite_in_float32(key, value):
+    data = section()
+    data["layers"][0][key] = value
+    with pytest.raises(ValueError):
+        ModflowSettings.model_validate(data)
+
+
+def test_numeric_storage_must_remain_finite_in_float32():
+    data = section()
+    data["layers"][1]["specific_storage"] = 1e100
+    with pytest.raises(ValueError):
+        ModflowSettings.model_validate(data)
+
+
 def layer(name, bottom, head, laytype=2, **overrides):
     """One layer of the section, with every file named after the layer."""
     return {

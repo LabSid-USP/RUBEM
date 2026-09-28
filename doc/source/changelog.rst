@@ -25,23 +25,30 @@ Added
   top layer, wetting on layers that are not ``LAYCON`` 1 or 3 and a transient
   layer without the storage its type reads, and the validation checks the
   geometry, the heads against the bottoms and the no-data markers, the
-  conductivity tables, the
-  package cells, reports river cells whose bed lies outside their layer, and
+  physical ranges of conductivity and storage maps, Float32 conductivity
+  table values, WETDRY rasters and finite, non-negative package conductances. It
+  reports river cells whose bed lies outside their layer and
   blocks, even with ``-s``, a missing input file or a missing MODFLOW runtime
   (the extension and ``mf2005``, both in the conda-forge ``pcraster``
   package). MODFLOW runs in ``<output>/modflow``, removed after the last step;
   heads, river exchange, storage, drain flow and an experimental root-depth
   coupling with the water table are written as raster series selected in the
-  section. A stress period has one time step unless ``dis.nstp`` says
-  otherwise, so that a solver failure raises an error instead of ending the
-  process. ``rubem calibrate`` runs the coupled model whenever the
-  configuration enables it, warns when ``dis.nstp`` is above 1, and searches
+  section. Each configured substep runs with one native MODFLOW time step;
+  river exchange is integrated over every substep for monthly baseflow,
+  river/storage/drain diagnostics are monthly mean rates, and heads are the
+  final values. A solver failure at any substep raises an error naming its
+  period and substep. All layers must share ``compute_conductivity``, which
+  the extension applies globally. Universal lookup intervals ``[,]`` and
+  ``<,>`` are accepted and preserved in candidate tables. ``rubem calibrate``
+  runs the coupled model whenever the configuration enables it and searches
   or fixes the MODFLOW parameters
   named in ``--bound`` and ``--fix`` (``modflow.layers.<n>.specific_yield``,
   ``modflow.layers.<n>.specific_storage``, ``modflow.layers.<n>.kh.<class>``,
   ``modflow.river.<i>.conductance``). The new Groundwater Coupling page
-  documents the exchange, the keys, the rules, the outputs and the
-  limitations (`#356 <https://github.com/LabSid-USP/RUBEM/issues/356>`__).
+  documents the exchange, the keys, the rules, the outputs, conversion of
+  anisotropy and specific-storage source rasters, and the prescribed river
+  boundary's limitation for the combined basin water balance
+  (`#356 <https://github.com/LabSid-USP/RUBEM/issues/356>`__).
 - Added ``rubem calibrate``: a differential evolution (SciPy) over the free
   calibration parameters, with ``w3`` derived from the other two weights,
   minimizing ``1000 (100 (1 - NSE))^2`` on the station series of one output

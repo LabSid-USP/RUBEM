@@ -172,7 +172,7 @@ class TestCatalog:
         assert found.tables[1] == [("01", 0.5), ("2.0", 0.1), ("[3,5]", 0.2), ("1", 9.0)]
 
     @pytest.mark.unit
-    @pytest.mark.parametrize("interval", ["[1,3]", "<1,>", "[2,2]"])
+    @pytest.mark.parametrize("interval", ["[1,3]", "<1,>", "[2,2]", "<,>", "[,]"])
     def test_a_class_an_earlier_interval_row_covers_is_not_named(self, tmp_path, interval):
         table = write_table(tmp_path / "kh.tbl", f"{interval} 5\n2 7\n")
         settings = ModflowSettings.model_validate(
@@ -394,7 +394,10 @@ class TestApply:
         assert values[1:].ravel().tolist() == pytest.approx([1e-7] * (ROWS - 1) * COLS)
 
     @pytest.mark.unit
-    def test_pcraster_reads_a_class_rewritten_before_an_interval_that_covers_it(self, tmp_path):
+    @pytest.mark.parametrize("interval", ["[1,3]", "<,>", "[,]"])
+    def test_pcraster_reads_a_class_rewritten_before_an_interval_that_covers_it(
+        self, tmp_path, interval
+    ):
         import pcraster as pcr
 
         from tests.helpers.synthetic import COLS, ROWS, write_grid_map
@@ -402,7 +405,8 @@ class TestApply:
         classes = write_grid_map(
             tmp_path / "classes.map", [1] * COLS + [2] * (ROWS - 1) * COLS, True
         )
-        table = write_table(tmp_path / "kh.tbl", "2 7\n[1,3] 5\n")
+        original = f"2 7\n{interval} 5\n"
+        table = write_table(tmp_path / "kh.tbl", original)
         settings = section(
             [layer("only", 1, horizontal_conductivity={"map": classes, "table": table})]
         )
@@ -414,6 +418,8 @@ class TestApply:
         found.apply(document, {"modflow.layers.1.kh.2": 0.9}, out)
 
         rewritten = document["modflow"]["layers"][0]["horizontal_conductivity"]["table"]
+        assert Path(rewritten).read_text(encoding="utf8") == f"2 0.9\n{interval} 5\n"
+        assert Path(table).read_text(encoding="utf8") == original
         values = pcr.pcr2numpy(pcr.lookupscalar(rewritten, pcr.readmap(classes)), np.nan)
         assert values[0].tolist() == pytest.approx([5.0] * COLS)
         assert values[1:].ravel().tolist() == pytest.approx([0.9] * (ROWS - 1) * COLS)

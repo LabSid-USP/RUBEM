@@ -27,8 +27,12 @@ LayerList = Annotated[list[LayerNumber], Field(min_length=1)]
 PositiveInt = Annotated[int, Field(ge=1)]
 PositiveFloat = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 # ``strict`` keeps a quoted number on the path branch of a ``path | number`` union.
-PositiveNumber = Annotated[float, Field(strict=True, gt=0, allow_inf_nan=False)]
-NonNegativeNumber = Annotated[float, Field(strict=True, ge=0, allow_inf_nan=False)]
+# PCRaster scalar fields store Float32, even when JSON numbers are Float64.
+_FLOAT32_MAX = float.fromhex("0x1.fffffep127")
+PositiveNumber = Annotated[
+    float, Field(strict=True, ge=2.0**-149, le=_FLOAT32_MAX, allow_inf_nan=False)
+]
+NonNegativeNumber = Annotated[float, Field(strict=True, ge=0, le=_FLOAT32_MAX, allow_inf_nan=False)]
 Fraction = Annotated[float, Field(strict=True, ge=0, le=1, allow_inf_nan=False)]
 
 LAYTYPES = frozenset(tens + laycon for tens in (0, 10, 20, 30) for laycon in (0, 1, 2, 3))
@@ -107,10 +111,9 @@ class ModflowLayer(_Strict):
 class Dis(_Strict):
     """Time discretization of each stress period (one RUBEM step).
 
-    :param nstp: Number of time steps per stress period. One by default: the
-        extension reads the heads of a period only when its last time step
-        converged, so a solver failure at an earlier time step ends the whole
-        process instead of raising.
+    :param nstp: Number of time steps per RUBEM stress period. Each transient
+        substep runs separately so all fluxes can be integrated and a solver
+        failure is reported before the next substep.
     :param tsmult: Time step multiplier.
     :param steady_state: Whether every stress period is steady state.
     """
@@ -294,6 +297,11 @@ class ModflowSettings(_Strict):
         repeated = sorted({name for name in names if names.count(name) > 1})
         if repeated:
             errors.append(f"layer names must be unique, repeated: {repeated}.")
+        if len({item.compute_conductivity for item in self.layers}) > 1:
+            errors.append(
+                "compute_conductivity must be the same for all layers: "
+                "PCRaster uses one global BCF COMPUTE flag."
+            )
         for number, item in enumerate(self.layers[1:], start=2):
             if item.laycon == 1:
                 errors.append(

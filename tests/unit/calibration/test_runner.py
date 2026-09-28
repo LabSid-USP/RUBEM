@@ -1306,10 +1306,8 @@ class ModflowDataset(Dataset):
     river and the baseflow, hence ``arn``, depends on the specific yield (with
     the stage of :func:`write_modflow_inputs` above the heads the river only
     loses water and the baseflow is zero whatever the MODFLOW values). The
-    default time discretization, one time step per stress period, is kept: a
-    worker whose MODFLOW run fails before the last time step of a period ends
-    its process, and the search could not tell that from a bug of the
-    calibration.
+    default time discretization is one time step per stress period; ``dis``
+    can exercise a calibration with several substeps per period.
 
     :param dis: The ``dis`` object of the section, when not the default.
     """
@@ -1585,7 +1583,7 @@ class TestModflowRefusals:
         assert no_pool == []
 
     @pytest.mark.unit
-    def test_a_dead_worker_of_a_coupled_run_names_the_modflow_cause(
+    def test_a_dead_worker_of_a_coupled_run_keeps_the_resource_advice(
         self, modflow_dataset, monkeypatch
     ):
         monkeypatch.setattr(
@@ -1602,8 +1600,8 @@ class TestModflowRefusals:
                 modflow_dataset.settings(),
             )
 
-        assert "dis.nstp" in str(failure.value)
-        assert "converge" in str(failure.value)
+        assert "--workers" in str(failure.value)
+        assert "dis.nstp" not in str(failure.value)
 
     @pytest.mark.unit
     @pytest.mark.parametrize(
@@ -1651,38 +1649,36 @@ class TestModflowRefusals:
 @needs_mf2005
 class TestModflowTimeSteps:
     @pytest.mark.unit
-    def test_several_time_steps_per_period_are_warned_about_before_the_search(
-        self, tmp_path, broken_search, caplog
+    @pytest.mark.parametrize("nstp", [1, 5])
+    def test_time_steps_per_period_do_not_require_a_worker_death_warning(
+        self, tmp_path, broken_search, caplog, nstp
     ):
-        data = ModflowDataset(tmp_path, dis={"nstp": 5})
+        data = ModflowDataset(tmp_path, dis={"nstp": nstp})
 
         with caplog.at_level(logging.WARNING, logger="rubem.calibration.runner"):
             with pytest.raises(RuntimeError, match="the search broke"):
                 data.calibrate()
 
-        warnings = [
-            record.getMessage()
-            for record in caplog.records
-            if record.levelno == logging.WARNING and "dis.nstp" in record.getMessage()
-        ]
-        assert len(warnings) == 1
-        assert "5" in warnings[0]
-        assert "worker" in warnings[0] and "converge" in warnings[0]
+        assert not [record for record in caplog.records if "dis.nstp" in record.getMessage()]
 
     @pytest.mark.unit
-    def test_one_time_step_per_period_is_not_warned_about(
-        self, modflow_dataset, broken_search, caplog
-    ):
-        with caplog.at_level(logging.WARNING, logger="rubem.calibration.runner"):
-            with pytest.raises(RuntimeError, match="the search broke"):
-                calibrate(
-                    modflow_dataset.config_file,
-                    modflow_dataset.observed,
-                    modflow_dataset.tmp_run_dir("one-step"),
-                    modflow_dataset.settings(),
-                )
+    def test_non_convergent_substeps_are_recorded_for_every_candidate(self, tmp_path):
+        data = ModflowDataset(tmp_path, dis={"nstp": 5})
+        data.config["MODFLOW"]["solver"] = {
+            "mxiter": 1,
+            "iter1": 1,
+            "hclose": 1e-12,
+            "rclose": 1e-12,
+        }
+        data.config_file.write_text(json.dumps(data.config), encoding="utf8")
 
-        assert not [record for record in caplog.records if "dis.nstp" in record.getMessage()]
+        with pytest.raises(CalibrationError, match="Every evaluation of the calibration failed"):
+            data.calibrate(maxiter=0, workers=1)
+
+        rows = read_evaluations(data.run_dir / "evaluations.csv")
+        assert len(rows) == len(INIT)
+        assert all("MODFLOW did not converge" in row["error"] for row in rows)
+        assert all(row["nse"] == "" for row in rows)
 
 
 class TestModflowNamesWithoutModflow:

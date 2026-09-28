@@ -69,6 +69,9 @@ def _initialise(clone):
 class ModflowStepResult:
     """What one stress period gives back to RUBEM; layers are configured numbers.
 
+    Flow rates are duration-weighted means over all substeps; heads describe
+    the end of the period.
+
     :param baseflow_mm: Aquifer-to-river leakage as a depth over the cell [mm/step].
     :param aquifer_to_river_m3_per_day: RIV leakage from the aquifer [m3/day].
     :param river_to_aquifer_m3_per_day: RIV leakage into the aquifer [m3/day].
@@ -95,6 +98,18 @@ def _period_days(days: float) -> float:
     if not math.isfinite(days) or days <= 0:
         raise ValueError(f"A stress period must last a positive number of days, got {days}.")
     return days
+
+
+def _time_steps(days: float, count: int, multiplier: float) -> list[float]:
+    """Geometric time steps summing to the period, without power overflow."""
+    anchor = count - 1 if multiplier >= 1 else 0
+    log_multiplier = math.log(multiplier)
+    weights = [math.exp((index - anchor) * log_multiplier) for index in range(count)]
+    total = math.fsum(weights)
+    durations = [days * (weight / total) for weight in weights]
+    if any(not math.isfinite(duration) or duration <= 0 for duration in durations):
+        raise ValueError("NSTP and TSMULT produce an unrepresentable time step duration.")
+    return durations
 
 
 def _first_cell(cells: np.ndarray) -> str:
@@ -259,12 +274,13 @@ class ModflowGroundwater:
         self.mf.setRowWidth([width] * rows)
         self.mf.setColumnWidth([width] * cols)
         dis = self.settings.dis
+        duration = days if dis.steady_state else _time_steps(days, dis.nstp, dis.tsmult)[0]
         self.mf.setDISParameter(
             _TIME_UNIT_DAYS,
             _LENGTH_UNIT_METRES,
-            days,
-            dis.nstp,
-            dis.tsmult,
+            duration,
+            1,
+            1.0,
             int(dis.steady_state),
         )
 
@@ -348,11 +364,22 @@ class ModflowGroundwater:
                 continue
             for entry in settings.entries:
                 conductance = self._values(entry.conductance)
-                cells = np.isfinite(conductance) & (conductance > 0)
+                domain = np.logical_or.reduce([self._active[number] for number in entry.layers])
                 mask = getattr(entry, "mask", None)
                 if mask is not None:
                     mask_values = self._values(mask)
-                    cells &= np.isfinite(mask_values) & (mask_values > 0)
+                    domain &= np.isfinite(mask_values) & (mask_values > 0)
+                infinite = domain & np.isinf(conductance)
+                if infinite.any():
+                    raise ValueError(
+                        f"The {package} package has infinite conductance at {_first_cell(infinite)}."
+                    )
+                negative = domain & (conductance < 0)
+                if negative.any():
+                    raise ValueError(
+                        f"The {package} package has negative conductance at {_first_cell(negative)}."
+                    )
+                cells = domain & np.isfinite(conductance) & (conductance > 0)
                 maps = {key: self._values(getattr(entry, key)) for key in keys}
                 for number in entry.layers:
                     self._set_package_layer(
@@ -448,19 +475,42 @@ class ModflowGroundwater:
         days = _period_days(days_in_period)
         self._period += 1
         dis = self.settings.dis
-        if not dis.steady_state:
-            self.mf.updateDISParameter(days, dis.nstp, dis.tsmult)
+        durations = [days] if dis.steady_state else _time_steps(days, dis.nstp, dis.tsmult)
         recharge = pcr.cover(pcr.scalar(recharge_mm) / (1000.0 * days), pcr.scalar(0.0))
         self.mf.setRecharge(recharge, _RECHARGE_TO_HIGHEST_ACTIVE_CELL)
-        self.mf.run(str(self.run_directory))
-        if not self.mf.converged():
-            raise RuntimeError(
-                f"MODFLOW did not converge in stress period {self._period}; "
-                f"see {self.run_directory / 'pcrmf.lst'}."
-            )
-
-        net, aquifer_to_river, river_to_aquifer = self._river_exchange()
         output = self.settings.output
+        averages = {}
+        for step, duration in enumerate(durations, start=1):
+            # PCRaster saves/reads only the last native time step. Single-step
+            # runs expose every budget and save heads even when PCG fails.
+            # The extension carries heads and IBOUND forward, including dry
+            # cells; BCF can rewet those cells on the next run.
+            if not dis.steady_state:
+                self.mf.updateDISParameter(duration, 1, 1.0)
+            self.mf.run(str(self.run_directory))
+            if not self.mf.converged():
+                raise RuntimeError(
+                    f"MODFLOW did not converge in stress period {self._period}, "
+                    f"time step {step}/{len(durations)}; "
+                    f"see {self.run_directory / 'pcrmf.lst'}."
+                )
+            net, aquifer_to_river, river_to_aquifer = self._river_exchange()
+            flows = {
+                ("river", 0): net,
+                ("river", 1): aquifer_to_river,
+                ("river", 2): river_to_aquifer,
+            }
+            if output.storage:
+                flows.update(
+                    {("storage", n): flow for n, flow in self._by_layer(self.mf.getStorage).items()}
+                )
+            if output.drain_flow:
+                flows.update({("drain", n): flow for n, flow in self._drain_flow().items()})
+            for key, flow in flows.items():
+                weighted = flow if len(durations) == 1 else flow * (duration / days)
+                averages[key] = averages[key] + weighted if key in averages else weighted
+
+        net, aquifer_to_river, river_to_aquifer = (averages[("river", n)] for n in range(3))
         root_depth = self.settings.coupling.dynamic_root_depth.enabled
         heads = self._by_layer(self.mf.getHeads) if output.heads or root_depth else {}
         return ModflowStepResult(
@@ -470,8 +520,8 @@ class ModflowGroundwater:
             net_river_leakage_m3_per_day=net,
             water_table_head=self._water_table_head(heads) if root_depth else None,
             heads=heads if output.heads else {},
-            storage=self._by_layer(self.mf.getStorage) if output.storage else {},
-            drain_flow=self._drain_flow() if output.drain_flow else {},
+            storage={n: flow for (kind, n), flow in averages.items() if kind == "storage"},
+            drain_flow={n: flow for (kind, n), flow in averages.items() if kind == "drain"},
         )
 
     def _by_layer(self, getter) -> dict[int, Field]:

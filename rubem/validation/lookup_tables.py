@@ -34,13 +34,11 @@ class LookupTableError(ValueError):
 def _interval_bounds_are_numeric(key: str) -> bool:
     """Whether the bounds present in an interval key such as ``[1,3]`` or ``<1,>`` are numeric.
 
-    At least one bound must be given (``[,]`` carries no information and is
-    rejected); a bound that is present must be a number.
+    An omitted bound is infinite, so ``<,>`` and ``[,]`` match every value.
+    A bound that is present must be a number.
     """
     low_text, high_text = key[1:-1].split(",")
     low_text, high_text = low_text.strip(), high_text.strip()
-    if not low_text and not high_text:
-        return False
     return (not low_text or _NUMBER.match(low_text) is not None) and (
         not high_text or _NUMBER.match(high_text) is not None
     )
@@ -52,7 +50,7 @@ def read_lookup_table(path) -> list[tuple[tuple[str, ...], float]]:
     :param path: The table file.
     :raises LookupTableError: On an empty table, a row without a value, a row
         with more than one key column, a value or key that is neither a
-        number nor an interval, or an interval key without a numeric bound.
+        number nor an interval, or an interval key with a non-numeric bound.
     """
     rows = []
     text = Path(path).read_text(encoding="utf8")

@@ -142,14 +142,6 @@ STATION_SEPARATOR = ";"
 """The separator of the per-station tables, the one the model writes its own tables with."""
 
 
-_MODFLOW_DEATH = (
-    " With MODFLOW, a run that does not converge before the last time step of a stress "
-    "period (dis.nstp > 1) also ends its worker process; dis.nstp = 1 turns it into a "
-    "failed evaluation."
-)
-"""What a dead worker of a coupled calibration may also mean."""
-
-
 class CalibrationError(RuntimeError):
     """A calibration that could not start, or that produced no usable evaluation."""
 
@@ -463,16 +455,6 @@ def calibrate(
     ).configuration
     file_v1 = _as_v1(configuration)
     modflow = _modflow_catalog(configuration)
-    if modflow is not None and configuration.modflow.dis.nstp > 1:
-        # The extension ends the process, not the stress period, when MODFLOW
-        # stops before the last time step; the pool cannot replace that worker.
-        logger.warning(
-            "The MODFLOW section has dis.nstp %d: a candidate whose solver does not "
-            "converge before the last time step of a stress period ends its worker "
-            "process, and with it the calibration, instead of being ranked last as a "
-            "failed evaluation. Set dis.nstp to 1 to keep the search running past it.",
-            configuration.modflow.dis.nstp,
-        )
     # The MODFLOW names can only be resolved once the configuration says which
     # parameters its MODFLOW section offers.
     space = decision_space(fixed=settings.fixed, bounds=settings.bounds, modflow=modflow)
@@ -613,8 +595,7 @@ def calibrate(
                 "A worker process died before finishing its evaluation, most often "
                 "because the system killed it for lack of memory: every worker holds "
                 "the rasters of one model run. Run the calibration again with a lower "
-                f"--workers.{_MODFLOW_DEATH if modflow is not None else ''} The evaluations "
-                f"made so far are in {evaluations_csv}."
+                f"--workers. The evaluations made so far are in {evaluations_csv}."
             ) from error
         raise
 

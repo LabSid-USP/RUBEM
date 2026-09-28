@@ -66,12 +66,17 @@ def check_modflow_inputs(
       bottom missing on a column active in any layer, or a bottom not strictly
       below the top of its layer there; an initial head, conductivity or (in
       a transient run) storage map missing on an active cell of its layer; an
-      initial head below the layer bottom in every active cell; a conductivity
+      active-cell conductivity not positive, a negative storage coefficient
+      or a specific yield outside ``[0, 1]``; an initial head below the layer
+      bottom in every active cell; a conductivity
       class map that is not nominal, or a class on an active cell without a
-      positive value in the table; an enabled package layer without a cell of
-      positive conductance inside the boundary of the layer (the PCRaster
-      MODFLOW extension aborts the process on it); a package head or
-      elevation missing on a cell of the package; with the root-depth
+      finite, positive Float32 value in the table; an enabled package layer
+      without a cell of positive conductance inside its boundary (the PCRaster
+      MODFLOW extension aborts the process on it); a negative or infinite conductance
+      inside a package layer and its mask; a package head or elevation missing
+      on a cell of the package; an unreadable WETDRY raster, one not sharing
+      the clone geometry, or an infinite threshold on a cell of a wetted layer
+      (missing thresholds mean no rewetting); with the root-depth
       coupling, a minimum root depth table that does not cover the soil
       classes or whose value is not in ``(0, Zr]``;
     - warning: an initial head below the layer bottom in some active cells;
@@ -210,6 +215,7 @@ class _ContentChecks:
         self._check_geometry()
         for number in range(1, len(self.settings.layers) + 1):
             self._check_layer(number)
+        self._check_wetting()
         for package in ("river", "ghb", "drain"):
             if getattr(self.settings, package).enabled:
                 self._check_package(package)
@@ -380,6 +386,30 @@ class _ContentChecks:
                         where,
                         source,
                     )
+                    self._check_property_range(number, name, source, values)
+
+    def _check_property_range(self, number: int, name: str, source, values) -> None:
+        """Apply the same physical limits to maps as to configured numbers."""
+        if name in ("vertical conductivity", "horizontal conductivity"):
+            invalid = values <= 0
+            expected = "positive"
+        elif name == "specific yield":
+            invalid = (values < 0) | (values > 1)
+            expected = "between 0 and 1, inclusive"
+        else:
+            invalid = values < 0
+            expected = "non-negative"
+        invalid &= self.active[number] & np.isfinite(values)
+        if invalid.any():
+            self.problems.append(
+                _blocking(
+                    f"MODFLOW {name} of {self._label(number)} has values outside its "
+                    "physical range.",
+                    f"Values must be {expected}; {int(invalid.sum())} active cell(s) are "
+                    f"outside that range, the first at {_first_cell(invalid)}.",
+                    source,
+                )
+            )
 
     def _check_head_sentinels(self, number: int, head: np.ndarray) -> np.ndarray:
         """Report no-data markers read as heads; return the cells that hold them."""
@@ -500,8 +530,12 @@ class _ContentChecks:
             conductivity = _table_value(rows, value)
             if conductivity is None:
                 uncovered.append(value)
-            elif not (math.isfinite(conductivity) and conductivity > 0):
-                invalid.append(value)
+            else:
+                # A lookup produces a PCRaster scalar, stored as Float32.
+                with np.errstate(over="ignore", under="ignore"):
+                    scalar = np.float32(conductivity)
+                if not (np.isfinite(scalar) and scalar > 0):
+                    invalid.append(value)
         if uncovered:
             self.problems.append(
                 _blocking(
@@ -515,22 +549,68 @@ class _ContentChecks:
         if invalid:
             self.problems.append(
                 _blocking(
-                    f"MODFLOW horizontal conductivity table of {label} has non-positive values.",
-                    f"Classes on active cells whose conductivity is not positive: "
+                    f"MODFLOW horizontal conductivity table of {label} has invalid values.",
+                    "Classes on active cells whose conductivity is not finite and positive "
+                    "when stored as a PCRaster Float32 scalar: "
                     f"{_numbers(invalid)}.",
                     lookup.table,
                     implication=_TABLE_IMPLICATION,
                 )
             )
 
+    def _check_wetting(self) -> None:
+        wetting = self.settings.wetting
+        if not wetting.enabled:
+            return
+        values = self._values(wetting.map)
+        layers = self.settings.wetting_layers()
+        if values is None or not layers:
+            return
+        active = np.logical_or.reduce([self.active[number] for number in layers])
+        infinite = active & np.isinf(values)
+        # Missing WETDRY cells are deliberately filled with zero by the run.
+        if infinite.any():
+            self.problems.append(
+                _blocking(
+                    "MODFLOW WETDRY has infinite values on active cells.",
+                    f"Wetting thresholds must be finite; {int(infinite.sum())} active cell(s) "
+                    f"are infinite, the first at {_first_cell(infinite)}. "
+                    "Use zero or a missing value where cells must not be rewetted.",
+                    wetting.map,
+                )
+            )
+
     # ----- packages -----------------------------------------------------------
 
-    def _package_cells(self, entry) -> np.ndarray | None:
+    def _package_cells(self, package: str, entry) -> np.ndarray | None:
         """The cells of positive conductance (inside the mask, for a river), any layer."""
         conductance = self._values(entry.conductance)
         mask = self._values(getattr(entry, "mask", None))
         if conductance is None or (getattr(entry, "mask", None) and mask is None):
             return None
+        domain = np.logical_or.reduce([self.active[number] for number in entry.layers])
+        if mask is not None:
+            domain &= np.isfinite(mask) & (mask > 0)
+        infinite = domain & np.isinf(conductance)
+        if infinite.any():
+            self.problems.append(
+                _blocking(
+                    f"MODFLOW {package} conductance has infinite values on active cells.",
+                    f"Conductance must be finite; {int(infinite.sum())} cell(s) inside "
+                    f"the package layers are infinite, the first at {_first_cell(infinite)}.",
+                    entry.conductance,
+                )
+            )
+        negative = domain & np.isfinite(conductance) & (conductance < 0)
+        if negative.any():
+            self.problems.append(
+                _blocking(
+                    f"MODFLOW {package} conductance has negative values on active cells.",
+                    f"Conductance must be non-negative; {int(negative.sum())} cell(s) inside "
+                    f"the package layers are negative, the first at {_first_cell(negative)}.",
+                    entry.conductance,
+                )
+            )
         cells = np.isfinite(conductance) & (conductance > 0)
         if mask is not None:
             cells &= np.isfinite(mask) & (mask > 0)
@@ -538,7 +618,7 @@ class _ContentChecks:
 
     def _check_package(self, package: str) -> None:
         for entry in getattr(self.settings, package).entries:
-            cells = self._package_cells(entry)
+            cells = self._package_cells(package, entry)
             if cells is None:
                 continue
             used = np.zeros(self.shape, dtype=bool)

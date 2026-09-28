@@ -240,6 +240,59 @@ class TestRasters:
         assert "cannot be read" in problems[0].description
 
 
+class TestWetting:
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [-1.0, 0.0, 1.0, NAN])
+    def test_signed_thresholds_zero_and_missing_cells_are_accepted(self, config, value):
+        write_grid_map(config["MODFLOW"]["wetting"]["map"], grid(value))
+
+        assert check(config) == []
+
+    @pytest.mark.unit
+    def test_an_infinite_threshold_outside_the_wetted_layers_is_ignored(self, config):
+        boundary = sibling(config, "wetting_boundary.map")
+        write_grid_map(boundary, grid(1, at=ROW_2_COLUMN_3, value=0), nominal=True)
+        config["MODFLOW"]["layers"][0]["boundary"] = boundary
+        write_grid_map(
+            config["MODFLOW"]["wetting"]["map"], grid(-0.1, at=ROW_2_COLUMN_3, value=math.inf)
+        )
+
+        assert check(config) == []
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("value", [math.inf, -math.inf])
+    def test_an_infinite_wetting_threshold_on_an_active_cell_is_blocking(self, config, value):
+        path = config["MODFLOW"]["wetting"]["map"]
+        write_grid_map(path, grid(-0.1, at=ROW_2_COLUMN_3, value=value))
+
+        problems = blocking(check(config))
+
+        assert len(problems) == 1
+        assert problems[0].description == "MODFLOW WETDRY has infinite values on active cells."
+        assert "row 2, column 3" in problems[0].reason
+        assert Path(problems[0].file) == Path(path)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("invalid_map", ["unreadable", "different_geometry"])
+    def test_the_wetting_raster_is_checked_before_the_run(self, config, invalid_map):
+        import pcraster as pcr
+
+        path = config["MODFLOW"]["wetting"]["map"]
+        if invalid_map == "unreadable":
+            Path(path).write_text("not a raster", encoding="utf8")
+            expected = "MODFLOW raster cannot be read."
+        else:
+            pcr.setclone(2, 2, CELL_SIZE, WEST, NORTH)
+            pcr.report(pcr.spatial(pcr.scalar(-0.1)), path)
+            expected = "MODFLOW raster does not share the clone geometry."
+
+        problems = blocking(check(config))
+
+        assert len(problems) == 1
+        assert problems[0].description == expected
+        assert Path(problems[0].file) == Path(path)
+
+
 class TestBoundary:
     @pytest.mark.unit
     def test_a_boundary_value_other_than_minus_one_zero_or_one_is_blocking(self, config):
@@ -321,6 +374,71 @@ class TestGeometry:
 
 
 class TestLayerValues:
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "key, value",
+        [("specific_storage", 0.0), ("specific_yield", 0.0), ("specific_yield", 1.0)],
+    )
+    def test_storage_range_endpoints_are_accepted(self, config, key, value):
+        path = sibling(config, f"valid_{key}.map")
+        write_grid_map(path, grid(value))
+        config["MODFLOW"]["layers"][1][key] = path
+
+        assert check(config) == []
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "key, value",
+        [
+            ("horizontal_conductivity", -1.0),
+            ("vertical_conductivity", -1.0),
+            ("specific_storage", -0.1),
+            ("specific_yield", 1.5),
+        ],
+    )
+    def test_property_ranges_ignore_inactive_cells(self, config, key, value):
+        boundary = sibling(config, "property_boundary.map")
+        write_grid_map(boundary, grid(1, at=ROW_2_COLUMN_3, value=0), nominal=True)
+        path = sibling(config, f"inactive_{key}.map")
+        write_grid_map(path, grid(0.1, at=ROW_2_COLUMN_3, value=value))
+        config["MODFLOW"]["layers"][1]["boundary"] = boundary
+        config["MODFLOW"]["layers"][1][key] = path
+
+        assert check(config) == []
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("compute_conductivity", [True, False])
+    @pytest.mark.parametrize(
+        "key, label, value",
+        [
+            ("horizontal_conductivity", "horizontal conductivity", -1.0),
+            ("horizontal_conductivity", "horizontal conductivity", 0.0),
+            ("vertical_conductivity", "vertical conductivity", -1.0),
+            ("vertical_conductivity", "vertical conductivity", 0.0),
+            ("specific_storage", "specific storage", -0.1),
+            ("specific_yield", "specific yield", -0.1),
+            ("specific_yield", "specific yield", 1.5),
+        ],
+    )
+    def test_a_property_outside_its_physical_range_is_blocking(
+        self, config, key, label, value, compute_conductivity
+    ):
+        path = sibling(config, f"invalid_{key}.map")
+        write_grid_map(path, grid(0.1, at=ROW_2_COLUMN_3, value=value))
+        layer = config["MODFLOW"]["layers"][1]
+        layer[key] = path
+        for configured_layer in config["MODFLOW"]["layers"]:
+            configured_layer["compute_conductivity"] = compute_conductivity
+
+        problems = blocking(check(config))
+
+        assert len(problems) == 1
+        assert problems[0].description == (
+            f"MODFLOW {label} of layer 2 (layer2) has values outside its physical range."
+        )
+        assert "row 2, column 3" in problems[0].reason
+        assert Path(problems[0].file) == Path(path)
+
     @pytest.mark.unit
     def test_a_missing_initial_head_on_an_active_cell_is_blocking(self, config):
         path = sibling(config, "head_hole.map")
@@ -446,7 +564,7 @@ class TestConductivityClasses:
         assert Path(problems[0].file) == Path(lookup["table"])
 
     @pytest.mark.unit
-    @pytest.mark.parametrize("value", ["0", "-0.1", "nan"])
+    @pytest.mark.parametrize("value", ["0", "-0.1", "nan", "1e100", "1e-100"])
     def test_a_class_without_a_positive_value_is_blocking(self, config, value):
         lookup = config["MODFLOW"]["layers"][0]["horizontal_conductivity"]
         Path(lookup["table"]).write_text(f"1 0.5\n2 {value}\n", encoding="utf8")
@@ -505,6 +623,50 @@ class TestConductivityClasses:
 
 
 class TestActiveCellGuard:
+    @pytest.mark.unit
+    def test_negative_conductance_outside_the_river_mask_is_ignored(self, config):
+        entry = config["MODFLOW"]["river"]["entries"][0]
+        entry["conductance"] = write_grid_map(
+            sibling(config, "negative_off_river.map"), grid(1.0, at=0, value=-1.0)
+        )
+
+        assert check(config) == []
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("package", ["river", "ghb", "drain"])
+    @pytest.mark.parametrize("active", [True, False])
+    @pytest.mark.parametrize("value", [-1.0, math.inf, -math.inf])
+    def test_invalid_conductance_is_blocking_only_inside_a_package_layer(
+        self, config, package, active, value
+    ):
+        if package == "drain":
+            config["MODFLOW"]["drain"] = {
+                "enabled": True,
+                "entries": [{"layers": [1], "elevation": config["MODFLOW"]["top"]}],
+            }
+        entry = config["MODFLOW"][package]["entries"][0]
+        entry["layers"] = [1]
+        path = sibling(config, "invalid_conductance.map")
+        write_grid_map(path, grid(1.0, at=4, value=value))
+        entry["conductance"] = path
+        if not active:
+            boundary = sibling(config, "conductance_boundary.map")
+            write_grid_map(boundary, grid(1, at=4, value=0), nominal=True)
+            config["MODFLOW"]["layers"][0]["boundary"] = boundary
+
+        problems = blocking(check(config))
+
+        if not active:
+            assert problems == []
+            return
+        assert len(problems) == 1
+        invalid = "infinite" if math.isinf(value) else "negative"
+        assert problems[0].description == (
+            f"MODFLOW {package} conductance has {invalid} values on active cells."
+        )
+        assert "row 2, column 2" in problems[0].reason
+        assert Path(problems[0].file) == Path(path)
+
     @pytest.mark.unit
     def test_a_package_layer_without_a_positive_conductance_is_blocking(self, config):
         entry = config["MODFLOW"]["ghb"]["entries"][0]
