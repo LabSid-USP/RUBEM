@@ -1,0 +1,210 @@
+{
+  "GRID": {
+    "grid": 30.0
+  },
+  "SIM_TIME": {
+    "start": "01/08/2023",
+    "end": "01/04/2024"
+  },
+  "DIRECTORIES": {
+    "output": "${prepared}/runs/feat_356_modflow_coupling",
+    "ndvi": "${dataset}/input/ndvi/",
+    "landuse": "${dataset}/input/cob/",
+    "etp": "${dataset}/input/etp/",
+    "prec": "${dataset}/input/prec/",
+    "kp": "${dataset}/input/kp/"
+  },
+  "FILENAME_PREFIXES": {
+    "etp_prefix": "etp",
+    "prec_prefix": "prec",
+    "kp_prefix": "kp",
+    "ndvi_prefix": "ndvi",
+    "landuse_prefix": "cob"
+  },
+  "GENERATE_FILE": {
+    "itp": true,
+    "bfw": true,
+    "srn": true,
+    "eta": true,
+    "lfw": true,
+    "rec": true,
+    "smc": true,
+    "rnf": true,
+    "arn": true,
+    "tss": true
+  },
+  "RASTERS": {
+    "dem": "${dataset}/input/dem/dem.map",
+    "clone": "${dataset}/input/clone/clone.map",
+    "samples": "${dataset}/input/samples/samples.map",
+    "soil": "${dataset}/input/soil/soil.map",
+    "ndvi_max": "${dataset}/input/ndvi/ndvi_max.map",
+    "ndvi_min": "${dataset}/input/ndvi/ndvi_min.map"
+  },
+  "TABLES": {
+    "rainydays": "${dataset}/input/text/rainydays.txt",
+    "bulk_density": "${dataset}/input/text/soil/Bdens.txt",
+    "k_sat": "${dataset}/input/text/soil/Ksat.txt",
+    "t_fcap": "${dataset}/input/text/soil/Tfc.txt",
+    "t_sat": "${dataset}/input/text/soil/Tsat.txt",
+    "t_wp": "${dataset}/input/text/soil/Twp.txt",
+    "rootzone_depth": "${dataset}/input/text/soil/Dpz.txt",
+    "a_i": "${dataset}/input/text/landuse/a_i.txt",
+    "a_o": "${dataset}/input/text/landuse/a_o.txt",
+    "a_s": "${dataset}/input/text/landuse/a_s.txt",
+    "a_v": "${dataset}/input/text/landuse/a_v.txt",
+    "manning": "${dataset}/input/text/landuse/manning.txt",
+    "k_c_min": "${dataset}/input/text/landuse/kcmin.txt",
+    "k_c_max": "${dataset}/input/text/landuse/kcmax.txt"
+  },
+  "INITIAL_SOIL_CONDITIONS": {
+    "t_ini": 0.5,
+    "bfw_ini": 5.0,
+    "bfw_lim": 100.0,
+    "s_sat_ini": 200.0
+  },
+  "CONSTANTS": {
+    "fpar_max": 0.95,
+    "fpar_min": 0.001,
+    "lai_max": 12.0,
+    "lai_max_from_table": false,
+    "i_imp": 2.5
+  },
+  "CALIBRATION": {
+    "alpha": 4.415,
+    "b": 0.078,
+    "w_1": 0.51,
+    "w_2": 0.12,
+    "w_3": 0.37,
+    "rcd": 5.375,
+    "f": 0.581,
+    "alpha_gw": 0.922,
+    "x": 0.307
+  },
+  "RASTER_FILE_FORMAT": {
+    "map_raster_series": true,
+    "tiff_raster_series": false
+  },
+  "MODFLOW": {
+    "enabled": 1,
+    "coupling": {
+      "dynamic_root_depth": {
+        "enabled": 1,
+        "minimum_depth_table": "${dataset}/input/text/soil/Dpz_min.txt",
+        "water_table": {
+          "method": "highest_active_head"
+        }
+      }
+    },
+    "layers": [
+      {
+        "name": "upper",
+        "horizontal_conductivity": "${dataset}/input/modflow/KY3.map",
+        "vertical_conductivity": "${prepared}/derived/kv3.map",
+        "boundary": "${dataset}/input/modflow/bound.map",
+        "initial_head": "${prepared}/derived/head3-initialized.map",
+        "specific_yield": "${dataset}/input/modflow/sy.map",
+        "laytype": 1,
+        "compute_conductivity": true,
+        "bottom": "${dataset}/input/modflow/botton3.map"
+      },
+      {
+        "name": "middle",
+        "horizontal_conductivity": "${dataset}/input/modflow/KY2.map",
+        "vertical_conductivity": "${prepared}/derived/kv2.map",
+        "boundary": "${dataset}/input/modflow/bound.map",
+        "initial_head": "${prepared}/derived/head2-initialized.map",
+        "specific_storage": "${prepared}/derived/storage2.map",
+        "specific_yield": "${dataset}/input/modflow/sy.map",
+        "laytype": 2,
+        "compute_conductivity": true,
+        "bottom": "${dataset}/input/modflow/botton2.map"
+      },
+      {
+        "name": "lower",
+        "horizontal_conductivity": "${dataset}/input/modflow/KY1.map",
+        "vertical_conductivity": "${prepared}/derived/kv1.map",
+        "boundary": "${dataset}/input/modflow/bound.map",
+        "initial_head": "${prepared}/derived/head1-initialized.map",
+        "specific_storage": "${prepared}/derived/storage1.map",
+        "specific_yield": "${dataset}/input/modflow/sy.map",
+        "laytype": 2,
+        "compute_conductivity": true,
+        "bottom": "${dataset}/input/modflow/botton.map"
+      }
+    ],
+    "dis": {
+      "nstp": 1,
+      "tsmult": 1.0,
+      "steady_state": 0
+    },
+    "solver": {
+      "mxiter": 2000,
+      "iter1": 20,
+      "npcond": 1,
+      "hclose": 0.01,
+      "rclose": 0.01,
+      "relax": 1.0,
+      "nbpol": 2,
+      "damp": 0.5
+    },
+    "wetting": {
+      "enabled": false,
+      "map": "${prepared}/derived/wetting.map",
+      "layers": [
+        1
+      ],
+      "wetfct": 1.0,
+      "iwetit": 3,
+      "ihdwet": 0
+    },
+    "river": {
+      "enabled": true,
+      "entries": [
+        {
+          "stage": "${prepared}/derived/river-stage1.map",
+          "bottom": "${prepared}/derived/river-bed1.map",
+          "conductance": "${prepared}/derived/river-conductance1.map",
+          "layers": [
+            3
+          ]
+        },
+        {
+          "stage": "${prepared}/derived/river-stage2.map",
+          "bottom": "${prepared}/derived/river-bed2.map",
+          "conductance": "${prepared}/derived/river-conductance2.map",
+          "layers": [
+            2
+          ]
+        },
+        {
+          "stage": "${prepared}/derived/river-stage3.map",
+          "bottom": "${prepared}/derived/river-bed3.map",
+          "conductance": "${prepared}/derived/river-conductance3.map",
+          "layers": [
+            1
+          ]
+        }
+      ]
+    },
+    "ghb": {
+      "enabled": 1,
+      "entries": [
+        {
+          "head": "${dataset}/input/modflow/ghb_head.map",
+          "conductance": "${dataset}/input/modflow/ghb_cond.map",
+          "layers": [
+            1
+          ]
+        }
+      ]
+    },
+    "output": {
+      "heads": true,
+      "river_leakage": true,
+      "storage": false,
+      "root_depth": true
+    },
+    "top": "${dataset}/input/modflow/top_model.map"
+  }
+}
