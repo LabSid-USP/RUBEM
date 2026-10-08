@@ -111,6 +111,39 @@ series gaps, DEM no-data, an inverted crop-coefficient interval and a land-use
 class whose fractions sum to zero. Those inputs remain unchanged and their
 warnings remain visible.
 
+## The scientist's configuration (`--profile scientist`)
+
+`--profile scientist` emits the configuration delivered with the dataset on
+2026-10-08 (`bauru_modflow(patched).json`, which puts `bound3.map` on the top
+layer) for the three branches, changing only the paths, the window and the
+output directory; it derives no raster. The PR file is the same model in the
+top-down schema. It serves parity checks against the prototypes, not as a
+recommended setup:
+
+- the PR refuses the 277 + 18 `-888` initial heads that stay active in the
+  two lower layers, so run it with `rubem run -c ... --allow-blocking-problems`
+  (`allow_blocking_problems=True` in the API);
+- its PCG closure (HCLOSE 20 m, RCLOSE 10 m³/day) accepts the quiet phase of a
+  wet/dry limit cycle at the one top-layer cell left active 81 m below its
+  bottom (row 15, column 231); the same inputs fail the first substep at
+  1 m / 1 m³/day or stricter on every branch;
+- `KX` (4.81–5.19, the workbook's vertical anisotropy) enters as horizontal
+  conductivity and `ss.map` (1e-6) as the unscaled storage coefficient, as
+  delivered.
+
+```sh
+python examples/batalha_modflow/prepare.py \
+  /path/to/RUBEM-datasets/batalha_basin /tmp/batalha-scientist \
+  --months 9 --profile scientist
+rubem run -c /tmp/batalha-scientist/feat_356_modflow_coupling.json --allow-blocking-problems
+```
+
+Measured with these files (nine months): the two prototypes complete with
+identical outputs; the PR completes with the same MODFLOW budgets, heads within
+0.51 m of the prototypes and baseflow 2.2 % lower over the window, because the
+prototypes report the river leakage of the last native time step for the whole
+month while the PR integrates its substeps.
+
 ## Optional integration check
 
 ```sh

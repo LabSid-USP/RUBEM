@@ -47,7 +47,10 @@ Added
   ``modflow.river.<i>.conductance``). The new Groundwater Coupling page
   documents the exchange, the keys, the rules, the outputs, conversion of
   anisotropy and specific-storage source rasters, and the prescribed river
-  boundary's limitation for the combined basin water balance
+  boundary's limitation for the combined basin water balance. The Batalha
+  example's preparer (``examples/batalha_modflow``) has a ``--profile
+  scientist`` option that emits the configuration delivered with the dataset
+  for the three branches, for parity checks against the prototypes
   (`#356 <https://github.com/LabSid-USP/RUBEM/issues/356>`__).
 - Added ``rubem calibrate``: a differential evolution (SciPy) over the free
   calibration parameters, with ``w3`` derived from the other two weights,

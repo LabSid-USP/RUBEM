@@ -450,7 +450,11 @@ source model before converting it. Under that assumption, prepare a separate
 vertical-conductivity raster as
 :math:`K_v = KY/KX`; give ``KY`` as ``horizontal_conductivity`` and the
 derived raster as ``vertical_conductivity``. Do this for each corresponding
-physical layer, preserving the source rasters.
+physical layer, preserving the source rasters. The same example's
+``--profile scientist`` passes the configuration delivered with the dataset
+through unchanged, with ``KX`` as the horizontal conductivity and ``ss.map``
+as the storage coefficient, for parity checks against the prototype branches
+rather than as a recommended preparation.
 
 The key ``specific_storage`` takes the dimensionless confined storage
 coefficient ``Sf1`` expected by BCF. If the source contains specific storage

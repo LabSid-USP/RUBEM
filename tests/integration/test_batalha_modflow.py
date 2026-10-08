@@ -23,14 +23,19 @@ pytestmark = [
 ]
 
 
-@pytest.mark.parametrize("wetting", ("off", "below"))
+@pytest.mark.parametrize(
+    ("profile", "wetting"),
+    (("reconstructed", "off"), ("reconstructed", "below"), ("scientist", None)),
+)
 def test_prepared_batalha_converges_and_conserves_river_exchange(
-    dataset_dir, tmp_path, monkeypatch, restore_logging, wetting
+    dataset_dir, tmp_path, monkeypatch, restore_logging, profile, wetting
 ):
     """Two months with the same explicit initialization as the example.
 
     This checks a numerical sensitivity scenario, not calibrated accuracy.
     Capture each listing before the framework cleans its MODFLOW directory.
+    The scientist's profile keeps the -888 sentinels of the two lower layers,
+    which the PR refuses unless blocking problems are allowed.
     """
     dataset = dataset_dir / "batalha_basin"
     if not (dataset / "bauru_modflow.json").is_file():
@@ -38,14 +43,27 @@ def test_prepared_batalha_converges_and_conserves_river_exchange(
     pytest.importorskip("scipy.ndimage", reason="Batalha head preparation requires SciPy.")
     example = Path(__file__).parents[2] / "examples/batalha_modflow/prepare.py"
     prepare = runpy.run_path(str(example))["prepare"]
-    options = (
-        dict(wetdry_threshold=10, wetfct=0.1, ihdwet=1, mxiter=200) if wetting == "below" else {}
-    )
-    configs = prepare(dataset, tmp_path, months=2, wetting=wetting, **options)
-    with pytest.raises(ConfigurationError):
-        ModelConfiguration(tmp_path / "feat_356_modflow_coupling-original-heads.json")
-    config = ModelConfiguration(configs["feat_356_modflow_coupling"])
-    assert not any(problem.blocking for problem in config.problems)
+    if profile == "scientist":
+        if not (dataset / "bauru_modflow(patched).json").is_file():
+            pytest.skip("The scientist's Batalha configuration is not present.")
+        configs = prepare(dataset, tmp_path, months=2, profile=profile)
+        with pytest.raises(ConfigurationError):
+            ModelConfiguration(configs["feat_356_modflow_coupling"])
+        config = ModelConfiguration(
+            configs["feat_356_modflow_coupling"], allow_blocking_problems=True
+        )
+        assert any(problem.blocking for problem in config.problems)
+    else:
+        options = (
+            dict(wetdry_threshold=10, wetfct=0.1, ihdwet=1, mxiter=200)
+            if wetting == "below"
+            else {}
+        )
+        configs = prepare(dataset, tmp_path, months=2, wetting=wetting, **options)
+        with pytest.raises(ConfigurationError):
+            ModelConfiguration(tmp_path / "feat_356_modflow_coupling-original-heads.json")
+        config = ModelConfiguration(configs["feat_356_modflow_coupling"])
+        assert not any(problem.blocking for problem in config.problems)
     recorded = []
     run_step = ModflowGroundwater.run_step
 
@@ -92,5 +110,10 @@ def test_prepared_batalha_converges_and_conserves_river_exchange(
             assert np.all(finite > 0), "A head output contains a dry/no-data sentinel."
 
     manifest = json.loads((tmp_path / "manifest.json").read_text())
-    assert sum(manifest["river_cells_bottom_to_top"]) == 2209
-    assert manifest["river_cells_excluded"] == 68
+    if profile == "scientist":
+        assert manifest["profile"] == "scientist"
+        assert "bauru_modflow(patched).json" in manifest["source_sha256"]
+        assert "input/modflow/bound3.map" in manifest["source_sha256"]
+    else:
+        assert sum(manifest["river_cells_bottom_to_top"]) == 2209
+        assert manifest["river_cells_excluded"] == 68

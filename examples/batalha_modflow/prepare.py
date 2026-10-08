@@ -28,11 +28,111 @@ def _replace(value, old: str, new: str):
     return value.replace(old, new) if isinstance(value, str) else value
 
 
+def _window(months: int) -> dict[str, str]:
+    month_index = 2023 * 12 + 7 + months - 1
+    return {"start": "01/08/2023", "end": f"01/{month_index % 12 + 1:02d}/{month_index // 12}"}
+
+
+def _sha256(dataset: Path, paths) -> dict[str, str]:
+    return {
+        str(path.relative_to(dataset)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(paths)
+    }
+
+
+def _to_pr_schema(settings: dict) -> None:
+    """Rewrite a bottom-up prototype section in place into the PR's top-down schema.
+
+    Prototype layer ``n`` becomes layer ``count + 1 - n``: each layer's top is
+    the bottom of the layer above it, the model bottom closes the last layer and
+    the uppermost top becomes the model top. Keys the PR fixes internally
+    (recharge option, units, solver type) or dropped are removed.
+    """
+    tops = [layer.pop("top") for layer in settings["layers"]]
+    bottoms = [settings.pop("bottom"), *tops[:-1]]
+    settings["top"] = tops[-1]
+    settings["layers"].reverse()
+    for layer, bottom in zip(settings["layers"], reversed(bottoms)):
+        layer["bottom"] = bottom
+        if layer["laytype"] % 10 == 1:
+            layer.pop("specific_storage", None)
+    count = len(settings["layers"])
+    for package in ("river", "ghb", "drain"):
+        if "layers" in settings.get(package, {}):
+            settings[package]["entries"] = settings[package].pop("layers")
+            for entry in settings[package]["entries"]:
+                entry["layers"] = [count + 1 - entry.pop("layer")]
+    wetting = settings["wetting"]
+    wetting.pop("multiplier", None)
+    wetting.pop("source_boundary_layer", None)
+    if wetting.get("layers"):
+        wetting["layers"] = [count + 1 - number for number in wetting["layers"]]
+    for name in ("recharge", "wells"):
+        settings.pop(name, None)
+    for name in ("time_unit", "length_unit"):
+        settings["dis"].pop(name, None)
+    for name in ("type", "fail_on_non_convergence"):
+        settings["solver"].pop(name, None)
+    settings["coupling"].pop("baseflow_from_river_leakage", None)
+    settings["output"]["root_depth"] = True
+
+
+def _prepare_scientist(dataset: Path, destination: Path, months: int) -> dict[str, Path]:
+    """Emit the configuration delivered with the dataset on 2026-10-08, unchanged.
+
+    Only paths, the simulation window and the output directory are rewritten;
+    no raster is derived. The PR refuses the 277 + 18 no-data sentinels that stay
+    active in the initial heads of the two lower layers, so its JSON runs only
+    with ``--allow-blocking-problems`` (``allow_blocking_problems=True`` in the
+    API). The manifest records the hashes and the closure caveat.
+    """
+    source = dataset / "bauru_modflow(patched).json"
+    if not source.is_file():
+        raise FileNotFoundError(f"The scientist's configuration is missing: {source}")
+    destination.mkdir(parents=True, exist_ok=True)
+    original = json.loads(source.read_text(encoding="utf-8"))
+    old_root = str(Path(original["RASTERS"]["clone"]).parents[2])
+    base = _replace(original, old_root, str(dataset))
+    base["SIM_TIME"] = _window(months)
+    maps = dataset / "input/modflow"
+    manifest = {
+        "profile": "scientist",
+        "source_configuration": str(source),
+        "changes": "paths, simulation window and output directory only; no derived raster",
+        "pr_run_requirement": (
+            "--allow-blocking-problems: 277 active cells of head2.map and 18 of head1.map "
+            "hold the -888 no-data sentinel as initial head"
+        ),
+        "closure_caveat": (
+            "HCLOSE 20 m and RCLOSE 10 m3/day accept the quiet phase of a wet/dry limit "
+            "cycle at the top-layer cell (row 15, column 231) left active below its bottom; "
+            "1/1, 0.1/0.1 and 0.01/0.01 fail in the first substep on every branch"
+        ),
+        "parameter_caveat": (
+            "KX (4.813-5.192, the workbook's VANIS) enters as horizontal conductivity and "
+            "ss.map (1e-6) as the unscaled BCF storage coefficient, as delivered"
+        ),
+        "source_sha256": _sha256(dataset, {source, *maps.glob("*.map")}),
+    }
+    configs = {}
+    for branch in BRANCHES:
+        document = copy.deepcopy(base)
+        document["DIRECTORIES"]["output"] = str(destination / "runs" / branch)
+        if branch == BRANCHES[-1]:
+            _to_pr_schema(document["MODFLOW"])
+        path = destination / f"{branch}.json"
+        _json(path, document)
+        configs[branch] = path
+    _json(destination / "manifest.json", manifest)
+    return configs
+
+
 def prepare(
     dataset: Path,
     destination: Path,
     *,
     months: int = 2,
+    profile: str = "reconstructed",
     wetting: str = "below",
     mxiter: int = 2000,
     wetfct: float = 1.0,
@@ -42,14 +142,23 @@ def prepare(
 ) -> dict[str, Path]:
     """Write the same physical model in the three branches' configuration formats.
 
-    Derived heads are numerical initialization estimates, not observations.
-    The assumptions and each altered cell count are recorded in manifest.json.
+    The ``reconstructed`` profile derives heads, conductivities, storage and
+    river layers under the declared policies; derived heads are numerical
+    initialization estimates, not observations. The ``scientist`` profile
+    passes the configuration delivered with the dataset through unchanged (see
+    :func:`_prepare_scientist`); the wetting and solver options apply only to
+    the former. The assumptions and each altered cell count are recorded in
+    manifest.json.
     """
     dataset, destination = dataset.resolve(), destination.resolve()
     if destination == dataset or dataset in destination.parents:
         raise ValueError("The destination must be outside the source dataset.")
     if months < 2 or months > 9:
         raise ValueError("This dataset exercise supports 2 through 9 months.")
+    if profile not in ("reconstructed", "scientist"):
+        raise ValueError("The profile must be 'reconstructed' or 'scientist'.")
+    if profile == "scientist":
+        return _prepare_scientist(dataset, destination, months)
     if not np.isfinite(wetdry_threshold) or wetdry_threshold <= 0:
         raise ValueError("The wetting threshold must be positive and finite.")
     maps = dataset / "input/modflow"
@@ -85,21 +194,15 @@ def prepare(
         "layers": [],
         "source_sha256": {},
     }
-    source_paths = {dataset / "bauru_modflow.json", dataset / "input/clone/clone.map"}
-    source_paths.update(maps.glob("*.map"))
-    for path in sorted(source_paths):
-        manifest["source_sha256"][str(path.relative_to(dataset))] = hashlib.sha256(
-            path.read_bytes()
-        ).hexdigest()
+    manifest["source_sha256"] = _sha256(
+        dataset,
+        {dataset / "bauru_modflow.json", dataset / "input/clone/clone.map", *maps.glob("*.map")},
+    )
 
     original = json.loads((dataset / "bauru_modflow.json").read_text(encoding="utf-8"))
     old_root = str(Path(original["RASTERS"]["clone"]).parents[2])
     base = _replace(original, old_root, str(dataset))
-    month_index = 2023 * 12 + 7 + months - 1
-    base["SIM_TIME"] = {
-        "start": "01/08/2023",
-        "end": f"01/{month_index % 12 + 1:02d}/{month_index // 12}",
-    }
+    base["SIM_TIME"] = _window(months)
     mf = base["MODFLOW"]
     mf["bottom"] = str(maps / SURFACES[0])
     ss = read("ss.map")
@@ -183,28 +286,8 @@ def prepare(
     for branch in BRANCHES:
         document = copy.deepcopy(base)
         document["DIRECTORIES"]["output"] = str(destination / "runs" / branch)
-        settings = document["MODFLOW"]
-        if branch == "feat_356_modflow_coupling":
-            settings.pop("bottom")
-            settings["top"] = str(maps / SURFACES[-1])
-            settings["layers"].reverse()
-            for layer, bottom in zip(settings["layers"], reversed(SURFACES[:-1])):
-                layer.pop("top")
-                layer["bottom"] = str(maps / bottom)
-            for package in ("river", "ghb"):
-                settings[package]["entries"] = settings[package].pop("layers")
-                for entry in settings[package]["entries"]:
-                    entry["layers"] = [4 - entry.pop("layer")]
-            settings["wetting"].pop("multiplier")
-            settings["wetting"]["layers"] = [1]
-            for name in ("recharge", "wells"):
-                settings.pop(name)
-            for name in ("time_unit", "length_unit"):
-                settings["dis"].pop(name)
-            for name in ("type", "fail_on_non_convergence"):
-                settings["solver"].pop(name)
-            settings["coupling"].pop("baseflow_from_river_leakage")
-            settings["output"]["root_depth"] = True
+        if branch == BRANCHES[-1]:
+            _to_pr_schema(document["MODFLOW"])
         path = destination / f"{branch}.json"
         _json(path, document)
         configs[branch] = path
@@ -224,6 +307,9 @@ if __name__ == "__main__":
     parser.add_argument("dataset", type=Path)
     parser.add_argument("destination", type=Path)
     parser.add_argument("--months", type=int, default=2)
+    parser.add_argument(
+        "--profile", choices=("reconstructed", "scientist"), default="reconstructed"
+    )
     parser.add_argument("--wetting", choices=("off", "below", "lateral"), default="below")
     parser.add_argument("--mxiter", type=int, default=2000)
     parser.add_argument("--wetfct", type=float, default=1.0)
@@ -235,6 +321,7 @@ if __name__ == "__main__":
         args.dataset,
         args.destination,
         months=args.months,
+        profile=args.profile,
         wetting=args.wetting,
         mxiter=args.mxiter,
         wetfct=args.wetfct,
