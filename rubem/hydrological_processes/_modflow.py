@@ -308,12 +308,14 @@ class ModflowGroundwater:
                     active,
                     1.0,
                     f"The horizontal conductivity of {label}",
+                    floor=-0.0,
                 ),
                 self._complete(
                     layer.vertical_conductivity,
                     active,
                     1.0,
                     f"The vertical conductivity of {label}",
+                    floor=-0.0,
                 ),
                 target,
                 layer.compute_conductivity,
@@ -321,8 +323,12 @@ class ModflowGroundwater:
             if transient:
                 primary, secondary = _storage_sources(layer)
                 self.mf.setStorage(
-                    self._complete(primary, active, 0.0, f"The primary storage of {label}"),
-                    self._complete(secondary, active, 0.0, f"The secondary storage of {label}"),
+                    self._complete(
+                        primary, active, 0.0, f"The primary storage of {label}", floor=0.0
+                    ),
+                    self._complete(
+                        secondary, active, 0.0, f"The secondary storage of {label}", floor=0.0
+                    ),
                     target,
                 )
 
@@ -435,13 +441,33 @@ class ModflowGroundwater:
             shutil.copyfile(source.table, snapshot)
             return pcr.lookupscalar(str(snapshot), pcr.nominal(classes))
 
-    def _complete(self, source, required, fill: float, what: str) -> Field:
-        return self._fill(self._values(source), required, fill, what, source)
+    def _complete(
+        self, source, required, fill: float, what: str, *, floor: float | None = None
+    ) -> Field:
+        return self._fill(self._values(source), required, fill, what, source, floor=floor)
 
-    def _fill(self, values, required, fill: float, what: str, source) -> Field:
-        """``values`` with its missing cells filled; ``required`` cells may not be missing."""
+    def _fill(
+        self, values, required, fill: float, what: str, source, *, floor: float | None = None
+    ) -> Field:
+        """``values`` with its missing cells filled; ``required`` cells may not be missing.
+
+        With ``floor`` 0, a required cell may not be negative; with a negative
+        zero (``-0.0``) it may not be zero either. The check runs on the Float32
+        values PCRaster holds, so a lookup or a candidate value that rounds to
+        zero is refused here even when the configuration was not validated,
+        as a calibration candidate is not.
+        """
         if required is not None:
             self._require(values, required, what, source, "cells it is used on")
+            if floor is not None:
+                strict = math.copysign(1.0, floor) < 0
+                low = required & np.isfinite(values) & ((values <= 0) if strict else (values < 0))
+                if low.any():
+                    file = source.map if isinstance(source, ConductivityLookup) else source
+                    raise ValueError(
+                        f"{what} ({file}) is {'not positive' if strict else 'negative'} on "
+                        f"{int(low.sum())} cells it is used on, the first at {_first_cell(low)}."
+                    )
         return _field(np.where(np.isfinite(values), values, fill))
 
     @staticmethod

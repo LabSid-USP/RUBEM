@@ -280,6 +280,25 @@ class TestInitialize:
         with pytest.raises(ValueError, match="row 2, column 3"):
             build(section, run_dir)
 
+    def test_a_non_positive_conductivity_on_an_active_cell_is_refused(self, section, run_dir, mf):
+        """Checked on the Float32 values, so it also covers a calibration candidate."""
+        rewrite(
+            section["layers"][1]["horizontal_conductivity"],
+            [0.0 if index == 5 else 1.0 for index in range(9)],
+        )
+        with pytest.raises(ValueError, match="not positive.*row 2, column 3"):
+            build(section, run_dir)
+
+    def test_a_negative_storage_on_an_active_cell_is_refused(self, section, run_dir, mf):
+        section["layers"][1]["specific_storage"] = str(
+            write_grid_map(
+                Path(section["top"]).with_name("ss.map"),
+                [-1e-5 if index == 5 else 1e-5 for index in range(9)],
+            )
+        )
+        with pytest.raises(ValueError, match="negative.*row 2, column 3"):
+            build(section, run_dir)
+
     def test_a_property_missing_only_on_inactive_cells_is_filled(self, section, run_dir, mf):
         rewrite(
             section["layers"][0]["boundary"],

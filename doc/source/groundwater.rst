@@ -893,7 +893,8 @@ volume. Head diagnostics are the final substep's heads.
    * - ``mfst<n>``
      - ``output.storage`` (transient)
      - :raw-html:`m<sup>3</sup>day<sup>-1</sup>`
-     - Mean storage flow of layer ``n``.
+     - Mean storage flow of layer ``n``: positive when the layer releases
+       water from storage, negative when it takes water into storage.
    * - ``mfdrn<n>``
      - ``output.drain_flow``
      - :raw-html:`m<sup>3</sup>day<sup>-1</sup>`

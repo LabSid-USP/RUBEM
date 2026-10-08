@@ -145,12 +145,13 @@ class Wetting(_Strict):
 
     :param map: WETDRY raster [m].
     :param layers: Layers the map applies to; ``None`` means every layer
-        whose LAYCON is 1 or 3.
+        whose LAYCON is 1 or 3. An empty list is refused: it would switch the
+        capability off silently.
     """
 
     enabled: bool = False
     map: MapPath | None = None
-    layers: list[LayerNumber] | None = None
+    layers: LayerList | None = None
     wetfct: PositiveFloat = 1.0
     iwetit: PositiveInt = 3
     ihdwet: Literal[0, 1] = 0

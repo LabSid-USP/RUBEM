@@ -26,6 +26,7 @@ processes, and this module imports no native library.
 """
 
 import math
+import struct
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -94,9 +95,10 @@ class ModflowCatalog:
     def admits(self, name: str, value: float) -> bool:
         """Whether a parameter may take a value.
 
-        Every MODFLOW parameter is strictly positive and finite: a zero
-        conductivity or storage would only surface as a run that does not
-        converge. A specific yield is a fraction, at most 1.
+        Every MODFLOW parameter is strictly positive and finite, also once
+        stored as the Float32 of a PCRaster field: a value that rounds to zero
+        or overflows there would only surface as a run that does not converge.
+        A specific yield is a fraction, at most 1.
 
         :param name: A name of the catalog.
         :type name: str
@@ -109,6 +111,12 @@ class ModflowCatalog:
         """
         value = float(value)
         if not math.isfinite(value) or value <= 0.0:
+            return False
+        try:
+            (stored,) = struct.unpack("f", struct.pack("f", value))
+        except OverflowError:
+            return False
+        if not math.isfinite(stored) or stored <= 0.0:
             return False
         return value <= 1.0 or not name.endswith(".specific_yield")
 

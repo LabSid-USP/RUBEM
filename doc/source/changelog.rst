@@ -39,7 +39,12 @@ Added
   final values. A solver failure at any substep raises an error naming its
   period and substep. All layers must share ``compute_conductivity``, which
   the extension applies globally. Universal lookup intervals ``[,]`` and
-  ``<,>`` are accepted and preserved in candidate tables. ``rubem calibrate``
+  ``<,>`` are accepted and preserved in candidate tables. Conductivities must
+  be positive and storage coefficients non-negative on the cells they are
+  used on, checked at run time on the Float32 values as well, so a calibration
+  candidate that rounds to zero is refused instead of failing to converge;
+  the calibrator's own bounds apply the same Float32 limits. An empty
+  ``wetting.layers`` list is refused. ``rubem calibrate``
   runs the coupled model whenever the configuration enables it and searches
   or fixes the MODFLOW parameters
   named in ``--bound`` and ``--fix`` (``modflow.layers.<n>.specific_yield``,

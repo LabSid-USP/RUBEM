@@ -256,6 +256,11 @@ class TestDomain:
             ("modflow.layers.1.kh.1", -1.0, False),
             ("modflow.layers.1.kh.1", float("inf"), False),
             ("modflow.layers.1.kh.1", float("nan"), False),
+            # Below the smallest positive Float32 the PCRaster field holds a zero.
+            ("modflow.layers.1.kh.1", 1e-50, False),
+            ("modflow.layers.1.kh.1", 1e-30, True),
+            # Above the largest Float32 it holds an infinity.
+            ("modflow.layers.1.kh.1", 1e40, False),
             ("modflow.river.1.conductance", 50.0, True),
             ("modflow.river.1.conductance", 0.0, False),
             ("modflow.layers.2.specific_yield", 0.0, False),

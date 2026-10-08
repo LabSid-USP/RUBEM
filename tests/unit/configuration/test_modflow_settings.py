@@ -298,6 +298,32 @@ class TestSchema:
         refused(data)
 
     @pytest.mark.unit
+    @pytest.mark.parametrize("field", ["specific_storage", "specific_yield"])
+    def test_a_numeric_zero_storage_is_a_value_not_a_missing_path(self, field):
+        data = section()
+        data["layers"][1][field] = 0.0
+
+        assert getattr(ModflowSettings.model_validate(data).layers[1], field) == 0.0
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "value",
+        [
+            {"map": "classes.map"},
+            {"table": "kh.tbl"},
+            {},
+            {"map": "", "table": "kh.tbl"},
+            {"map": "classes.map", "table": ""},
+            {"map": "classes.map", "table": "kh.tbl", "tabel": "kh.tbl"},
+        ],
+    )
+    def test_a_partial_or_unknown_lookup_object_is_refused(self, value):
+        data = section()
+        data["layers"][1]["horizontal_conductivity"] = value
+
+        assert "horizontal_conductivity" in refused(data)
+
+    @pytest.mark.unit
     def test_a_numeric_string_stays_a_path(self):
         data = section()
         data["layers"][1]["vertical_conductivity"] = "0.5"
@@ -547,6 +573,14 @@ class TestEnabledRules:
     def test_a_wetting_layer_is_listed_once(self):
         data = section()
         data["wetting"]["layers"] = [1, 1]
+
+        assert "wetting" in refused(data)
+
+    @pytest.mark.unit
+    def test_an_empty_wetting_layer_list_is_refused(self):
+        """An empty list would switch the capability off without a word."""
+        data = section()
+        data["wetting"]["layers"] = []
 
         assert "wetting" in refused(data)
 
