@@ -33,6 +33,7 @@ All development activity is coordinated via the `RUBEM Github page <https://gith
    datasets.rst
    preprocessing.rst
    calibration.rst
+   groundwater.rst
    api.rst
    changelog.rst
    code-of-conduct.rst
