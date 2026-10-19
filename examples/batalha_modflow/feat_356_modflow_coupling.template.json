@@ -4,14 +4,14 @@
   },
   "SIM_TIME": {
     "start": "01/08/2023",
-    "end": "01/04/2024"
+    "end": "01/07/2025"
   },
   "DIRECTORIES": {
     "output": "${prepared}/runs/feat_356_modflow_coupling",
     "ndvi": "${dataset}/input/ndvi/",
     "landuse": "${dataset}/input/cob/",
     "etp": "${dataset}/input/etp/",
-    "prec": "${dataset}/input/prec/",
+    "prec": "${dataset}/input/prec_inmet/",
     "kp": "${dataset}/input/kp/"
   },
   "FILENAME_PREFIXES": {
@@ -58,7 +58,7 @@
     "k_c_max": "${dataset}/input/text/landuse/kcmax.txt"
   },
   "INITIAL_SOIL_CONDITIONS": {
-    "t_ini": 0.5,
+    "t_ini": 0.35,
     "bfw_ini": 5.0,
     "bfw_lim": 100.0,
     "s_sat_ini": 200.0
@@ -77,7 +77,7 @@
     "w_2": 0.12,
     "w_3": 0.37,
     "rcd": 5.375,
-    "f": 0.581,
+    "f": 0.35,
     "alpha_gw": 0.922,
     "x": 0.307
   },
@@ -99,10 +99,10 @@
     "layers": [
       {
         "name": "upper",
-        "horizontal_conductivity": "${dataset}/input/modflow/KY3.map",
-        "vertical_conductivity": "${prepared}/derived/kv3.map",
-        "boundary": "${dataset}/input/modflow/bound.map",
-        "initial_head": "${prepared}/derived/head3-initialized.map",
+        "horizontal_conductivity": "${dataset}/input/modflow/KY1.map",
+        "vertical_conductivity": "${prepared}/derived/kv-upper.map",
+        "boundary": "${prepared}/derived/boundary-upper.map",
+        "initial_head": "${prepared}/derived/head-upper.map",
         "specific_yield": "${dataset}/input/modflow/sy.map",
         "laytype": 1,
         "compute_conductivity": true,
@@ -111,10 +111,10 @@
       {
         "name": "middle",
         "horizontal_conductivity": "${dataset}/input/modflow/KY2.map",
-        "vertical_conductivity": "${prepared}/derived/kv2.map",
+        "vertical_conductivity": "${prepared}/derived/kv-middle.map",
         "boundary": "${dataset}/input/modflow/bound.map",
-        "initial_head": "${prepared}/derived/head2-initialized.map",
-        "specific_storage": "${prepared}/derived/storage2.map",
+        "initial_head": "${prepared}/derived/head-middle.map",
+        "specific_storage": "${dataset}/input/modflow/ss.map",
         "specific_yield": "${dataset}/input/modflow/sy.map",
         "laytype": 2,
         "compute_conductivity": true,
@@ -122,11 +122,11 @@
       },
       {
         "name": "lower",
-        "horizontal_conductivity": "${dataset}/input/modflow/KY1.map",
-        "vertical_conductivity": "${prepared}/derived/kv1.map",
+        "horizontal_conductivity": "${dataset}/input/modflow/KY3.map",
+        "vertical_conductivity": "${prepared}/derived/kv-lower.map",
         "boundary": "${dataset}/input/modflow/bound.map",
-        "initial_head": "${prepared}/derived/head1-initialized.map",
-        "specific_storage": "${prepared}/derived/storage1.map",
+        "initial_head": "${prepared}/derived/head-lower.map",
+        "specific_storage": "${dataset}/input/modflow/ss.map",
         "specific_yield": "${dataset}/input/modflow/sy.map",
         "laytype": 2,
         "compute_conductivity": true,
@@ -134,53 +134,37 @@
       }
     ],
     "dis": {
-      "nstp": 1,
+      "nstp": 5,
       "tsmult": 1.0,
       "steady_state": 0
     },
     "solver": {
       "mxiter": 2000,
-      "iter1": 20,
+      "iter1": 100,
       "npcond": 1,
       "hclose": 0.01,
       "rclose": 0.01,
       "relax": 1.0,
       "nbpol": 2,
-      "damp": 0.5
+      "damp": 1.0
     },
     "wetting": {
-      "enabled": false,
-      "map": "${prepared}/derived/wetting.map",
+      "enabled": 0,
+      "map": "${prepared}/derived/wetting-upper.map",
       "layers": [
         1
       ],
-      "wetfct": 1.0,
+      "wetfct": 0.1,
       "iwetit": 3,
       "ihdwet": 0
     },
     "river": {
-      "enabled": true,
+      "enabled": 1,
       "entries": [
         {
-          "stage": "${prepared}/derived/river-stage1.map",
-          "bottom": "${prepared}/derived/river-bed1.map",
-          "conductance": "${prepared}/derived/river-conductance1.map",
-          "layers": [
-            3
-          ]
-        },
-        {
-          "stage": "${prepared}/derived/river-stage2.map",
-          "bottom": "${prepared}/derived/river-bed2.map",
-          "conductance": "${prepared}/derived/river-conductance2.map",
-          "layers": [
-            2
-          ]
-        },
-        {
-          "stage": "${prepared}/derived/river-stage3.map",
-          "bottom": "${prepared}/derived/river-bed3.map",
-          "conductance": "${prepared}/derived/river-conductance3.map",
+          "stage": "${dataset}/input/modflow/riv_stage.map",
+          "bottom": "${dataset}/input/modflow/riv_bot.map",
+          "conductance": "${dataset}/input/modflow/riv_cond.map",
           "layers": [
             1
           ]
@@ -192,7 +176,21 @@
       "entries": [
         {
           "head": "${dataset}/input/modflow/ghb_head.map",
-          "conductance": "${dataset}/input/modflow/ghb_cond.map",
+          "conductance": "${prepared}/derived/ghb-conductance-third.map",
+          "layers": [
+            3
+          ]
+        },
+        {
+          "head": "${dataset}/input/modflow/ghb_head.map",
+          "conductance": "${prepared}/derived/ghb-conductance-third.map",
+          "layers": [
+            2
+          ]
+        },
+        {
+          "head": "${dataset}/input/modflow/ghb_head.map",
+          "conductance": "${prepared}/derived/ghb-conductance-third.map",
           "layers": [
             1
           ]

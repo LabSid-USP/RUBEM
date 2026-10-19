@@ -444,17 +444,19 @@ Preparing conductivity and storage maps
 With ``compute_conductivity: true``, provide horizontal conductivity
 :math:`K_h` and vertical conductivity :math:`K_v`, both in m/day. File names
 do not determine their meaning. The Batalha/Bauru example takes ``KY`` as
-:math:`K_h` and assumes the dimensionless anisotropy ``KX`` is the vertical
-ratio :math:`K_h/K_v`. Confirm the direction of an anisotropy ratio in the
-source model before converting it. Under that assumption, prepare a separate
+:math:`K_h` and the dimensionless anisotropy ``KX`` as the vertical ratio
+:math:`K_h/K_v`, as its author confirmed. Confirm the direction of an
+anisotropy ratio in the source model before converting it. Prepare a separate
 vertical-conductivity raster as
 :math:`K_v = KY/KX`; give ``KY`` as ``horizontal_conductivity`` and the
 derived raster as ``vertical_conductivity``. Do this for each corresponding
-physical layer, preserving the source rasters. The same example's
-``--profile scientist`` passes the configuration delivered with the dataset
-through unchanged, with ``KX`` as the horizontal conductivity and ``ss.map``
-as the storage coefficient, for parity checks against the prototype branches
-rather than as a recommended preparation.
+physical layer, preserving the source rasters; the example's default
+``--profile answered`` derives these rasters and applies the other answers
+of the model's author (initial heads, GHB variants, wetting repairs). The
+same example's ``--profile scientist`` passes the configuration delivered
+with the dataset through unchanged, with ``KX`` as the horizontal
+conductivity and ``ss.map`` as the storage coefficient, for parity checks
+against the prototype branches rather than as a recommended preparation.
 
 The key ``specific_storage`` takes the dimensionless confined storage
 coefficient ``Sf1`` expected by BCF. If the source contains specific storage

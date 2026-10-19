@@ -53,9 +53,13 @@ Added
   documents the exchange, the keys, the rules, the outputs, conversion of
   anisotropy and specific-storage source rasters, and the prescribed river
   boundary's limitation for the combined basin water balance. The Batalha
-  example's preparer (``examples/batalha_modflow``) has a ``--profile
-  scientist`` option that emits the configuration delivered with the dataset
-  for the three branches, for parity checks against the prototypes
+  example's preparer (``examples/batalha_modflow``) takes the delivered
+  configuration as ``--source`` and has two profiles: ``scientist`` emits it
+  unchanged for the three branches, for parity checks against the
+  prototypes, and ``answered`` (default) applies its author's answers of
+  2026-10-13 (anisotropy and conductivity suffixes, filled initial heads, GHB
+  variants, wetting repairs, solver and time-stepping overrides) for windows
+  of up to 24 months
   (`#356 <https://github.com/LabSid-USP/RUBEM/issues/356>`__).
 - Added ``rubem calibrate``: a differential evolution (SciPy) over the free
   calibration parameters, with ``w3`` derived from the other two weights,
