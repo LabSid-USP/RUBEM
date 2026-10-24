@@ -966,7 +966,7 @@ Optional boolean value. If enabled, this option allows the generation of Total I
 Baseflow
 ````````
 
-Optional boolean value. If enabled, this option allows the generation of  Baseflow (BFW) [mm] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Baseflow raster series>`
+Optional boolean value. If enabled, this option allows the generation of  Baseflow (BFW) [mm] result maps in raster format for each of the time steps included in the simulation period. :ref:`See more. <fileformats:Baseflow raster series>` When the :ref:`MODFLOW coupling <userguide:MODFLOW Groundwater Coupling>` is enabled, the baseflow is the leakage from the aquifer to the river cells of the step, as a depth over the cell. :ref:`See more. <groundwater:Baseflow>`
 
 .. code-block:: json
 
@@ -1069,6 +1069,284 @@ Optional boolean value. If enabled, this option allows the generation of Accumul
       },
    }
 
+MODFLOW Groundwater Coupling
+----------------------------
+
+The optional ``MODFLOW`` section (``modflow`` in configuration format 1.0)
+couples the model to MODFLOW-2005 through the PCRaster MODFLOW extension: the
+recharge of each step feeds the groundwater model and the leakage from the
+aquifer to the rivers becomes the baseflow. Without the section, or with
+``enabled`` set to ``false``, the run is not coupled and the saturated zone is
+the lumped reservoir of the model. The coupling, the rules the inputs must
+follow, the outputs and the limitations are documented in
+:doc:`Groundwater Coupling with MODFLOW </groundwater>`; this section lists the
+keys. Relative paths are anchored on the directory of the configuration file,
+lengths are in metres and times in days, and a key the section does not know is
+refused.
+
+MODFLOW Section
+```````````````
+
+Optional boolean value ``enabled`` (default ``false``) that turns the coupling
+on, and mandatory path ``top`` to a raster of the elevation of the model top
+[m] when it is on. A section given with ``enabled`` set to ``false`` is
+reported as ignored. The coupling needs the PCRaster MODFLOW extension and the
+``mf2005`` executable, both installed by the conda-forge ``pcraster`` package;
+when either is missing, or a MODFLOW input file does not exist, the validation
+reports a blocking problem, even with ``-s``. :ref:`See more. <groundwater:Requirements>`
+
+.. code-block:: json
+
+   {
+      "MODFLOW": {
+         "enabled": true,
+         "top": "/Dataset/UIGCRB/input/modflow/top_model.map",
+      },
+   }
+
+MODFLOW Layers
+``````````````
+
+Mandatory list ``layers`` of one to nine layers, listed **from the top down**:
+layer 1 is the top layer, and that number is the one every other key uses.
+Each layer has a unique ``name``; the paths ``bottom`` (elevation of the bottom
+of the layer [m]), ``initial_head`` [m] and ``boundary`` (the MODFLOW
+``IBOUND`` raster: ``1`` active, ``0`` inactive, ``-1`` constant head); the BCF
+``laytype`` (units digit ``LAYCON``: ``0`` confined, ``1`` unconfined, top
+layer only, ``2`` and ``3`` convertible; tens digit the interblock averaging);
+``horizontal_conductivity`` [m/day], a raster path, a positive number or an
+object with a nominal class ``map`` and a lookup ``table``;
+``vertical_conductivity`` [m/day], a raster path or a positive number;
+``specific_storage`` (the confined storage coefficient, given to MODFLOW as it
+is) and ``specific_yield`` [dimensionless quantity], each a raster path or a
+number; and ``compute_conductivity`` (default ``true``). A transient run needs
+``specific_storage`` for ``LAYCON`` 0, ``specific_yield`` for ``LAYCON`` 1 and
+both for ``LAYCON`` 2 and 3. Numbers are written without quotes. :ref:`See more. <groundwater:Layer keys>`
+
+.. code-block:: json
+
+   {
+      "MODFLOW": {
+         "layers": [
+            {
+               "name": "upper",
+               "bottom": "/Dataset/UIGCRB/input/modflow/bottom1.map",
+               "initial_head": "/Dataset/UIGCRB/input/modflow/head1.map",
+               "boundary": "/Dataset/UIGCRB/input/modflow/bound.map",
+               "laytype": 1,
+               "horizontal_conductivity": {
+                  "map": "/Dataset/UIGCRB/input/modflow/kh_classes1.map",
+                  "table": "/Dataset/UIGCRB/input/modflow/kh1.tbl",
+               },
+               "vertical_conductivity": "/Dataset/UIGCRB/input/modflow/kv1.map",
+               "specific_yield": 0.15,
+               "specific_storage": 1e-6,
+            },
+            {
+               "name": "lower",
+               "bottom": "/Dataset/UIGCRB/input/modflow/bottom2.map",
+               "initial_head": "/Dataset/UIGCRB/input/modflow/head2.map",
+               "boundary": "/Dataset/UIGCRB/input/modflow/bound.map",
+               "laytype": 2,
+               "horizontal_conductivity": 0.1,
+               "vertical_conductivity": 0.02,
+               "specific_yield": 0.15,
+               "specific_storage": 1e-6,
+            },
+         ],
+      },
+   }
+
+MODFLOW Time Discretization
+```````````````````````````
+
+Optional object ``dis``: ``nstp``, the number of MODFLOW time steps in each
+stress period (default ``1``); ``tsmult``, their length multiplier (default
+``1.0``); and ``steady_state`` (default ``false``). One RUBEM step is one
+stress period, whose length is the number of days of its month. With ``nstp``
+above 1, a solver failure before the last time step of a period ends the
+process instead of raising an error. :ref:`See more. <groundwater:Limitations>`
+
+.. code-block:: json
+
+   {
+      "MODFLOW": {
+         "dis": {"nstp": 5, "tsmult": 1.0, "steady_state": false},
+      },
+   }
+
+MODFLOW Solver
+``````````````
+
+Optional object ``solver`` with the settings of the preconditioned
+conjugate-gradient solver (PCG), the only one available: ``mxiter`` (default
+``2000``), ``iter1`` (``20``), ``npcond`` (``1`` or ``2``, default ``1``),
+``hclose`` [m] (``5.0``), ``rclose`` [:raw-html:`m<sup>3</sup>day<sup>-1</sup>`]
+(``3.0``), ``relax`` (``1.0``), ``nbpol`` (``2``) and ``damp`` (``0.5``). The
+default convergence criteria are coarse. :ref:`See more. <groundwater:Solver>`
+
+.. code-block:: json
+
+   {
+      "MODFLOW": {
+         "solver": {"hclose": 0.01, "rclose": 1.0},
+      },
+   }
+
+MODFLOW Wetting
+```````````````
+
+Optional object ``wetting`` for the rewetting of dry cells: ``enabled``
+(default ``false``); ``map``, the path to the ``WETDRY`` raster [m], mandatory
+when enabled; ``layers``, the layers it applies to (default ``null``: every
+layer whose ``LAYCON`` is 1 or 3; a listed layer must be of one of those
+types); ``wetfct`` (``1.0``), ``iwetit`` (``3``) and ``ihdwet`` (``0`` or
+``1``, default ``0``). :ref:`See more. <groundwater:Wetting>`
+
+.. code-block:: json
+
+   {
+      "MODFLOW": {
+         "wetting": {
+            "enabled": true,
+            "map": "/Dataset/UIGCRB/input/modflow/wet.map",
+            "layers": [1],
+         },
+      },
+   }
+
+MODFLOW Rivers
+``````````````
+
+Mandatory object ``river`` when the section is enabled, with ``enabled`` set
+to ``true``: the leakage from the aquifer to the river cells is the baseflow
+of the coupled run. Each of its ``entries`` lists its ``layers`` and the paths
+``stage`` [m] and ``bottom`` (riverbed bottom) [m]; ``conductance``
+[:raw-html:`m<sup>2</sup>day<sup>-1</sup>`] is a raster path or a positive
+number, which then needs ``mask``, the path to a raster whose positive cells
+are the river cells. :ref:`See more. <groundwater:Rivers, general-head boundaries and drains>`
+
+.. code-block:: json
+
+   {
+      "MODFLOW": {
+         "river": {
+            "enabled": true,
+            "entries": [
+               {
+                  "layers": [1],
+                  "stage": "/Dataset/UIGCRB/input/modflow/riv_stage.map",
+                  "bottom": "/Dataset/UIGCRB/input/modflow/riv_bot.map",
+                  "conductance": 0.387,
+                  "mask": "/Dataset/UIGCRB/input/modflow/riv_cells.map",
+               },
+            ],
+         },
+      },
+   }
+
+MODFLOW General-Head Boundaries
+```````````````````````````````
+
+Optional object ``ghb`` (default disabled) whose ``entries`` list their
+``layers`` and the raster paths ``head`` [m] and ``conductance``
+[:raw-html:`m<sup>2</sup>day<sup>-1</sup>`]. The same maps apply to every
+listed layer, so the boundary conductance of a column adds up over its
+layers. :ref:`See more. <groundwater:Rivers, general-head boundaries and drains>`
+
+.. code-block:: json
+
+   {
+      "MODFLOW": {
+         "ghb": {
+            "enabled": true,
+            "entries": [
+               {
+                  "layers": [1, 2],
+                  "head": "/Dataset/UIGCRB/input/modflow/ghb_head.map",
+                  "conductance": "/Dataset/UIGCRB/input/modflow/ghb_cond.map",
+               },
+            ],
+         },
+      },
+   }
+
+MODFLOW Drains
+``````````````
+
+Optional object ``drain`` (default disabled) whose ``entries`` list their
+``layers`` and the raster paths ``elevation`` [m] and ``conductance``
+[:raw-html:`m<sup>2</sup>day<sup>-1</sup>`]. :ref:`See more. <groundwater:Rivers, general-head boundaries and drains>`
+
+.. code-block:: json
+
+   {
+      "MODFLOW": {
+         "drain": {
+            "enabled": true,
+            "entries": [
+               {
+                  "layers": [1],
+                  "elevation": "/Dataset/UIGCRB/input/modflow/drn_elev.map",
+                  "conductance": "/Dataset/UIGCRB/input/modflow/drn_cond.map",
+               },
+            ],
+         },
+      },
+   }
+
+MODFLOW Root-Depth Coupling
+```````````````````````````
+
+Optional object ``coupling.dynamic_root_depth``, experimental and disabled by
+default, with which the water table of a step restricts the roots of the
+vegetation at the next one: ``enabled``; ``minimum_depth_table``, the path to
+a lookup table of the minimum root depth [cm] of each soil class, mandatory
+when enabled, with values in :math:`(0, Z_r]`; and ``water_table``, whose
+``method`` is ``highest_unconfined`` (default), ``highest_active_head`` or
+``layer``, the last one with the ``layer`` number. :ref:`See more. <groundwater:Roots and the water table>`
+
+.. code-block:: json
+
+   {
+      "MODFLOW": {
+         "coupling": {
+            "dynamic_root_depth": {
+               "enabled": true,
+               "minimum_depth_table": "/Dataset/UIGCRB/input/txt/soil/Dpz_min.txt",
+               "water_table": {"method": "highest_active_head"},
+            },
+         },
+      },
+   }
+
+MODFLOW Outputs
+```````````````
+
+Optional object ``output`` of boolean values selecting the MODFLOW
+diagnostics written as raster series, in the raster formats of the run:
+``heads`` (default ``true``, ``mfh<n>`` [m]), ``river_leakage`` (default
+``true``, ``mfaq2rv``, ``mfrv2aq`` and ``mfrvnet``
+[:raw-html:`m<sup>3</sup>day<sup>-1</sup>`]), ``storage`` (default ``false``,
+``mfst<n>``, transient runs only), ``drain_flow`` (default ``false``,
+``mfdrn<n>``) and ``root_depth`` (default ``false``, ``mfwt``, ``mfgwd``,
+``mfzr`` and ``mfzfrac``, with the root-depth coupling). No time series is
+written for them. :ref:`See more. <groundwater:Outputs of a coupled run>`
+
+.. code-block:: json
+
+   {
+      "MODFLOW": {
+         "output": {
+            "heads": true,
+            "river_leakage": true,
+            "storage": false,
+            "drain_flow": false,
+            "root_depth": false,
+         },
+      },
+   }
+
 Configuration File Template
 ---------------------------
 
@@ -1161,7 +1439,38 @@ Configuration File Template
          "map_raster_series": true,
          "tiff_raster_series": true,
       },
+      "MODFLOW": {
+         "enabled": false,
+         "top": "/Dataset/UIRB/input/modflow/top.map",
+         "layers": [
+            {
+               "name": "aquifer",
+               "bottom": "/Dataset/UIRB/input/modflow/bottom.map",
+               "initial_head": "/Dataset/UIRB/input/modflow/head.map",
+               "boundary": "/Dataset/UIRB/input/modflow/bound.map",
+               "laytype": 1,
+               "horizontal_conductivity": 0.5,
+               "vertical_conductivity": 0.1,
+               "specific_yield": 0.15,
+            },
+         ],
+         "river": {
+            "enabled": true,
+            "entries": [
+               {
+                  "layers": [1],
+                  "stage": "/Dataset/UIRB/input/modflow/riv_stage.map",
+                  "bottom": "/Dataset/UIRB/input/modflow/riv_bot.map",
+                  "conductance": "/Dataset/UIRB/input/modflow/riv_cond.map",
+               },
+            ],
+         },
+      },
    }
+
+The ``MODFLOW`` section is optional. The template shows it disabled, which the
+validation reports as ignored: remove it, or set ``enabled`` to ``true`` to
+couple the run to MODFLOW, see :ref:`userguide:MODFLOW Groundwater Coupling`.
 
 ------------------
 
@@ -1246,9 +1555,16 @@ Use ``-h`` or ``--help`` to get a brief description of each command and its argu
      --temp-dir <path>               Parent of the per-evaluation output
                                      directories.
      --bound <str>                   Narrow the range of one parameter:
-                                     NAME=MIN:MAX.
+                                     NAME=MIN:MAX. A MODFLOW parameter
+                                     (modflow.layers.<n>.specific_yield,
+                                     modflow.layers.<n>.specific_storage,
+                                     modflow.layers.<n>.kh.<class>,
+                                     modflow.river.<i>.conductance) is searched
+                                     only when bounded; see the calibration page
+                                     of the documentation.
      --fix <str>                     Keep one parameter out of the search:
-                                     NAME=VALUE.
+                                     NAME=VALUE; MODFLOW parameters use the names
+                                     of --bound.
      --stations <str>                Station ids of the objective, comma-
                                      separated (default: every shared station).
      --init <sobol|latinhypercube|halton|random>
@@ -1377,6 +1693,9 @@ another grid) is reached by the simulation. Failures that are not validation
 problems still stop the run before it starts: a configuration file that does
 not match the schema, a lookup table file that is not there, no raster format
 enabled, or a DEM, clone and georeference that do not share their geometry.
+With an enabled :ref:`MODFLOW section <userguide:MODFLOW Groundwater Coupling>`,
+``-s`` still checks that its input files exist and that the MODFLOW runtime is
+installed, since the coupled run cannot start without them.
 
 .. code-block:: console
 

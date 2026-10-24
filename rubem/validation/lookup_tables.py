@@ -95,6 +95,36 @@ def _in_interval(value: float, interval: str) -> bool:
     return low_ok and high_ok
 
 
+def _first_matching_row(rows, value: float) -> int | None:
+    """The index of the first row of a lookup table whose key matches ``value``.
+
+    PCRaster reads that row for a cell of the class ``value``: a numeric key
+    matches an equal number, an interval key every number it contains, and a
+    later row of the same class is never read.
+
+    :param rows: The rows of a one-key table, as :func:`read_lookup_table` returns them.
+    :type rows: list[tuple[tuple[str], float]]
+
+    :param value: The class of a cell.
+    :type value: float
+
+    :return: The index of the row, ``None`` when no row matches.
+    :rtype: int | None
+    """
+    for index, ((key,), _) in enumerate(rows):
+        if _NUMBER.match(key) and float(key) == value:
+            return index
+        if _INTERVAL.match(key) and _in_interval(value, key):
+            return index
+    return None
+
+
+def _table_value(rows, value: float) -> float | None:
+    """The value PCRaster reads from a lookup table for the class ``value``, ``None`` if none."""
+    index = _first_matching_row(rows, value)
+    return None if index is None else rows[index][1]
+
+
 def _canonical(key: str) -> str:
     """Canonical spelling of a key, so that ``1``, ``01`` and ``1.0`` are one class.
 

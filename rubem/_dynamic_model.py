@@ -1,9 +1,11 @@
 import logging
 import os
+import shutil
 import warnings
 from calendar import monthrange
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pcraster as pcr
@@ -19,7 +21,13 @@ from .file._readers import FieldScale, is_geotiff, read_field, set_clone
 from .file._timeoutput import TimeoutputTimeseriesAdapter
 from .hydrological_processes import Evapotranspiration, Interception, Soil, SurfaceRunoff
 
+if TYPE_CHECKING:
+    from .hydrological_processes._modflow import ModflowGroundwater, ModflowStepResult
+
 MISSING_VALUE_DEFAULT = -9999
+
+MODFLOW_RUN_DIRECTORY = "modflow"
+"""Directory of the output directory MODFLOW runs in; removed after the last step."""
 
 
 class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
@@ -85,6 +93,16 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.current_cell_total_discharge = None
         self.accumulated_cell_total_discharge = None
         self.current_runoff = None
+        # MODFLOW coupling (only when the configuration enables it).
+        self.modflow: ModflowGroundwater | None = None
+        self.modflow_run_dir: Path | None = None
+        self.surface_elevation = None
+        self.soil_rootzone_depth_min = None
+        self.previous_water_table_head = None
+        # Root-depth coupling of the current step: computed, reported and then released.
+        self.groundwater_depth_cm = None
+        self.effective_root_depth = None
+        self.root_depth_fraction = None
 
     @property
     def soil_moistute_content_wilting_point(self):
@@ -232,7 +250,57 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.initial_cell_total_flow = pcrfw.scalar(0)
         self.previous_cell_total_flow = pcrfw.scalar(0)
 
+        if self.config.modflow_enabled:
+            self.__initial_modflow(soil)
+
         self.__release_initial_state()
+
+    def __initial_modflow(self, soil: Field) -> None:
+        """Start MODFLOW in ``<output directory>/modflow`` and prepare the root-depth coupling.
+
+        The module is imported here so that a run without MODFLOW never loads it.
+        The run owns its directory: it removes it after the last step, so it
+        refuses one that already exists, and removes the one it has just
+        created when MODFLOW cannot start.
+
+        :param soil: Soil classes of the run.
+        :type soil: Field
+        :raises RuntimeError: If ``<output directory>/modflow`` already exists.
+        """
+        from .hydrological_processes._modflow import ModflowGroundwater
+
+        settings = self.config.modflow
+        self.modflow_run_dir = Path(self.config.output_directory.path) / MODFLOW_RUN_DIRECTORY
+        try:
+            self.modflow_run_dir.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            raise RuntimeError(
+                f"The MODFLOW run directory {self.modflow_run_dir} already exists (the listing "
+                "of a failed run, or files of yours); the run removes it at the end, so move "
+                "or remove it before the run."
+            ) from None
+        self.logger.info("Initializing MODFLOW groundwater module in %s...", self.modflow_run_dir)
+        start = self.config.simulation_period.start_date
+        try:
+            self.modflow = ModflowGroundwater(
+                settings, self.config.grid.area, self.modflow_run_dir, logger=self.logger
+            )
+            self.modflow.initialize(monthrange(start.year, start.month)[1])
+        except BaseException:
+            # Nothing has run yet, so the directory holds nothing to inspect.
+            self.modflow = None
+            shutil.rmtree(self.modflow_run_dir, ignore_errors=True)
+            raise
+
+        if settings.coupling.dynamic_root_depth.enabled:
+            self.logger.info("Reading minimum soil root zone depth (Dpz_min)...")
+            # The water-table depth is measured from the terrain.
+            self.surface_elevation = self.dem
+            self.soil_rootzone_depth_min = self.__lookup_wrapper(
+                file_path=settings.coupling.dynamic_root_depth.minimum_depth_table,
+                lookup_value=soil,
+                lookup_func=pcrfw.lookupscalar,
+            )
 
     def __release_initial_state(self):
         """Drop the rasters the dynamic section never reads again.
@@ -349,6 +417,9 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         else:
             current_lai_max = self.config.constants.leaf_area_interception_max
 
+        if self.__root_depth_coupled:
+            self.__update_root_depth()
+
         self.logger.debug("Interception")
         current_reflectances_simple_ratio = Interception.get_reflectances_simple_ratio(current_ndvi)
         current_fpar = Interception.get_fpar(
@@ -391,10 +462,23 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
                 self.soil_moisture_content_field_capacity,
             )
         )
+        if self.root_depth_fraction is None:
+            vegetation_water_stress_coef = water_stress_coef
+        else:
+            # The roots reach only a fraction of the rootzone: the vegetation
+            # sees the storages of that fraction, the bare soil the whole of
+            # them. The soil water balance itself is not changed.
+            vegetation_water_stress_coef = pcr.scalar(
+                Evapotranspiration.get_water_stress_coef_et_vegetated_area(
+                    self.current_soil_moist_content * self.root_depth_fraction,
+                    self.soil_moisture_content_wilting_point * self.root_depth_fraction,
+                    self.soil_moisture_content_field_capacity * self.root_depth_fraction,
+                )
+            )
 
         # Vegetated area
         real_et_vegetated_area = Evapotranspiration.get_et_vegetated_area(
-            current_potential_evapotranspiration, current_crop_coef, water_stress_coef
+            current_potential_evapotranspiration, current_crop_coef, vegetation_water_stress_coef
         )
 
         # Impervious area
@@ -491,14 +575,25 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
 
         self.logger.debug("Baseflow")
 
-        self.current_baseflow = Soil.get_baseflow(
-            self.previous_baseflow,
-            self.config.calibration_parameters.alpha_gw,
-            self.current_recharge,
-            self.current_soil_sat_zone_storage,
-            self.baseflow_threshold,
-        )
-        self.previous_baseflow = self.current_baseflow
+        modflow_result = None
+        if self.modflow is None:
+            self.current_baseflow = Soil.get_baseflow(
+                self.previous_baseflow,
+                self.config.calibration_parameters.alpha_gw,
+                self.current_recharge,
+                self.current_soil_sat_zone_storage,
+                self.baseflow_threshold,
+            )
+            self.previous_baseflow = self.current_baseflow
+        else:
+            self.logger.debug("Running MODFLOW...")
+            modflow_result = self.modflow.run_step(
+                self.current_recharge, monthrange(current_date.year, current_date.month)[1]
+            )
+            # The aquifer-to-river leakage replaces the saturated-zone reservoir.
+            self.current_baseflow = modflow_result.baseflow_mm
+            # The head of this step drives the roots of the next one.
+            self.previous_water_table_head = modflow_result.water_table_head
 
         self.logger.debug("Soil Balance")
         self.current_soil_moist_content = Soil.get_actual_soil_moist_cont(
@@ -512,11 +607,13 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
             open_water_area_fraction,
             self.soil_moist_content_sat_point,
         )
-        self.current_soil_sat_zone_storage = Soil.get_actual_water_cont_sat_zone(
-            self.previous_soil_sat_zone_storage, self.current_recharge, self.current_baseflow
-        )
+        if self.modflow is None:
+            # MODFLOW holds the saturated zone when it is coupled.
+            self.current_soil_sat_zone_storage = Soil.get_actual_water_cont_sat_zone(
+                self.previous_soil_sat_zone_storage, self.current_recharge, self.current_baseflow
+            )
+            self.previous_soil_sat_zone_storage = self.current_soil_sat_zone_storage
         self.previous_soil_moist_content = self.current_soil_moist_content
-        self.previous_soil_sat_zone_storage = self.current_soil_sat_zone_storage
 
         self.logger.debug("Runoff")
         self.current_cell_total_discharge = (
@@ -539,8 +636,51 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.previous_cell_total_flow = self.current_runoff
 
         self.logger.debug("Exporting variables to files")
-        self.__current_step_report()
+        self.__current_step_report(modflow_result)
         self.__release_step_state()
+        if self.modflow is not None and current_timestep == self.config.simulation_period.last_step:
+            self.__finish_modflow()
+
+    @property
+    def __root_depth_coupled(self) -> bool:
+        return (
+            self.config.modflow_enabled and self.config.modflow.coupling.dynamic_root_depth.enabled
+        )
+
+    def __update_root_depth(self) -> None:
+        """Restrict the roots with the water table of the previous step.
+
+        The effective root depth is the depth of the water table below the
+        terrain, bounded by the minimum root depth (``Dpz_min``) and the
+        rootzone depth (``Zr``) [cm]. Without a previous head (the first step)
+        or where it is missing, the roots keep the whole rootzone.
+        """
+        rootzone_depth = self.soil_rootzone_depth
+        if self.previous_water_table_head is None:
+            self.groundwater_depth_cm = None
+            self.effective_root_depth = rootzone_depth
+        else:
+            self.groundwater_depth_cm = pcr.max(
+                (self.surface_elevation - self.previous_water_table_head) * 100.0, 0.0
+            )
+            self.effective_root_depth = pcr.min(
+                rootzone_depth,
+                pcr.max(
+                    self.soil_rootzone_depth_min,
+                    pcr.cover(self.groundwater_depth_cm, rootzone_depth),
+                ),
+            )
+        self.root_depth_fraction = self.effective_root_depth / rootzone_depth
+
+    def __finish_modflow(self) -> None:
+        """Release the MODFLOW model and remove its run directory after the last step.
+
+        A step that raises never gets here, so a failed run keeps the
+        directory (and ``pcrmf.lst``) for inspection.
+        """
+        self.modflow = None
+        shutil.rmtree(self.modflow_run_dir)
+        self.logger.debug("Removed the MODFLOW run directory %s.", self.modflow_run_dir)
 
     def __release_step_state(self):
         """Drop the fluxes of the step that has just been reported.
@@ -559,8 +699,11 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         self.current_cell_total_discharge = None
         self.accumulated_cell_total_discharge = None
         self.current_runoff = None
+        self.groundwater_depth_cm = None
+        self.effective_root_depth = None
+        self.root_depth_fraction = None
 
-    def __current_step_report(self):
+    def __current_step_report(self, modflow_result: "ModflowStepResult | None" = None):
         output_vars_dict = {
             self.config.output_variables.itp.id: self.current_interception,
             self.config.output_variables.bfw.id: self.current_baseflow,
@@ -574,28 +717,66 @@ class RainfallRunoffBalanceEnhancedModel(pcrfw.DynamicModel):
         }
 
         self.__report_raster_series(output_vars_dict)
+        if modflow_result is not None:
+            self.__report_modflow_rasters(modflow_result)
 
         if self.__time_series_requested():
             self.__report_time_series(output_vars_dict)
 
     def __report_raster_series(self, output_vars_dict):
         for var in self.config.output_variables.get_enabled_raster_series():
-            if OutputFileFormat.PCRASTER in self.config.output_variables.file_formats:
-                self.report(
-                    variable=output_vars_dict.get(var.id),
-                    name=str(Path(self.config.output_directory.path) / var.raster_filename_prefix),
-                )
+            self.__report_raster(output_vars_dict.get(var.id), var.raster_filename_prefix)
 
-            if OutputFileFormat.GEOTIFF in self.config.output_variables.file_formats:
-                report(
-                    variable=output_vars_dict.get(var.id),
-                    name=var.raster_filename_prefix,
-                    timestep=self.currentStep,
-                    outpath=self.config.output_directory.path,
-                    file_format=OutputFileFormat.GEOTIFF,
-                    base_raster_info=self.config.output_raster_base,
-                    no_data_value=self.config.output_variables.no_data_value,
-                )
+    def __report_modflow_rasters(self, result: "ModflowStepResult") -> None:
+        """Write the MODFLOW diagnostics the section enables, in the run's raster formats.
+
+        Prefixes: ``mfh<n>`` head of layer ``n`` [m]; ``mfaq2rv``, ``mfrv2aq``
+        and ``mfrvnet`` aquifer-to-river, river-to-aquifer and net (positive
+        into the aquifer) river leakage [m3/day]; ``mfst<n>`` storage flow and
+        ``mfdrn<n>`` drain flow of layer ``n`` [m3/day]; with the root-depth
+        coupling, ``mfwt`` water-table head of the step [m], ``mfgwd`` depth of
+        the previous step's water table [cm] (missing on the first step),
+        ``mfzr`` effective root depth [cm] and ``mfzfrac`` its fraction of the
+        rootzone depth [-].
+        """
+        output = self.config.modflow.output
+        rasters = {f"mfh{number}": head for number, head in result.heads.items()}
+        if output.river_leakage:
+            rasters["mfaq2rv"] = result.aquifer_to_river_m3_per_day
+            rasters["mfrv2aq"] = result.river_to_aquifer_m3_per_day
+            rasters["mfrvnet"] = result.net_river_leakage_m3_per_day
+        rasters.update({f"mfst{number}": flow for number, flow in result.storage.items()})
+        rasters.update({f"mfdrn{number}": flow for number, flow in result.drain_flow.items()})
+        if output.root_depth and self.root_depth_fraction is not None:
+            rasters["mfwt"] = result.water_table_head
+            rasters["mfgwd"] = (
+                pcr.ifthen(pcr.spatial(pcr.boolean(0)), pcr.scalar(0.0))
+                if self.groundwater_depth_cm is None
+                else self.groundwater_depth_cm
+            )
+            rasters["mfzr"] = self.effective_root_depth
+            rasters["mfzfrac"] = self.root_depth_fraction
+        for prefix, variable in rasters.items():
+            self.__report_raster(variable, prefix)
+
+    def __report_raster(self, variable: Field, prefix: str) -> None:
+        """Write ``variable`` for the current step in every raster format of the run."""
+        if OutputFileFormat.PCRASTER in self.config.output_variables.file_formats:
+            self.report(
+                variable=variable,
+                name=str(Path(self.config.output_directory.path) / prefix),
+            )
+
+        if OutputFileFormat.GEOTIFF in self.config.output_variables.file_formats:
+            report(
+                variable=variable,
+                name=prefix,
+                timestep=self.currentStep,
+                outpath=self.config.output_directory.path,
+                file_format=OutputFileFormat.GEOTIFF,
+                base_raster_info=self.config.output_raster_base,
+                no_data_value=self.config.output_variables.no_data_value,
+            )
 
     def __report_time_series(self, output_vars_dict):
         for var in self.config.output_variables.get_enabled_time_series():
