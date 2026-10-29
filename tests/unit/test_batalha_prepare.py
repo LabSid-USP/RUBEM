@@ -189,6 +189,36 @@ def test_window_covers_up_to_twenty_four_months(preparer):
     assert preparer["_window"](2) == {"start": "01/08/2023", "end": "01/09/2023"}
     assert preparer["_window"](9) == {"start": "01/08/2023", "end": "01/04/2024"}
     assert preparer["_window"](24) == {"start": "01/08/2023", "end": "01/07/2025"}
+    assert preparer["_window"](300, "01/08/2000") == {"start": "01/08/2000", "end": "01/07/2025"}
+    assert preparer["_window"](5, "01/11/2024") == {"start": "01/11/2024", "end": "01/03/2025"}
+    with pytest.raises(ValueError):
+        preparer["_window"](2, "2023-08-01")
+
+
+def test_series_links_shift_the_window_and_fall_back_to_the_last_raster(preparer):
+    links = preparer["series_links"]
+    assert links([1, 2, 3, 4], first_step=1, months=3) == {1: 1, 2: 2, 3: 3}
+    assert links(list(range(1, 314)), first_step=277, months=24) == {
+        k: 276 + k for k in range(1, 25)
+    }
+    # a land-use series with a raster every twelve steps: the latest raster at or before the step
+    sparse = [1, 13, 25, 277, 289, 301]
+    assert links(sparse, first_step=277, months=3) == {1: 277, 2: 277, 3: 277}
+    assert links(sparse, first_step=280, months=2) == {1: 277, 2: 277}
+    assert links(sparse, first_step=300, months=3) == {1: 289, 2: 301, 3: 301}
+    with pytest.raises(ValueError):
+        links([5, 6], first_step=1, months=2)  # nothing at or before the first step
+
+
+def test_station_sample_gets_a_new_id_on_a_free_cell(preparer):
+    samples = np.array([[0, 1, 0], [0, 0, 2], [0, 0, 0]])
+    stamped, identifier = preparer["station_sample"](samples, row=3, col=1)
+    assert identifier == 3
+    assert stamped[2, 0] == 3 and (stamped != samples).sum() == 1
+    with pytest.raises(ValueError):
+        preparer["station_sample"](samples, row=1, col=2)  # already a sample
+    with pytest.raises(ValueError):
+        preparer["station_sample"](samples, row=4, col=1)  # outside the grid
 
 
 def test_prepare_refuses_destinations_inside_the_dataset(preparer, tmp_path):
@@ -197,7 +227,7 @@ def test_prepare_refuses_destinations_inside_the_dataset(preparer, tmp_path):
     with pytest.raises(ValueError):
         preparer["prepare"](dataset, dataset / "out")
     with pytest.raises(ValueError):
-        preparer["prepare"](dataset, tmp_path / "out", months=25)
+        preparer["prepare"](dataset, tmp_path / "out", months=1)
     with pytest.raises(ValueError):
         preparer["prepare"](dataset, tmp_path / "out", profile="reconstructed")
     assert preparer["WETTING_STRATEGIES"] == ("as-delivered", "below", "off")

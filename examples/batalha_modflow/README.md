@@ -12,7 +12,19 @@ The preparer starts from the configuration the scientist delivers with the
 dataset (`--source`, default `<dataset>/bauru_modflow.json`, written in the
 prototype branches' bottom-up schema) and writes the same physical model for
 the three branches: `feat_modflow_module.json`, `feat_calibrator_modflow.json`
-and `feat_356_modflow_coupling.json` (the PR, top-down schema). PCRaster
+and `feat_356_modflow_coupling.json` (the PR, top-down schema). The window is
+`--months` monthly steps from `--start` (default 01/08/2023). When the delivered
+series begin earlier than the window, `--first-step N` names the source step of
+the window's first month and the preparer writes `derived/series/<name>/` with
+symbolic links (copies where links are refused) to the source rasters, taking
+for each step the latest raster at or before it (the land-use series has one
+raster per year): the historical dataset delivered on 2026-10-29 starts in
+August 2000, so August 2023 is `--first-step 277`. `--station ROW,COL` writes
+`derived/samples-station.map` with a new sample id on that 1-based cell, for
+`rubem calibrate --stations`; the DAEE station 6D-007 lies on the channel cell
+(137, 241). When the listed `ndvi_max`/`ndvi_min` files are missing, the maps of
+the same name in the NDVI series directory are used and the manifest records
+the repair. PCRaster
 numbers layers from the bottom, whereas MODFLOW and the PR number them from
 the top; every layer reference is remapped, including RIV, GHB and wetting.
 Recharge option 3 keeps its meaning of the highest active cell. See
@@ -123,12 +135,17 @@ and every altered cell count is written to `manifest.json`.
 ```sh
 python examples/batalha_modflow/prepare.py \
   /path/to/RUBEM-datasets/batalha_basin /tmp/batalha-answered \
-  --months 24 --ghb split --wetting-fixes a1,a2 --wetting off --hclose 0.01 --rclose 0.01
+  --source /path/to/RUBEM-datasets/batalha_basin/bauru_modflow_t_ini_jul25_hist_x065.json \
+  --months 24 --first-step 277 --station 137,241 --nstp 1 \
+  --ghb none --wetting-fixes a1,a2 --wetting off --hclose 0.01 --rclose 0.01
 rubem run -c /tmp/batalha-answered/feat_356_modflow_coupling.json
 ```
 
-This command completed the 24 months on 2026-10-18 with budget discrepancies
-of at most 0.02 %; the GHB variant is still the scientist's decision.
+This is the configuration the scientist decided on 2026-10-26 (NSTP 1, the
+closure with the smallest budget discrepancy, GHB off as the baseline and
+split as the sensitivity case). Run exactly like this on 2026-10-29, it
+completed the 24 months with a budget discrepancy of 0.00 % in every step,
+and the three branches wrote byte-identical outputs.
 
 The PR configuration of this profile passes validation without
 `--allow-blocking-problems`. The remaining non-blocking warnings are inherited

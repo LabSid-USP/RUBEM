@@ -48,13 +48,23 @@ def test_prepared_batalha_converges_and_conserves_river_exchange(
     stops it; the two months here are well inside that window.
     """
     dataset = dataset_dir / "batalha_basin"
-    if not (dataset / "bauru_modflow.json").is_file():
+    sources = sorted(dataset.glob("bauru_modflow*.json"))
+    if not sources:
         pytest.skip("The Batalha MODFLOW inputs are not present in RUBEM_DATASET_DIR.")
     pytest.importorskip("scipy.ndimage", reason="Batalha head preparation requires SciPy.")
+    source = sources[0]
+    # The delivered series may start years before August 2023 (the historical dataset of
+    # 2026-10-29 starts in August 2000): the window's first month is that source step.
+    day, month, year = (
+        int(x) for x in json.loads(source.read_text())["SIM_TIME"]["start"].split("/")
+    )
+    first_step = (2023 - year) * 12 + (8 - month) + 1
+    assert day == 1 and first_step >= 1
+    window = dict(source=source, months=2, first_step=first_step)
     example = Path(__file__).parents[2] / "examples/batalha_modflow/prepare.py"
     prepare = runpy.run_path(str(example))["prepare"]
     if profile == "scientist":
-        configs = prepare(dataset, tmp_path, months=2, profile=profile)
+        configs = prepare(dataset, tmp_path, profile=profile, **window)
         with pytest.raises(ConfigurationError):
             ModelConfiguration(configs["feat_356_modflow_coupling"])
         config = ModelConfiguration(
@@ -65,12 +75,13 @@ def test_prepared_batalha_converges_and_conserves_river_exchange(
         configs = prepare(
             dataset,
             tmp_path,
-            months=2,
             profile=profile,
             ghb=ghb,
             wetting_fixes=FIXES,
             wetting="below",
             solver=TIGHT,
+            station=(137, 241),
+            **window,
         )
         config = ModelConfiguration(configs["feat_356_modflow_coupling"])
         assert not any(problem.blocking for problem in config.problems)
@@ -146,8 +157,11 @@ def test_prepared_batalha_converges_and_conserves_river_exchange(
 
     manifest = json.loads((tmp_path / "manifest.json").read_text())
     assert manifest["profile"] == profile
-    assert "bauru_modflow.json" in manifest["source_sha256"]
+    assert source.name in manifest["source_sha256"]
     assert "input/modflow/bound3.map" in manifest["source_sha256"]
+    assert manifest["window"] == {"start": "01/08/2023", "end": "01/09/2023"}
+    if first_step > 1:
+        assert manifest["series"]["prec"]["links"] == {"1": first_step, "2": first_step + 1}
     if profile == "answered":
         assert manifest["answers"]["1_conductivity_suffixes"] == {
             "lower": 3,
@@ -161,5 +175,6 @@ def test_prepared_batalha_converges_and_conserves_river_exchange(
         assert upper["clipped_to_surface"] == 20419
         assert upper["deactivated_cells"] == [[15, 231]]
         assert manifest["answers"]["6_wetting_strategy"] == "below"
+        assert manifest["station"]["sample_id"] == 35
         assert manifest["wetting"]["ihdwet"] == 1
         assert (manifest["solver"]["hclose"], manifest["solver"]["rclose"]) == (1.0, 1.0)

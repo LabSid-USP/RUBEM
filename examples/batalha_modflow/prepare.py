@@ -24,11 +24,14 @@ import copy
 import hashlib
 import json
 import re
+import shutil
 from pathlib import Path, PurePosixPath
 
 import numpy as np
 import pcraster as pcr
 from scipy.ndimage import distance_transform_edt
+
+from rubem.file._naming import raster_series_filename, raster_series_pattern
 
 BRANCHES = ("feat_modflow_module", "feat_calibrator_modflow", "feat_356_modflow_coupling")
 SURFACES = ("botton.map", "botton2.map", "botton3.map", "top_model.map")
@@ -37,7 +40,8 @@ PROFILES = ("scientist", "answered")
 GHB_VARIANTS = ("none", "top", "full", "split")
 WETTING_FIXES = ("a1", "a2", "d")
 WETTING_STRATEGIES = ("as-delivered", "below", "off")
-MAX_MONTHS = 24
+MAX_MONTHS = 313  # length of the historical series delivered on 2026-10-29
+SERIES = ("ndvi", "landuse", "etp", "prec", "kp")
 
 
 def _json(path: Path, document: dict) -> None:
@@ -52,9 +56,83 @@ def _replace(value, old: str, new: str):
     return value.replace(old, new) if isinstance(value, str) else value
 
 
-def _window(months: int) -> dict[str, str]:
-    month_index = 2023 * 12 + 7 + months - 1
-    return {"start": "01/08/2023", "end": f"01/{month_index % 12 + 1:02d}/{month_index // 12}"}
+def _window(months: int, start: str = "01/08/2023") -> dict[str, str]:
+    """The simulation window of ``months`` monthly steps from the first of ``start`` (dd/mm/yyyy)."""
+    match = re.fullmatch(r"01/(\d{2})/(\d{4})", start)
+    if not match:
+        raise ValueError(
+            f"The window start must be the first of a month as dd/mm/yyyy, got {start!r}."
+        )
+    month_index = int(match.group(2)) * 12 + int(match.group(1)) - 1 + months - 1
+    return {"start": start, "end": f"01/{month_index % 12 + 1:02d}/{month_index // 12}"}
+
+
+def series_links(available: list[int], *, first_step: int, months: int) -> dict[int, int]:
+    """Which source step each window step reads, from a series whose step 1 may be years earlier.
+
+    Window step ``k`` reads source step ``first_step + k - 1`` when that raster
+    exists, otherwise the latest raster at or before it (the land-use series
+    has one raster per year). Raises when nothing exists at or before the
+    first step.
+    """
+    steps = sorted(available)
+    links = {}
+    for k in range(1, months + 1):
+        wanted = first_step + k - 1
+        candidates = [step for step in steps if step <= wanted]
+        if not candidates:
+            raise ValueError(f"No raster at or before source step {wanted} (window step {k}).")
+        links[k] = candidates[-1]
+    return links
+
+
+def station_sample(samples: np.ndarray, *, row: int, col: int) -> tuple[np.ndarray, int]:
+    """``samples`` with a new id on the 1-based cell ``(row, col)``; the id is the next free one."""
+    if not (1 <= row <= samples.shape[0] and 1 <= col <= samples.shape[1]):
+        raise ValueError(f"Cell ({row}, {col}) is outside the {samples.shape} grid.")
+    if samples[row - 1, col - 1] != 0:
+        raise ValueError(
+            f"Cell ({row}, {col}) already carries sample id {samples[row - 1, col - 1]}."
+        )
+    identifier = int(samples.max()) + 1
+    stamped = samples.copy()
+    stamped[row - 1, col - 1] = identifier
+    return stamped, identifier
+
+
+def _shift_series(document: dict, generated: Path, first_step: int, months: int) -> dict:
+    """Point the window's series at symbolic links into the source series, shifted by ``first_step``.
+
+    Returns the links written, by series. Copies when the platform refuses links.
+    """
+    written = {}
+    for series in SERIES:
+        directory = Path(document["DIRECTORIES"][series])
+        prefix = document["FILENAME_PREFIXES"][f"{series}_prefix"]
+        pattern = raster_series_pattern(prefix)
+        available = {}
+        for entry in directory.iterdir():
+            if pattern.fullmatch(entry.name):
+                # the 8.3 name is the prefix followed by zero-padded digits split by the dot
+                available[int(entry.name[len(prefix) :].replace(".", ""))] = entry
+        links = series_links(list(available), first_step=first_step, months=months)
+        target = generated / "series" / series
+        target.mkdir(parents=True, exist_ok=True)
+        for step, source_step in links.items():
+            link = target / raster_series_filename(prefix, step)
+            if link.exists() or link.is_symlink():
+                link.unlink()
+            try:
+                link.symlink_to(available[source_step].resolve())
+            except OSError:
+                shutil.copy2(available[source_step], link)
+        document["DIRECTORIES"][series] = str(target) + "/"
+        written[series] = {
+            "source": str(directory),
+            "first_source_step": first_step,
+            "links": links,
+        }
+    return written
 
 
 def _sha256(dataset: Path, paths) -> dict[str, str]:
@@ -221,7 +299,35 @@ def answered_top_heads(
     return fixed, report
 
 
-def _prepare_scientist(dataset: Path, source: Path, destination: Path, months: int) -> dict:
+def _ndvi_extremes(document: dict) -> dict | None:
+    """Point ``ndvi_max``/``ndvi_min`` at the NDVI series directory when the listed files are missing.
+
+    The historical dataset of 2026-10-29 keeps both maps in ``ndvi_hist/`` while
+    the delivered JSON still names ``ndvi/``; the repair is recorded.
+    """
+    repaired = {}
+    for key in ("ndvi_max", "ndvi_min"):
+        listed = Path(document["RASTERS"][key])
+        if listed.is_file():
+            continue
+        candidate = Path(document["DIRECTORIES"]["ndvi"]) / listed.name
+        if not candidate.is_file():
+            raise FileNotFoundError(f"{key} is missing: {listed} (and {candidate})")
+        document["RASTERS"][key] = str(candidate)
+        repaired[key] = {"listed": str(listed), "used": str(candidate)}
+    return repaired or None
+
+
+def _prepare_scientist(
+    dataset: Path,
+    source: Path,
+    destination: Path,
+    months: int,
+    *,
+    start: str,
+    first_step: int,
+    station: tuple[int, int] | None,
+) -> dict:
     """Emit the delivered configuration unchanged for the three branches.
 
     Only paths, the simulation window and the output directory are rewritten;
@@ -232,9 +338,14 @@ def _prepare_scientist(dataset: Path, source: Path, destination: Path, months: i
     destination.mkdir(parents=True, exist_ok=True)
     original = json.loads(source.read_text(encoding="utf-8"))
     base = _replace(original, _source_root(original["RASTERS"]["clone"]), str(dataset))
-    base["SIM_TIME"] = _window(months)
+    base["SIM_TIME"] = _window(months, start)
     maps = dataset / "input/modflow"
     pcr.setclone(str(dataset / "input/clone/clone.map"))
+    generated = destination / "derived"
+    generated.mkdir(parents=True, exist_ok=True)
+    ndvi_extremes = _ndvi_extremes(base)
+    series = _shift_series(base, generated, first_step, months) if first_step != 1 else {}
+    station_record = _station(base, generated, station) if station else None
     sentinels = {}
     for layer in original["MODFLOW"]["layers"][:2]:
         head = pcr.pcr2numpy(pcr.readmap(str(maps / Path(layer["initial_head"]).name)), np.nan)
@@ -253,9 +364,25 @@ def _prepare_scientist(dataset: Path, source: Path, destination: Path, months: i
             "unscaled BCF storage coefficient, as delivered; the scientist's answers of "
             "2026-10-13 (KX is the anisotropy) make the 'answered' profile the corrected one"
         ),
+        "window": base["SIM_TIME"],
+        "series": series,
+        "station": station_record,
+        "ndvi_extremes_repaired": ndvi_extremes,
         "source_sha256": _sha256(dataset, {source, *maps.glob("*.map")}),
     }
     return _emit(base, destination, manifest)
+
+
+def _station(document: dict, generated: Path, station: tuple[int, int]) -> dict:
+    """Write a samples map with a new id on the station cell and point the document at it."""
+    source = Path(document["RASTERS"]["samples"])
+    samples = pcr.pcr2numpy(pcr.readmap(str(source)), 0)
+    row, col = station
+    stamped, identifier = station_sample(samples, row=row, col=col)
+    path = generated / "samples-station.map"
+    pcr.report(pcr.numpy2pcr(pcr.Nominal, stamped.astype(np.int32), 0), str(path))
+    document["RASTERS"]["samples"] = str(path)
+    return {"source": str(source), "row": row, "col": col, "sample_id": identifier}
 
 
 def _emit(base: dict, destination: Path, manifest: dict) -> dict[str, Path]:
@@ -287,6 +414,9 @@ def prepare(
     nstp: int | None = None,
     wetfct: float | None = None,
     iwetit: int | None = None,
+    start: str = "01/08/2023",
+    first_step: int = 1,
+    station: tuple[int, int] | None = None,
 ) -> dict[str, Path]:
     """Write the same physical model in the three branches' configuration formats.
 
@@ -301,20 +431,34 @@ def prepare(
     below can rewet a dry cell, ``off`` disables rewetting: cells that dry
     stay inactive), ``solver`` keys merged into the PCG block, and
     ``nstp``/``wetfct``/``iwetit`` overrides. Every choice and every altered
-    cell count is recorded in ``manifest.json``.
+    cell count is recorded in ``manifest.json``. Both profiles take the window
+    ``start`` and ``months``, ``first_step`` (the source step the window
+    starts at, when the series begin earlier: the historical series delivered
+    on 2026-10-29 start in August 2000, so August 2023 is step 277) and
+    ``station`` (a 1-based ``(row, col)`` cell that receives a new sample id).
     """
     dataset, destination = dataset.resolve(), destination.resolve()
     if destination == dataset or dataset in destination.parents:
         raise ValueError("The destination must be outside the source dataset.")
     if months < 2 or months > MAX_MONTHS:
         raise ValueError(f"This dataset exercise supports 2 through {MAX_MONTHS} months.")
+    if first_step < 1:
+        raise ValueError("The first source step must be 1 or greater.")
     if profile not in PROFILES:
         raise ValueError(f"The profile must be one of {PROFILES}.")
     source = (dataset / "bauru_modflow.json" if source is None else Path(source)).resolve()
     if not source.is_file():
         raise FileNotFoundError(f"The scientist's configuration is missing: {source}")
     if profile == "scientist":
-        return _prepare_scientist(dataset, source, destination, months)
+        return _prepare_scientist(
+            dataset,
+            source,
+            destination,
+            months,
+            start=start,
+            first_step=first_step,
+            station=station,
+        )
     suffixes = conductivity_suffixes(conductivity)
     if ghb not in GHB_VARIANTS:
         raise ValueError(f"The GHB variant must be one of {GHB_VARIANTS}.")
@@ -338,7 +482,10 @@ def prepare(
 
     original = json.loads(source.read_text(encoding="utf-8"))
     base = _replace(original, _source_root(original["RASTERS"]["clone"]), str(dataset))
-    base["SIM_TIME"] = _window(months)
+    base["SIM_TIME"] = _window(months, start)
+    ndvi_extremes = _ndvi_extremes(base)
+    series = _shift_series(base, generated, first_step, months) if first_step != 1 else {}
+    station_record = _station(base, generated, station) if station else None
     mf = base["MODFLOW"]
     if len(mf["layers"]) != 3:
         raise ValueError("The Batalha source configuration must have three layers.")
@@ -367,6 +514,9 @@ def prepare(
             "9_top_heads_above_surface": "cut at top_model.map, the DIS top",
         },
         "window": base["SIM_TIME"],
+        "series": series,
+        "station": station_record,
+        "ndvi_extremes_repaired": ndvi_extremes,
         "layers": [],
         "source_sha256": _sha256(
             dataset, {source, dataset / "input/clone/clone.map", *maps.glob("*.map")}
@@ -483,7 +633,15 @@ if __name__ == "__main__":
     parser.add_argument("--nstp", type=int)
     parser.add_argument("--wetfct", type=float)
     parser.add_argument("--iwetit", type=int)
+    parser.add_argument(
+        "--start", default="01/08/2023", help="first month of the window, dd/mm/yyyy"
+    )
+    parser.add_argument(
+        "--first-step", type=int, default=1, help="source series step of the window's first month"
+    )
+    parser.add_argument("--station", help="ROW,COL (1-based) that receives a new sample id")
     args = parser.parse_args()
+    station = tuple(int(value) for value in args.station.split(",")) if args.station else None
     overrides = {
         key: getattr(args, key)
         for key in ("hclose", "rclose", "mxiter", "iter1", "damp")
@@ -503,5 +661,8 @@ if __name__ == "__main__":
         nstp=args.nstp,
         wetfct=args.wetfct,
         iwetit=args.iwetit,
+        start=args.start,
+        first_step=args.first_step,
+        station=station,
     ).items():
         print(f"{branch}: {path}")

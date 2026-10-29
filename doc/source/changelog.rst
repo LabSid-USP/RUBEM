@@ -58,8 +58,9 @@ Added
   unchanged for the three branches, for parity checks against the
   prototypes, and ``answered`` (default) applies its author's answers of
   2026-10-13 (anisotropy and conductivity suffixes, filled initial heads, GHB
-  variants, wetting repairs, solver and time-stepping overrides) for windows
-  of up to 24 months
+  variants, wetting repairs, solver and time-stepping overrides), a window
+  start and a source-step offset for series that begin earlier, and a new
+  sample id on a station cell
   (`#356 <https://github.com/LabSid-USP/RUBEM/issues/356>`__).
 - Added ``rubem calibrate``: a differential evolution (SciPy) over the free
   calibration parameters, with ``w3`` derived from the other two weights,

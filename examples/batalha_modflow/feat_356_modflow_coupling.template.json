@@ -8,11 +8,11 @@
   },
   "DIRECTORIES": {
     "output": "${prepared}/runs/feat_356_modflow_coupling",
-    "ndvi": "${dataset}/input/ndvi/",
-    "landuse": "${dataset}/input/cob/",
-    "etp": "${dataset}/input/etp/",
-    "prec": "${dataset}/input/prec_inmet/",
-    "kp": "${dataset}/input/kp/"
+    "ndvi": "${prepared}/derived/series/ndvi/",
+    "landuse": "${prepared}/derived/series/landuse/",
+    "etp": "${prepared}/derived/series/etp/",
+    "prec": "${prepared}/derived/series/prec/",
+    "kp": "${prepared}/derived/series/kp/"
   },
   "FILENAME_PREFIXES": {
     "etp_prefix": "etp",
@@ -36,10 +36,10 @@
   "RASTERS": {
     "dem": "${dataset}/input/dem/dem.map",
     "clone": "${dataset}/input/clone/clone.map",
-    "samples": "${dataset}/input/samples/samples.map",
+    "samples": "${prepared}/derived/samples-station.map",
     "soil": "${dataset}/input/soil/soil.map",
-    "ndvi_max": "${dataset}/input/ndvi/ndvi_max.map",
-    "ndvi_min": "${dataset}/input/ndvi/ndvi_min.map"
+    "ndvi_max": "${dataset}/input/ndvi_hist/ndvi_max.map",
+    "ndvi_min": "${dataset}/input/ndvi_hist/ndvi_min.map"
   },
   "TABLES": {
     "rainydays": "${dataset}/input/text/rainydays.txt",
@@ -79,7 +79,7 @@
     "rcd": 5.375,
     "f": 0.35,
     "alpha_gw": 0.922,
-    "x": 0.307
+    "x": 0.65
   },
   "RASTER_FILE_FORMAT": {
     "map_raster_series": true,
@@ -134,7 +134,7 @@
       }
     ],
     "dis": {
-      "nstp": 5,
+      "nstp": 1,
       "tsmult": 1.0,
       "steady_state": 0
     },
@@ -172,30 +172,7 @@
       ]
     },
     "ghb": {
-      "enabled": 1,
-      "entries": [
-        {
-          "head": "${dataset}/input/modflow/ghb_head.map",
-          "conductance": "${prepared}/derived/ghb-conductance-third.map",
-          "layers": [
-            3
-          ]
-        },
-        {
-          "head": "${dataset}/input/modflow/ghb_head.map",
-          "conductance": "${prepared}/derived/ghb-conductance-third.map",
-          "layers": [
-            2
-          ]
-        },
-        {
-          "head": "${dataset}/input/modflow/ghb_head.map",
-          "conductance": "${prepared}/derived/ghb-conductance-third.map",
-          "layers": [
-            1
-          ]
-        }
-      ]
+      "enabled": 0
     },
     "output": {
       "heads": true,
