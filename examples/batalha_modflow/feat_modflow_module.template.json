@@ -1,0 +1,196 @@
+{
+  "GRID": {
+    "grid": 30.0
+  },
+  "SIM_TIME": {
+    "start": "01/08/2023",
+    "end": "01/07/2025"
+  },
+  "DIRECTORIES": {
+    "output": "${prepared}/runs/feat_modflow_module",
+    "ndvi": "${prepared}/derived/series/ndvi/",
+    "landuse": "${prepared}/derived/series/landuse/",
+    "etp": "${prepared}/derived/series/etp/",
+    "prec": "${prepared}/derived/series/prec/",
+    "kp": "${prepared}/derived/series/kp/"
+  },
+  "FILENAME_PREFIXES": {
+    "etp_prefix": "etp",
+    "prec_prefix": "prec",
+    "kp_prefix": "kp",
+    "ndvi_prefix": "ndvi",
+    "landuse_prefix": "cob"
+  },
+  "GENERATE_FILE": {
+    "itp": true,
+    "bfw": true,
+    "srn": true,
+    "eta": true,
+    "lfw": true,
+    "rec": true,
+    "smc": true,
+    "rnf": true,
+    "arn": true,
+    "tss": true
+  },
+  "RASTERS": {
+    "dem": "${dataset}/input/dem/dem.map",
+    "clone": "${dataset}/input/clone/clone.map",
+    "samples": "${prepared}/derived/samples-station.map",
+    "soil": "${dataset}/input/soil/soil.map",
+    "ndvi_max": "${dataset}/input/ndvi_hist/ndvi_max.map",
+    "ndvi_min": "${dataset}/input/ndvi_hist/ndvi_min.map"
+  },
+  "TABLES": {
+    "rainydays": "${dataset}/input/text/rainydays.txt",
+    "bulk_density": "${dataset}/input/text/soil/Bdens.txt",
+    "k_sat": "${dataset}/input/text/soil/Ksat.txt",
+    "t_fcap": "${dataset}/input/text/soil/Tfc.txt",
+    "t_sat": "${dataset}/input/text/soil/Tsat.txt",
+    "t_wp": "${dataset}/input/text/soil/Twp.txt",
+    "rootzone_depth": "${dataset}/input/text/soil/Dpz.txt",
+    "a_i": "${dataset}/input/text/landuse/a_i.txt",
+    "a_o": "${dataset}/input/text/landuse/a_o.txt",
+    "a_s": "${dataset}/input/text/landuse/a_s.txt",
+    "a_v": "${dataset}/input/text/landuse/a_v.txt",
+    "manning": "${dataset}/input/text/landuse/manning.txt",
+    "k_c_min": "${dataset}/input/text/landuse/kcmin.txt",
+    "k_c_max": "${dataset}/input/text/landuse/kcmax.txt"
+  },
+  "INITIAL_SOIL_CONDITIONS": {
+    "t_ini": 0.35,
+    "bfw_ini": 5.0,
+    "bfw_lim": 100.0,
+    "s_sat_ini": 200.0
+  },
+  "CONSTANTS": {
+    "fpar_max": 0.95,
+    "fpar_min": 0.001,
+    "lai_max": 12.0,
+    "lai_max_from_table": false,
+    "i_imp": 2.5
+  },
+  "CALIBRATION": {
+    "alpha": 4.415,
+    "b": 0.078,
+    "w_1": 0.51,
+    "w_2": 0.12,
+    "w_3": 0.37,
+    "rcd": 5.375,
+    "f": 0.35,
+    "alpha_gw": 0.922,
+    "x": 0.65
+  },
+  "RASTER_FILE_FORMAT": {
+    "map_raster_series": true,
+    "tiff_raster_series": false
+  },
+  "MODFLOW": {
+    "enabled": 1,
+    "coupling": {
+      "baseflow_from_river_leakage": true,
+      "dynamic_root_depth": {
+        "enabled": 1,
+        "minimum_depth_table": "${dataset}/input/text/soil/Dpz_min.txt",
+        "water_table": {
+          "method": "highest_active_head"
+        }
+      }
+    },
+    "bottom": "${dataset}/input/modflow/botton.map",
+    "layers": [
+      {
+        "name": "lower",
+        "top": "${dataset}/input/modflow/botton2.map",
+        "horizontal_conductivity": "${dataset}/input/modflow/KY3.map",
+        "vertical_conductivity": "${prepared}/derived/kv-lower.map",
+        "boundary": "${dataset}/input/modflow/bound.map",
+        "initial_head": "${prepared}/derived/head-lower.map",
+        "specific_storage": "${dataset}/input/modflow/ss.map",
+        "specific_yield": "${dataset}/input/modflow/sy.map",
+        "laytype": 2,
+        "compute_conductivity": true
+      },
+      {
+        "name": "middle",
+        "top": "${dataset}/input/modflow/botton3.map",
+        "horizontal_conductivity": "${dataset}/input/modflow/KY2.map",
+        "vertical_conductivity": "${prepared}/derived/kv-middle.map",
+        "boundary": "${dataset}/input/modflow/bound.map",
+        "initial_head": "${prepared}/derived/head-middle.map",
+        "specific_storage": "${dataset}/input/modflow/ss.map",
+        "specific_yield": "${dataset}/input/modflow/sy.map",
+        "laytype": 2,
+        "compute_conductivity": true
+      },
+      {
+        "name": "upper",
+        "top": "${dataset}/input/modflow/top_model.map",
+        "horizontal_conductivity": "${dataset}/input/modflow/KY1.map",
+        "vertical_conductivity": "${prepared}/derived/kv-upper.map",
+        "boundary": "${prepared}/derived/boundary-upper.map",
+        "initial_head": "${prepared}/derived/head-upper.map",
+        "specific_storage": "${dataset}/input/modflow/ss.map",
+        "specific_yield": "${dataset}/input/modflow/sy.map",
+        "laytype": 1,
+        "compute_conductivity": true
+      }
+    ],
+    "recharge": {
+      "source": "rubem",
+      "option": 3
+    },
+    "dis": {
+      "time_unit": 4,
+      "length_unit": 2,
+      "nstp": 1,
+      "tsmult": 1.0,
+      "steady_state": 0
+    },
+    "solver": {
+      "type": "PCG",
+      "mxiter": 2000,
+      "iter1": 100,
+      "npcond": 1,
+      "hclose": 0.01,
+      "rclose": 0.01,
+      "relax": 1.0,
+      "nbpol": 2,
+      "damp": 1.0,
+      "fail_on_non_convergence": true
+    },
+    "wetting": {
+      "enabled": 0,
+      "map": "${prepared}/derived/wetting-upper.map",
+      "multiplier": 1.0,
+      "layers": [
+        3
+      ],
+      "wetfct": 0.1,
+      "iwetit": 3,
+      "ihdwet": 0
+    },
+    "river": {
+      "enabled": 1,
+      "layers": [
+        {
+          "layer": 3,
+          "stage": "${dataset}/input/modflow/riv_stage.map",
+          "bottom": "${dataset}/input/modflow/riv_bot.map",
+          "conductance": "${dataset}/input/modflow/riv_cond.map"
+        }
+      ]
+    },
+    "ghb": {
+      "enabled": 0
+    },
+    "wells": {
+      "enabled": 0
+    },
+    "output": {
+      "heads": true,
+      "river_leakage": true,
+      "storage": false
+    }
+  }
+}

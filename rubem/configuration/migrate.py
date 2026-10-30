@@ -10,6 +10,7 @@ from .._paths import PathInput, as_path
 from ._json import read_json
 from .model_configuration_file import ModelConfigurationFile
 from .model_configuration_file_v1 import ModelConfigurationFileV1
+from .modflow_configuration import transform_paths
 
 logger = logging.getLogger(__name__)
 
@@ -103,4 +104,6 @@ def _rebase_paths(document: dict, base: Path) -> dict:
                 spec["yearly_file_path"] = rebase(spec["yearly_file_path"])
         else:
             spec["dir_path"] = rebase(spec["dir_path"])
+    if "modflow" in document:
+        transform_paths(document["modflow"], rebase)
     return document
