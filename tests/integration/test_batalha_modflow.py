@@ -1,8 +1,17 @@
-"""Optional Batalha exercise using documented, explicitly prepared inputs."""
+"""Optional Batalha exercise using documented, explicitly prepared inputs.
+
+The Batalha dataset is the scientist's unpublished delivery of 2026-11-03,
+not one of the published datasets: CI never sets ``RUBEM_DATASET_DIR``, so
+this module always skips there, and the CI signal for the coupling is the
+unit and integration tests that drive ``mf2005`` on synthetic grids. The
+layout it expects under ``RUBEM_DATASET_DIR`` and the SHA-256 manifest of the
+files it reads are in ``examples/batalha_modflow/README.md``.
+"""
 
 import json
 import re
 import runpy
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -25,34 +34,65 @@ pytestmark = [
 
 FIXES = ("a1", "a2", "d")
 TIGHT = {"hclose": 1.0, "rclose": 1.0}
+EXAMPLE = Path(__file__).parents[2] / "examples/batalha_modflow"
+SOURCE = "bauru_modflow_t_ini_jul25_hist_x065.json"
+"""The delivered configuration, pinned by name: the delivery names the series it reads."""
+MAX_PERCENT_DISCREPANCY = 1.0
+"""The closure the scientist accepted on 2026-10-26: "o que tem menor discrepância (< 1%)".
+
+Answer to item 9 of ``perguntas-cientista-2026-10-26 (respondido).docx``.
+"""
+
+
+class DeliveryCopyWarning(UserWarning):
+    """The run read files whose bytes are not those of the 2026-11-03 delivery manifest."""
 
 
 @pytest.mark.parametrize(
     ("profile", "ghb"), (("scientist", None), ("answered", "none"), ("answered", "split"))
 )
 def test_prepared_batalha_converges_and_conserves_river_exchange(
-    dataset_dir, tmp_path, monkeypatch, restore_logging, profile, ghb
+    dataset_dir, tmp_path, monkeypatch, restore_logging, record_property, profile, ghb
 ):
     """Two months with the same explicit preparation as the example.
 
     This checks a numerical sensitivity scenario, not calibrated accuracy.
     Capture each listing before the framework cleans its MODFLOW directory.
+    Every listing must converge and close its water budget within the 1 %
+    the scientist accepted on 2026-10-26; that bound is a numerical sanity
+    check, not a measure of accuracy. The largest PERCENT DISCREPANCY
+    measured is 0.16 % in the first stress period of the delivery of
+    2026-09-23 (NSTP 5, rising 0.02, 0.06, 0.11, 0.13, 0.16 %, then 0.01 to
+    0.06 % in the second). In this two-month window on the delivery of
+    2026-11-03 it is at most 0.02 % in the three cases (measured 2026-11-03);
+    over longer windows the scientist's own configuration reaches 0.11 % (24
+    months, 2026-10-18) and 0.12 % (the first 24 of 300 months, 2026-11-03).
+    Each case records its maxima by native run as the
+    ``percent_discrepancy_by_run`` property.
+    The inputs are compared with the committed SHA-256 manifest of the
+    2026-11-03 delivery: on another copy the test does not fail for that
+    reason but warns with the differing paths, and the cell counts below,
+    which hold for those exact bytes, are only asserted on a matching copy.
     The scientist's profile keeps the -888 sentinels of the two lower layers,
     which the PR refuses unless blocking problems are allowed, and closes at
     the delivered 20 m / 10 m3/day. The answered profile fills them and runs
     without the bypass; with the corrected conductivities the delivered
     criterion no longer closes the first substep (the wet/dry cycle at cell
     (15, 231)), so it runs with the three wetting repairs, rewetting from
-    below only and 1 m / 1 m3/day: measured on 2026-10-18, that closes with a
-    budget discrepancy below 0.1 % until month 12, where seasonal rewetting
-    stops it; the two months here are well inside that window.
+    below only and 1 m / 1 m3/day: measured on 2026-10-18 over the earlier
+    24-month series, that closes with a budget discrepancy below 0.1 % until
+    month 12 with GHB off and month 9 with GHB split, where seasonal
+    rewetting stops it; the two months here are well inside that window.
     """
-    dataset = dataset_dir / "batalha_basin"
-    sources = sorted(dataset.glob("bauru_modflow*.json"))
-    if not sources:
-        pytest.skip("The Batalha MODFLOW inputs are not present in RUBEM_DATASET_DIR.")
+    dataset = (dataset_dir / "batalha_basin").resolve()
+    source = dataset / SOURCE
+    if not source.is_file():
+        pytest.skip(
+            f"{source} is missing: RUBEM_DATASET_DIR must hold batalha_basin/ with {SOURCE} "
+            "(from batalha_basin.zip) beside input/ (from batalha_basin_hist.zip); see "
+            "examples/batalha_modflow/README.md."
+        )
     pytest.importorskip("scipy.ndimage", reason="Batalha head preparation requires SciPy.")
-    source = sources[0]
     # The delivered series may start years before August 2023 (the historical dataset of
     # 2026-10-29 starts in August 2000): the window's first month is that source step.
     day, month, year = (
@@ -61,8 +101,8 @@ def test_prepared_batalha_converges_and_conserves_river_exchange(
     first_step = (2023 - year) * 12 + (8 - month) + 1
     assert day == 1 and first_step >= 1
     window = dict(source=source, months=2, first_step=first_step)
-    example = Path(__file__).parents[2] / "examples/batalha_modflow/prepare.py"
-    prepare = runpy.run_path(str(example))["prepare"]
+    preparer = runpy.run_path(str(EXAMPLE / "prepare.py"))
+    prepare = preparer["prepare"]
     if profile == "scientist":
         configs = prepare(dataset, tmp_path, profile=profile, **window)
         with pytest.raises(ConfigurationError):
@@ -116,11 +156,14 @@ def test_prepared_batalha_converges_and_conserves_river_exchange(
     DynamicFrameworkWrapper.load(config).run()
     nstp = config.modflow.dis.nstp
     assert len(recorded) == 2 * nstp, "one listing per native run (substep)"
+    worst = []
     for listing in recorded:
         assert "FAILURE TO MEET SOLVER CONVERGENCE CRITERIA" not in listing
         discrepancies = re.findall(r"PERCENT DISCREPANCY\s*=\s*([-+\d.Ee]+)", listing)
         assert discrepancies, "MODFLOW did not report its water budget."
-        assert max(abs(float(value)) for value in discrepancies) < 0.1
+        worst.append(max(abs(float(value)) for value in discrepancies))
+    record_property("percent_discrepancy_by_run", worst)
+    assert max(worst) < MAX_PERCENT_DISCREPANCY, f"by native run: {worst}"
     output = tmp_path / "runs/feat_356_modflow_coupling"
 
     def values(prefix, step):
@@ -162,6 +205,26 @@ def test_prepared_batalha_converges_and_conserves_river_exchange(
     assert manifest["window"] == {"start": "01/08/2023", "end": "01/09/2023"}
     if first_step > 1:
         assert manifest["series"]["prec"]["links"] == {"1": first_step, "2": first_step + 1}
+    expected = [
+        path.relative_to(dataset).as_posix()
+        for path in preparer["delivery_files"](dataset, source, first_step=first_step, months=2)
+    ]
+    departures = preparer["compare_with_delivery"](
+        manifest["source_sha256"],
+        expected,
+        preparer["read_sha256_manifest"](EXAMPLE / "delivery-2026-11-03.sha256"),
+    )
+    delivered = not any(departures.values())
+    record_property("delivery_2026_11_03", delivered)
+    if not delivered:
+        warnings.warn(
+            DeliveryCopyWarning(
+                "This verdict is on a copy that departs from the 2026-11-03 delivery "
+                "manifest (examples/batalha_modflow/delivery-2026-11-03.sha256), so the "
+                f"exact cell counts were not checked: {departures}"
+            ),
+            stacklevel=1,
+        )
     if profile == "answered":
         assert manifest["answers"]["1_conductivity_suffixes"] == {
             "lower": 3,
@@ -169,12 +232,13 @@ def test_prepared_batalha_converges_and_conserves_river_exchange(
             "upper": 1,
         }
         assert manifest["answers"]["8_11_ghb"] == ghb
+        assert manifest["answers"]["6_wetting_strategy"] == "below"
+        assert manifest["wetting"]["ihdwet"] == 1
+        assert (manifest["solver"]["hclose"], manifest["solver"]["rclose"]) == (1.0, 1.0)
+    if profile == "answered" and delivered:
         lower, middle, upper = manifest["layers"]
         assert (lower["heads_filled"], middle["heads_filled"]) == (18, 277)
         assert upper["below_bottom_cells"] == [[15, 231]]
         assert upper["clipped_to_surface"] == 20419
         assert upper["deactivated_cells"] == [[15, 231]]
-        assert manifest["answers"]["6_wetting_strategy"] == "below"
         assert manifest["station"]["sample_id"] == 35
-        assert manifest["wetting"]["ihdwet"] == 1
-        assert (manifest["solver"]["hclose"], manifest["solver"]["rclose"]) == (1.0, 1.0)

@@ -42,6 +42,13 @@ WETTING_FIXES = ("a1", "a2", "d")
 WETTING_STRATEGIES = ("as-delivered", "below", "off")
 MAX_MONTHS = 313  # length of the historical series delivered on 2026-10-29
 SERIES = ("ndvi", "landuse", "etp", "prec", "kp")
+DELIVERY_SOURCE = "bauru_modflow_t_ini_jul25_hist_x065.json"
+"""The source configuration of the scientist's delivery of 2026-11-03, the one the manifest pins."""
+DELIVERY_MANIFEST = Path(__file__).with_name("delivery-2026-11-03.sha256")
+"""SHA-256 of the delivery files the 24-month window from August 2023 reads, and their neighbours.
+
+Written by ``--hashes`` (see :func:`manifest_files`).
+"""
 
 
 def _json(path: Path, document: dict) -> None:
@@ -109,12 +116,7 @@ def _shift_series(document: dict, generated: Path, first_step: int, months: int)
     for series in SERIES:
         directory = Path(document["DIRECTORIES"][series])
         prefix = document["FILENAME_PREFIXES"][f"{series}_prefix"]
-        pattern = raster_series_pattern(prefix)
-        available = {}
-        for entry in directory.iterdir():
-            if pattern.fullmatch(entry.name):
-                # the 8.3 name is the prefix followed by zero-padded digits split by the dot
-                available[int(entry.name[len(prefix) :].replace(".", ""))] = entry
+        available = _series_rasters(directory, prefix)
         links = series_links(list(available), first_step=first_step, months=months)
         target = generated / "series" / series
         target.mkdir(parents=True, exist_ok=True)
@@ -135,6 +137,112 @@ def _shift_series(document: dict, generated: Path, first_step: int, months: int)
     return written
 
 
+def _series_rasters(directory: Path, prefix: str) -> dict[int, Path]:
+    """The rasters of a series directory by step (``prec0000.277`` is step 277)."""
+    pattern = raster_series_pattern(prefix)
+    available = {}
+    for entry in directory.iterdir():
+        if pattern.fullmatch(entry.name):
+            # the 8.3 name is the prefix followed by zero-padded digits split by the dot
+            available[int(entry.name[len(prefix) :].replace(".", ""))] = entry
+    return available
+
+
+def _strings(value):
+    """Every string held anywhere in a JSON value."""
+    if isinstance(value, dict):
+        for item in value.values():
+            yield from _strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _strings(item)
+    elif isinstance(value, str):
+        yield value
+
+
+def delivery_files(dataset: Path, source: Path, *, first_step: int, months: int) -> list[Path]:
+    """The dataset files a window of this exercise reads, whether or not they exist.
+
+    These are the files whose bytes decide a verdict, so they are what the
+    SHA-256 manifest of a delivery covers and what a run is checked against:
+    the source JSON, every file its ``RASTERS``, ``TABLES`` and ``MODFLOW``
+    sections name, the ``ndvi_max``/``ndvi_min`` of the NDVI series directory
+    (the preparer falls back to them when the named pair is missing) and the
+    series rasters the window links (for the land-use series, the latest
+    raster at or before each step). Files the configuration does not name
+    (``ldd.map``, the extra calibration maps, GDAL ``.aux.xml`` sidecars, which
+    PCRaster does not read and GDAL may rewrite) are left out. A named file
+    that is missing is still returned, so a comparison can report it.
+    """
+    dataset = dataset.resolve()
+    document = json.loads(Path(source).read_text(encoding="utf-8"))
+    document = _replace(document, _source_root(document["RASTERS"]["clone"]), str(dataset))
+    named = [
+        *document["RASTERS"].values(),
+        *document["TABLES"].values(),
+        *_strings(document["MODFLOW"]),
+    ]
+    files = {Path(source).resolve()}
+    files.update(Path(value) for value in named if value.startswith(f"{dataset}/"))
+    ndvi = Path(document["DIRECTORIES"]["ndvi"])
+    files.update(ndvi / name for name in ("ndvi_max.map", "ndvi_min.map"))
+    for series in SERIES:
+        prefix = document["FILENAME_PREFIXES"][f"{series}_prefix"]
+        available = _series_rasters(Path(document["DIRECTORIES"][series]), prefix)
+        links = series_links(list(available), first_step=first_step, months=months)
+        files.update(available[step] for step in links.values())
+    return sorted(files)
+
+
+def manifest_files(dataset: Path, source: Path, *, first_step: int, months: int) -> list[Path]:
+    """The files the delivery manifest pins: :func:`delivery_files` and their neighbours.
+
+    Besides the files the window reads, the manifest pins the DEM's
+    ``ldd.map`` and every table under ``input/text/``, which the configuration
+    does not name but which identify the delivery. A run is compared only on
+    the files it read, so these extra entries never mark a copy as different.
+    GDAL ``.aux.xml`` sidecars stay out.
+    """
+    dataset = dataset.resolve()
+    files = set(delivery_files(dataset, source, first_step=first_step, months=months))
+    files.add(dataset / "input/dem/ldd.map")
+    files.update(
+        path
+        for path in (dataset / "input/text").rglob("*")
+        if path.is_file() and not path.name.endswith(".aux.xml")
+    )
+    return sorted(files)
+
+
+def read_sha256_manifest(path: Path) -> dict[str, str]:
+    """Read a ``sha256sum``-style manifest (``<sha256>  <relative path>`` per line)."""
+    digests = {}
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            digest, key = line.split("  ", 1)
+            digests[key] = digest
+    return digests
+
+
+def compare_with_delivery(
+    digests: dict[str, str], expected: list[str], committed: dict[str, str]
+) -> dict[str, list[str]]:
+    """How the files a run read depart from a committed delivery manifest.
+
+    ``digests`` are the SHA-256 of the files actually read (the prepared
+    manifest's ``source_sha256``), ``expected`` the relative paths the window
+    should read. Returns the paths whose bytes differ from the manifest, the
+    expected paths that were not there to read, and the paths read that the
+    manifest does not list (another source JSON, a window outside it); all
+    three empty means the run read the delivery's bytes.
+    """
+    return {
+        "differing": sorted(k for k in digests if k in committed and digests[k] != committed[k]),
+        "missing": sorted(k for k in expected if k not in digests),
+        "unlisted": sorted(k for k in digests if k not in committed),
+    }
+
+
 def _sha256(dataset: Path, paths) -> dict[str, str]:
     """SHA-256 by POSIX path relative to the dataset, or absolute for a file outside it."""
     digests = {}
@@ -142,6 +250,17 @@ def _sha256(dataset: Path, paths) -> dict[str, str]:
         key = path.relative_to(dataset) if dataset in path.parents else path
         digests[key.as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
     return digests
+
+
+def _read_sha256(dataset: Path, source: Path, first_step: int, months: int) -> dict[str, str]:
+    """SHA-256 of the delivery files the window reads and that exist (see :func:`delivery_files`).
+
+    A named file that is missing (the ``ndvi_max``/``ndvi_min`` the delivered
+    JSON names, in a copy without ``input/ndvi/``) is left out here; its
+    replacement is recorded under ``ndvi_extremes_repaired``.
+    """
+    files = delivery_files(dataset, source, first_step=first_step, months=months)
+    return _sha256(dataset, [path for path in files if path.is_file()])
 
 
 def _source_root(clone_path: str) -> str:
@@ -368,7 +487,7 @@ def _prepare_scientist(
         "series": series,
         "station": station_record,
         "ndvi_extremes_repaired": ndvi_extremes,
-        "source_sha256": _sha256(dataset, {source, *maps.glob("*.map")}),
+        "source_sha256": _read_sha256(dataset, source, first_step, months),
     }
     return _emit(base, destination, manifest)
 
@@ -518,9 +637,7 @@ def prepare(
         "station": station_record,
         "ndvi_extremes_repaired": ndvi_extremes,
         "layers": [],
-        "source_sha256": _sha256(
-            dataset, {source, dataset / "input/clone/clone.map", *maps.glob("*.map")}
-        ),
+        "source_sha256": _read_sha256(dataset, source, first_step, months),
     }
     mf["bottom"] = str(maps / SURFACES[0])
     filled = {}
@@ -615,7 +732,12 @@ def prepare(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dataset", type=Path)
-    parser.add_argument("destination", type=Path)
+    parser.add_argument("destination", type=Path, nargs="?")
+    parser.add_argument(
+        "--hashes",
+        action="store_true",
+        help="print the SHA-256 manifest of the files the window reads, instead of preparing",
+    )
     parser.add_argument(
         "--source", type=Path, help="prototype-schema JSON (default <dataset>/bauru_modflow.json)"
     )
@@ -641,6 +763,18 @@ if __name__ == "__main__":
     )
     parser.add_argument("--station", help="ROW,COL (1-based) that receives a new sample id")
     args = parser.parse_args()
+    if args.hashes:
+        dataset = args.dataset.resolve()
+        source = (args.source or dataset / "bauru_modflow.json").resolve()
+        files = manifest_files(dataset, source, first_step=args.first_step, months=args.months)
+        missing = [str(path) for path in files if not path.is_file()]
+        if missing:
+            parser.error(f"files the window reads are missing: {missing}")
+        for key, digest in _sha256(dataset, files).items():
+            print(f"{digest}  {key}")
+        raise SystemExit(0)
+    if args.destination is None:
+        parser.error("the destination is required unless --hashes is given")
     station = tuple(int(value) for value in args.station.split(",")) if args.station else None
     overrides = {
         key: getattr(args, key)

@@ -1,10 +1,12 @@
 # Batalha: comparison of the three MODFLOW branches
 
 `prepare.py` creates comparable configurations and derived rasters without
-changing the original Batalha dataset. The source dataset is not distributed
-with this example. The three `*.template.json` files show the shape of the
-configuration in each branch, using `${dataset}` and `${prepared}` as path
-placeholders. Run the preparer to obtain executable JSON files with resolved
+changing the original Batalha dataset. The source dataset is the scientist's
+unpublished delivery, not distributed with this example; the layout and the
+bytes it is checked against are described under
+[The dataset](#the-dataset-the-delivery-of-2026-11-03). The three
+`*.template.json` files show the shape of the configuration in each branch,
+using `${dataset}` and `${prepared}` as path placeholders. Run the preparer to obtain executable JSON files with resolved
 paths and the derived rasters. It requires PCRaster, NumPy and SciPy (the
 `rubem[calibration]` extra; SciPy finds the nearest valid heads).
 
@@ -24,8 +26,8 @@ August 2000, so August 2023 is `--first-step 277`. `--station ROW,COL` writes
 `rubem calibrate --stations`; the DAEE station 6D-007 lies on the channel cell
 (137, 241). When the listed `ndvi_max`/`ndvi_min` files are missing, the maps of
 the same name in the NDVI series directory are used and the manifest records
-the repair. PCRaster
-numbers layers from the bottom, whereas MODFLOW and the PR number them from
+the repair under `ndvi_extremes_repaired`. PCRaster numbers layers from the
+bottom, whereas MODFLOW and the PR number them from
 the top; every layer reference is remapped, including RIV, GHB and wetting.
 Recharge option 3 keeps its meaning of the highest active cell. See
 [PCRaster DIS](https://pcraster.geo.uu.nl/pcraster/4.4.3/documentation/modflow/dis.html).
@@ -37,7 +39,7 @@ establish geological correctness or calibration accuracy.
 ## `--profile scientist`
 
 Emits the delivered configuration unchanged for the three branches: only
-the paths, the simulation window (`--months`, 2 to 24 from August 2023) and
+the paths, the simulation window (`--start`, `--months`, `--first-step`) and
 the output directory are rewritten, and no raster is derived. It reproduces
 the scientist's own runs for parity checks; it is not a recommended setup:
 
@@ -54,12 +56,14 @@ the scientist's own runs for parity checks; it is not a recommended setup:
 
 ```sh
 python examples/batalha_modflow/prepare.py \
-  /path/to/RUBEM-datasets/batalha_basin /tmp/batalha-scientist \
-  --months 9 --profile scientist
+  /path/to/datasets/batalha_basin /tmp/batalha-scientist \
+  --source /path/to/datasets/batalha_basin/bauru_modflow_t_ini_jul25_hist_x065.json \
+  --months 9 --first-step 277 --profile scientist
 rubem run -c /tmp/batalha-scientist/feat_356_modflow_coupling.json --allow-blocking-problems
 ```
 
-Measured with these files (nine months, 2026-10-08): the two prototypes
+Measured with the files of 2026-10-08 (nine months; that delivery's series
+started in August 2023, so it needed no `--first-step`): the two prototypes
 complete with identical outputs; the PR completes with the same MODFLOW
 budgets, heads within 0.51 m of the prototypes and baseflow 2.2 % lower over
 the window, because the prototypes report the river leakage of the last native
@@ -134,8 +138,8 @@ and every altered cell count is written to `manifest.json`.
 
 ```sh
 python examples/batalha_modflow/prepare.py \
-  /path/to/RUBEM-datasets/batalha_basin /tmp/batalha-answered \
-  --source /path/to/RUBEM-datasets/batalha_basin/bauru_modflow_t_ini_jul25_hist_x065.json \
+  /path/to/datasets/batalha_basin /tmp/batalha-answered \
+  --source /path/to/datasets/batalha_basin/bauru_modflow_t_ini_jul25_hist_x065.json \
   --months 24 --first-step 277 --station 137,241 --nstp 1 \
   --ghb none --wetting-fixes a1,a2 --wetting off --hclose 0.01 --rclose 0.01
 rubem run -c /tmp/batalha-answered/feat_356_modflow_coupling.json
@@ -145,25 +149,99 @@ This is the configuration the scientist decided on 2026-10-26 (NSTP 1, the
 closure with the smallest budget discrepancy, GHB off as the baseline and
 split as the sensitivity case). Run exactly like this on 2026-10-29, it
 completed the 24 months with a budget discrepancy of 0.00 % in every step,
-and the three branches wrote byte-identical outputs.
+and the three branches wrote byte-identical outputs. That run read the copy
+of 2026-10-29, which differs from the delivery of 2026-11-03 in the
+`kcmax`/`kcmin` tables and the NDVI extremes (see below), so its outputs are
+not those of the 2026-11-03 bytes.
 
 The PR configuration of this profile passes validation without
 `--allow-blocking-problems`. The remaining non-blocking warnings are inherited
-from the dataset: land-use series gaps, DEM no-data, an inverted
-crop-coefficient interval, a land-use class whose fractions sum to zero, river
-beds outside their layer's elevation interval and a few filled middle-layer
-heads below the layer bottom.
+from the dataset: on the delivery of 2026-11-03, DEM no-data, a land-use class
+whose fractions sum to zero, river beds outside their layer's elevation
+interval and a few filled middle-layer heads below the layer bottom; with the
+`kcmax`/`kcmin` tables of `batalha_basin.zip` (class 25: 0.2 and 0.7), an
+inverted crop-coefficient interval as well, and, without `--first-step`
+links, land-use series gaps.
 
 The earlier `reconstructed` profile (2026-09-28: `Sf1 = Ss × thickness`,
 river beds assigned by elevation, GHB on the top layer, wetting from below)
 was superseded by answers 3, 8 and 11 and removed.
 
+## The dataset: the delivery of 2026-11-03
+
+The Batalha inputs are the scientist's unpublished delivery of 2026-11-03,
+not one of the published RUBEM datasets. It came as two archives, and both
+are needed, in this layout:
+
+```text
+<datasets>/batalha_basin/
+  bauru_modflow_t_ini_jul25_hist_x065.json   from batalha_basin.zip
+  Qobs-sim.xlsx, calibracao/, arquivos_drain/ from batalha_basin.zip
+  bauru_lai_max_tiago.json                    from batalha_basin.zip
+  input/                                      from batalha_basin_hist.zip
+```
+
+`batalha_basin_hist.zip` holds the historical series (`prec_hist`,
+`etp_hist`, `kp_hist`, `ndvi_hist`, `cob_hist`, 313 monthly steps from August
+2000, so August 2023 is step 277) and the static inputs. The `input/` of
+`batalha_basin.zip` has only the earlier 24-month folders, and the preparer
+stops on it with `FileNotFoundError` for `input/ndvi_hist`. The 454 files
+under the `input/` of `batalha_basin.zip` are all in the historical archive
+too, and three differ: `input/dem/dem.map.aux.xml`, which no model reads, and
+`input/text/landuse/kcmax.txt` and `kcmin.txt`, where class 25 is 0.2 and 0.7
+in `batalha_basin.zip` but 0.7 and 0.2 in the historical archive.
+`batalha_basin.zip` (17,718,872 bytes, SHA-256
+`a53cf9bbc6ed98dd071c3cf9b4039babf19429054cf980f77ac423e7834aa056`, 471
+files) extracts to a directory named `Dataset/`; `batalha_basin_hist.zip`
+(565,130,305 bytes, SHA-256
+`0d159aeca8f946b98f679201a006423934e86bb3a8c53d1b2b4c303b9739c5e6`, 4,825
+files) extracts to `input/`. Extract the first, rename `Dataset/` to
+`batalha_basin/`, then extract the second inside `batalha_basin/` so that its
+`input/` replaces the 24-month one; the historical archive's class-25
+coefficients are the ones in use. The reverse order leaves the inverted
+coefficients of `batalha_basin.zip` in place.
+
+The delivered JSON names `input/ndvi/ndvi_max.map` and `ndvi_min.map`, from
+the earlier NDVI folder, which this layout has, so the preparer uses that
+pair. A copy without `input/ndvi/` (such as the one the runs of 2026-10-29
+read) makes the preparer fall back to the pair in `ndvi_hist/` and record the
+repair in `manifest.json` under `ndvi_extremes_repaired`; the two pairs differ
+(`ndvi_min` basin mean 0.43 in `ndvi/`, 0.33 in `ndvi_hist/`).
+
+`delivery-2026-11-03.sha256` lists the SHA-256 of 153 delivery files: the
+145 the 24-month window from August 2023 reads (the JSON, every file its
+`RASTERS`, `TABLES` and `MODFLOW` sections name, both NDVI extreme pairs, and
+the series rasters of steps 277 to 300, `cob_hist` steps 277 and 289), plus
+`input/dem/ldd.map` and the other tables under `input/text/`, which identify
+the delivery but are not read. The extra calibration maps in `input/modflow`
+and the GDAL `.aux.xml` sidecars, which PCRaster does not read and GDAL may
+rewrite, are left out. The JSON's bytes include its paths, so a copy whose
+JSON was rewritten for another machine is listed as differing. Check a copy
+with `sha256sum`, or regenerate the list:
+
+```sh
+cd /path/to/datasets/batalha_basin
+sha256sum --check /path/to/RUBEM/examples/batalha_modflow/delivery-2026-11-03.sha256
+python /path/to/RUBEM/examples/batalha_modflow/prepare.py . --hashes \
+  --source bauru_modflow_t_ini_jul25_hist_x065.json --first-step 277 --months 24
+```
+
+The preparer records the SHA-256 of the files the prepared window reads in
+`manifest.json` under `source_sha256`.
+
 ## Optional integration check
 
 ```sh
-RUBEM_DATASET_DIR=/path/to/RUBEM-datasets \
+RUBEM_DATASET_DIR=/path/to/datasets \
   pytest tests/integration/test_batalha_modflow.py -q
 ```
+
+`RUBEM_DATASET_DIR` names the directory that holds `batalha_basin/` in the
+layout above. The test reads `bauru_modflow_t_ini_jul25_hist_x065.json` by
+name, derives the source step of August 2023 from its `SIM_TIME.start`, and
+skips, naming the file and the layout, when it is absent. CI never sets the
+variable, so CI never runs this test; there the coupling is covered by the
+unit and integration tests that drive `mf2005` on synthetic grids.
 
 This runs two months of three scenarios: the delivered configuration (which
 must be refused without the bypass and closes at the delivered 20 m /
@@ -177,8 +255,22 @@ the discrepancy below 0.1 % but fails in month 12, when about thirty thin
 active cells dry at the end of the dry season and rewet from the middle layer
 every third iteration; 0.01 m / 0.01 m³/day closes all 24 months only with
 rewetting off (discrepancy at most 0.03 %), with the same baseflow as the
-loose criterion. The test checks MODFLOW convergence and water-budget discrepancy,
-compares monthly baseflow against the independently reported river-exchange
-rates, and checks the manifest. It skips when the external dataset or
-`mf2005` is unavailable. Passing two months does not demonstrate stable
-rewetting over a longer window.
+loose criterion. The test checks MODFLOW convergence and requires every
+listing's water-budget discrepancy to stay below 1 %, the closure the
+scientist accepted on 2026-10-26; that is a numerical sanity bound, not
+calibrated accuracy. The largest value measured is 0.16 %, in the first
+stress period of the delivery of 2026-09-23 (NSTP 5, with 0.06 % in the
+second period); in this two-month window on the delivery of 2026-11-03 it is
+at most 0.02 % in the three cases (measured on 2026-11-03). Over longer
+windows the scientist's own configuration reaches 0.11 % (24 months,
+2026-10-18) and 0.12 % (the first 24 of 300 months, 2026-11-03), still within
+the bound. The test also compares monthly baseflow against
+the independently reported river-exchange rates and checks the manifest. It
+compares the `source_sha256` of the prepared manifest (the files the
+two-month window read) with `delivery-2026-11-03.sha256`: on a copy whose bytes differ, or that lacks a
+file the window reads, it does not fail for that reason but emits a
+`DeliveryCopyWarning` naming the paths, so that the verdict is labelled as one
+on another copy, and it skips the exact cell counts that hold for the
+delivered bytes (filled heads, clipped heads, the station's sample id). It
+skips when the external dataset or `mf2005` is unavailable. Passing two
+months does not demonstrate stable rewetting over a longer window.

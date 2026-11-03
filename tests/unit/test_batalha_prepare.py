@@ -1,5 +1,6 @@
 """Pure policies of the Batalha example preparer (no dataset, no MODFLOW run)."""
 
+import json
 import runpy
 from pathlib import Path
 
@@ -231,3 +232,129 @@ def test_prepare_refuses_destinations_inside_the_dataset(preparer, tmp_path):
     with pytest.raises(ValueError):
         preparer["prepare"](dataset, tmp_path / "out", profile="reconstructed")
     assert preparer["WETTING_STRATEGIES"] == ("as-delivered", "below", "off")
+
+
+def _delivery(root):
+    """A miniature delivery: a JSON with Windows paths, two tables, two series, a MODFLOW map."""
+    dataset = root / "batalha_basin"
+    for folder in ("clone", "text", "ndvi", "ndvi_hist", "cob_hist", "prec_hist", "modflow"):
+        (dataset / "input" / folder).mkdir(parents=True)
+    for name in (
+        "clone/clone.map",
+        "clone/clone.map.aux.xml",
+        "text/kcmax.txt",
+        "text/unread.tss",
+        "ndvi/ndvi_max.map",
+        "ndvi/ndvi_min.map",
+        "ndvi_hist/ndvi_max.map",
+        "ndvi_hist/ndvi_min.map",
+        "modflow/bound.map",
+        "modflow/extra.map",
+    ):
+        (dataset / "input" / name).write_bytes(name.encode())
+    for step in (276, 277, 278, 279):
+        for prefix, folder in (("ndvi", "ndvi_hist"), ("prec", "prec_hist")):
+            (dataset / "input" / folder / f"{prefix}0000.{step:03d}").write_bytes(b"%d" % step)
+    (dataset / "input/cob_hist/cob00000.265").write_bytes(b"265")
+    (dataset / "input/cob_hist/cob00000.277").write_bytes(b"277")
+    root_path = "C:/RUBEM/DATASET/input/"
+    directories = {"ndvi": "ndvi_hist", "landuse": "cob_hist", "etp": "prec_hist"}
+    directories |= {"prec": "prec_hist", "kp": "prec_hist", "output": "output"}
+    document = {
+        "DIRECTORIES": {key: f"{root_path}{value}/" for key, value in directories.items()},
+        "FILENAME_PREFIXES": {
+            "ndvi_prefix": "ndvi",
+            "landuse_prefix": "cob",
+            "etp_prefix": "prec",
+            "prec_prefix": "prec",
+            "kp_prefix": "prec",
+        },
+        "RASTERS": {
+            "clone": f"{root_path}clone/clone.map",
+            "ndvi_max": f"{root_path}ndvi/ndvi_max.map",
+            "ndvi_min": f"{root_path}ndvi/ndvi_min.map",
+        },
+        "TABLES": {"k_c_max": f"{root_path}text/kcmax.txt"},
+        "MODFLOW": {"layers": [{"name": "layer_1", "boundary": f"{root_path}modflow/bound.map"}]},
+    }
+    source = dataset / "delivery.json"
+    source.write_text(json.dumps(document), encoding="utf-8")
+    return dataset, source
+
+
+def test_delivery_files_are_the_named_files_and_the_window_rasters(preparer, tmp_path):
+    dataset, source = _delivery(tmp_path)
+    files = preparer["delivery_files"](dataset, source, first_step=277, months=2)
+    keys = [path.relative_to(dataset.resolve()).as_posix() for path in files]
+    assert keys == [
+        "delivery.json",
+        "input/clone/clone.map",
+        "input/cob_hist/cob00000.277",
+        "input/modflow/bound.map",
+        "input/ndvi/ndvi_max.map",
+        "input/ndvi/ndvi_min.map",
+        "input/ndvi_hist/ndvi0000.277",
+        "input/ndvi_hist/ndvi0000.278",
+        "input/ndvi_hist/ndvi_max.map",
+        "input/ndvi_hist/ndvi_min.map",
+        "input/prec_hist/prec0000.277",
+        "input/prec_hist/prec0000.278",
+        "input/text/kcmax.txt",
+    ]  # no sidecar, no unread table or map, no output directory, no step outside the window
+
+
+def test_the_manifest_also_pins_the_unread_tables(preparer, tmp_path):
+    dataset, source = _delivery(tmp_path)
+    (dataset / "input/dem").mkdir()
+    (dataset / "input/dem/ldd.map").write_bytes(b"ldd")
+    read = preparer["delivery_files"](dataset, source, first_step=277, months=2)
+    pinned = preparer["manifest_files"](dataset, source, first_step=277, months=2)
+    extra = sorted(
+        path.relative_to(dataset.resolve()).as_posix() for path in set(pinned) - set(read)
+    )
+    assert extra == ["input/dem/ldd.map", "input/text/unread.tss"]
+
+
+def test_a_copy_that_departs_from_the_manifest_is_reported_by_path(preparer, tmp_path):
+    dataset, source = _delivery(tmp_path)
+    files = preparer["delivery_files"](dataset, source, first_step=277, months=2)
+    digests = preparer["_sha256"](dataset.resolve(), files)
+    manifest = tmp_path / "delivery.sha256"
+    manifest.write_text("".join(f"{digest}  {key}\n" for key, digest in digests.items()))
+    committed = preparer["read_sha256_manifest"](manifest)
+    assert committed == digests
+    expected = list(digests)
+    compare = preparer["compare_with_delivery"]
+    assert compare(digests, expected, committed) == {"differing": [], "missing": [], "unlisted": []}
+    (dataset / "input/text/kcmax.txt").write_bytes(b"25 0.2")
+    (dataset / "input/ndvi/ndvi_min.map").unlink()
+    files = [path for path in files if path.is_file()]
+    local = preparer["_sha256"](dataset.resolve(), [*files, dataset / "input/modflow/extra.map"])
+    assert compare(local, expected, committed) == {
+        "differing": ["input/text/kcmax.txt"],
+        "missing": ["input/ndvi/ndvi_min.map"],
+        "unlisted": ["input/modflow/extra.map"],
+    }
+
+
+def test_the_committed_delivery_manifest_covers_the_24_month_window(preparer):
+    path = preparer["DELIVERY_MANIFEST"]
+    assert path.name == "delivery-2026-11-03.sha256"
+    text = path.read_text(encoding="utf-8")
+    assert text.endswith("\n") and "\r" not in text
+    digests = preparer["read_sha256_manifest"](path)
+    assert all(len(digest) == 64 and int(digest, 16) >= 0 for digest in digests.values())
+    assert all(not key.startswith("/") and not key.endswith(".aux.xml") for key in digests)
+    assert preparer["DELIVERY_SOURCE"] in digests
+    for series, prefix in (("prec", "prec0000"), ("etp", "etp00000"), ("kp", "kp000000")):
+        steps = [key for key in digests if key.startswith(f"input/{series}_hist/")]
+        assert steps == [f"input/{series}_hist/{prefix}.{step}" for step in range(277, 301)]
+    assert [key for key in digests if key.startswith("input/cob_hist/")] == [
+        "input/cob_hist/cob00000.277",
+        "input/cob_hist/cob00000.289",
+    ]
+    for folder in ("ndvi", "ndvi_hist"):
+        assert {f"input/{folder}/ndvi_max.map", f"input/{folder}/ndvi_min.map"} <= set(digests)
+    assert {"input/text/landuse/kcmax.txt", "input/modflow/bound3.map"} <= set(digests)
+    assert {"input/dem/ldd.map", "input/text/obsCalib.tss"} <= set(digests)  # pinned, not read
+    assert len(digests) == 153

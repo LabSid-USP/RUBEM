@@ -60,7 +60,10 @@ Added
   2026-10-13 (anisotropy and conductivity suffixes, filled initial heads, GHB
   variants, wetting repairs, solver and time-stepping overrides), a window
   start and a source-step offset for series that begin earlier, and a new
-  sample id on a station cell
+  sample id on a station cell. Its README documents the layout of the
+  unpublished delivery of 2026-11-03 that the optional Batalha test reads,
+  and ``delivery-2026-11-03.sha256`` (``prepare.py --hashes``) lists the
+  SHA-256 of the files the test compares its inputs with
   (`#356 <https://github.com/LabSid-USP/RUBEM/issues/356>`__).
 - Added ``rubem calibrate``: a differential evolution (SciPy) over the free
   calibration parameters, with ``w3`` derived from the other two weights,

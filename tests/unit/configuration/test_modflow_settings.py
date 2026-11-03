@@ -314,7 +314,7 @@ class TestSchema:
             {},
             {"map": "", "table": "kh.tbl"},
             {"map": "classes.map", "table": ""},
-            {"map": "classes.map", "table": "kh.tbl", "tabel": "kh.tbl"},
+            {"map": "classes.map", "table": "kh.tbl", "unknown": "kh.tbl"},
         ],
     )
     def test_a_partial_or_unknown_lookup_object_is_refused(self, value):
