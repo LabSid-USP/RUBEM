@@ -8,6 +8,7 @@ PCRaster layer 3 and user layer 3 (the base) is PCRaster layer 1.
 """
 
 import math
+import struct
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -520,6 +521,20 @@ class TestRunStep:
         field, option = mf.setRecharge.call_args.args
         assert option == 3
         np.testing.assert_allclose(values(field), grid([0.0] + [0.001] * 8))
+
+    def test_a_nan_recharge_that_is_not_a_missing_value_is_refused(self, section, run_dir, mf):
+        # numpy2pcr turns NaN into a missing value, which cover() replaces; a NaN stored
+        # in a raster file (as GDAL writes it) is read back as a number and survives
+        # cover(), as the NDVI series delivered on 2026-11-03 showed.
+        model = build(section, run_dir)
+        path = run_dir / "recharge-with-nan.map"
+        pcr.report(pcr.numpy2pcr(pcr.Scalar, grid([31.0] * 9), np.nan), str(path))
+        with open(path, "r+b") as handle:  # CSF header of 256 bytes, then row-major float32
+            handle.seek(256)
+            handle.write(struct.pack("<f", NAN))
+        with pytest.raises(RuntimeError, match=r"non-finite value\(s\).*row 1, column 1"):
+            model.run_step(pcr.readmap(str(path)), DAYS)
+        mf.setRecharge.assert_not_called()
 
     def test_each_transient_period_takes_its_length(self, section, run_dir, mf):
         model = build(section, run_dir)

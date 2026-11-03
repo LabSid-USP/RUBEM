@@ -503,6 +503,18 @@ class ModflowGroundwater:
         dis = self.settings.dis
         durations = [days] if dis.steady_state else _time_steps(days, dis.nstp, dis.tsmult)
         recharge = pcr.cover(pcr.scalar(recharge_mm) / (1000.0 * days), pcr.scalar(0.0))
+        # cover() replaces missing values only. A NaN or infinity that reached the
+        # recharge as a number (a NaN cell in an input raster propagates through
+        # the PCRaster arithmetic of the surface balance as a number, not as a
+        # missing value) would make every head NaN from this period on.
+        invalid = ~np.isfinite(pcr.pcr2numpy(recharge, 0.0))
+        if invalid.any():
+            raise RuntimeError(
+                f"The recharge of stress period {self._period} holds {int(invalid.sum())} "
+                "non-finite value(s) that are not missing values, the first at "
+                f"{_first_cell(invalid)}; MODFLOW would carry them into every head. Check the "
+                "input rasters of this step (NDVI, ETP, precipitation, kp) for NaN cells."
+            )
         self.mf.setRecharge(recharge, _RECHARGE_TO_HIGHEST_ACTIVE_CELL)
         output = self.settings.output
         averages = {}
