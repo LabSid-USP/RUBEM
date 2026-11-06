@@ -33,6 +33,7 @@ from pydantic import (
 from .._paths import PathInput, as_path
 from ._json import DuplicateKeyWarning
 from .model_configuration_file import ModelConfigurationFile, finite_float32
+from .modflow_configuration import ModflowSettings
 
 VERSION = "1.0"
 
@@ -334,6 +335,7 @@ class ModelConfigurationFileV1(_Strict):
     model_initial_soil_conditions: InitialSoilConditions
     model_constants: Constants
     model_simulation_output: SimulationOutput
+    modflow: ModflowSettings | None = None
 
     @model_validator(mode="after")
     def _check_aggregation_inputs(self) -> Self:
@@ -403,10 +405,12 @@ class ModelConfigurationFileV1(_Strict):
                 spec["yearly_file_path"] = anchor(spec.get("yearly_file_path"))
             else:
                 spec["dir_path"] = anchor(spec["dir_path"])
+        if self.modflow is not None:
+            data["modflow"] = self.modflow.resolve_paths(base)
         return type(self).model_validate(data)
 
     def to_dict(self) -> dict:
-        """The JSON document (ISO dates, ``$ref`` objects kept)."""
+        """The JSON document (ISO dates, ``$ref`` objects kept, unset keys left out)."""
         return self.model_dump(by_alias=True, mode="json", exclude_none=True)
 
     # ----- conversions -----------------------------------------------------
@@ -418,7 +422,8 @@ class ModelConfigurationFileV1(_Strict):
         Directory series become ``dir_path``/``files_prefix`` entries, the
         period keeps its dates, the legacy time-series flag becomes the
         ``time_series_samples`` selection (CSV only, as the legacy run writes),
-        and the raster formats follow ``RASTER_FILE_FORMAT``.
+        and the raster formats follow ``RASTER_FILE_FORMAT``; the ``MODFLOW``
+        section, when present, becomes ``modflow`` unchanged.
         """
         rff = legacy.raster_file_format
         formats = []
@@ -505,6 +510,8 @@ class ModelConfigurationFileV1(_Strict):
                 },
             },
         }
+        if legacy.modflow is not None:
+            data["modflow"] = legacy.modflow.model_dump(mode="json")
         return cls.model_validate(data)
 
     def to_legacy(self) -> ModelConfigurationFile:
@@ -595,5 +602,6 @@ class ModelConfigurationFileV1(_Strict):
                 "tiff_raster_series": RasterFormat.GEOTIFF in out.raster_series.formats,
                 "no_data_value": out.raster_series.no_data_value,
             },
+            "MODFLOW": self.modflow.model_dump(mode="json") if self.modflow is not None else None,
         }
         return ModelConfigurationFile.model_validate(data)

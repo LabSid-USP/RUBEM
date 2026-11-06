@@ -46,8 +46,9 @@ The model was developed based on classical concepts of hydrological processes an
 - Distributed monthly step model;
 - Hydrological process based on soil water balance in each pixel, and flow total calculated after composition of the resulting accumulated flow, according to Direction drainage network flow established by the digital elevation model (DEM);
 - Calculations for two zones: rootzone and saturated;
-- Evapotranspiration and interception process based on vegetation index: Leaf Area Index (LAI), Photosynthetically Active Radiation Fraction (FPAR) and Normalized Difference Vegetation Index (NDVI); and
-- Sub-pixel level coverage classification, represented by four fractions that represent percentage of total pixel area covered exclusively by: area vegetated, bare soil area, water area and impervious area.
+- Evapotranspiration and interception process based on vegetation index: Leaf Area Index (LAI), Photosynthetically Active Radiation Fraction (FPAR) and Normalized Difference Vegetation Index (NDVI);
+- Sub-pixel level coverage classification, represented by four fractions that represent percentage of total pixel area covered exclusively by: area vegetated, bare soil area, water area and impervious area; and
+- Optional groundwater coupling with MODFLOW-2005 through the PCRaster MODFLOW extension: the recharge feeds a layered aquifer model and the aquifer-to-river leakage becomes the baseflow.
 
 <!-- GETTING STARTED -->
 ## Getting Started
