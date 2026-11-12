@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from rubem.calibration.modflow_parameters import ModflowCatalog
 from rubem.calibration.parameters import (
     CALIBRATION_PARAMETERS,
     DERIVED_PARAMETER,
@@ -453,3 +454,160 @@ class TestOverriddenBounds:
     def test_a_bound_of_a_fixed_parameter_has_nowhere_to_apply(self):
         with pytest.raises(ValueError, match="nowhere to apply"):
             decision_space(fixed={"rcd": 3.0}, bounds={"rcd": (2.0, 5.0)})
+
+
+SPECIFIC_YIELD = "modflow.layers.1.specific_yield"
+KH = "modflow.layers.1.kh.2"
+CONDUCTANCE = "modflow.river.1.conductance"
+
+
+@pytest.fixture
+def catalog():
+    """The MODFLOW parameters of a configuration, in the order of its section."""
+    return ModflowCatalog(
+        values={SPECIFIC_YIELD: 0.15, "modflow.layers.1.kh.1": 0.5, KH: 0.1, CONDUCTANCE: 0.387},
+        tables={1: [("1", 0.5), ("2", 0.1)]},
+    )
+
+
+class TestModflowParameters:
+    @pytest.mark.unit
+    def test_without_a_modflow_name_the_space_is_the_one_of_today(self, catalog):
+        assert decision_space(modflow=catalog) == decision_space()
+        assert decision_space(
+            fixed={"x": 0.0}, bounds={"rcd": (2.0, 5.0)}, modflow=catalog
+        ) == decision_space(fixed={"x": 0.0}, bounds={"rcd": (2.0, 5.0)})
+        assert decision_space().modflow_names == ()
+
+    @pytest.mark.unit
+    def test_a_bounded_name_is_searched_after_the_eight_parameters(self, catalog):
+        space = decision_space(bounds={SPECIFIC_YIELD: (0.05, 0.3)}, modflow=catalog)
+
+        assert space.free_names == (*FREE_PARAMETERS, SPECIFIC_YIELD)
+        assert space.bounds[-1] == (0.05, 0.3)
+        assert space.dimension == 9
+        assert space.modflow_names == (SPECIFIC_YIELD,)
+
+    @pytest.mark.unit
+    def test_the_names_follow_the_catalog_whatever_order_they_are_given_in(self, catalog):
+        space = decision_space(
+            bounds={CONDUCTANCE: (0.1, 0.5), KH: (0.05, 0.5), SPECIFIC_YIELD: (0.05, 0.3)},
+            modflow=catalog,
+        )
+
+        assert space.free_names[8:] == (SPECIFIC_YIELD, KH, CONDUCTANCE)
+        assert space.bounds[8:] == ((0.05, 0.3), (0.05, 0.5), (0.1, 0.5))
+
+    @pytest.mark.unit
+    def test_a_candidate_carries_the_nine_parameters_and_the_modflow_ones(self, catalog):
+        space = decision_space(
+            fixed={CONDUCTANCE: 0.2}, bounds={SPECIFIC_YIELD: (0.05, 0.3)}, modflow=catalog
+        )
+        vector = np.append(admissible_vector(), 0.25)
+
+        parameters = space.to_parameters(vector)
+
+        assert list(parameters) == [*CALIBRATION_PARAMETERS, SPECIFIC_YIELD, CONDUCTANCE]
+        assert parameters[SPECIFIC_YIELD] == 0.25
+        assert parameters[CONDUCTANCE] == 0.2
+        assert parameters["w_3"] == pytest.approx(1.0 - 0.666)
+        assert space.fixed == {CONDUCTANCE: 0.2}
+        assert space.modflow_names == (SPECIFIC_YIELD, CONDUCTANCE)
+
+    @pytest.mark.unit
+    def test_the_starting_point_reads_the_modflow_values(self, catalog):
+        space = decision_space(bounds={KH: (0.05, 0.5)}, modflow=catalog)
+        parameters = vector_to_parameters(admissible_vector())
+
+        vector = space.from_parameters({**parameters, **catalog.values})
+
+        assert vector.tolist() == pytest.approx([*admissible_vector().tolist(), 0.1])
+
+    @pytest.mark.unit
+    def test_a_modflow_value_outside_its_bound_is_not_admissible(self, catalog):
+        space = decision_space(bounds={KH: (0.05, 0.5)}, modflow=catalog)
+
+        assert space.is_admissible(np.append(admissible_vector(), 0.5))
+        assert not space.is_admissible(np.append(admissible_vector(), 0.6))
+        assert not space.is_admissible(np.append(admissible_vector(), np.nan))
+
+    @pytest.mark.unit
+    def test_the_weights_keep_their_positions_in_the_constraint(self, catalog):
+        pytest.importorskip("scipy.optimize")
+        space = decision_space(bounds={KH: (0.05, 0.5)}, modflow=catalog)
+
+        coefficients = np.asarray(space.weights_constraint().A)
+
+        assert coefficients.tolist() == [[0, 0, 1, 1, 0, 0, 0, 0, 0]]
+
+    @pytest.mark.unit
+    def test_the_eight_parameters_may_all_be_fixed_when_a_modflow_one_is_searched(self, catalog):
+        every = {name: minimum for name, (minimum, _) in SETTINGS_BOUNDS.items()}
+        every.pop(DERIVED_PARAMETER)
+        every["w_1"], every["w_2"] = 0.5, 0.5
+
+        space = decision_space(fixed=every, bounds={KH: (0.05, 0.5)}, modflow=catalog)
+
+        assert space.free_names == (KH,)
+        assert space.weights_constraint() is None
+
+    @pytest.mark.unit
+    def test_a_name_the_catalog_does_not_hold_names_the_known_ones(self, catalog):
+        with pytest.raises(ValueError, match="modflow.layers.2.specific_yield") as failure:
+            decision_space(bounds={"modflow.layers.2.specific_yield": (0.1, 0.2)}, modflow=catalog)
+
+        for name in catalog.names:
+            assert name in str(failure.value)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("argument", ["fixed", "bounds"])
+    def test_a_modflow_name_without_modflow_is_refused(self, argument):
+        value = 0.2 if argument == "fixed" else (0.1, 0.3)
+
+        with pytest.raises(ValueError, match="does not enable MODFLOW"):
+            decision_space(**{argument: {SPECIFIC_YIELD: value}})
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        ("name", "override"),
+        [
+            (KH, (0.0, 0.5)),
+            (KH, (-1.0, 0.5)),
+            (KH, (0.5, 0.1)),
+            (KH, (0.3, 0.3)),
+            (KH, (0.1, float("inf"))),
+            (KH, (float("nan"), 0.5)),
+            (CONDUCTANCE, (0.0, 1.0)),
+            (SPECIFIC_YIELD, (0.0, 0.3)),
+            (SPECIFIC_YIELD, (0.1, 1.2)),
+        ],
+    )
+    def test_a_bound_outside_the_domain_of_the_parameter_is_refused(self, catalog, name, override):
+        with pytest.raises(ValueError, match=f"bound .* of '{name}'"):
+            decision_space(bounds={name: override}, modflow=catalog)
+
+    @pytest.mark.unit
+    def test_a_specific_yield_may_be_searched_up_to_one(self, catalog):
+        space = decision_space(bounds={SPECIFIC_YIELD: (0.5, 1.0)}, modflow=catalog)
+
+        assert space.bounds[-1] == (0.5, 1.0)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("override", [0.3, (0.3,), (0.1, 0.2, 0.3)])
+    def test_a_modflow_bound_that_is_not_a_pair_is_refused(self, catalog, override):
+        with pytest.raises(ValueError, match=r"must be a \(minimum, maximum\) pair"):
+            decision_space(bounds={KH: override}, modflow=catalog)
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        ("name", "value"),
+        [(KH, 0.0), (CONDUCTANCE, -1.0), (SPECIFIC_YIELD, 1.5), (KH, float("nan"))],
+    )
+    def test_a_fixed_value_outside_the_domain_is_refused(self, catalog, name, value):
+        with pytest.raises(ValueError, match=f"'{name}' cannot be fixed"):
+            decision_space(fixed={name: value}, modflow=catalog)
+
+    @pytest.mark.unit
+    def test_a_modflow_name_both_fixed_and_bounded_is_refused(self, catalog):
+        with pytest.raises(ValueError, match="nowhere to apply"):
+            decision_space(fixed={KH: 0.2}, bounds={KH: (0.1, 0.3)}, modflow=catalog)

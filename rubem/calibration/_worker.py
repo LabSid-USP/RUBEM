@@ -39,6 +39,7 @@ from pathlib import Path
 import numpy as np
 
 from ..configuration.model_configuration_file_v1 import VARIABLE_IDS
+from .modflow_parameters import ModflowCatalog
 from .objective import (
     INADMISSIBLE_OBJECTIVE,
     Series,
@@ -100,6 +101,11 @@ class EvaluationContext:
         default, averages every station the two series share; the others are
         measured either way.
     :type stations: tuple[str, ...] | None
+
+    :param modflow: The MODFLOW parameters of the configuration, which write the
+        MODFLOW values of a candidate into its document. ``None``, the default,
+        when the configuration does not enable MODFLOW.
+    :type modflow: rubem.calibration.modflow_parameters.ModflowCatalog | None
     """
 
     document: dict
@@ -112,6 +118,7 @@ class EvaluationContext:
     validate_input: bool = False
     space: DecisionSpace = field(default_factory=decision_space)
     stations: tuple[str, ...] | None = None
+    modflow: ModflowCatalog | None = None
 
 
 def evaluate(vector: Sequence[float] | np.ndarray, context: EvaluationContext) -> float:
@@ -202,6 +209,7 @@ def simulate_best(
     parameters: dict[str, float],
     output_dir: str,
     variable: str,
+    modflow: ModflowCatalog | None = None,
 ) -> str:
     """Run one candidate and keep what it wrote.
 
@@ -222,7 +230,8 @@ def simulate_best(
         on, ``None`` when they are absolute already.
     :type base_dir: str | None
 
-    :param parameters: The nine calibration parameters of the candidate.
+    :param parameters: The nine calibration parameters of the candidate, and
+        its MODFLOW parameters when the calibration has any.
     :type parameters: dict[str, float]
 
     :param output_dir: Directory the run writes into. It is not removed.
@@ -231,6 +240,10 @@ def simulate_best(
     :param variable: Id of the output variable the table is wanted for.
     :type variable: str
 
+    :param modflow: The MODFLOW parameters of the configuration, ``None``, the
+        default, when it does not enable MODFLOW.
+    :type modflow: rubem.calibration.modflow_parameters.ModflowCatalog | None
+
     :return: The path of the CSV table the run wrote for ``variable``.
     :rtype: str
 
@@ -238,7 +251,7 @@ def simulate_best(
     """
     from ..api import Model
 
-    derived = _document_for(document, variable, parameters, output_dir)
+    derived = _document_for(document, variable, parameters, output_dir, modflow=modflow)
     result = Model.from_config(derived, validate_input=False, base_dir=base_dir).run()
     return str(_time_series_table(result, variable))
 
@@ -280,7 +293,9 @@ def _derived_document(
     output_dir: str,
 ) -> dict:
     """Return the configuration document of one candidate of an evaluation."""
-    return _document_for(context.document, context.variable, parameters, output_dir)
+    return _document_for(
+        context.document, context.variable, parameters, output_dir, modflow=context.modflow
+    )
 
 
 def _document_for(
@@ -288,6 +303,8 @@ def _document_for(
     variable: str,
     parameters: dict[str, float],
     output_dir: str,
+    *,
+    modflow: ModflowCatalog | None = None,
 ) -> dict:
     """Return the configuration document of one candidate.
 
@@ -297,7 +314,9 @@ def _document_for(
     no raster, and writing them would dominate its cost) and the time series are
     reduced to the calibrated variable, as CSV. The aggregation the user
     configured is kept, since it decides which areas the observed stations
-    correspond to.
+    correspond to. With a MODFLOW catalog, the MODFLOW values of the candidate
+    replace the ones of its section, and the conductivity tables it rewrites
+    are written into ``output_dir``, which is removed with the run.
     """
     document = copy.deepcopy(base_document)
     document["model_calibration_parameters"] = {
@@ -325,6 +344,8 @@ def _document_for(
         "formats": ["CSV"],
         "aggregation": previous_samples.get("aggregation", "point"),
     }
+    if modflow is not None:
+        modflow.apply(document, parameters, output_dir)
     return document
 
 
