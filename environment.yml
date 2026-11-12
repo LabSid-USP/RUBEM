@@ -8,7 +8,7 @@ channels:
 dependencies:
   - python>=3.12
   - gdal=3.*
-  - humanize>=4.16.0
+  - humanize>=4.17.0
   - numpy=2.*
   - pcraster=4.4.*
   - pip
