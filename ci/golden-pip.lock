@@ -2,6 +2,7 @@
 # Installed in the exact CI job with: pip install --require-hashes -r ci/golden-pip.lock
 # Regenerate from ci/golden-pip.in with:
 #   uv pip compile ci/golden-pip.in --generate-hashes --python-version 3.13 --python-platform linux -o ci/golden-pip.lock
+# and then restore this header, which uv replaces with its own banner.
 # Only pure-Python runtime dependencies (or ones with wheels for every matrix
 # interpreter) belong here; pcraster and gdal stay conda-only.
 annotated-doc==0.0.5 \
