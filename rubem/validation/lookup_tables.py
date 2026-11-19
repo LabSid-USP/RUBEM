@@ -34,13 +34,11 @@ class LookupTableError(ValueError):
 def _interval_bounds_are_numeric(key: str) -> bool:
     """Whether the bounds present in an interval key such as ``[1,3]`` or ``<1,>`` are numeric.
 
-    At least one bound must be given (``[,]`` carries no information and is
-    rejected); a bound that is present must be a number.
+    An omitted bound is infinite, so ``<,>`` and ``[,]`` match every value.
+    A bound that is present must be a number.
     """
     low_text, high_text = key[1:-1].split(",")
     low_text, high_text = low_text.strip(), high_text.strip()
-    if not low_text and not high_text:
-        return False
     return (not low_text or _NUMBER.match(low_text) is not None) and (
         not high_text or _NUMBER.match(high_text) is not None
     )
@@ -52,7 +50,7 @@ def read_lookup_table(path) -> list[tuple[tuple[str, ...], float]]:
     :param path: The table file.
     :raises LookupTableError: On an empty table, a row without a value, a row
         with more than one key column, a value or key that is neither a
-        number nor an interval, or an interval key without a numeric bound.
+        number nor an interval, or an interval key with a non-numeric bound.
     """
     rows = []
     text = Path(path).read_text(encoding="utf8")
@@ -93,6 +91,36 @@ def _in_interval(value: float, interval: str) -> bool:
         else (value <= float(high_text) if interval[-1] == "]" else value < float(high_text))
     )
     return low_ok and high_ok
+
+
+def _first_matching_row(rows, value: float) -> int | None:
+    """The index of the first row of a lookup table whose key matches ``value``.
+
+    PCRaster reads that row for a cell of the class ``value``: a numeric key
+    matches an equal number, an interval key every number it contains, and a
+    later row of the same class is never read.
+
+    :param rows: The rows of a one-key table, as :func:`read_lookup_table` returns them.
+    :type rows: list[tuple[tuple[str], float]]
+
+    :param value: The class of a cell.
+    :type value: float
+
+    :return: The index of the row, ``None`` when no row matches.
+    :rtype: int | None
+    """
+    for index, ((key,), _) in enumerate(rows):
+        if _NUMBER.match(key) and float(key) == value:
+            return index
+        if _INTERVAL.match(key) and _in_interval(value, key):
+            return index
+    return None
+
+
+def _table_value(rows, value: float) -> float | None:
+    """The value PCRaster reads from a lookup table for the class ``value``, ``None`` if none."""
+    index = _first_matching_row(rows, value)
+    return None if index is None else rows[index][1]
 
 
 def _canonical(key: str) -> str:

@@ -22,6 +22,14 @@ validates against, so a candidate the optimizer proposes inside the bounds is a
 configuration the model accepts. An override may only narrow them, never widen
 them, for the same reason.
 
+A configuration that enables MODFLOW adds the parameters of its ``modflow``
+section, named in :mod:`rubem.calibration.modflow_parameters`. They are never
+searched by default: a MODFLOW parameter joins the vector only when the caller
+bounds it, after the eight parameters above, or fixes it, and its bound is
+checked against the values the parameter may take instead of a range of the
+application settings. Without MODFLOW names the space is the one described
+above.
+
 The module-level :func:`bounds`, :func:`vector_to_parameters`,
 :func:`parameters_to_vector`, :func:`is_admissible` and
 :func:`weights_constraint` are the default space, the one without fixed
@@ -41,6 +49,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 
 from ..configuration._ranges import variable_range
+from .modflow_parameters import MODFLOW_PREFIX, ModflowCatalog
 
 if TYPE_CHECKING:
     from scipy.optimize import LinearConstraint
@@ -79,7 +88,8 @@ class DecisionSpace:
     evaluation context, so they hold nothing but names and numbers.
 
     :param free_names: The searched parameters, in the order of the decision
-        vector: the entries of :data:`FREE_PARAMETERS` that are not fixed.
+        vector: the entries of :data:`FREE_PARAMETERS` that are not fixed, then
+        the bounded MODFLOW parameters.
     :type free_names: tuple[str, ...]
 
     :param fixed: The parameters that are not searched, by name, with the value
@@ -89,11 +99,17 @@ class DecisionSpace:
     :param bounds: One ``(minimum, maximum)`` pair per free parameter, in the
         order of :attr:`free_names`.
     :type bounds: tuple[tuple[float, float], ...]
+
+    :param modflow_names: The MODFLOW parameters of the run, searched or
+        fixed, in the order of the MODFLOW catalog. Empty, the default, when
+        the run calibrates none.
+    :type modflow_names: tuple[str, ...]
     """
 
     free_names: tuple[str, ...]
     fixed: dict[str, float]
     bounds: tuple[tuple[float, float], ...]
+    modflow_names: tuple[str, ...] = ()
 
     @property
     def dimension(self) -> int:
@@ -110,13 +126,14 @@ class DecisionSpace:
         The free values are read in the order of :attr:`free_names`, the fixed
         ones are inserted at the value they were pinned to, and the slope factor
         weight is derived as ``w_3 = 1 - w_1 - w_2``, so that the three weights
-        always add up to 1.
+        always add up to 1. The MODFLOW parameters of the run follow the nine.
 
         :param vector: The free values, in the order of :attr:`free_names`.
         :type vector: collections.abc.Sequence[float] | numpy.ndarray
 
         :return: The nine parameters, keyed by the names of
-            :class:`rubem.configuration.calibration_parameters.CalibrationParameters`.
+            :class:`rubem.configuration.calibration_parameters.CalibrationParameters`,
+            then the :attr:`modflow_names`.
         :rtype: dict[str, float]
 
         :raises ValueError: If the vector does not have :attr:`dimension` entries.
@@ -139,7 +156,7 @@ class DecisionSpace:
         # then refuses the run. With a single subtraction the weight is exactly
         # zero at the boundary and never negative while ``w_1 + w_2 <= 1``.
         parameters[DERIVED_PARAMETER] = 1.0 - (parameters["w_1"] + parameters["w_2"])
-        return {name: parameters[name] for name in CALIBRATION_PARAMETERS}
+        return {name: parameters[name] for name in (*CALIBRATION_PARAMETERS, *self.modflow_names)}
 
     def from_parameters(self, parameters: Mapping[str, float]) -> np.ndarray:
         """Return the decision vector of a set of calibration parameters.
@@ -240,6 +257,7 @@ class DecisionSpace:
 def decision_space(
     fixed: Mapping[str, float] | None = None,
     bounds: Mapping[str, tuple[float, float]] | None = None,
+    modflow: ModflowCatalog | None = None,
 ) -> DecisionSpace:
     """Return the decision space of one calibration.
 
@@ -259,6 +277,13 @@ def decision_space(
     decision vector. Fixing both of them derives ``w_3`` once and checks it here,
     before the search starts.
 
+    A name that starts with ``modflow.`` is a parameter of the MODFLOW section,
+    looked up in ``modflow``. It has no range in the application settings, so
+    it is searched only when it is bounded, after the eight parameters, and the
+    bound is mandatory: finite, its minimum below its maximum and inside the
+    values the parameter may take (strictly positive, and at most 1 for a
+    specific yield). A fixed one keeps its value in every candidate.
+
     :param fixed: The parameters that are not searched, with the value every
         candidate carries. Defaults to ``None``, no fixed parameter.
     :type fixed: collections.abc.Mapping[str, float], optional
@@ -267,6 +292,10 @@ def decision_space(
         by name. Defaults to ``None``, the ranges of the application settings.
     :type bounds: collections.abc.Mapping[str, tuple[float, float]], optional
 
+    :param modflow: The MODFLOW parameters of the configuration, ``None``, the
+        default, when it does not enable MODFLOW.
+    :type modflow: rubem.calibration.modflow_parameters.ModflowCatalog, optional
+
     :return: The decision vector of the run.
     :rtype: DecisionSpace
 
@@ -274,13 +303,29 @@ def decision_space(
         ``w_3``, if a fixed value lies outside the range of the settings, if an
         overridden bound is not a narrower range of the settings range, if a
         fixed weight leaves the other one no admissible value, if two fixed
-        weights derive a ``w_3`` outside its range, or if every parameter is
-        fixed and nothing is left to search.
+        weights derive a ``w_3`` outside its range, if every parameter is fixed
+        and nothing is left to search, or if a MODFLOW name is given without
+        ``modflow``, is not in it, or has a bound or a fixed value outside the
+        values it may take.
     """
+    fixed = fixed or {}
+    bounds = bounds or {}
+    modflow_space = _modflow_space(
+        {name: value for name, value in fixed.items() if name.startswith(MODFLOW_PREFIX)},
+        {name: value for name, value in bounds.items() if name.startswith(MODFLOW_PREFIX)},
+        modflow,
+    )
+    modflow_free, modflow_fixed, modflow_bounds, modflow_names = modflow_space
     fixed_values = {
-        _canonical(name, "fixed"): float(value) for name, value in (fixed or {}).items()
+        _canonical(name, "fixed"): float(value)
+        for name, value in fixed.items()
+        if not name.startswith(MODFLOW_PREFIX)
     }
-    overrides = {_canonical(name, "bounded"): value for name, value in (bounds or {}).items()}
+    overrides = {
+        _canonical(name, "bounded"): value
+        for name, value in bounds.items()
+        if not name.startswith(MODFLOW_PREFIX)
+    }
 
     settings_ranges = {name: variable_range(name) for name in FREE_PARAMETERS}
     effective = dict(settings_ranges)
@@ -301,7 +346,7 @@ def decision_space(
             )
 
     free_names = tuple(name for name in FREE_PARAMETERS if name not in fixed_values)
-    if not free_names:
+    if not free_names and not modflow_free:
         raise ValueError(
             "Every calibration parameter is fixed, so the search has nothing to look for; "
             "leave at least one of them free."
@@ -319,15 +364,77 @@ def decision_space(
         if minimum == maximum:
             fixed_values[name] = minimum
             free_names = tuple(free for free in free_names if free != name)
-    if not free_names:
+    if not free_names and not modflow_free:
         raise ValueError(
             "Every calibration parameter is fixed, so the search has nothing to look for; "
             "leave at least one of them free."
         )
     return DecisionSpace(
-        free_names=free_names,
-        fixed=fixed_values,
-        bounds=tuple(effective[name] for name in free_names),
+        free_names=(*free_names, *modflow_free),
+        fixed={**fixed_values, **modflow_fixed},
+        bounds=(*(effective[name] for name in free_names), *modflow_bounds),
+        modflow_names=modflow_names,
+    )
+
+
+def _modflow_space(
+    fixed: Mapping[str, float],
+    bounds: Mapping[str, Sequence[float]],
+    modflow: ModflowCatalog | None,
+) -> tuple[tuple[str, ...], dict[str, float], tuple[tuple[float, float], ...], tuple[str, ...]]:
+    """Return the searched and the fixed MODFLOW parameters, in the order of the catalog.
+
+    :return: The searched names, the fixed values, the bounds of the searched
+        names and every MODFLOW name of the run.
+
+    :raises ValueError: If a name is given without a catalog or is not in it,
+        if it is both fixed and bounded, or if its value or its bound lies
+        outside the values the parameter may take.
+    """
+    given = [*fixed, *bounds]
+    if not given:
+        return (), {}, (), ()
+    if modflow is None:
+        raise ValueError(
+            f"The MODFLOW parameter(s) {', '.join(given)} cannot be calibrated: the "
+            "configuration does not enable MODFLOW."
+        )
+    for name in given:
+        if name not in modflow.values:
+            raise ValueError(
+                f"'{name}' is not a MODFLOW parameter of this configuration. Its calibratable "
+                f"MODFLOW parameters are {', '.join(modflow.names) or 'none'}."
+            )
+    for name in bounds:
+        if name in fixed:
+            raise ValueError(
+                f"'{name}' is fixed at {fixed[name]}, so a bound for it has nowhere "
+                "to apply: only the free parameters are searched."
+            )
+    for name, value in fixed.items():
+        if not modflow.admits(name, value):
+            raise ValueError(
+                f"'{name}' cannot be fixed at {value}: the value lies outside "
+                f"{modflow.domain(name)}, the values the parameter may take."
+            )
+    checked = {}
+    for name, override in bounds.items():
+        minimum, maximum = _pair(name, override)
+        if not (
+            minimum < maximum and modflow.admits(name, minimum) and modflow.admits(name, maximum)
+        ):
+            raise ValueError(
+                f"The bound ({minimum}, {maximum}) of '{name}' is not a range inside "
+                f"{modflow.domain(name)}, the values the parameter may take, with its minimum "
+                "below its maximum."
+            )
+        checked[name] = (minimum, maximum)
+    searched = tuple(name for name in modflow.names if name in checked)
+    return (
+        searched,
+        {name: float(fixed[name]) for name in modflow.names if name in fixed},
+        tuple(checked[name] for name in searched),
+        tuple(name for name in modflow.names if name in fixed or name in checked),
     )
 
 
@@ -360,19 +467,7 @@ def _narrowed(
     :raises ValueError: If the override is not a range with a minimum below its
         maximum, or if it is not contained in the range of the settings.
     """
-    try:
-        values = tuple(float(value) for value in override)
-    except TypeError:
-        # A single number instead of a pair: the same mistake as a pair of the
-        # wrong length, and it is answered with the same sentence.
-        raise ValueError(
-            f"The bound of '{name}' must be a (minimum, maximum) pair, got {override!r}."
-        ) from None
-    if len(values) != 2:
-        raise ValueError(
-            f"The bound of '{name}' must be a (minimum, maximum) pair, got {len(values)} value(s)."
-        )
-    minimum, maximum = values
+    minimum, maximum = _pair(name, override)
     settings_minimum, settings_maximum = settings_range
     if (
         not math.isfinite(minimum)
@@ -386,6 +481,27 @@ def _narrowed(
             f"application settings range ({settings_minimum}, {settings_maximum}): a bound "
             "narrows the settings range and its minimum lies below its maximum."
         )
+    return minimum, maximum
+
+
+def _pair(name: str, override: Sequence[float]) -> tuple[float, float]:
+    """Return a bound as a pair of numbers.
+
+    :raises ValueError: If the bound is not two numbers.
+    """
+    try:
+        values = tuple(float(value) for value in override)
+    except TypeError:
+        # A single number instead of a pair: the same mistake as a pair of the
+        # wrong length, and it is answered with the same sentence.
+        raise ValueError(
+            f"The bound of '{name}' must be a (minimum, maximum) pair, got {override!r}."
+        ) from None
+    if len(values) != 2:
+        raise ValueError(
+            f"The bound of '{name}' must be a (minimum, maximum) pair, got {len(values)} value(s)."
+        )
+    minimum, maximum = values
     return minimum, maximum
 
 

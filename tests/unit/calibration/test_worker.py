@@ -12,12 +12,15 @@ from rubem.api import Model
 from rubem.calibration._worker import (
     EvaluationContext,
     _derived_document,
+    _document_for,
     evaluate,
     simulate_best,
 )
+from rubem.calibration.modflow_parameters import catalog
 from rubem.calibration.objective import INADMISSIBLE_OBJECTIVE, read_series
 from rubem.calibration.parameters import (
     FREE_PARAMETERS,
+    decision_space,
     parameters_to_vector,
     vector_to_parameters,
 )
@@ -26,6 +29,7 @@ from rubem.configuration.model_configuration_file_v1 import (
     VARIABLE_IDS,
     ModelConfigurationFileV1,
 )
+from rubem.configuration.modflow_configuration import ModflowSettings
 from tests.helpers.synthetic import write_synthetic_dataset
 
 TIMESTEPS = 3
@@ -381,3 +385,164 @@ class TestSimulateBest:
                 str(output_dir),
                 "nope",
             )
+
+
+SPECIFIC_YIELD = "modflow.layers.1.specific_yield"
+KH = "modflow.layers.1.kh.2"
+
+
+class ModflowDocument:
+    """A calibrated document with a MODFLOW section, and the catalog of that section.
+
+    The rasters of the section are never read: the model is replaced by a spy
+    that keeps the document it is given.
+    """
+
+    def __init__(self, dataset, tmp_path):
+        table = tmp_path / "kh1.tbl"
+        table.write_text("1 0.5\n2 0.1\n", encoding="utf8")
+        layer = {
+            "name": "upper",
+            "bottom": "/maps/bottom.map",
+            "initial_head": "/maps/head.map",
+            "boundary": "/maps/bound.map",
+            "laytype": 1,
+            "horizontal_conductivity": {"map": "/maps/classes.map", "table": str(table)},
+            "vertical_conductivity": 0.1,
+            "specific_yield": 0.15,
+        }
+        river = {
+            "layers": [1],
+            "stage": "/maps/stage.map",
+            "bottom": "/maps/riv_bottom.map",
+            "conductance": 0.387,
+            "mask": "/maps/riv_mask.map",
+        }
+        settings = ModflowSettings.model_validate(
+            {
+                "enabled": True,
+                "top": "/maps/top.map",
+                "layers": [layer],
+                "river": {"enabled": True, "entries": [river]},
+            }
+        )
+        self.table = table
+        self.catalog = catalog(settings)
+        self.document = {**dataset.document, "modflow": settings.model_dump(mode="json")}
+        self.parameters = {
+            **vector_to_parameters(dataset.vector),
+            SPECIFIC_YIELD: 0.2,
+            KH: 0.25,
+        }
+
+
+@pytest.fixture
+def modflow_document(dataset, tmp_path):
+    return ModflowDocument(dataset, tmp_path)
+
+
+@pytest.fixture
+def model_spy(monkeypatch):
+    """Keep the document the model is built from and stop before the run."""
+    documents = []
+
+    def from_config(document, **kwargs):
+        documents.append(json.loads(json.dumps(document)))
+        output_dir = Path(document["model_simulation_output"]["dir_path"])
+        documents[-1]["listing"] = sorted(entry.name for entry in output_dir.iterdir())
+        raise RuntimeError("stopped before the run")
+
+    monkeypatch.setattr(Model, "from_config", from_config)
+    return documents
+
+
+class TestModflowCandidate:
+    @pytest.mark.unit
+    def test_the_modflow_values_of_the_candidate_reach_its_document(
+        self, modflow_document, tmp_path
+    ):
+        output_dir = tmp_path / "evaluation"
+        output_dir.mkdir()
+
+        document = _document_for(
+            modflow_document.document,
+            "arn",
+            modflow_document.parameters,
+            str(output_dir),
+            modflow=modflow_document.catalog,
+        )
+
+        layer = document["modflow"]["layers"][0]
+        assert layer["specific_yield"] == 0.2
+        assert Path(layer["horizontal_conductivity"]["table"]) == output_dir / "kh_layer1.tbl"
+        assert (output_dir / "kh_layer1.tbl").read_text("utf8").split() == ["1", "0.5", "2", "0.25"]
+        # The nine parameters of the model are the only ones of its section.
+        assert sorted(document["model_calibration_parameters"]) == sorted(
+            ["alpha", "b", "w_1", "w_2", "w_3", "rcd", "f", "alpha_gw", "x"]
+        )
+        ModelConfigurationFileV1.model_validate(document)
+        # The calibrated document is copied, never patched.
+        assert modflow_document.document["modflow"]["layers"][0]["specific_yield"] == 0.15
+
+    @pytest.mark.unit
+    def test_without_a_catalog_the_section_is_carried_unchanged(self, modflow_document, tmp_path):
+        document = _document_for(
+            modflow_document.document, "arn", modflow_document.parameters, str(tmp_path)
+        )
+
+        assert document["modflow"] == modflow_document.document["modflow"]
+
+    @pytest.mark.unit
+    def test_an_evaluation_runs_and_records_its_modflow_values(
+        self, dataset, modflow_document, model_spy
+    ):
+        space = decision_space(
+            bounds={SPECIFIC_YIELD: (0.05, 0.3)}, fixed={KH: 0.25}, modflow=modflow_document.catalog
+        )
+        context = EvaluationContext(
+            document=modflow_document.document,
+            base_dir=dataset.configuration.base_dir,
+            variable="arn",
+            observed=read_series(dataset.observed_path),
+            spinup_steps=0,
+            temp_dir=str(dataset.temp_dir),
+            evaluations_dir=str(dataset.evaluations_dir),
+            space=space,
+            modflow=modflow_document.catalog,
+        )
+
+        value = evaluate([*dataset.vector.tolist(), 0.2], context)
+
+        assert value == INADMISSIBLE_OBJECTIVE
+        (record,) = dataset.records()
+        assert record["error"] == "RuntimeError: stopped before the run"
+        assert record["parameters"][SPECIFIC_YIELD] == 0.2
+        assert record["parameters"][KH] == 0.25
+        (document,) = model_spy
+        assert document["modflow"]["layers"][0]["specific_yield"] == 0.2
+        # The rewritten table lives in the evaluation directory, which is
+        # removed with everything the run wrote.
+        assert document["listing"] == ["kh_layer1.tbl"]
+        assert list(dataset.temp_dir.iterdir()) == []
+
+    @pytest.mark.unit
+    def test_the_best_candidate_is_run_with_its_modflow_values(
+        self, dataset, modflow_document, model_spy, tmp_path
+    ):
+        output_dir = tmp_path / "best"
+        output_dir.mkdir()
+
+        with pytest.raises(RuntimeError, match="stopped before the run"):
+            simulate_best(
+                modflow_document.document,
+                dataset.configuration.base_dir,
+                modflow_document.parameters,
+                str(output_dir),
+                "arn",
+                modflow=modflow_document.catalog,
+            )
+
+        (document,) = model_spy
+        layer = document["modflow"]["layers"][0]
+        assert layer["specific_yield"] == 0.2
+        assert Path(layer["horizontal_conductivity"]["table"]) == output_dir / "kh_layer1.tbl"
