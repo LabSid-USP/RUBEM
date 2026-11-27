@@ -365,11 +365,25 @@ def calibrate(
     ] = None,
     bound: Annotated[
         list[str] | None,
-        typer.Option("--bound", help="Narrow the range of one parameter: NAME=MIN:MAX."),
+        typer.Option(
+            "--bound",
+            help=(
+                "Narrow the range of one parameter: NAME=MIN:MAX. A MODFLOW parameter "
+                "(modflow.layers.<n>.specific_yield, modflow.layers.<n>.specific_storage, "
+                "modflow.layers.<n>.kh.<class>, modflow.river.<i>.conductance) is searched "
+                "only when bounded; see the calibration page of the documentation."
+            ),
+        ),
     ] = None,
     fix: Annotated[
         list[str] | None,
-        typer.Option("--fix", help="Keep one parameter out of the search: NAME=VALUE."),
+        typer.Option(
+            "--fix",
+            help=(
+                "Keep one parameter out of the search: NAME=VALUE; MODFLOW parameters "
+                "use the names of --bound."
+            ),
+        ),
     ] = None,
     stations: Annotated[
         str | None,
